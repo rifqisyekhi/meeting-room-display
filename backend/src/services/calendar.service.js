@@ -145,7 +145,7 @@ function toDashboardEvent(event, now, timeZone) {
 async function getUpcomingEvents(calendarId, options = {}) {
   const now = options.now || new Date();
   const timeZone = options.timeZone || process.env.CALENDAR_TIME_ZONE || DEFAULT_TIME_ZONE;
-  const end = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+  const end = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
   const response = await calendar.events.list({
     calendarId,
     timeMin: now.toISOString(),
