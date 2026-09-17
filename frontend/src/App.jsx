@@ -320,7 +320,7 @@ function RoomPanel({ room, todayEvents, upcomingEvents, now, demo }) {
               ))}
             </ul>
           ) : (
-            <p className="queue__empty">Tidak ada jadwal dalam 7 hari ke depan.</p>
+            <p className="queue__empty">Tidak ada jadwal mendatang.</p>
           )}
         </aside>
       </div>
