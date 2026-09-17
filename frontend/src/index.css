@@ -1,14 +1,80 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
 
 :root {
-  font-family: 'DM Sans', Arial, sans-serif;
-  color: #f5f8ff;
-  background: #07162c;
+  /* ---- palet -------------------------------------------------------- */
+  --c-blue:  #104b9b;  /* biru aksen        */
+  --c-mid:   #0f326e;  /* biru gelap        */
+  --c-deep:  #0f244f;  /* biru paling gelap */
+  --c-paper: #f0eaee;  /* putih hangat      */
+  /* Empat status timeline, masing-masing satu warna khas. Dua yang bertanda
+     "fix" ditetapkan manual dan menjadi jangkar; dua lainnya dipilih agar
+     terbedakan dari keduanya:
+
+       tersedia         hijau  #80ED99  hue 134°   (fix)
+       sedang digunakan emas   #EDAE49  hue  37°   (fix)
+       terjadwal        biru   #64B5F6  hue 207°
+       selesai          abu-biru #9EB3C2 hue 205° (lihat catatan)
+
+     Biru dan emas hampir sama terangnya (1.13 : 1) tapi berjarak 170° pada
+     roda warna — praktis komplementer, jadi tetap mudah dipisahkan.
+
+     CATATAN: --c-slate dan --c-sky saat ini berjarak hue hanya 2° dengan
+     rasio terang 1.02 : 1, jadi sel "selesai" dan "terjadwal" praktis tidak
+     terbedakan di timeline. Salah satu dari keduanya perlu pindah hue. */
+  --c-green: #80ed99; /* fix */
+  --c-sky:   #64b5f6;
+  --c-slate: #9eb3c2;
+
+  /* ---- peran -------------------------------------------------------- */
+  /* Kartu tanpa garis tepi: pemisahnya beda terang + bayangan. */
+  --bg: var(--c-deep);
+  --surface: var(--c-mid);   /* selisih 1.23 : 1 terhadap latar */
+
+  --line: #104188;   /* divider di dalam kartu */
+  /* Sel kosong lebih GELAP dari kartu, bukan lebih terang: satu-satunya
+     arah yang sekaligus terlihat di kartu dan menyisakan kontras cukup
+     untuk keempat warna sel yang duduk di atasnya. */
+  --track: #0f2d63;
+  --past: var(--c-slate);  /* 5.8 : 1 di atas sel kosong */
+
+  --text: var(--c-paper);  /* 10.4 : 1 di atas kartu */
+  --text-muted: #babecf;   /*  6.7 : 1 */
+  --text-faint: #929db8;   /*  4.6 : 1 */
+
+  --free: var(--c-green);  /* 8.5 : 1 */
+  --busy: #edae49; /* fix */   /* 6.3 : 1 */
+  --scheduled: var(--c-sky);   /* 6.0 : 1 di atas sel kosong */
+  /* Netral, mengikuti warna teks. Amber lama hanya berjarak 1.35 : 1 dari
+     emas --busy, sehingga penanda tenggelam di atas sel yang sedang dipakai. */
+  --marker: var(--c-paper);
+
+  --warn-bg: #f7e2b4;
+  --warn-text: var(--c-deep);  /* 11.9 : 1 */
+
+  --on-tone: var(--c-deep);
+
+  --action: var(--c-blue);
+  --action-text: var(--c-paper);  /* 7.1 : 1 */
+
+  --shadow: 0 .5vh 1.6vh rgba(4, 12, 28, .5);
+
+  color-scheme: dark;
+  font-family: Poppins, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  color: var(--text);
+  background: var(--bg);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
 }
 
 * { box-sizing: border-box; }
-body { margin: 0; min-width: 320px; min-height: 100vh; }
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  overflow-x: hidden;
+  background: var(--bg);
+}
+
 button, input { font: inherit; }

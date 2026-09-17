@@ -1,34 +1,776 @@
-@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Inter:wght@400;500;600;700;800&display=swap');
+/* ==========================================================================
+   Kalender Ruang Rapat — dark minimal theme.
 
-/* Replaces the temporary text icon with the supplied Kemnaker mark. */
-.brand .brand-mark { display: block; width: 3.35vw; height: 3.35vw; object-fit: contain; border-radius: 0; background: transparent; filter: brightness(0) invert(1); }
+   Two rules shape everything here:
+   1. Colour carries STATUS, not identity. Green = free, red = in use, and
+      both rooms use the same scale. Rooms are told apart by their name.
+   2. The whole board is one screen. `.display` is a flex column pinned to
+      100vh, so nothing ever scrolls on the signage panel.
+   ========================================================================== */
 
-/* These use !important because the original screen CSS is intentionally compact. */
-.booking > div { display: flex !important; flex-direction: column; align-items: center; gap: .6vh; }
-.booking h3, .booking svg, .booking a { grid-column: auto !important; grid-row: auto !important; }
-.booking svg { width: 124px; height: 124px; }
-.booking a { justify-self: auto !important; }
-.summary > .summary-today, .summary > .summary-year { display: block !important; }
-.summary-today > div { display: grid !important; grid-template-columns: repeat(4, minmax(0, 1fr)) !important; gap: .65vw; margin-top: .55vh; }
-.summary-year { margin-top: .8vh; padding-top: .8vh; border-top: 1px solid #345877; }
-.summary-year > div:first-child { display: flex !important; justify-content: space-between; align-items: baseline; gap: .7vw; }
-.summary-year > div:last-child { display: grid !important; grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: .65vw; margin-top: .45vh; }
-.summary article { min-width: 0; padding: .35vh .25vw; }
-.summary article b { font-size: 1.15vw; white-space: nowrap; }
-.summary article span { font-size: .61vw; }
-.summary-year p { color: #b9cbe0; font-size: .62vw; text-align: right; }
+.display {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5vh;
+  height: 100vh;
+  padding: 1.9vh 1.9vw 2.9vh;
+}
 
-/* Footer refinements: compact QR block and year-to-date calendar summary. */
-.booking > div { grid-template-columns: 100px auto; row-gap: .65vh; justify-content: center; }
-.booking svg { grid-row: auto; }
-.booking a { justify-self: start; }
-.summary { display: grid; gap: .8vh; }
-.summary > div { display: block; }
-.summary-today > div { display: grid; grid-template-columns: repeat(4, 1fr); gap: .65vw; }
-.summary-year { padding-top: .8vh; border-top: 1px solid #345877; }
-.summary-year > div:first-child { display: flex; align-items: baseline; justify-content: space-between; gap: .7vw; }
-.summary-year p { color: #b9cbe0; font-size: .62vw; }
-.summary-year > div:last-child { display: grid; grid-template-columns: repeat(3, 1fr); gap: .65vw; margin-top: .45vh; }
-.summary-year article { min-height: 4.9vh; }
+.display h1,
+.display h2,
+.display h3,
+.display p {
+  margin: 0;
+}
 
-:root { color: #f6f9ff; background: #001b3b; } body { overflow-x: hidden; }.calendar-display { min-height: 100vh; padding: 0 1.8vw 2.1vh; background: radial-gradient(circle at 55% 0%, #0b4d80 0, transparent 38%), linear-gradient(125deg, #031a39, #003e58 54%, #061c3d); font-family: Inter, sans-serif; }.calendar-display h1,.calendar-display h2,.calendar-display h3,.calendar-display p { margin: 0; } header { min-height: 12.6vh; display: grid; grid-template-columns: 1fr 1.7fr 1fr; align-items: center; border-bottom: 1px solid #276391; }.brand { display:flex; gap: .7vw; align-items:center; }.brand-mark { display:grid; place-items:center; width:3.35vw; height:3.35vw; border-radius:.8vw; background:#f8fafc; color:#00365c; font-size:2.2vw; }.brand strong { display:block; font-size:1.45vw; }.brand span { font-size:.85vw; color:#d4e5f5; }.heading { text-align:center; }.heading h1 { font-family:'Barlow Condensed',sans-serif; font-size:3vw; letter-spacing:.05em; }.heading p { margin-top:.55vh; color:#d8e5f2; font-size:1.05vw; }.heading i { display:inline-block; height:1.6vh; border-left:1px solid #82a5c2; margin:0 1.1vw -.35vh; }.values { display:flex; align-items:center; justify-content:flex-end; gap:1.25vw; text-align:right; }.values strong { font-size:1.65vw; }.values span { font-size:.72vw; font-weight:800; line-height:.95; }.panels { display:grid; grid-template-columns:1fr 1fr; gap:1.2vw; padding-top:2.1vh; }.room-panel { padding:1.25vw; border:1px solid; border-radius:1.05vw; background:linear-gradient(150deg,rgba(2,25,56,.89),rgba(1,30,51,.65)); box-shadow:0 .6vw 1.5vw #00132e88; }.room-panel.red { border-color:#e4343a; --tone:#ed4247; --tone-soft:#85333b; }.room-panel.green { border-color:#66ad50; --tone:#66cb5a; --tone-soft:#3f8d45; }.panel-title { height:8.1vh; display:flex; align-items:center; gap:1.1vw; }.room-icon { display:grid; place-items:center; width:3.6vw; height:3.6vw; border-radius:50%; border:2px solid var(--tone); background:color-mix(in srgb,var(--tone) 37%,transparent); box-shadow:0 0 0 .18vw color-mix(in srgb,var(--tone) 18%,transparent); font-size:2.15vw; }.panel-title h2 { font-size:1.48vw; }.panel-title b { display:inline-block; margin-top:.55vh; padding:.45vh .7vw; border-radius:.25vw; background:var(--tone); font-size:.79vw; }.panel-content { display:grid; grid-template-columns:1.65fr 1fr; gap:1vw; min-height:32.5vh; }.current-card,.upcoming { border-top:1px solid #5c7898; padding-top:2.1vh; }.current-card { border:1px solid var(--tone); border-radius:.9vw; padding:2.2vh 1.7vw; background:#001a35ad; text-align:left; display:flex; flex-direction:column; }.section-label { color:var(--tone); font-size:1vw; font-weight:800; }.current-card h3 { margin-top:1.2vh; font-size:1.36vw; line-height:1.18; }.time { margin-top:2.1vh!important; font-size:1.35vw; font-weight:700; }.meeting-detail { display:flex; gap:1.8vw; margin-top:2.1vh; padding:1.25vh 0; border-bottom:1px solid #52718b; color:#bdcce0; font-size:.73vw; }.meeting-detail span { display:grid; gap:.45vh; }.meeting-detail strong { color:#fff; font-size:1vw; }.remaining { margin-top:auto; text-align:center; }.remaining p,.booking-next p { color:var(--tone); font-weight:800; font-size:.85vw; }.countdown { display:block; margin-top:.35vh; color:var(--tone); font:700 3.25vw/1 'Barlow Condensed',sans-serif; letter-spacing:.07em; }.available-symbol { display:grid; place-items:center; width:5.7vw; height:5.7vw; margin:1.5vh auto; border-radius:50%; background:color-mix(in srgb,var(--tone) 37%,transparent); color:#fff; font-size:3.1vw; }.available-title { color:var(--tone); font-size:1.25vw; font-weight:800; text-align:center; }.empty-copy { margin-top:.9vh!important; font-size:1vw; text-align:center; }.booking-next { margin-top:auto; padding-top:1.7vh; border-top:1px solid #52718b; text-align:center; }.booking-next strong,.booking-next span,.booking-next small { display:block; margin-top:.5vh; }.booking-next strong { font-size:1.25vw; }.booking-next span { font-weight:700; font-size:.9vw; }.booking-next small { font-size:.72vw; color:#c7d7e9; }.upcoming { padding-left:.35vw; }.upcoming h3,.timeline h3,footer h3 { font-size:1vw; }.upcoming-item { display:grid; grid-template-columns:2.65vw 1fr; gap:.65vw; align-items:center; padding:1.1vh .6vw; margin-top:.7vh; border:1px solid #3a5674; border-radius:.65vw; background:#102a47a3; }.calendar-icon { display:grid; place-items:center; height:2.65vw; border-radius:.35vw; background:var(--tone-soft); font-size:1.6vw; }.upcoming-item small,.upcoming-item p { display:block; color:#d3dfed; font-size:.66vw; }.upcoming-item strong { display:block; margin:.32vh 0; font-size:.9vw; }.no-schedule { margin-top:2vh; color:#b6c9dc; font-size:.85vw; }.timeline { margin-top:1vh; padding:1.2vh 0 .3vh; border-radius:.75vw; background:#001a36a8; }.timeline h3 { margin-left:.7vw; }.timeline-hours { display:flex; justify-content:space-between; padding:.75vh .75vw .4vh; font-size:.64vw; }.timeline-track { position:relative; height:1.55vh; margin:0 .75vw; border-radius:2vw; background:#52657c; overflow:visible; }.block { position:absolute; top:0; bottom:0; min-width:2px; background:#407fe8; }.block.red { background:#e44145; }.block.green { background:#54a95a; }.block.active { background:#e73e3f; }.timeline-track b { position:absolute; top:100%; width:0; height:0; border-left:.45vw solid transparent; border-right:.45vw solid transparent; border-top:.65vw solid #ffc331; transform:translateX(-50%); }.legend { display:flex; gap:1.6vw; padding:.85vh .75vw 0; font-size:.64vw; }.legend span::before { content:''; display:inline-block; width:.7vw; height:.7vw; margin-right:.35vw; background:#407fe8; border-radius:.1vw; }.legend .active::before { background:#e44145; }.legend .green::before,.legend .done::before { background:#54a95a; }.api-error { text-align:center; padding:.7vh; color:#fff0be; font-size:.85vw; } footer { display:grid; grid-template-columns:1.15fr 1.05fr 1.6fr; gap:1vw; margin-top:1.9vh; padding:1.25vw 1.5vw; border:1px solid #244f78; border-radius:.9vw; background:#001731b8; } footer h3 { margin-bottom:.8vh; }.information p { margin:.65vh 0; font-size:.76vw; color:#dce8f4; }.booking { border-inline:1px solid #3a668a; text-align:center; }.booking > div { display:grid; grid-template-columns:auto 100px 1fr; align-items:center; column-gap:.75vw; max-width:390px; margin:auto; }.booking h3 { grid-column:1/-1; }.booking svg { grid-row:2/4; background:white; padding:.28vw; }.booking a { padding:.45vw; border-radius:.25vw; background:#2179e7; color:white; text-decoration:none; font-size:.78vw; font-weight:700; }.booking p { font-size:.68vw; color:#d1e0ee; }.summary > div { display:grid; grid-template-columns:repeat(4,1fr); gap:.65vw; }.summary article { min-height:6.2vh; display:grid; place-content:center; text-align:center; border:1px solid #345877; border-radius:.55vw; }.summary b { font-size:1.35vw; }.summary span { margin-top:.3vh; font-size:.66vw; color:#d8e5f2; } @media (max-width:900px) { .calendar-display { padding:0 16px 20px; }.panels,footer { grid-template-columns:1fr; }.heading h1 { font-size:28px; }.brand strong,.panel-title h2 { font-size:17px; }.room-panel { padding:16px; }.panel-content { min-height:330px; }.values { display:none; } .brand-mark { width:42px;height:42px; }.booking { border:0;border-block:1px solid #3a668a;padding:12px 0; } }
+.icon {
+  width: 1em;
+  height: 1em;
+  flex: none;
+}
+
+/* Poppins ships no tabular-figure feature — `font-variant-numeric` and the
+   `tnum` feature are both inert in it, and its digits differ by up to 30% of
+   the font size. Anything that ticks gets its digits boxed to a fixed width
+   by hand, otherwise the clock and countdown jitter every second. */
+.tnum {
+  display: inline-block;
+  width: .62em;
+  text-align: center;
+}
+
+/* Small uppercase label that introduces a block. */
+.eyebrow {
+  display: flex;
+  align-items: center;
+  gap: .38vw;
+  font-size: .63vw;
+  font-weight: 600;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* --------------------------------------------------------------- top bar */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5vw;
+  padding-bottom: 1.5vh;
+  border-bottom: 1px solid var(--line);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: .85vw;
+}
+
+.brand__mark {
+  width: 2.9vw;
+  height: 2.9vw;
+  flex: none;
+  background: var(--text);
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+}
+
+.brand strong {
+  display: block;
+  font-size: 1.25vw;
+  font-weight: 600;
+  letter-spacing: -.01em;
+}
+
+.brand span {
+  display: block;
+  margin-top: .25vh;
+  font-size: .78vw;
+  color: var(--text-muted);
+}
+
+.clock {
+  text-align: right;
+}
+
+.clock__date {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: .4vw;
+  font-size: .82vw;
+  color: var(--text-muted);
+  text-transform: capitalize;
+}
+
+.clock__time {
+  display: block;
+  margin-top: .35vh;
+  font-size: 2.3vw;
+  font-weight: 600;
+  line-height: 1.05;
+  letter-spacing: -.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.clock__time small {
+  margin-left: .45vw;
+  font-size: .8vw;
+  font-weight: 500;
+  color: var(--text-faint);
+}
+
+/* A missed refresh is not a fault. It gets this quiet line first, and only
+   escalates to `.notice` once the data is genuinely stale — see
+   STALE_ALERT_AFTER in App.jsx. */
+.sync-note {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .45vw;
+  font-size: .72vw;
+  color: var(--text-faint);
+}
+
+/* A single soft block rather than outlined text: reads as one component
+   instead of a warning frame floating on the navy. */
+.notice {
+  padding: 1.1vh 1.2vw;
+  border-radius: .45vw;
+  background: var(--warn-bg);
+  color: var(--warn-text);
+  font-size: .88vw;
+  font-weight: 500;
+  text-align: center;
+}
+
+/* ----------------------------------------------------------- room panels */
+
+.panels {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1vw;
+}
+
+.room {
+  --tone: var(--free);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 1.7vh 1.5vw;
+  border-radius: .8vw;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.room.is-busy {
+  --tone: var(--busy);
+}
+
+.room__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1vw;
+  padding-bottom: 1.4vh;
+  border-bottom: 1px solid var(--line);
+}
+
+.room__title {
+  display: flex;
+  align-items: center;
+  gap: .8vw;
+  min-width: 0;
+}
+
+/* Amber, never a status colour: this must not be mistaken for the room's
+   own state. Disappears with DEMO_ROOM = null in App.jsx. */
+.demo-badge {
+  padding: .4vh .65vw;
+  border-radius: .3vw;
+  background: var(--marker);
+  color: var(--on-tone);
+  font-size: .64vw;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.room__head h2 {
+  font-size: 1.45vw;
+  font-weight: 700;
+  letter-spacing: -.005em;
+}
+
+/* Both states are outlined and tinted by --tone, so the pill matches the
+   badge and the countdown beside it. This used to be a neutral solid block
+   because the old red --busy was too dark to read as small text; amber and
+   green both clear 4.5:1 on the card, so the colour can carry it now. */
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: .45vw;
+  padding: .6vh .85vw;
+  border: 1px solid var(--tone);
+  border-radius: 10vw;
+  font-size: .78vw;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--tone);
+}
+
+.status i {
+  width: .45vw;
+  height: .45vw;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* Only the occupied room breathes — it is the one thing still changing. */
+.room.is-busy .status i {
+  animation: pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  50% { opacity: .25; }
+}
+
+.room__body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 1.2vw;
+  padding: 1.8vh 0;
+}
+
+/* --------------------------------------------------- current / next slot */
+
+.slot {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.slot__lead {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 1vw;
+  align-items: start;
+}
+
+.slot__badge {
+  display: grid;
+  place-items: center;
+  width: 3.6vw;
+  height: 3.6vw;
+  border-radius: 50%;
+}
+
+.slot__badge svg {
+  width: 1.7vw;
+  height: 1.7vw;
+}
+
+.room.is-busy .slot__badge {
+  background: var(--busy);
+  color: var(--on-tone);
+}
+
+.room.is-free .slot__badge {
+  background: var(--free);
+  color: var(--on-tone);
+}
+
+.slot__headline {
+  min-width: 0;
+}
+
+/* Sized to clear the large-text contrast threshold: the status colours pass
+   3:1 but not 4.5:1, so this line must never shrink below ~19px bold. */
+.slot__state {
+  font-size: 1vw;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--tone);
+}
+
+.slot__headline h3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-top: .8vh;
+  font-size: 1.8vw;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -.015em;
+}
+
+.slot__pic {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-top: 1vh;
+  font-size: .9vw;
+  color: var(--text-muted);
+}
+
+.slot__time {
+  display: flex;
+  align-items: center;
+  gap: .42vw;
+  margin-top: .9vh;
+  font-size: .95vw;
+  font-weight: 500;
+}
+
+/* No nested card here: just a hairline divider and left-aligned text, so
+   the foot of the card does not read as a box inside a box. */
+.slot__foot {
+  margin-top: auto;
+  padding-top: 1.6vh;
+  border-top: 1px solid var(--line);
+}
+
+.slot__foot strong {
+  display: block;
+  margin-top: .55vh;
+  font-size: 1.35vw;
+  font-weight: 600;
+  letter-spacing: -.01em;
+}
+
+.slot__foot strong.is-empty {
+  font-weight: 500;
+  color: var(--text-faint);
+}
+
+.slot__next {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-top: .5vh;
+  font-size: .9vw;
+  color: var(--text-muted);
+}
+
+/* Specificity note: must out-rank `.slot__foot strong`, which would
+   otherwise shrink the meter to the size of ordinary bold text. */
+.slot__foot .countdown {
+  display: block;
+  margin-top: .4vh;
+  font-size: 2.3vw;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -.02em;
+  color: var(--tone);
+}
+
+/* ------------------------------------------------------------ queue list */
+
+.queue {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  padding-left: 1.2vw;
+  border-left: 1px solid var(--line);
+}
+
+.queue ul {
+  margin: .6vh 0 0;
+  padding: 0;
+  list-style: none;
+  overflow: hidden;
+}
+
+.queue li {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: .6vw;
+  padding: 1.1vh 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.queue li:last-child {
+  border-bottom: 0;
+}
+
+.queue__time {
+  font-size: .88vw;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.queue__body {
+  min-width: 0;
+}
+
+.queue__body strong {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: .88vw;
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.queue__body small {
+  display: block;
+  margin-top: .3vh;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: .76vw;
+  color: var(--text-faint);
+}
+
+.queue__empty {
+  margin-top: 1.4vh;
+  font-size: .88vw;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+/* -------------------------------------------------------------- timeline */
+
+.timeline {
+  padding-top: 1.4vh;
+  border-top: 1px solid var(--line);
+}
+
+/* Hour boxes that fill like a bucket: the box marks the hour, the tint inside
+   marks the minutes actually booked — see hourFills(). */
+.timeline__strip {
+  position: relative;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: .28vw;
+  margin-top: 3.1vh;
+}
+
+.timeline__cell {
+  /* Tebal: pada 1.15vh strip hanya 12px di 1080p dan warna sel yang lebih
+     redup (abu & biru) sulit dikenali dari jarak beberapa meter. */
+  position: relative;
+  height: 1.9vh;
+  border-radius: .18vw;
+  background: var(--track);
+  overflow: hidden;
+}
+
+/* Diisi dari kiri, bukan dari bawah: posisi mendatar di dalam kotak sekaligus
+   menyatakan MENIT KE BERAPA rapatnya, bukan cuma seberapa banyak. */
+.timeline__fill {
+  position: absolute;
+  inset-block: 0;
+  /* Rapat satu-dua menit tetap harus terlihat, tapi jangan dilebih-lebihkan. */
+  min-width: 2px;
+}
+
+.timeline__fill.is-live { background: var(--busy); }
+.timeline__fill.is-next { background: var(--scheduled); }
+.timeline__fill.is-done { background: var(--past); }
+
+/* Label sits above the strip so it never collides with the hour ticks. */
+.timeline__now {
+  position: absolute;
+  top: -.55vh;
+  bottom: -.55vh;
+  width: .16vw;
+  min-width: 3px;
+  border-radius: 2px;
+  background: var(--marker);
+  transform: translateX(-50%);
+}
+
+.timeline__now span {
+  position: absolute;
+  bottom: calc(100% + .4vh);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: .3vh .5vw;
+  border-radius: .28vw;
+  background: var(--marker);
+  color: var(--on-tone);
+  font-size: .74vw;
+  font-weight: 700;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+
+.timeline__ticks {
+  display: flex;
+  justify-content: space-between;
+  margin-top: .95vh;
+  font-size: .8vw;
+  font-weight: 500;
+  color: var(--text-faint);
+}
+
+.timeline__legend {
+  display: flex;
+  gap: 1.5vw;
+  margin-top: 1.2vh;
+  font-size: .8vw;
+  font-weight: 500;
+  color: var(--text-faint);
+}
+
+.timeline__legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: .36vw;
+}
+
+/* Squares, matching the cells they explain. */
+.timeline__legend span::before {
+  content: '';
+  width: .62vw;
+  height: .62vw;
+  border-radius: .12vw;
+}
+
+.timeline__legend .is-live::before { background: var(--busy); }
+.timeline__legend .is-next::before { background: var(--scheduled); }
+.timeline__legend .is-done::before { background: var(--past); }
+
+/* ---------------------------------------------------------------- footer */
+
+.footer {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2.4vw;
+  padding: 2vh 2vw;
+  border-radius: .8vw;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.footer > * + * {
+  padding-left: 2.4vw;
+  border-left: 1px solid var(--line);
+}
+
+/* Dipusatkan di kolomnya. Padding kanan menyeimbangkan padding kiri yang
+   diberikan aturan pemisah `.footer > * + *` — tanpa itu, area konten sudah
+   tergeser ke kanan sebelum `justify-content` bekerja, sehingga isinya tetap
+   tampak melenceng meski secara teknis "terpusat". */
+.booking {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.3vw;
+  padding-right: 2.4vw;
+}
+
+/* Sized in vw so the code scales with the screen instead of staying 124px. */
+.booking__qr {
+  width: 6.2vw;
+  padding: .4vw;
+  border-radius: .45vw;
+  background: var(--c-paper);
+  line-height: 0;
+}
+
+.booking__qr svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.booking a {
+  display: inline-block;
+  margin-top: 1vh;
+  padding: .7vh .85vw;
+  border-radius: .4vw;
+  background: var(--action);
+  color: var(--action-text);
+  font-size: .88vw;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+/* Prayer times sit in columns, not rows: the footer is wide and shallow.
+   Deliberately kept in neutral text colours — the status palette (amber,
+   green, blue) means room availability here, and reusing it would suggest
+   the prayer panel is saying something about the rooms. */
+.prayer {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+}
+
+.prayer ul {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: .5vw;
+  margin: 1.3vh 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.prayer li {
+  display: flex;
+  flex-direction: column;
+  gap: .35vh;
+  min-width: 0;
+  color: var(--text-faint);
+}
+
+.prayer li span {
+  font-size: .72vw;
+}
+
+.prayer li strong {
+  font-size: 1.05vw;
+  font-weight: 600;
+  letter-spacing: -.01em;
+}
+
+/* The upcoming prayer is the only one anyone needs right now. */
+.prayer li.is-next {
+  color: var(--text);
+}
+
+.prayer li.is-next strong {
+  font-weight: 700;
+}
+
+/* Stated openly so nobody has to guess whether these are the official
+   ministry times or a calculated approximation — the two differ by a few
+   minutes, which matters for prayer. */
+.prayer__source {
+  margin-top: 1.1vh;
+  font-size: .68vw;
+  color: var(--text-faint);
+}
+
+/* Historical tallies: one sentence each, numbers emphasised inline. */
+.recap {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1.4vh;
+  min-width: 0;
+}
+
+.recap p {
+  margin-top: .4vh;
+  font-size: 1.02vw;
+  line-height: 1.35;
+  color: var(--text-muted);
+}
+
+.recap b {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.notes {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1.5vw;
+  margin-top: 1.1vh;
+  font-size: .78vw;
+  color: var(--text-faint);
+}
+
+.notes span + span {
+  padding-left: 1.3vw;
+  border-left: 1px solid var(--line);
+}
+
+/* -------------------------------------------- narrow / portrait fallback */
+
+@media (max-width: 900px) {
+  .display {
+    height: auto;
+    min-height: 100vh;
+    gap: 16px;
+    padding: 18px 16px 26px;
+  }
+
+  .topbar { flex-direction: column; align-items: flex-start; gap: 12px; }
+  .clock { text-align: left; }
+  .clock__date { justify-content: flex-start; font-size: 13px; }
+  .clock__time { font-size: 34px; }
+  .clock__time small { font-size: 15px; }
+  .brand__mark { width: 40px; height: 40px; }
+  .brand strong { font-size: 18px; }
+  .brand span { font-size: 13px; }
+  .notice { font-size: 13px; padding: 10px 12px; border-radius: 8px; }
+  .sync-note { font-size: 12px; gap: 6px; }
+
+  .panels, .footer { grid-template-columns: 1fr; }
+  .room { padding: 16px; border-radius: 12px; }
+  .room__body { grid-template-columns: 1fr; gap: 18px; padding: 16px 0; }
+  .room__head h2 { font-size: 19px; }
+  .room__title { gap: 10px; }
+  .demo-badge { font-size: 11px; padding: 3px 7px; }
+  .status { font-size: 12px; padding: 5px 10px; }
+  .status i { width: 8px; height: 8px; }
+  .eyebrow { font-size: 11px; gap: 6px; }
+
+  .slot__badge { width: 52px; height: 52px; }
+  .slot__badge svg { width: 24px; height: 24px; }
+  .slot__state { font-size: 13px; }
+  .slot__headline h3 { font-size: 26px; }
+  .slot__time, .slot__pic { font-size: 14px; }
+  .slot__foot .countdown { font-size: 34px; }
+  .slot__foot strong { font-size: 20px; }
+  .slot__next { font-size: 14px; }
+
+  .queue { padding: 14px 0 0; border-left: 0; border-top: 1px solid var(--line); }
+  .queue__time, .queue__body strong { font-size: 14px; }
+  .queue__body small, .queue__empty { font-size: 13px; }
+
+  .timeline__ticks, .timeline__legend { font-size: 13px; }
+  .timeline__cell { height: 15px; }
+  .timeline__strip { margin-top: 30px; gap: 4px; }
+  .timeline__legend { gap: 14px; }
+  .timeline__legend span::before { width: 10px; height: 10px; }
+
+  .footer { padding: 16px; border-radius: 12px; }
+  .footer { gap: 16px; padding: 16px; }
+  .footer > * + * {
+    padding: 16px 0 0;
+    border-left: 0;
+    border-top: 1px solid var(--line);
+  }
+  .booking { gap: 14px; }
+
+  .booking__qr { width: 120px; padding: 6px; border-radius: 8px; }
+  .prayer ul { gap: 10px; margin-top: 12px; }
+  .prayer li span { font-size: 12px; }
+  .prayer li strong { font-size: 16px; }
+  .prayer__source { font-size: 12px; margin-top: 10px; }
+  .booking a { font-size: 14px; }
+  .recap p { font-size: 14px; }
+  .timeline__now span { font-size: 11px; padding: 2px 5px; }
+  .timeline__legend { margin-top: 30px; }
+
+  .notes { justify-content: flex-start; gap: 8px 14px; font-size: 13px; }
+  .notes span + span { padding-left: 0; border-left: 0; }
+}
