@@ -37,8 +37,12 @@ const STALE_ALERT_AFTER = 3
 
    A card fed by this always carries a DEMO badge: a public board must never
    show a meeting that is not actually happening, or people will walk away
-   from a room that is free. */
-const DEMO_ROOM = 'ruangKonsultasi'
+   from a room that is free.
+
+   MUST stay null in production. The demo does not merge with the calendar,
+   it REPLACES that room's entire day, so real bookings would go unseen and
+   the footer totals would count invented meetings. */
+const DEMO_ROOM = null
 
 /* Times are fixed once at mount, not recomputed per render — otherwise they
    would slide forward every second and the countdown would never move. */
