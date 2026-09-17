@@ -188,7 +188,7 @@ function summarizeEvents(events, days, now, timeZone) {
   return {
     totalMeeting: allEvents.length,
     totalDurationMinutes,
-    utilization: Math.round((totalDurationMinutes / Math.max(1, days * 12 * 2)) * 100),
+    utilization: Math.round((totalDurationMinutes / Math.max(1, days * 12 * 60 * 2)) * 100),
   };
 }
 
