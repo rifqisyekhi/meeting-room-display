@@ -1,20 +1,26 @@
-/* ===== DATA CONTOH ====================================================
-   Dashboard ini BELUM tersambung ke backend: tidak ada satu pun panggilan
-   jaringan di berkas ini. Isinya dikarang — tetapi dikarang mengikuti
-   sistem yang sebenarnya, supaya tidak menyesatkan saat ditinjau:
+/* ===== SUMBER DATA ===================================================
+   Dashboard ini membaca Google Calendar lewat API yang sama dengan papan
+   TV. Tidak ada lagi data karangan di berkas ini.
 
-     - hanya dua ruangan yang benar-benar ada di Biro Keuangan dan BMN
-     - kolom Pemesan diisi NAMA BAGIAN (TU, AKLAP, PTUK, PA, BMN), karena
-       formulir booking memang tidak pernah meminta nama orang
-     - agendanya memakai contoh yang sama dengan papan TV
+   Yang PERLU diketahui soal batasnya:
 
-   Tanggal dan status dihitung dari jam saat halaman dibuka, bukan ditulis
-   mati. Versi sebelumnya mematok 2026-09-22 sehingga dashboard tampak
-   basi begitu tanggal berganti.
-
-   Kapasitas dan fasilitas ruangan masih karangan: Google Calendar tidak
-   menyimpan keduanya, jadi nanti perlu sumber data tersendiri.
+     - Service account memakai scope calendar.readonly, dan booking masuk
+       lewat Google Form. Jadi dashboard hanya membaca. Tombol tambah,
+       ubah, dan hapus rapat disembunyikan, bukan dimatikan diam-diam.
+     - API tidak menyimpan jumlah peserta maupun deskripsi rapat, jadi
+       kolom itu dikosongkan, bukan diisi angka karangan.
+     - Kapasitas dan fasilitas ruangan juga tidak ada sumbernya.
+     - Belum ada sistem pengguna sama sekali, jadi halaman Pengguna kosong.
    ==================================================================== */
+
+const API = "/api";
+
+/* Satu-satunya dua ruangan yang dikenali backend. Kuncinya harus sama
+   persis dengan yang dipakai calendar.service.js saat mengelompokkan. */
+const RUANG = [
+  { id: 1, key: "ruangRapatBesar", name: "Ruang Rapat Besar" },
+  { id: 2, key: "ruangKonsultasi", name: "Ruang Konsultasi" },
+];
 
 function tanggalKe(offsetHari = 0) {
   const d = new Date();
@@ -24,176 +30,89 @@ function tanggalKe(offsetHari = 0) {
   return d.getFullYear() + "-" + bulan + "-" + hari;
 }
 
-/* Dipakai untuk satu rapat yang sengaja memotong waktu sekarang, supaya
-   status "Berjalan" selalu terwakili jam berapa pun dashboard dibuka. */
-function jamKe(offsetMenit = 0) {
-  const d = new Date();
-  d.setMinutes(d.getMinutes() + offsetMenit);
-  return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+function awalBulan() {
+  return tanggalKe(1 - new Date().getDate());
 }
 
-function statusRapat(tanggal, mulai, selesai) {
-  const hariIni = tanggalKe(0);
-  if (tanggal > hariIni) return "Akan Datang";
-  if (tanggal < hariIni) return "Selesai";
-
-  const sekarang = jamKe(0);
-  if (sekarang >= selesai) return "Selesai";
-  if (sekarang >= mulai) return "Berjalan";
-  return "Segera";
-}
-
-function rapat(id, title, requester, room, hariKe, mulai, selesai, participants, desc) {
-  const date = tanggalKe(hariKe);
-  return { id, title, requester, room, date, start: mulai, end: selesai,
-    status: statusRapat(date, mulai, selesai), participants, desc };
-}
-
-const RUANG_BESAR = "Ruang Rapat Besar";
-const RUANG_KONSULTASI = "Ruang Konsultasi";
-
-const daftarRapat = [
-  rapat(1, "Rapat Verifikasi Jabatan Sektor Kehutanan", "PA", RUANG_BESAR, 0, "08:00", "10:00", 14,
-    "Verifikasi berkas jabatan fungsional sektor kehutanan."),
-  rapat(2, "Pembahasan Tindak Lanjut Hasil Inventaris KIB", "BMN", RUANG_BESAR, 0, "10:30", "12:00", 9,
-    "Tindak lanjut temuan inventaris Kartu Inventaris Barang."),
-  rapat(3, "Asesmen Calon Instruktur Pelatihan Nasional", "TU", RUANG_KONSULTASI, 0, jamKe(-45), jamKe(30), 6,
-    "Asesmen berkas dan wawancara calon instruktur."),
-  rapat(4, "Rapat Monitoring Pelaksanaan Anggaran", "AKLAP", RUANG_BESAR, 0, "15:00", "17:00", 12,
-    "Monitoring serapan anggaran berjalan."),
-  rapat(5, "Koordinasi Teknis Balai Latihan Kerja (BBPVP)", "PTUK", RUANG_KONSULTASI, 0, "17:00", "19:00", 8,
-    "Koordinasi teknis pelaksanaan kegiatan BBPVP."),
-  rapat(6, "Konsultasi Penyusunan RKA-KL Tahun Anggaran 2027", "AKLAP", RUANG_KONSULTASI, 1, "09:00", "11:00", 5,
-    "Pendampingan penyusunan RKA-KL unit kerja."),
-  rapat(7, "Rekonsiliasi Laporan Keuangan Semester", "AKLAP", RUANG_BESAR, 1, "13:00", "15:00", 16,
-    "Rekonsiliasi data laporan keuangan semester berjalan."),
-  rapat(8, "Pembahasan Target PNBP", "PA", RUANG_BESAR, 2, "13:00", "15:00", 11,
-    "Pembahasan target Penerimaan Negara Bukan Pajak."),
-];
-
-/* Ruangan ikut menandai dirinya terpakai kalau ada rapat yang sedang
-   berjalan di dalamnya, supaya dashboard tidak bertentangan dengan papan TV. */
-function statusRuang(nama) {
-  return daftarRapat.some(function (m) { return m.room === nama && m.status === "Berjalan"; })
-    ? "Terpakai"
-    : "Tersedia";
-}
-
-function awalBulan() { const d = new Date(); return tanggalKe(1 - d.getDate()); }
 function akhirBulan() {
   const d = new Date();
   const akhir = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
   return tanggalKe(akhir - d.getDate());
 }
 
+/* Backend memakai IN_PROGRESS / UPCOMING / AVAILABLE; dashboard memakai
+   empat label Indonesia. "AVAILABLE" berarti rapatnya sudah lewat. */
+function labelStatus(status, tanggalIso) {
+  if (status === "IN_PROGRESS") return "Berjalan";
+  if (status === "UPCOMING") return tanggalIso === tanggalKe(0) ? "Segera" : "Akan Datang";
+  return "Selesai";
+}
+
+async function ambil(jalur) {
+  const respons = await fetch(API + jalur);
+  if (!respons.ok) throw new Error(jalur + " menjawab HTTP " + respons.status);
+  return respons.json();
+}
+
+/* today dan upcoming beririsan: rapat hari ini yang belum selesai muncul
+   di keduanya. Kunci gabungan ruang+tanggal+jam dipakai untuk membuang
+   duplikatnya, supaya angka "Total Rapat" tidak menggelembung. */
+function gabungkan(...kumpulan) {
+  const terlihat = new Set();
+  const hasil = [];
+
+  kumpulan.forEach((data) => {
+    RUANG.forEach((ruang) => {
+      (data[ruang.key] || []).forEach((ev) => {
+        const kunci = [ruang.key, ev.tanggalIso, ev.mulai, ev.selesai, ev.agenda].join("|");
+        if (terlihat.has(kunci)) return;
+        terlihat.add(kunci);
+
+        hasil.push({
+          id: hasil.length + 1,
+          title: ev.agenda,
+          requester: ev.bagian,
+          room: ruang.name,
+          date: ev.tanggalIso || "",
+          start: ev.mulai,
+          end: ev.selesai,
+          status: labelStatus(ev.status, ev.tanggalIso),
+          participants: null,
+          desc: "",
+        });
+      });
+    });
+  });
+
+  return hasil.sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
+}
+
+function daftarRuang(rapat) {
+  return RUANG.map((ruang) => ({
+    id: ruang.id,
+    name: ruang.name,
+    location: "Biro Keuangan dan BMN",
+    capacity: null,
+    status: rapat.some((m) => m.room === ruang.name && m.status === "Berjalan")
+      ? "Terpakai"
+      : "Tersedia",
+    facilities: "",
+  }));
+}
+
 const state = {
   page: location.hash.replace("#", "") || "dashboard",
+  muat: "memuat", // memuat | siap | gagal
+  pesanGagal: "",
   reportFilter: {
     mode: "bulanan",
     startDate: awalBulan(),
     endDate: akhirBulan(),
   },
-  meetings: daftarRapat,
-  rooms: [
-    {
-      id: 1,
-      name: RUANG_BESAR,
-      location: "Biro Keuangan dan BMN",
-      capacity: 30,
-      status: statusRuang(RUANG_BESAR),
-      facilities: "Proyektor, TV, Sound System, Mic Wireless, AC",
-    },
-    {
-      id: 2,
-      name: RUANG_KONSULTASI,
-      location: "Biro Keuangan dan BMN",
-      capacity: 8,
-      status: statusRuang(RUANG_KONSULTASI),
-      facilities: "TV, AC",
-    },
-  ],
-  users: [
-    {
-      id: 1,
-      name: "Windy Nuraini Putri",
-      email: "windy@kemnaker.go.id",
-      dept: "Biro Keuangan",
-      role: "Administrator",
-      status: "Aktif",
-    },
-    {
-      id: 2,
-      name: "Andi Pratama",
-      email: "andi@kemnaker.go.id",
-      dept: "Biro Keuangan",
-      role: "User",
-      status: "Aktif",
-    },
-    {
-      id: 3,
-      name: "Siti Rahma",
-      email: "siti@kemnaker.go.id",
-      dept: "Biro Keuangan",
-      role: "User",
-      status: "Aktif",
-    },
-    {
-      id: 4,
-      name: "Budi Santoso",
-      email: "budi@kemnaker.go.id",
-      dept: "Biro Umum",
-      role: "Admin Ruangan",
-      status: "Aktif",
-    },
-    {
-      id: 5,
-      name: "Dewi Lestari",
-      email: "dewi@kemnaker.go.id",
-      dept: "Biro Keuangan",
-      role: "User",
-      status: "Aktif",
-    },
-    {
-      id: 6,
-      name: "Rizky Handoko",
-      email: "rizky@kemnaker.go.id",
-      dept: "IT Support",
-      role: "Admin Sistem",
-      status: "Aktif",
-    },
-    {
-      id: 7,
-      name: "Maya Sari",
-      email: "maya@kemnaker.go.id",
-      dept: "Biro SDM",
-      role: "User",
-      status: "Nonaktif",
-    },
-    {
-      id: 8,
-      name: "Agus Widodo",
-      email: "agus@kemnaker.go.id",
-      dept: "Biro Umum",
-      role: "User",
-      status: "Aktif",
-    },
-    {
-      id: 9,
-      name: "Nina Kartika",
-      email: "nina@kemnaker.go.id",
-      dept: "Biro Umum",
-      role: "Admin Ruangan",
-      status: "Aktif",
-    },
-    {
-      id: 10,
-      name: "Fajar Maulana",
-      email: "fajar@kemnaker.go.id",
-      dept: "Biro SDM",
-      role: "User",
-      status: "Nonaktif",
-    },
-  ],
+  meetings: [],
+  rooms: daftarRuang([]),
+  ringkasanTahun: null,
+  users: [],
 };
 
 const nav = [
@@ -235,6 +154,23 @@ function badge(s) {
   return `<span class="badge ${statusClass(s)}">${esc(s)}</span>`;
 }
 
+/* Papan yang gagal memuat harus mengaku, bukan diam. */
+function chipMuat() {
+  const gaya = "border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;letter-spacing:.04em";
+  if (state.muat === "memuat")
+    return `<span style="background:#e2e8f0;color:#475569;border:1px solid #cbd5e1;${gaya}">MEMUAT…</span>`;
+  if (state.muat === "gagal")
+    return `<span title="${esc(state.pesanGagal)}" style="background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;${gaya}">DATA GAGAL DIMUAT</span>`;
+  return "";
+}
+
+/* Panel berjudul "Hari Ini" sebelumnya memakai slice(0, 6) tanpa menyaring
+   tanggal, jadi rapat besok ikut tampil di bawah judul itu. */
+function rapatHariIni() {
+  const hariIni = tanggalKe(0);
+  return state.meetings.filter((m) => m.date === hariIni);
+}
+
 function layout(content) {
   return `<div class="app-shell"><aside class="sidebar">
     <div class="brand"><img src="/dashboard-app/assets/kemnaker.png" alt="Logo Kemnaker" class="brand-logo"><div>KEMNAKER<small style="display:block;font-size:9px;font-weight:500">Kementerian Ketenagakerjaan</small></div></div>
@@ -245,7 +181,7 @@ function layout(content) {
     </div>
   </aside><main class="main">
     <header class="topbar"><input class="search" placeholder="Cari rapat, ruangan, pengguna..." oninput="globalSearch(this.value)">
-      <div class="top-actions"><span class="demo-flag" title="Dashboard ini belum tersambung ke Google Calendar; angka di layar adalah contoh." style="background:#fef3c7;color:#92400e;border:1px solid #fbbf24;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;letter-spacing:.04em">DATA CONTOH</span><span>🔔</span><div class="profile"><div class="avatar">W</div><div><b>Windy Nuraini Putri</b><small style="display:block;color:#718096">Administrator</small></div></div></div>
+      <div class="top-actions">${chipMuat()}<span>🔔</span><div class="profile"><div class="avatar">K</div><div><b>Biro Keuangan dan BMN</b><small style="display:block;color:#718096">Kalender Ruang Rapat</small></div></div></div>
     </header><section class="content">${content}</section></main></div><div id="modal" class="modal-backdrop"></div>`;
 }
 
@@ -265,12 +201,11 @@ function dashboard() {
     pageHead(
       "Dashboard Admin",
       "Pantau dan kelola peminjaman ruang rapat dengan mudah.",
-      `<button class="btn btn-primary" onclick="openMeetingModal()">＋ Tambah Rapat</button>`,
+      "",
     ) +
     `<div class="cards">${stat("📅", state.meetings.length, "Total Rapat", "blue")}${stat("▶", running, "Rapat Berjalan", "green")}${stat("◷", soon, "Rapat Segera", "yellow")}${stat("✓", done, "Rapat Selesai", "purple")}</div>
- <div class="layout-2"><div class="panel"><div class="panel-head"><h2>Jadwal Rapat Hari Ini</h2><a href="#meetings">Lihat Semua →</a></div>${meetingTable(state.meetings.slice(0, 6), false)}</div>
- <div class="panel"><div class="panel-head"><h2>Rapat Hari Ini</h2></div>${state.meetings
-   .slice(0, 6)
+ <div class="layout-2"><div class="panel"><div class="panel-head"><h2>Jadwal Rapat Hari Ini</h2><a href="#meetings">Lihat Semua →</a></div>${meetingTable(rapatHariIni(), false)}</div>
+ <div class="panel"><div class="panel-head"><h2>Rapat Hari Ini</h2></div>${rapatHariIni()
    .map(
      (m) =>
        `<div style="padding:12px 0;border-bottom:1px solid var(--border)"><b>${esc(m.title)}</b><div class="muted" style="font-size:12px">${m.start} - ${m.end} ·${esc(m.room)}</div></div>`,
@@ -293,12 +228,12 @@ function meetings() {
     pageHead(
       "Manajemen Rapat",
       "Kelola data rapat, pantau jadwal, dan pastikan setiap rapat berjalan dengan lancar.",
-      `<button class="btn btn-primary" onclick="openMeetingModal()">＋ Tambah Rapat</button>`,
+      "",
     ) +
     `<div class="cards">${stat("▶", state.meetings.filter((x) => x.status === "Berjalan").length, "Rapat Berjalan", "green")}${stat("◷", state.meetings.filter((x) => x.status === "Segera").length, "Rapat Segera", "yellow")}${stat("📅", state.meetings.length, "Total Rapat", "purple")}${stat("✓", state.meetings.filter((x) => x.status === "Selesai").length, "Rapat Selesai", "blue")}</div>
  <div class="panel"><div class="tabs"><button class="tab active" onclick="filterMeetings('Semua',this)">Semua Rapat (${state.meetings.length})</button><button class="tab" onclick="filterMeetings('Berjalan',this)">Rapat Berjalan</button><button class="tab" onclick="filterMeetings('Segera',this)">Rapat Segera</button><button class="tab" onclick="filterMeetings('Selesai',this)">Rapat Selesai</button></div>
  <div class="filters"><input id="meetingSearch" placeholder="🔎 Cari rapat..." oninput="filterMeetingTable()"><select id="meetingRoom" onchange="filterMeetingTable()"><option value="">Semua Ruangan</option>${state.rooms.map((r) => `<option>${esc(r.name)}</option>`).join("")}</select><select id="meetingStatus" onchange="filterMeetingTable()"><option value="">Semua Status</option><option>Berjalan</option><option>Segera</option><option>Akan Datang</option><option>Selesai</option></select></div>
- <div id="meetingTable">${meetingTable(state.meetings)}</div></div>`
+ <div id="meetingTable">${meetingTable(state.meetings, false)}</div></div>`
   );
 }
 
@@ -307,7 +242,7 @@ function rooms() {
     pageHead(
       "Manajemen Ruangan",
       "Kelola data ruangan rapat, fasilitas, dan ketersediaannya.",
-      `<button class="btn btn-primary" onclick="openRoomModal()">＋ Tambah Ruangan</button>`,
+      "",
     ) +
     `<div class="cards">${stat("🏢", state.rooms.length, "Total Ruangan", "blue")}${stat("✓", state.rooms.filter((r) => r.status === "Tersedia").length, "Tersedia", "green")}${stat("●", state.rooms.filter((r) => r.status === "Terpakai").length, "Sedang Digunakan", "yellow")}${stat("×", state.rooms.filter((r) => r.status === "Perbaikan").length, "Dalam Perbaikan", "red")}</div>
  <div class="panel"><div class="filters"><input id="roomSearch" placeholder="🔎 Cari nama ruangan..." oninput="filterRooms()"><select id="roomStatus" onchange="filterRooms()"><option value="">Semua Status</option><option>Tersedia</option><option>Terpakai</option><option>Perbaikan</option></select></div><div id="roomGrid" class="room-grid">${roomCards(state.rooms)}</div></div>`
@@ -318,7 +253,7 @@ function roomCards(data) {
   return data
     .map(
       (r) =>
-        `<div class="room-card"><div class="room-photo">🏢</div><div class="room-body"><h3>${esc(r.name)}</h3>${badge(r.status)}<div class="room-meta">📍 ${esc(r.location)}<br>👥 Kapasitas ${r.capacity} orang<br>🖥 ${esc(r.facilities)}</div><button class="btn btn-light" onclick="editRoom(${r.id})">Lihat / Edit</button></div></div>`,
+        `<div class="room-card"><div class="room-photo">🏢</div><div class="room-body"><h3>${esc(r.name)}</h3>${badge(r.status)}<div class="room-meta">📍 ${esc(r.location)}</div></div></div>`,
     )
     .join("");
 }
@@ -328,10 +263,10 @@ function users() {
     pageHead(
       "Manajemen Pengguna",
       "Kelola data pengguna sistem booking ruang rapat.",
-      `<button class="btn btn-primary" onclick="openUserModal()">＋ Tambah Pengguna</button>`,
+      "",
     ) +
     `<div class="cards">${stat("👥", state.users.length, "Total Pengguna", "blue")}${stat("✓", state.users.filter((u) => u.status === "Aktif").length, "Aktif", "green")}${stat("●", state.users.filter((u) => u.status === "Nonaktif").length, "Nonaktif", "red")}${stat("🛡", state.users.filter((u) => u.role.includes("Admin") || u.role === "Administrator").length, "Administrator", "yellow")}</div>
- <div class="panel"><div class="filters"><input id="userSearch" placeholder="🔎 Cari pengguna..." oninput="filterUsers()"><select id="userRole" onchange="filterUsers()"><option value="">Semua Role</option><option>User</option><option>Admin Ruangan</option><option>Admin Sistem</option><option>Administrator</option></select><select id="userStatus" onchange="filterUsers()"><option value="">Semua Status</option><option>Aktif</option><option>Nonaktif</option></select></div><div id="userTable">${userTable(state.users)}</div></div>`
+ <div class="panel"><div class="filters"><input id="userSearch" placeholder="🔎 Cari pengguna..." oninput="filterUsers()"><select id="userRole" onchange="filterUsers()"><option value="">Semua Role</option><option>User</option><option>Admin Ruangan</option><option>Admin Sistem</option><option>Administrator</option></select><select id="userStatus" onchange="filterUsers()"><option value="">Semua Status</option><option>Aktif</option><option>Nonaktif</option></select></div><div id="userTable">${userTable(state.users)}</div><p class="muted" style="padding:16px;text-align:center;font-size:13px">Belum ada sumber data pengguna. Sistem ini belum memiliki login maupun daftar pengguna &mdash; booking masuk lewat Google Form tanpa identitas perorangan.</p></div>`
   );
 }
 
@@ -349,13 +284,13 @@ function calendar() {
       "Kalender",
       "Lihat jadwal rapat dan ketersediaan ruangan dalam tampilan kalender.",
     ) +
-    `<div class="layout-2"><div class="panel"><div class="panel-head"><h2>September 2026</h2><div><button class="btn btn-light">‹</button> <button class="btn btn-light">›</button></div></div><div class="calendar">${cells}</div></div><div class="panel"><div class="panel-head"><h2>Jadwal Hari Ini</h2><button class="btn btn-primary" onclick="openMeetingModal()">＋ Rapat</button></div>${state.meetings.map((m) => `<div style="padding:12px 0;border-bottom:1px solid var(--border)"><b>${esc(m.title)}</b><div class="muted">${m.start}-${m.end} · ${esc(m.room)}</div>${badge(m.status)}</div>`).join("")}</div></div>`
+    `<div class="layout-2"><div class="panel"><div class="panel-head"><h2>${new Date().toLocaleDateString("id-ID", { month: "long", year: "numeric" })}</h2><div><button class="btn btn-light">‹</button> <button class="btn btn-light">›</button></div></div><div class="calendar">${cells}</div></div><div class="panel"><div class="panel-head"><h2>Jadwal Hari Ini</h2></div>${rapatHariIni().map((m) => `<div style="padding:12px 0;border-bottom:1px solid var(--border)"><b>${esc(m.title)}</b><div class="muted">${m.start}-${m.end} · ${esc(m.room)}</div>${badge(m.status)}</div>`).join("")}</div></div>`
   );
 }
 
 // ----------------------------------------------------------------------
 // BAGIAN YANG DIUBAH: meetingTable pada Laporan diset tanpa tombol Hapus
-// `meetingTable(state.meetings, true, false)`
+// `meetingTable(state.meetings, false)`
 // ----------------------------------------------------------------------
 function reports() {
   return (
@@ -386,7 +321,7 @@ function reports() {
        `<div style="margin:15px 0"><div style="display:flex;justify-content:space-between;font-size:12px"><span>${esc(r.name)}</span><b>${90 - i * 12}%</b></div><div style="height:8px;background:#edf2f7;border-radius:5px;margin-top:6px"><div style="height:100%;width:${90 - i * 12}%;background:#1769aa;border-radius:5px"></div></div></div>`,
    )
    .join("")}</div></div>
- <div class="panel"><div class="panel-head"><h2>Detail Laporan Rapat</h2></div>${meetingTable(state.meetings, true, false)}</div>`
+ <div class="panel"><div class="panel-head"><h2>Detail Laporan Rapat</h2></div>${meetingTable(state.meetings, false)}</div>`
   );
 }
 
@@ -604,10 +539,10 @@ function viewMeeting(id) {
   const m = state.meetings.find((x) => x.id === id);
   openModal(
     "Detail Rapat",
-    `<p><b>${esc(m.title)}</b></p><p class="muted" style="margin:12px 0">${formatDate(m.date)} · ${m.start}-${m.end}</p><p>📍 ${esc(m.room)}</p><p>👤 ${esc(m.requester)}</p><p>👥 ${m.participants} peserta</p><p style="margin-top:15px">${esc(m.desc)}</p>
+    `<p><b>${esc(m.title)}</b></p><p class="muted" style="margin:12px 0">${formatDate(m.date)} · ${m.start}-${m.end}</p><p>📍 ${esc(m.room)}</p><p>👤 ${esc(m.requester)}</p><p class="muted" style="margin-top:15px;font-size:12px">Jumlah peserta dan deskripsi tidak dicatat di Google Calendar.</p>
     <div class="modal-actions" style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px;">
       <button class="btn btn-primary" style="background-color: #4a5568; border-color: #4a5568;" onclick="exportNotulensiPDF(${id})">📄 Notulensi</button>
-      <button class="btn btn-primary" onclick="editMeeting(${id})">Edit Rapat</button>
+      
     </div>`,
   );
 }
@@ -710,7 +645,7 @@ function filterMeetingTable() {
       (!room || m.room === room) &&
       (!status || m.status === status),
   );
-  document.getElementById("meetingTable").innerHTML = meetingTable(data);
+  document.getElementById("meetingTable").innerHTML = meetingTable(data, false);
 }
 
 function filterMeetings(status, el) {
@@ -1011,4 +946,38 @@ function toast(msg) {
   setTimeout(() => t.remove(), 2200);
 }
 
+/* ===== PEMUATAN DATA =================================================
+   Render pertama jalan dengan daftar kosong supaya kerangka halaman
+   langsung tampil, lalu diganti begitu API menjawab. Kalau gagal, yang
+   muncul adalah peringatan — BUKAN data contoh. Papan yang diam-diam
+   menampilkan angka karangan jauh lebih berbahaya daripada papan yang
+   mengaku sedang bermasalah.
+
+   Menyegarkan tiap 60 detik, mengikuti irama papan TV. */
+async function muatData() {
+  try {
+    const [hariIni, mendatang, tahun] = await Promise.all([
+      ambil("/events/today"),
+      ambil("/events/upcoming"),
+      ambil("/events/summary/year"),
+    ]);
+
+    state.meetings = gabungkan(hariIni, mendatang);
+    state.rooms = daftarRuang(state.meetings);
+    state.ringkasanTahun = tahun;
+    state.muat = "siap";
+    state.pesanGagal = "";
+  } catch (error) {
+    console.error("Gagal memuat data dashboard:", error);
+    state.muat = "gagal";
+    state.pesanGagal = error.message;
+    state.meetings = [];
+    state.rooms = daftarRuang([]);
+  }
+
+  render();
+}
+
 render();
+muatData();
+setInterval(muatData, 60000);
