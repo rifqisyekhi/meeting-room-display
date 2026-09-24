@@ -8,7 +8,7 @@ export default function DashboardPage() {
   return (
     <div style={{ width: '100vw', height: '100vh', margin: 0, padding: 0, overflow: 'hidden', backgroundColor: '#f4f7fb' }}>
       <iframe
-        src="/dashboard/index.html"
+        src="/dashboard-app/index.html"
         title="Dashboard Admin Booking Ruang Rapat"
         style={{
           width: '100%',

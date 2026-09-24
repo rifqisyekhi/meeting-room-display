@@ -246,7 +246,7 @@ function badge(s) {
 
 function layout(content) {
   return `<div class="app-shell"><aside class="sidebar">
-    <div class="brand"><img src="/dashboard/assets/kemnaker.png" alt="Logo Kemnaker" class="brand-logo"><div>KEMNAKER<small style="display:block;font-size:9px;font-weight:500">Kementerian Ketenagakerjaan</small></div></div>
+    <div class="brand"><img src="/dashboard-app/assets/kemnaker.png" alt="Logo Kemnaker" class="brand-logo"><div>KEMNAKER<small style="display:block;font-size:9px;font-weight:500">Kementerian Ketenagakerjaan</small></div></div>
     <nav class="nav">${nav.map(([id, icon, label]) => `<a href="#${id}" class="nav-item ${state.page === id ? "active" : ""}"><span>${icon}</span>${label}</a>`).join("")}</nav>
     <div class="sidebar-footer">
       <a href="/" target="_top" style="display:inline-block;margin-bottom:12px;padding:6px 12px;background:rgba(255,255,255,0.12);color:#fff;text-decoration:none;border-radius:6px;font-size:11px;font-weight:600;letter-spacing:0.3px;">📺 Ke Display TV</a><br>

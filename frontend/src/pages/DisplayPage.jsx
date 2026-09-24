@@ -34,16 +34,21 @@ const STALE_ALERT_AFTER = 3
 
 /* Testing aid. Forces one room to render the "in use + next booking" state
    from invented data, so that layout can be reviewed without waiting for a
-   real meeting to start. Set to null to switch it off.
+   real meeting to start. A card fed by this always carries a DEMO badge.
 
-   A card fed by this always carries a DEMO badge: a public board must never
-   show a meeting that is not actually happening, or people will walk away
-   from a room that is free.
+   The demo does not merge with the calendar, it REPLACES that room's entire
+   day: real bookings would go unseen and the footer totals would count
+   invented meetings. So it must never reach the board in the hallway.
 
-   MUST stay null in production. The demo does not merge with the calendar,
-   it REPLACES that room's entire day, so real bookings would go unseen and
-   the footer totals would count invented meetings. */
-const DEMO_ROOM = null
+   Guarding it with import.meta.env.DEV makes that structural rather than a
+   thing to remember. Vite substitutes the flag literally at build time, so
+   in a production bundle this whole expression folds to null and demoEvents
+   is dropped as dead code — 'npm run build' cannot emit the demo even if
+   VITE_DEMO_ROOM is set in the environment.
+
+   To switch it on locally, put this in frontend/.env.local (git-ignored):
+     VITE_DEMO_ROOM=ruangKonsultasi        (or ruangRapatBesar) */
+const DEMO_ROOM = import.meta.env.DEV ? import.meta.env.VITE_DEMO_ROOM || null : null
 
 /* Times are fixed once at mount, not recomputed per render — otherwise they
    would slide forward every second and the countdown would never move. */
