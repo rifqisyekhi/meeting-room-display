@@ -1,124 +1,115 @@
+/* ===== DATA CONTOH ====================================================
+   Dashboard ini BELUM tersambung ke backend: tidak ada satu pun panggilan
+   jaringan di berkas ini. Isinya dikarang — tetapi dikarang mengikuti
+   sistem yang sebenarnya, supaya tidak menyesatkan saat ditinjau:
+
+     - hanya dua ruangan yang benar-benar ada di Biro Keuangan dan BMN
+     - kolom Pemesan diisi NAMA BAGIAN (TU, AKLAP, PTUK, PA, BMN), karena
+       formulir booking memang tidak pernah meminta nama orang
+     - agendanya memakai contoh yang sama dengan papan TV
+
+   Tanggal dan status dihitung dari jam saat halaman dibuka, bukan ditulis
+   mati. Versi sebelumnya mematok 2026-09-22 sehingga dashboard tampak
+   basi begitu tanggal berganti.
+
+   Kapasitas dan fasilitas ruangan masih karangan: Google Calendar tidak
+   menyimpan keduanya, jadi nanti perlu sumber data tersendiri.
+   ==================================================================== */
+
+function tanggalKe(offsetHari = 0) {
+  const d = new Date();
+  d.setDate(d.getDate() + offsetHari);
+  const bulan = String(d.getMonth() + 1).padStart(2, "0");
+  const hari = String(d.getDate()).padStart(2, "0");
+  return d.getFullYear() + "-" + bulan + "-" + hari;
+}
+
+/* Dipakai untuk satu rapat yang sengaja memotong waktu sekarang, supaya
+   status "Berjalan" selalu terwakili jam berapa pun dashboard dibuka. */
+function jamKe(offsetMenit = 0) {
+  const d = new Date();
+  d.setMinutes(d.getMinutes() + offsetMenit);
+  return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+}
+
+function statusRapat(tanggal, mulai, selesai) {
+  const hariIni = tanggalKe(0);
+  if (tanggal > hariIni) return "Akan Datang";
+  if (tanggal < hariIni) return "Selesai";
+
+  const sekarang = jamKe(0);
+  if (sekarang >= selesai) return "Selesai";
+  if (sekarang >= mulai) return "Berjalan";
+  return "Segera";
+}
+
+function rapat(id, title, requester, room, hariKe, mulai, selesai, participants, desc) {
+  const date = tanggalKe(hariKe);
+  return { id, title, requester, room, date, start: mulai, end: selesai,
+    status: statusRapat(date, mulai, selesai), participants, desc };
+}
+
+const RUANG_BESAR = "Ruang Rapat Besar";
+const RUANG_KONSULTASI = "Ruang Konsultasi";
+
+const daftarRapat = [
+  rapat(1, "Rapat Verifikasi Jabatan Sektor Kehutanan", "PA", RUANG_BESAR, 0, "08:00", "10:00", 14,
+    "Verifikasi berkas jabatan fungsional sektor kehutanan."),
+  rapat(2, "Pembahasan Tindak Lanjut Hasil Inventaris KIB", "BMN", RUANG_BESAR, 0, "10:30", "12:00", 9,
+    "Tindak lanjut temuan inventaris Kartu Inventaris Barang."),
+  rapat(3, "Asesmen Calon Instruktur Pelatihan Nasional", "TU", RUANG_KONSULTASI, 0, jamKe(-45), jamKe(30), 6,
+    "Asesmen berkas dan wawancara calon instruktur."),
+  rapat(4, "Rapat Monitoring Pelaksanaan Anggaran", "AKLAP", RUANG_BESAR, 0, "15:00", "17:00", 12,
+    "Monitoring serapan anggaran berjalan."),
+  rapat(5, "Koordinasi Teknis Balai Latihan Kerja (BBPVP)", "PTUK", RUANG_KONSULTASI, 0, "17:00", "19:00", 8,
+    "Koordinasi teknis pelaksanaan kegiatan BBPVP."),
+  rapat(6, "Konsultasi Penyusunan RKA-KL Tahun Anggaran 2027", "AKLAP", RUANG_KONSULTASI, 1, "09:00", "11:00", 5,
+    "Pendampingan penyusunan RKA-KL unit kerja."),
+  rapat(7, "Rekonsiliasi Laporan Keuangan Semester", "AKLAP", RUANG_BESAR, 1, "13:00", "15:00", 16,
+    "Rekonsiliasi data laporan keuangan semester berjalan."),
+  rapat(8, "Pembahasan Target PNBP", "PA", RUANG_BESAR, 2, "13:00", "15:00", 11,
+    "Pembahasan target Penerimaan Negara Bukan Pajak."),
+];
+
+/* Ruangan ikut menandai dirinya terpakai kalau ada rapat yang sedang
+   berjalan di dalamnya, supaya dashboard tidak bertentangan dengan papan TV. */
+function statusRuang(nama) {
+  return daftarRapat.some(function (m) { return m.room === nama && m.status === "Berjalan"; })
+    ? "Terpakai"
+    : "Tersedia";
+}
+
+function awalBulan() { const d = new Date(); return tanggalKe(1 - d.getDate()); }
+function akhirBulan() {
+  const d = new Date();
+  const akhir = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  return tanggalKe(akhir - d.getDate());
+}
+
 const state = {
   page: location.hash.replace("#", "") || "dashboard",
   reportFilter: {
     mode: "bulanan",
-    startDate: "2026-09-01",
-    endDate: "2026-09-30",
+    startDate: awalBulan(),
+    endDate: akhirBulan(),
   },
-  meetings: [
-    {
-      id: 1,
-      title: "Rapat Biro Keuangan",
-      requester: "Andi Pratama",
-      room: "Ruang Nusantara",
-      date: "2026-09-22",
-      start: "08:00",
-      end: "10:00",
-      status: "Berjalan",
-      participants: 12,
-      desc: "Pembahasan laporan keuangan dan evaluasi program.",
-    },
-    {
-      id: 2,
-      title: "Koordinasi Tim IT",
-      requester: "Siti Rahma",
-      room: "Ruang Garuda",
-      date: "2026-09-22",
-      start: "10:00",
-      end: "12:00",
-      status: "Berjalan",
-      participants: 8,
-      desc: "Koordinasi pengembangan sistem.",
-    },
-    {
-      id: 3,
-      title: "Evaluasi Program 2026",
-      requester: "Budi Santoso",
-      room: "Ruang Merdeka",
-      date: "2026-09-22",
-      start: "13:00",
-      end: "15:00",
-      status: "Segera",
-      participants: 15,
-      desc: "Evaluasi capaian program.",
-    },
-    {
-      id: 4,
-      title: "Rapat Internal",
-      requester: "Dewi Lestari",
-      room: "Ruang Indonesia",
-      date: "2026-09-22",
-      start: "15:00",
-      end: "17:00",
-      status: "Segera",
-      participants: 10,
-      desc: "Rapat internal biro.",
-    },
-    {
-      id: 5,
-      title: "Diskusi Anggaran",
-      requester: "Rizky Handoko",
-      room: "Ruang Kemnaker",
-      date: "2026-09-22",
-      start: "19:00",
-      end: "21:00",
-      status: "Selesai",
-      participants: 7,
-      desc: "Diskusi anggaran.",
-    },
-    {
-      id: 6,
-      title: "Rapat Pengembangan SDM",
-      requester: "Maya Sari",
-      room: "Ruang Pancasila",
-      date: "2026-09-23",
-      start: "09:00",
-      end: "11:00",
-      status: "Akan Datang",
-      participants: 14,
-      desc: "Pengembangan SDM.",
-    },
-    {
-      id: 7,
-      title: "Review Kinerja Triwulan",
-      requester: "Agus Widodo",
-      room: "Ruang Kolaborasi",
-      date: "2026-09-23",
-      start: "13:00",
-      end: "15:00",
-      status: "Akan Datang",
-      participants: 9,
-      desc: "Review kinerja.",
-    },
-    {
-      id: 8,
-      title: "Presentasi Program",
-      requester: "Nina Kartika",
-      room: "Ruang Bhinneka",
-      date: "2026-09-23",
-      start: "16:00",
-      end: "17:30",
-      status: "Akan Datang",
-      participants: 18,
-      desc: "Presentasi program.",
-    },
-  ],
+  meetings: daftarRapat,
   rooms: [
     {
       id: 1,
-      name: "Ruang Nusantara",
-      location: "Gedung Pusat, Lt. 3",
-      capacity: 20,
-      status: "Tersedia",
-      facilities: "Proyektor, TV, WiFi, Sound System",
+      name: RUANG_BESAR,
+      location: "Biro Keuangan dan BMN",
+      capacity: 30,
+      status: statusRuang(RUANG_BESAR),
+      facilities: "Proyektor, TV, Sound System, Mic Wireless, AC",
     },
     {
       id: 2,
-      name: "Ruang Garuda",
-      location: "Gedung Pusat, Lt. 3",
-      capacity: 15,
-      status: "Tersedia",
-      facilities: "TV, WiFi, AC",
+      name: RUANG_KONSULTASI,
+      location: "Biro Keuangan dan BMN",
+      capacity: 8,
+      status: statusRuang(RUANG_KONSULTASI),
+      facilities: "TV, AC",
     },
   ],
   users: [
@@ -254,7 +245,7 @@ function layout(content) {
     </div>
   </aside><main class="main">
     <header class="topbar"><input class="search" placeholder="Cari rapat, ruangan, pengguna..." oninput="globalSearch(this.value)">
-      <div class="top-actions"><span>🔔</span><div class="profile"><div class="avatar">W</div><div><b>Windy Nuraini Putri</b><small style="display:block;color:#718096">Administrator</small></div></div></div>
+      <div class="top-actions"><span class="demo-flag" title="Dashboard ini belum tersambung ke Google Calendar; angka di layar adalah contoh." style="background:#fef3c7;color:#92400e;border:1px solid #fbbf24;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;letter-spacing:.04em">DATA CONTOH</span><span>🔔</span><div class="profile"><div class="avatar">W</div><div><b>Windy Nuraini Putri</b><small style="display:block;color:#718096">Administrator</small></div></div></div>
     </header><section class="content">${content}</section></main></div><div id="modal" class="modal-backdrop"></div>`;
 }
 
