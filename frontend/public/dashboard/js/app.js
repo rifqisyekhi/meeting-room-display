@@ -1,5 +1,7 @@
 const state = {
   page: location.hash.replace("#", "") || "dashboard",
+  googleCalendarConnected: false,
+  calendarMessage: "Menghubungkan ke backend...",
   reportFilter: {
     mode: "bulanan",
     startDate: "2026-09-01",
@@ -250,11 +252,21 @@ function layout(content) {
     <nav class="nav">${nav.map(([id, icon, label]) => `<a href="#${id}" class="nav-item ${state.page === id ? "active" : ""}"><span>${icon}</span>${label}</a>`).join("")}</nav>
     <div class="sidebar-footer">
       <a href="/" target="_top" style="display:inline-block;margin-bottom:12px;padding:6px 12px;background:rgba(255,255,255,0.12);color:#fff;text-decoration:none;border-radius:6px;font-size:11px;font-weight:600;letter-spacing:0.3px;">📺 Ke Display TV</a><br>
+      <button onclick="logout()" style="display:inline-block;margin-bottom:12px;padding:6px 12px;background:rgba(255,0,0,0.6);color:#fff;border:none;cursor:pointer;border-radius:6px;font-size:11px;font-weight:600;letter-spacing:0.3px;width:100%;">🚪 Keluar</button><br>
       Bekerja Bersama<br>untuk Tenaga Kerja<br>yang Lebih Baik
     </div>
   </aside><main class="main">
     <header class="topbar"><input class="search" placeholder="Cari rapat, ruangan, pengguna..." oninput="globalSearch(this.value)">
-      <div class="top-actions"><span>🔔</span><div class="profile"><div class="avatar">W</div><div><b>Windy Nuraini Putri</b><small style="display:block;color:#718096">Administrator</small></div></div></div>
+      <div class="top-actions" style="display:flex;align-items:center;gap:12px;">
+        <span class="badge ${state.googleCalendarConnected ? "green" : "yellow"}" style="font-size:11px;cursor:pointer;white-space:nowrap;" title="${esc(state.calendarMessage)}" onclick="alert(state.calendarMessage)">
+          ${state.googleCalendarConnected ? "🟢 Google Calendar" : "🟡 Menunggu Kalender"}
+        </span>
+        <button class="btn btn-light" onclick="fetchDashboardData(true)" style="padding:6px 12px;font-size:12px;display:flex;align-items:center;gap:4px;white-space:nowrap;" title="Sinkronkan data terbaru dari Google Calendar / backend">
+          🔄 Sinkron
+        </button>
+        <span>🔔</span>
+        <div class="profile"><div class="avatar">W</div><div><b>Windy Nuraini Putri</b><small style="display:block;color:#718096">Administrator</small></div></div>
+      </div>
     </header><section class="content">${content}</section></main></div><div id="modal" class="modal-backdrop"></div>`;
 }
 
@@ -585,7 +597,7 @@ function openMeetingModal(id = null) {
   );
 }
 
-function saveMeeting(id) {
+async function saveMeeting(id) {
   const obj = {
     id: id || Date.now(),
     title: f("fTitle"),
@@ -603,6 +615,16 @@ function saveMeeting(id) {
   closeModal();
   render();
   toast(id ? "Rapat berhasil diedit" : "Rapat berhasil ditambahkan");
+
+  try {
+    await fetch("/api/dashboard/meetings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(obj),
+    });
+  } catch (err) {
+    console.error("Gagal menyimpan ke backend:", err);
+  }
 }
 
 function editMeeting(id) {
@@ -621,11 +643,17 @@ function viewMeeting(id) {
   );
 }
 
-function deleteMeeting(id) {
+async function deleteMeeting(id) {
   if (confirm("Hapus rapat ini?")) {
     state.meetings = state.meetings.filter((x) => x.id !== id);
     render();
     toast("Rapat berhasil dihapus");
+
+    try {
+      await fetch(`/api/dashboard/meetings/${id}`, { method: "DELETE" });
+    } catch (err) {
+      console.error("Gagal menghapus di backend:", err);
+    }
   }
 }
 
@@ -645,7 +673,7 @@ function openRoomModal(id = null) {
   );
 }
 
-function saveRoom(id) {
+async function saveRoom(id) {
   const obj = {
     id: id || Date.now(),
     name: f("rName"),
@@ -659,6 +687,16 @@ function saveRoom(id) {
   closeModal();
   render();
   toast("Data ruangan disimpan");
+
+  try {
+    await fetch("/api/dashboard/rooms", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(obj),
+    });
+  } catch (err) {
+    console.error("Gagal menyimpan ruangan ke backend:", err);
+  }
 }
 
 function editRoom(id) {
@@ -675,7 +713,7 @@ function openUserModal(id = null) {
   );
 }
 
-function saveUser(id) {
+async function saveUser(id) {
   const obj = {
     id: id || Date.now(),
     name: f("uName"),
@@ -689,17 +727,33 @@ function saveUser(id) {
   closeModal();
   render();
   toast("Data pengguna disimpan");
+
+  try {
+    await fetch("/api/dashboard/users", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(obj),
+    });
+  } catch (err) {
+    console.error("Gagal menyimpan pengguna ke backend:", err);
+  }
 }
 
 function editUser(id) {
   openUserModal(id);
 }
 
-function deleteUser(id) {
+async function deleteUser(id) {
   if (confirm("Hapus pengguna ini?")) {
     state.users = state.users.filter((x) => x.id !== id);
     render();
     toast("Pengguna dihapus");
+
+    try {
+      await fetch(`/api/dashboard/users/${id}`, { method: "DELETE" });
+    } catch (err) {
+      console.error("Gagal menghapus pengguna di backend:", err);
+    }
   }
 }
 
@@ -1020,4 +1074,47 @@ function toast(msg) {
   setTimeout(() => t.remove(), 2200);
 }
 
+async function fetchDashboardData(showToast = false) {
+  try {
+    const res = await fetch("/api/dashboard/data");
+    if (!res.ok) throw new Error("Gagal mengambil data dari backend");
+    const data = await res.json();
+    if (Array.isArray(data.meetings) && data.meetings.length > 0) {
+      state.meetings = data.meetings;
+    }
+    if (Array.isArray(data.rooms) && data.rooms.length > 0) {
+      state.rooms = data.rooms;
+    }
+    if (Array.isArray(data.users) && data.users.length > 0) {
+      state.users = data.users;
+    }
+    state.googleCalendarConnected = !!data.googleCalendarConnected;
+    state.calendarMessage = data.message || "";
+    render();
+    if (showToast) {
+      if (data.googleCalendarConnected) {
+        toast(`✅ Sinkron: ${data.meetings.length} jadwal dari Google Calendar`);
+      } else {
+        toast(data.message || "Data backend berhasil dimuat");
+      }
+    }
+  } catch (err) {
+    console.warn("Koneksi backend:", err.message);
+    if (showToast) toast("⚠️ Tidak dapat terhubung ke server backend");
+  }
+}
+
 render();
+fetchDashboardData(false);
+setInterval(() => fetchDashboardData(false), 30000);
+
+
+// ----------------------------------------------------------------------
+// LOGOUT FUNCTION
+// ----------------------------------------------------------------------
+function logout() {
+  if (confirm("Apakah Anda yakin ingin keluar?")) {
+    window.parent.localStorage.removeItem('isAuthenticated');
+    window.parent.location.href = '/login';
+  }
+}

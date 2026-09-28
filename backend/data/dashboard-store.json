@@ -1,0 +1,104 @@
+{
+  "rooms": [
+    {
+      "id": 1,
+      "name": "Ruang Rapat Besar",
+      "location": "Gedung Pusat Kemnaker, Lt. 3",
+      "capacity": 30,
+      "status": "Tersedia",
+      "facilities": "Proyektor, Sound System, Mic Wireless, AC, WiFi"
+    },
+    {
+      "id": 2,
+      "name": "Ruang Konsultasi",
+      "location": "Gedung Pusat Kemnaker, Lt. 3",
+      "capacity": 12,
+      "status": "Tersedia",
+      "facilities": "Smart TV, Whiteboard, AC, WiFi"
+    },
+    {
+      "id": 3,
+      "name": "Ruang Nusantara",
+      "location": "Gedung Pusat Kemnaker, Lt. 2",
+      "capacity": 20,
+      "status": "Tersedia",
+      "facilities": "Proyektor, TV, WiFi, Sound System"
+    },
+    {
+      "id": 4,
+      "name": "Ruang Garuda",
+      "location": "Gedung Pusat Kemnaker, Lt. 2",
+      "capacity": 15,
+      "status": "Tersedia",
+      "facilities": "TV, WiFi, AC"
+    }
+  ],
+  "users": [
+    {
+      "id": 1,
+      "name": "Windy Nuraini Putri",
+      "email": "windy@kemnaker.go.id",
+      "dept": "Biro Keuangan dan BMN",
+      "role": "Administrator",
+      "status": "Aktif"
+    },
+    {
+      "id": 2,
+      "name": "Andi Pratama",
+      "email": "andi@kemnaker.go.id",
+      "dept": "Biro Keuangan",
+      "role": "User",
+      "status": "Aktif"
+    },
+    {
+      "id": 3,
+      "name": "Siti Rahma",
+      "email": "siti@kemnaker.go.id",
+      "dept": "Biro Keuangan",
+      "role": "User",
+      "status": "Aktif"
+    },
+    {
+      "id": 4,
+      "name": "Budi Santoso",
+      "email": "budi@kemnaker.go.id",
+      "dept": "Biro Umum",
+      "role": "Admin Ruangan",
+      "status": "Aktif"
+    },
+    {
+      "id": 5,
+      "name": "Rizky Handoko",
+      "email": "rizky@kemnaker.go.id",
+      "dept": "IT Support",
+      "role": "Admin Sistem",
+      "status": "Aktif"
+    }
+  ],
+  "meetings": [
+    {
+      "id": 1,
+      "title": "Rapat Koordinasi Biro Keuangan",
+      "requester": "Andi Pratama",
+      "room": "Ruang Rapat Besar",
+      "date": "2026-09-24",
+      "start": "09:00",
+      "end": "11:00",
+      "status": "Berjalan",
+      "participants": 15,
+      "desc": "Pembahasan anggaran dan laporan keuangan triwulan."
+    },
+    {
+      "id": 2,
+      "title": "Konsultasi Layanan BMN",
+      "requester": "Siti Rahma",
+      "room": "Ruang Konsultasi",
+      "date": "2026-09-24",
+      "start": "13:00",
+      "end": "15:00",
+      "status": "Segera",
+      "participants": 8,
+      "desc": "Konsultasi inventarisasi BMN."
+    }
+  ]
+}
