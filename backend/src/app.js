@@ -3,6 +3,7 @@ const cors = require("cors");
 
 const calendarRoutes = require("./routes/calendar.routes");
 const prayerRoutes = require("./routes/prayer.routes");
+const dashboardRoutes = require("./routes/dashboard.routes");
 
 const app = express();
 
@@ -11,6 +12,7 @@ app.use(express.json());
 
 app.use("/api/events", calendarRoutes);
 app.use("/api/prayer", prayerRoutes);
+app.use("/api/dashboard", dashboardRoutes);
 
 app.get("/", (req, res) => {
   res.json({
