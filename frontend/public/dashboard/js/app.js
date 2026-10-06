@@ -7,134 +7,36 @@ const state = {
     startDate: "2026-09-01",
     endDate: "2026-09-30",
   },
-  meetings: JSON.parse(window.parent.localStorage.getItem('app_meetings')) || [
-    {
-      id: 1,
-      title: "Rapat Biro Keuangan",
-      requester: "Andi Pratama",
-      room: "Ruang Nusantara",
-      date: "2026-09-22",
-      start: "08:00",
-      end: "10:00",
-      status: "Berjalan",
-      participants: 12,
-      desc: "Pembahasan laporan keuangan dan evaluasi program.",
-    },
-    {
-      id: 2,
-      title: "Koordinasi Tim IT",
-      requester: "Siti Rahma",
-      room: "Ruang Garuda",
-      date: "2026-09-22",
-      start: "10:00",
-      end: "12:00",
-      status: "Menunggu Approval",
-      participants: 8,
-      desc: "Koordinasi pengembangan sistem.",
-    },
-    {
-      id: 3,
-      title: "Evaluasi Program 2026",
-      requester: "Budi Santoso",
-      room: "Ruang Merdeka",
-      date: "2026-09-22",
-      start: "13:00",
-      end: "15:00",
-      status: "Akan Datang",
-      participants: 15,
-      desc: "Evaluasi capaian program.",
-    },
-    {
-      id: 901,
-      title: "Sosialisasi SOP Baru",
-      requester: "Biro SDM",
-      room: "Ruang Nusantara",
-      date: "2026-09-23",
-      start: "09:00",
-      end: "11:00",
-      status: "Menunggu Approval",
-      participants: 25,
-      desc: "Pemahaman terkait standar operasional prosedur yang baru dirilis.",
-    },
-    {
-      id: 902,
-      title: "Rapat Perencanaan Anggaran",
-      requester: "Kepala Bagian Anggaran",
-      room: "Ruang Rapat Utama",
-      date: "2026-09-24",
-      start: "13:00",
-      end: "16:00",
-      status: "Menunggu Approval",
-      participants: 20,
-      desc: "Draft awal perencanaan anggaran 2027.",
-    },
-    {
-      id: 4,
-      title: "Rapat Internal",
-      requester: "Dewi Lestari",
-      room: "Ruang Indonesia",
-      date: "2026-09-22",
-      start: "15:00",
-      end: "17:00",
-      status: "Akan Datang",
-      participants: 10,
-      desc: "Rapat internal biro.",
-    },
-    {
-      id: 5,
-      title: "Diskusi Anggaran",
-      requester: "Rizky Handoko",
-      room: "Ruang Kemnaker",
-      date: "2026-09-22",
-      start: "19:00",
-      end: "21:00",
-      status: "Selesai",
-      participants: 7,
-      desc: "Diskusi anggaran.",
-    },
-    {
-      id: 6,
-      title: "Rapat Pengembangan SDM",
-      requester: "Maya Sari",
-      room: "Ruang Pancasila",
-      date: "2026-09-23",
-      start: "09:00",
-      end: "11:00",
-      status: "Akan Datang",
-      participants: 14,
-      desc: "Pengembangan SDM.",
-    },
-    {
-      id: 7,
-      title: "Review Kinerja Triwulan",
-      requester: "Agus Widodo",
-      room: "Ruang Kolaborasi",
-      date: "2026-09-23",
-      start: "13:00",
-      end: "15:00",
-      status: "Akan Datang",
-      participants: 9,
-      desc: "Review kinerja.",
-    },
-    {
-      id: 8,
-      title: "Presentasi Program",
-      requester: "Nina Kartika",
-      room: "Ruang Bhinneka",
-      date: "2026-09-23",
-      start: "16:00",
-      end: "17:30",
-      status: "Akan Datang",
-      participants: 18,
-      desc: "Presentasi program.",
-    },
-  ],
-  rooms: (() => {
+  meetings: (() => {
     try {
-      const saved = window.parent.localStorage.getItem("app_rooms");
-      if (saved) return JSON.parse(saved);
-    } catch(e) {}
+      const storage =
+        window.parent && window.parent.localStorage
+          ? window.parent.localStorage
+          : window.localStorage;
+      const stored = storage.getItem("app_meetings");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
     return [
+      {
+        id: 1,
+        title: "Rapat Koordinasi Biro Keuangan",
+        requester: "Andi Pratama",
+        room: "Ruang Rapat Besar",
+        date: "2026-09-22",
+        start: "08:00",
+        end: "10:00",
+        status: "Berjalan",
+        participants: 12,
+        desc: "Pembahasan laporan keuangan dan evaluasi program.",
+      },
+    ];
+  })(),
+
+  rooms: (() => {
+    const defaultRooms = [
       {
         id: 1,
         name: "Ruang Rapat Besar",
@@ -142,7 +44,8 @@ const state = {
         capacity: 20,
         status: "Tersedia",
         facilities: "Proyektor, TV, WiFi, Sound System",
-        image: "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&q=80&w=600&h=400",
+        image: "/dashboard/assets/Ruang Rapat Besar.jpeg",
+        images: ["/dashboard/assets/Ruang Rapat Besar.jpeg"],
       },
       {
         id: 2,
@@ -151,92 +54,98 @@ const state = {
         capacity: 10,
         status: "Tersedia",
         facilities: "TV, WiFi, AC",
-        image: "https://images.unsplash.com/photo-1577412647305-991150c7d163?auto=format&fit=crop&q=80&w=600&h=400",
+        image: "/dashboard/assets/Ruang Konsultasi.jpeg",
+        images: ["/dashboard/assets/Ruang Konsultasi.jpeg"],
       },
     ];
+    try {
+      const saved = getAppStorage().getItem("app_rooms");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return parsed.map((r) => {
+          const n = (r.name || "").toLowerCase();
+          let primaryImg = r.image;
+          if (!primaryImg || primaryImg.includes("unsplash")) {
+            primaryImg = n.includes("konsultasi")
+              ? "/dashboard/assets/Ruang Konsultasi.jpeg"
+              : "/dashboard/assets/Ruang Rapat Besar.jpeg";
+          }
+          let imgs = Array.isArray(r.images) && r.images.length > 0 ? r.images : [primaryImg];
+          return {
+            ...r,
+            image: primaryImg,
+            images: imgs,
+          };
+        });
+      }
+    } catch (e) {}
+    return defaultRooms;
   })(),
-  users: [
-    {
-      id: 1,
-      name: "Windy Nuraini Putri",
-      email: "windy@kemnaker.go.id",
-      dept: "Biro Keuangan",
-      role: "Administrator",
-      status: "Aktif",
-    },
-    {
-      id: 2,
-      name: "Andi Pratama",
-      email: "andi@kemnaker.go.id",
-      dept: "Biro Keuangan",
-      role: "User",
-      status: "Aktif",
-    },
-    {
-      id: 3,
-      name: "Siti Rahma",
-      email: "siti@kemnaker.go.id",
-      dept: "Biro Keuangan",
-      role: "User",
-      status: "Aktif",
-    },
-    {
-      id: 4,
-      name: "Budi Santoso",
-      email: "budi@kemnaker.go.id",
-      dept: "Biro Umum",
-      role: "Admin Ruangan",
-      status: "Aktif",
-    },
-    {
-      id: 5,
-      name: "Dewi Lestari",
-      email: "dewi@kemnaker.go.id",
-      dept: "Biro Keuangan",
-      role: "User",
-      status: "Aktif",
-    },
-    {
-      id: 6,
-      name: "Rizky Handoko",
-      email: "rizky@kemnaker.go.id",
-      dept: "IT Support",
-      role: "Admin Sistem",
-      status: "Aktif",
-    },
-    {
-      id: 7,
-      name: "Maya Sari",
-      email: "maya@kemnaker.go.id",
-      dept: "Biro SDM",
-      role: "User",
-      status: "Nonaktif",
-    },
-    {
-      id: 8,
-      name: "Agus Widodo",
-      email: "agus@kemnaker.go.id",
-      dept: "Biro Umum",
-      role: "User",
-      status: "Aktif",
-    },
-    {
-      id: 9,
-      name: "Nina Kartika",
-      email: "nina@kemnaker.go.id",
-      dept: "Biro Umum",
-      role: "Admin Ruangan",
-      status: "Aktif",
-    },
-    {
-      id: 10,
-      name: "Fajar Maulana",
-      email: "fajar@kemnaker.go.id",
-      dept: "Biro SDM",
-      role: "User",
-      status: "Nonaktif",
-    },
-  ],
+  users: (() => {
+    const defaultUsers = [
+      {
+        id: "admin",
+        name: "Admin Utama",
+        username: "admin",
+        password: "admin123",
+        email: "admin@kemnaker.go.id",
+        dept: "Biro Keuangan dan BMN",
+        role: "Administrator",
+        status: "Aktif",
+      },
+      {
+        id: "approval1",
+        name: "Pimpinan",
+        username: "approval1",
+        password: "approval123",
+        email: "pimpinan@kemnaker.go.id",
+        dept: "Biro Keuangan dan BMN",
+        role: "Approval 1",
+        status: "Aktif",
+      },
+      {
+        id: "approval2",
+        name: "Wakil Pimpinan",
+        username: "approval2",
+        password: "approval234",
+        email: "wakil.pimpinan@kemnaker.go.id",
+        dept: "Biro Keuangan dan BMN",
+        role: "Approval 2",
+        status: "Aktif",
+      },
+      {
+        id: 2,
+        name: "Andi Pratama",
+        username: "andipratama",
+        password: "user123",
+        email: "andi@kemnaker.go.id",
+        dept: "Biro Keuangan",
+        role: "User",
+        status: "Aktif",
+      },
+    ];
+    try {
+      const storage = getAppStorage();
+      const saved = storage.getItem("app_users");
+      let list = saved ? JSON.parse(saved) : defaultUsers;
+      const loginUsers = JSON.parse(storage.getItem("app_login_users") || "[]");
+      loginUsers.forEach((lu) => {
+        if (
+          !list.some(
+            (u) =>
+              u.id === lu.id ||
+              (u.username &&
+                lu.username &&
+                u.username.toLowerCase() === lu.username.toLowerCase()),
+          )
+        ) {
+          list.push(lu);
+        }
+      });
+      return list;
+    } catch (e) {}
+    return defaultUsers;
+  })(),
 };
 
 // SVG icons — path data extracted directly from installed react-icons package
@@ -279,6 +188,11 @@ const ICONS = {
     `<path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="32" d="M262.29 192.31a64 64 0 1 0 57.4 57.4 64.13 64.13 0 0 0-57.4-57.4M416.39 256a154 154 0 0 1-1.53 20.79l45.21 35.46a10.81 10.81 0 0 1 2.45 13.75l-42.77 74a10.81 10.81 0 0 1-13.14 4.59l-44.9-18.08a16.11 16.11 0 0 0-15.17 1.75A164.5 164.5 0 0 1 325 400.8a15.94 15.94 0 0 0-8.82 12.14l-6.73 47.89a11.08 11.08 0 0 1-10.68 9.17h-85.54a11.11 11.11 0 0 1-10.69-8.87l-6.72-47.82a16.07 16.07 0 0 0-9-12.22 155 155 0 0 1-21.46-12.57 16 16 0 0 0-15.11-1.71l-44.89 18.07a10.81 10.81 0 0 1-13.14-4.58l-42.77-74a10.8 10.8 0 0 1 2.45-13.75l38.21-30a16.05 16.05 0 0 0 6-14.08c-.36-4.17-.58-8.33-.58-12.5s.21-8.27.58-12.35a16 16 0 0 0-6.07-13.94l-38.19-30A10.81 10.81 0 0 1 49.48 186l42.77-74a10.81 10.81 0 0 1 13.14-4.59l44.9 18.08a16.11 16.11 0 0 0 15.17-1.75A164.5 164.5 0 0 1 187 111.2a15.94 15.94 0 0 0 8.82-12.14l6.73-47.89A11.08 11.08 0 0 1 213.23 42h85.54a11.11 11.11 0 0 1 10.69 8.87l6.72 47.82a16.07 16.07 0 0 0 9 12.22 155 155 0 0 1 21.46 12.57 16 16 0 0 0 15.11 1.71l44.89-18.07a10.81 10.81 0 0 1 13.14 4.58l42.77 74a10.8 10.8 0 0 1-2.45 13.75l-38.21 30a16.05 16.05 0 0 0-6.05 14.08c.33 4.14.55 8.3.55 12.47"/>`,
     "0 0 512 512",
     'fill="none"',
+  ),
+  // TiExport — react-icons/ti (viewBox 0 0 24 24)
+  export: svgIcon(
+    '<path d="M8 16.5v.5c1.691-2.578 3.6-3.953 6-4v3c0 .551.511 1 1.143 1 .364 0 .675-.158.883-.391 1.933-2.029 5.974-6.109 5.974-6.109s-4.041-4.082-5.975-6.137c-.208-.205-.518-.363-.882-.363-.632 0-1.143.447-1.143 1v3c-4.66 0-6 4.871-6 8.5zM5 21h14c.553 0 1-.448 1-1v-6.046c-.664.676-1.364 1.393-2 2.047v2.999h-12v-12h7v-2h-8c-.553 0-1 .448-1 1v14c0 .552.447 1 1 1z"/>',
+    "0 0 24 24",
   ),
 };
 
@@ -345,15 +259,23 @@ function layout(content) {
       )
       .join("")}</nav>
     <div class="sidebar-footer">
-      <a href="/" target="_top" style="display:inline-block;margin-bottom:12px;padding:6px 12px;background:rgba(255,255,255,0.12);color:#fff;text-decoration:none;border-radius:6px;font-size:11px;font-weight:600;letter-spacing:0.3px;">📺 Ke Display TV</a><br>
-      <button onclick="logout()" style="display:inline-block;margin-bottom:12px;padding:6px 12px;background:rgba(255,0,0,0.6);color:#fff;border:none;cursor:pointer;border-radius:6px;font-size:11px;font-weight:600;letter-spacing:0.3px;width:100%;">🚪 Keluar</button><br>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+        <a href="/" target="_top" style="flex:1.2;display:flex;align-items:center;justify-content:center;padding:7px 6px;background:rgba(255,255,255,0.14);color:#fff;text-decoration:none;border-radius:6px;font-size:11px;font-weight:600;letter-spacing:0.3px;text-align:center;white-space:nowrap;transition:background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.24)'" onmouseout="this.style.background='rgba(255,255,255,0.14)'">Display TV</a>
+        <button onclick="logout()" style="flex:1;display:flex;align-items:center;justify-content:center;padding:7px 6px;background:rgba(220,38,38,0.75);color:#fff;border:none;cursor:pointer;border-radius:6px;font-size:11px;font-weight:600;letter-spacing:0.3px;text-align:center;white-space:nowrap;transition:background 0.2s;" onmouseover="this.style.background='rgba(220,38,38,0.95)'" onmouseout="this.style.background='rgba(220,38,38,0.75)'">Keluar</button>
+      </div>
       Bekerja Bersama<br>untuk Tenaga Kerja<br>yang Lebih Baik
     </div>
   </aside><main class="main">
     ${
-      ["dashboard", "meetings", "rooms", "users", "calendar", "reports", "settings"].includes(
-        state.page,
-      )
+      [
+        "dashboard",
+        "meetings",
+        "rooms",
+        "users",
+        "calendar",
+        "reports",
+        "settings",
+      ].includes(state.page)
         ? ""
         : `<header class="topbar"><input class="search" placeholder="Cari rapat, ruangan, pengguna..." oninput="globalSearch(this.value)">
       <div class="top-actions" style="display:flex;align-items:center;gap:12px;">
@@ -370,6 +292,415 @@ function layout(content) {
     }<section class="content" ${["dashboard", "meetings", "rooms", "users", "calendar", "reports", "settings"].includes(state.page) ? 'style="padding:0;max-width:none;"' : ""}>${content}</section></main></div><div id="modal" class="modal-backdrop"></div>`;
 }
 
+// ----------------------------------------------------------------------
+// SISTEM NOTIFIKASI & PENYIMPANAN DASHBOARD
+// ----------------------------------------------------------------------
+function getAppStorage() {
+  try {
+    if (window.parent && window.parent.localStorage) {
+      return window.parent.localStorage;
+    }
+  } catch (e) {}
+  return window.localStorage;
+}
+
+function getNotifications() {
+  let notifs = [];
+  try {
+    const stored = getAppStorage().getItem("app_notifications");
+    if (stored) notifs = JSON.parse(stored);
+  } catch (e) {}
+
+  // Sinkronisasi otomatis dengan state.meetings:
+  // Setiap meeting dengan status "Menunggu Approval" yang belum ada di notifikasi otomatis didaftarkan
+  let changed = false;
+  if (Array.isArray(state.meetings)) {
+    state.meetings.forEach((m) => {
+      const existing = notifs.find((n) => n.meetingId === m.id);
+      if (!existing) {
+        if (
+          m.status === "Menunggu Approval" ||
+          m.status === "Akan Datang" ||
+          m.status === "Dibatalkan"
+        ) {
+          const isCancelPri = m.status === "Dibatalkan" && m.cancellationReason;
+          notifs.push({
+            id: m.id,
+            meetingId: m.id,
+            type: isCancelPri ? "CANCELED_PRIORITY" : "NEW_REQUEST",
+            title: isCancelPri
+              ? "⚠️ Pembatalan Ruang Rapat (Prioritas Kepala Biro)"
+              : "Permintaan Booking Ruang Rapat",
+            message: m.cancellationReason
+              ? `Pemesanan ruangan ${m.room} oleh ${m.requester} dibatalkan otomatis karena dialihkan untuk rapat Kepala Biro Keuangan dan BMN.`
+              : `${m.requester || "Unit Kerja"} mengajukan peminjaman ${m.room || "Ruang Rapat"}`,
+            room: m.room || "-",
+            requester: m.requester || "-",
+            date: m.date || "-",
+            time: `${m.start || ""} - ${m.end || ""}`,
+            agenda: m.title || "-",
+            status: m.status,
+            cancellationReason: m.cancellationReason || "",
+            approvedBy: m.approvedBy || "",
+            rejectedBy: m.rejectedBy || "",
+            createdAt: m.createdAt || new Date().toISOString(),
+            readBy: [],
+          });
+          changed = true;
+        }
+      } else {
+        if (
+          existing.status !== m.status ||
+          existing.approvedBy !== (m.approvedBy || "") ||
+          existing.rejectedBy !== (m.rejectedBy || "") ||
+          (m.cancellationReason &&
+            existing.cancellationReason !== m.cancellationReason)
+        ) {
+          existing.status = m.status;
+          existing.approvedBy = m.approvedBy || "";
+          existing.rejectedBy = m.rejectedBy || "";
+          if (m.cancellationReason) {
+            existing.cancellationReason = m.cancellationReason;
+            if (m.cancellationReason.includes("Kepala Biro")) {
+              existing.type = "CANCELED_PRIORITY";
+              existing.title =
+                "⚠️ Pembatalan Ruang Rapat (Prioritas Kepala Biro)";
+            }
+          }
+          changed = true;
+        }
+      }
+    });
+  }
+
+  if (changed) {
+    saveNotifications(notifs);
+  }
+
+  return notifs.sort(
+    (a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0),
+  );
+}
+
+function saveNotifications(notifs) {
+  try {
+    getAppStorage().setItem("app_notifications", JSON.stringify(notifs));
+  } catch (e) {}
+}
+
+function getUnreadNotifCount(currentUser) {
+  const notifs = getNotifications();
+  const username = currentUser?.username || "admin";
+  return notifs.filter(
+    (n) =>
+      (n.status === "Menunggu Approval" || n.type === "CANCELED_PRIORITY") &&
+      (!n.readBy || !n.readBy.includes(username)),
+  ).length;
+}
+
+function getTimeAgo(dateStr) {
+  if (!dateStr) return "Baru saja";
+  try {
+    const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
+    if (diff < 60) return "Baru saja";
+    if (diff < 3600) return `${Math.floor(diff / 60)} mnt lalu`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)} jam lalu`;
+    return `${Math.floor(diff / 86400)} hr lalu`;
+  } catch (e) {
+    return "Baru saja";
+  }
+}
+
+function playNotificationSound() {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const osc1 = ctx.createOscillator();
+    const osc2 = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc1.type = "sine";
+    osc2.type = "triangle";
+
+    // Nada lonceng dua tingkatan (E5 -> A5)
+    osc1.frequency.setValueAtTime(659.25, ctx.currentTime);
+    osc1.frequency.setValueAtTime(880.0, ctx.currentTime + 0.12);
+
+    osc2.frequency.setValueAtTime(659.25, ctx.currentTime);
+    osc2.frequency.setValueAtTime(880.0, ctx.currentTime + 0.12);
+
+    gain.gain.setValueAtTime(0.12, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+
+    osc1.connect(gain);
+    osc2.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc1.start(ctx.currentTime);
+    osc2.start(ctx.currentTime);
+    osc1.stop(ctx.currentTime + 0.5);
+    osc2.stop(ctx.currentTime + 0.5);
+  } catch (e) {}
+}
+
+function toggleNotifDropdown(e) {
+  if (e) e.stopPropagation();
+  const dropdown = document.getElementById("notifDropdown");
+  const profileDropdown = document.getElementById("profileDropdown");
+  if (profileDropdown) profileDropdown.style.display = "none";
+
+  if (dropdown) {
+    const isShowing = dropdown.style.display === "block";
+    dropdown.style.display = isShowing ? "none" : "block";
+    if (!isShowing) {
+      dropdown.innerHTML = getNotifDropdownContentHTML(getCurrentUser());
+    }
+  }
+}
+
+function closeNotifDropdown(e) {
+  if (e) e.stopPropagation();
+  const dropdown = document.getElementById("notifDropdown");
+  if (dropdown) dropdown.style.display = "none";
+}
+
+function markAllNotifsRead(e) {
+  if (e) e.stopPropagation();
+  const currentUser = getCurrentUser();
+  const username = currentUser?.username || "admin";
+  const notifs = getNotifications();
+  notifs.forEach((n) => {
+    if (!n.readBy) n.readBy = [];
+    if (!n.readBy.includes(username)) {
+      n.readBy.push(username);
+    }
+  });
+  saveNotifications(notifs);
+  render();
+}
+
+function approveMeetingFromNotif(e, id) {
+  if (e) e.stopPropagation();
+  approveMeeting(id);
+  const dropdown = document.getElementById("notifDropdown");
+  if (dropdown) {
+    dropdown.innerHTML = getNotifDropdownContentHTML(getCurrentUser());
+  }
+}
+
+function rejectMeetingFromNotif(e, id) {
+  if (e) e.stopPropagation();
+  closeNotifDropdown();
+  rejectMeeting(id);
+}
+
+function viewMeetingFromNotif(e, id) {
+  if (e) e.stopPropagation();
+  closeNotifDropdown();
+  if (state.page !== "meetings") {
+    state.page = "meetings";
+    location.hash = "meetings";
+    render();
+  }
+  setTimeout(() => {
+    viewMeeting(id);
+  }, 100);
+}
+
+function showLiveBookingToast(meeting) {
+  let container = document.getElementById("notifToastContainer");
+  if (!container) {
+    container = document.createElement("div");
+    container.id = "notifToastContainer";
+    container.className = "notif-toast-container";
+    document.body.appendChild(container);
+  }
+
+  const toastEl = document.createElement("div");
+  toastEl.className = "notif-toast-banner";
+  toastEl.innerHTML = `
+    <div class="ntb-icon-wrap">
+      <span class="ntb-bell-pulse">🔔</span>
+    </div>
+    <div class="ntb-body">
+      <div class="ntb-title">Permintaan Booking Baru!</div>
+      <div class="ntb-msg"><b>${esc(meeting.requester || "Unit Kerja")}</b> mengajukan pemesanan <b>${esc(meeting.room)}</b></div>
+      <div class="ntb-meta">Agenda: "${esc(meeting.title)}" · ${formatDate(meeting.date)} (${meeting.start}-${meeting.end})</div>
+    </div>
+    <div class="ntb-actions">
+      <button class="ntb-btn-review" onclick="openNotifFromToast(${meeting.id}, this)">Periksa</button>
+      <button class="ntb-btn-close" onclick="this.closest('.notif-toast-banner').remove()">✕</button>
+    </div>
+  `;
+
+  container.appendChild(toastEl);
+
+  setTimeout(() => {
+    if (toastEl && toastEl.parentElement) {
+      toastEl.classList.add("fade-out");
+      setTimeout(() => toastEl.remove(), 400);
+    }
+  }, 7000);
+}
+
+function openNotifFromToast(id, btn) {
+  if (btn) {
+    const card = btn.closest(".notif-toast-banner");
+    if (card) card.remove();
+  }
+  state.page = "meetings";
+  location.hash = "meetings";
+  render();
+  setTimeout(() => viewMeeting(id), 120);
+}
+
+function getNotifDropdownContentHTML(currentUser) {
+  const notifs = getNotifications();
+  const canApprove = (currentUser?.role || "").includes("Approval");
+  const pendingCount = notifs.filter(
+    (n) => n.status === "Menunggu Approval",
+  ).length;
+
+  let itemsHTML = "";
+  if (notifs.length === 0) {
+    itemsHTML = `
+      <div class="notif-empty-state">
+        <div style="font-size:32px;margin-bottom:8px;">🔔</div>
+        <div style="font-size:13.5px;font-weight:600;color:#0c2d5e;">Tidak Ada Notifikasi</div>
+        <div style="font-size:12px;color:#94a3b8;margin-top:4px;">Belum ada request peminjaman ruangan saat ini.</div>
+      </div>
+    `;
+  } else {
+    itemsHTML = notifs
+      .map((n) => {
+        const m = state.meetings.find((x) => x.id === n.meetingId) || n;
+        const isPending = m.status === "Menunggu Approval";
+        const isApproved =
+          m.status === "Akan Datang" ||
+          (m.status !== "Menunggu Approval" &&
+            m.status !== "Dibatalkan" &&
+            m.approvedBy);
+        const isRejected = m.status === "Dibatalkan";
+        const isPriorityCancel =
+          n.type === "CANCELED_PRIORITY" ||
+          (m.cancellationReason &&
+            m.cancellationReason.includes("Kepala Biro")) ||
+          (n.cancellationReason &&
+            n.cancellationReason.includes("Kepala Biro"));
+
+        let statusBadge = "";
+        if (isPriorityCancel) {
+          statusBadge = `<span class="notif-status-badge rejected" style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;">✕ Dibatalkan (Prioritas Ka. Biro)</span>`;
+        } else if (isPending) {
+          statusBadge = `<span class="notif-status-badge pending">⏳ Menunggu Persetujuan</span>`;
+        } else if (isApproved) {
+          statusBadge = `<span class="notif-status-badge approved">✓ Disetujui (${esc(m.approvedBy || "Pimpinan")})</span>`;
+        } else if (isRejected) {
+          statusBadge = `<span class="notif-status-badge rejected">✕ Dibatalkan</span>`;
+        } else {
+          statusBadge = `<span class="notif-status-badge default">${esc(m.status)}</span>`;
+        }
+
+        let actionsHTML = "";
+        if (isPending) {
+          if (canApprove) {
+            actionsHTML = `
+              <div class="notif-action-row">
+                <button class="notif-btn-approve" onclick="approveMeetingFromNotif(event, ${m.id})">✓ Setujui</button>
+                <button class="notif-btn-reject" onclick="rejectMeetingFromNotif(event, ${m.id})">✕ Tolak</button>
+              </div>
+            `;
+          } else {
+            actionsHTML = `
+              <div class="notif-action-row">
+                <button class="notif-btn-view" onclick="viewMeetingFromNotif(event, ${m.id})">Lihat Detail</button>
+              </div>
+            `;
+          }
+        } else {
+          actionsHTML = `
+            <div class="notif-action-row">
+              <button class="notif-btn-view" onclick="viewMeetingFromNotif(event, ${m.id})">Detail Rapat</button>
+            </div>
+          `;
+        }
+
+        const iconBg = isPriorityCancel
+          ? "#fee2e2"
+          : isPending
+            ? "#fff7ed"
+            : isApproved
+              ? "#ecfdf5"
+              : "#fef2f2";
+        const iconColor = isPriorityCancel
+          ? "#b91c1c"
+          : isPending
+            ? "#ea580c"
+            : isApproved
+              ? "#16a34a"
+              : "#dc2626";
+
+        return `
+          <div class="notif-item ${isPending ? "highlight-pending" : ""}" style="${isPriorityCancel ? "border-left: 4px solid #ef4444;" : ""}">
+            <div class="notif-item-top">
+              <div style="display:flex;align-items:flex-start;gap:10px;">
+                <div style="width:34px;height:34px;border-radius:50%;background:${iconBg};color:${iconColor};display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;margin-top:2px;">
+                  ${isPriorityCancel ? "⚠️" : isPending ? "⏳" : isApproved ? "✓" : "✕"}
+                </div>
+                <div>
+                  <div class="notif-item-title" style="${isPriorityCancel ? "color:#b91c1c;font-weight:700;" : ""}">${esc(n.title || m.title || "Request Pemesanan")}</div>
+                  <div class="notif-item-requester">Pemohon: <b>${esc(m.requester || "Bagian")}</b></div>
+                </div>
+              </div>
+              <div class="notif-item-time">${getTimeAgo(n.createdAt)}</div>
+            </div>
+
+            <div class="notif-item-meta-box">
+              <div class="notif-meta-col">🏛️ <b>Ruang:</b> ${esc(m.room)}</div>
+              <div class="notif-meta-col">📅 <b>Jadwal:</b> ${formatDate(m.date)} (${m.start || ""}-${m.end || ""})</div>
+            </div>
+
+            ${
+              isPriorityCancel
+                ? `
+              <div style="margin-top:8px;font-size:11.5px;color:#991b1b;background:#fef2f2;border:1px solid #fecaca;padding:8px 12px;border-radius:8px;line-height:1.45;">
+                ⚠️ <b>Pemberitahuan Pemesan (${esc(m.requester || "Pemesan")}):</b> Pemesanan ruangan ini otomatis dibatalkan karena ruangan akan digunakan untuk agenda rapat <b>Kepala Biro Keuangan dan BMN</b>.
+              </div>
+            `
+                : ""
+            }
+
+            <div class="notif-item-bottom">
+              <div>${statusBadge}</div>
+              <div>${actionsHTML}</div>
+            </div>
+          </div>
+        `;
+      })
+      .join("");
+  }
+
+  return `
+    <div class="notif-dropdown-header">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-weight:700;font-size:14.5px;color:#0c2d5e;">Notifikasi</span>
+        ${pendingCount > 0 ? `<span class="notif-pending-pill">${pendingCount} Request Menunggu</span>` : ""}
+      </div>
+      ${notifs.length > 0 ? `<button type="button" class="notif-mark-read-btn" onclick="markAllNotifsRead(event)">Tandai Dibaca</button>` : ""}
+    </div>
+    <div class="notif-dropdown-body">
+      ${itemsHTML}
+    </div>
+    <div class="notif-dropdown-footer">
+      <a href="#meetings" onclick="closeNotifDropdown(event)">
+        <span>Buka Semua di Manajemen Rapat</span>
+        <span>→</span>
+      </a>
+    </div>
+  `;
+}
+
 function getProfileHTML() {
   const defaultUser = {
     username: "admin",
@@ -378,13 +709,13 @@ function getProfileHTML() {
   };
   let currentUser = defaultUser;
   try {
-    const stored = window.parent.localStorage.getItem("currentUser");
+    const stored = getAppStorage().getItem("currentUser");
     if (stored) currentUser = JSON.parse(stored);
   } catch (e) {}
 
   let savedAccounts = [];
   try {
-    const storedSaved = window.parent.localStorage.getItem("savedAccounts");
+    const storedSaved = getAppStorage().getItem("savedAccounts");
     if (storedSaved) savedAccounts = JSON.parse(storedSaved);
   } catch (e) {}
 
@@ -404,12 +735,31 @@ function getProfileHTML() {
     )
     .join("");
 
+  const unreadCount = getUnreadNotifCount(currentUser);
+  const badgeHTML =
+    unreadCount > 0
+      ? `<span class="notif-badge">${unreadCount > 9 ? "9+" : unreadCount}</span>`
+      : "";
+
   return `
     <div style="display:flex;align-items:center;gap:16px;">
-      <div style="position:relative;cursor:pointer;">
-        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0c2d5e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
-        <span style="position:absolute;top:-3px;right:-3px;width:8px;height:8px;background:#e53e3e;border-radius:50%;border:1.5px solid #fff;"></span>
+      <!-- Bell Notification Container -->
+      <div class="notif-container" id="notifContainer" style="position:relative;">
+        <button
+          type="button"
+          class="notif-bell-btn"
+          onclick="toggleNotifDropdown(event)"
+          title="Notifikasi Permintaan Booking Ruang Rapat"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0c2d5e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+          ${badgeHTML}
+        </button>
+        <div id="notifDropdown" class="notif-dropdown" style="display:none;">
+          ${getNotifDropdownContentHTML(currentUser)}
+        </div>
       </div>
+
+      <!-- Profile Menu -->
       <div class="profile" onclick="toggleProfileMenu()" style="cursor:pointer;position:relative;display:flex;align-items:center;gap:12px;">
         <div class="avatar" style="width:40px;height:40px;border-radius:50%;background:#fff;color:#0c2d5e;font-weight:700;font-size:16px;display:flex;align-items:center;justify-content:center;border:2px solid #d4e6f6;flex-shrink:0;">${initial}</div>
         <div>
@@ -431,20 +781,23 @@ function switchToAccount(e, username) {
   if (e) e.stopPropagation();
   let savedAccounts = [];
   try {
-    const storedSaved = window.parent.localStorage.getItem("savedAccounts");
+    const storedSaved = getAppStorage().getItem("savedAccounts");
     if (storedSaved) savedAccounts = JSON.parse(storedSaved);
   } catch (err) {}
 
   const user = savedAccounts.find((u) => u.username === username);
   if (user) {
-    window.parent.localStorage.setItem("currentUser", JSON.stringify(user));
-    window.parent.localStorage.setItem("isAuthenticated", "true");
+    getAppStorage().setItem("currentUser", JSON.stringify(user));
+    getAppStorage().setItem("isAuthenticated", "true");
     window.location.reload();
   }
 }
 
 function toggleProfileMenu() {
   const menu = document.getElementById("profileDropdown");
+  const notifDropdown = document.getElementById("notifDropdown");
+  if (notifDropdown) notifDropdown.style.display = "none";
+
   if (menu) {
     menu.style.display =
       menu.style.display === "none" || menu.style.display === ""
@@ -454,6 +807,14 @@ function toggleProfileMenu() {
 }
 
 document.addEventListener("click", (e) => {
+  const notifContainer = document.getElementById("notifContainer");
+  const notifDropdown = document.getElementById("notifDropdown");
+  if (notifDropdown && notifDropdown.style.display !== "none") {
+    if (notifContainer && !notifContainer.contains(e.target)) {
+      notifDropdown.style.display = "none";
+    }
+  }
+
   const profile = document.querySelector(".profile");
   const menu = document.getElementById("profileDropdown");
   if (profile && !profile.contains(e.target) && menu) {
@@ -463,8 +824,7 @@ document.addEventListener("click", (e) => {
 
 function switchRole(e) {
   if (e) e.stopPropagation();
-  // Don't clear savedAccounts, just clear current session
-  window.parent.localStorage.removeItem("isAuthenticated");
+  getAppStorage().removeItem("isAuthenticated");
   window.parent.location.href = "/login";
 }
 
@@ -640,33 +1000,53 @@ function dashboard() {
       .dash-table-title svg { color: #1769aa; }
       
       .dash-btn-add {
-        background: #0d2d5e;
+        background: #003b8e;
         color: #fff;
-        padding: 10px 18px;
+        padding: 9px 18px;
         border-radius: 8px;
-        font-weight: 600;
-        font-size: 13px;
-        display: flex;
+        font-weight: 700;
+        font-size: 13.5px;
+        display: inline-flex;
         align-items: center;
-        gap: 6px;
+        gap: 8px;
         cursor: pointer;
         border: none;
-        box-shadow: 0 4px 12px rgba(13, 45, 94, 0.2);
+        box-shadow: 0 4px 12px rgba(0, 59, 142, 0.2);
         transition: transform 0.15s, background 0.15s;
+        font-family: inherit;
       }
       .dash-btn-add:hover {
-        background: #154182;
+        background: #002e70;
         transform: translateY(-1px);
       }
       
+      .dash-table-footer {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        margin-top: 20px;
+        padding-top: 4px;
+      }
+      
       .dash-link {
-        color: #1769aa;
-        font-size: 14px;
+        color: #004b93;
+        font-size: 14.5px;
         font-weight: 600;
         text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
         transition: opacity 0.2s;
+        font-family: inherit;
+        cursor: pointer;
+      }
+      .dash-link-text {
+        text-decoration: underline;
+        text-underline-offset: 3px;
       }
       .dash-link:hover { opacity: 0.8; }
+      .dash-link:hover .dash-link-arrow { transform: translateX(3px); }
+      .dash-link-arrow { transition: transform 0.2s; }
       
       /* Force table style */
       .dash-table-container .table th {
@@ -734,10 +1114,24 @@ function dashboard() {
       <div class="dash-table-container">
         <div class="dash-table-header">
           <div class="dash-table-title">${faCalendarAlt} Jadwal Rapat Hari Ini</div>
-          <button class="dash-btn-add" onclick="openMeetingModal()">＋ Tambah Rapat</button>
-          <a href="#meetings" class="dash-link">Lihat Semua →</a>
+          <button class="dash-btn-add" onclick="openMeetingModal()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            Tambah Rapat
+          </button>
         </div>
         ${meetingTable(state.meetings.slice(0, 6), false)}
+        <div class="dash-table-footer">
+          <a href="#meetings" class="dash-link">
+            <span class="dash-link-text">Lihat Semua</span>
+            <svg class="dash-link-arrow" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+              <polyline points="12 5 19 12 12 19"></polyline>
+            </svg>
+          </a>
+        </div>
       </div>
     </div>
   `
@@ -767,9 +1161,7 @@ function meetingTable(data, actions = true, allowDelete = true) {
 
       if (actions) {
         if (m.status === "Menunggu Approval") {
-          if (m.approvedBy) {
-            actionButtons += `<span style="font-size:11px;color:#219653;margin-right:8px;font-weight:700;background:#e2f7ec;padding:6px 12px;border-radius:12px;" title="Disetujui oleh ${esc(m.approvedBy)}">Disetujui: ${esc(m.approvedBy)}</span>`;
-          } else if (m.rejectedBy) {
+          if (m.rejectedBy) {
             actionButtons += `<span style="font-size:11px;color:#ff4d4f;margin-right:8px;font-weight:700;background:#ffebee;padding:6px 12px;border-radius:12px;">Ditolak (${esc(m.rejectedBy)})</span>`;
           } else if (canApprove) {
             actionButtons += `<button style="background-color:#219653;color:#fff;border:none;border-radius:24px;padding:8px 16px;font-weight:700;font-size:12px;cursor:pointer;margin-right:6px;" title="Setujui" onclick="approveMeeting(${m.id})">Setujui</button>`;
@@ -778,9 +1170,6 @@ function meetingTable(data, actions = true, allowDelete = true) {
             actionButtons += `<span style="font-size:11px;color:#718096;margin-right:8px;font-weight:600;">Menunggu Approval</span>`;
           }
         } else if (m.status === "Akan Datang") {
-          if (m.approvedBy) {
-            actionButtons += `<span style="font-size:11px;color:#219653;margin-right:8px;font-weight:600;" title="Disetujui oleh ${esc(m.approvedBy)}">✓ Disetujui (${esc(m.approvedBy)})</span>`;
-          }
           if (isAdmin) {
             actionButtons += `<button style="background-color:#219653;color:#fff;border:none;border-radius:24px;padding:8px 16px;font-weight:700;font-size:13px;cursor:pointer;box-shadow:0 4px 10px rgba(33,150,83,0.2);" title="Check In" onclick="checkInMeeting(${m.id})">Check In</button>`;
           }
@@ -1129,51 +1518,58 @@ function meetings() {
   );
 }
 
-
 function getRoomImage(r) {
-  if (r.image) return r.image;
-  const n = (r.name || "").toLowerCase();
-  if (n.includes("konsultasi")) {
-    return "https://images.unsplash.com/photo-1577412647305-991150c7d163?auto=format&fit=crop&q=80&w=600&h=400";
+  if (r && Array.isArray(r.images) && r.images.length > 0 && r.images[0] && !r.images[0].includes("unsplash")) {
+    return r.images[0];
   }
-  return "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&q=80&w=600&h=400";
+  if (r && r.image && !r.image.includes("unsplash")) return r.image;
+  const n = (r && r.name ? r.name : "").toLowerCase();
+  if (n.includes("konsultasi")) {
+    return "/dashboard/assets/Ruang Konsultasi.jpeg";
+  }
+  return "/dashboard/assets/Ruang Rapat Besar.jpeg";
 }
-
 
 function rooms() {
   // SVG Icons
   // BsBuildingFillGear
   const bsBuildingGear = svgIcon(
     '<path d="M2 1a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v7.256A4.5 4.5 0 0 0 12.5 8a4.5 4.5 0 0 0-3.59 1.787A.5.5 0 0 0 9 9.5v-1a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .39-.187A4.5 4.5 0 0 0 8.027 12H6.5a.5.5 0 0 0-.5.5V16H3a1 1 0 0 1-1-1zm2 1.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5m3 0v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5m3.5-.5a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5zM4 5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5M7.5 5a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5zm2.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5M4.5 8a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5z"/><path d="M11.886 9.46c.18-.613 1.048-.613 1.229 0l.043.148a.64.64 0 0 0 .921.382l.136-.074c.561-.306 1.175.308.87.869l-.075.136a.64.64 0 0 0 .382.92l.149.045c.612.18.612 1.048 0 1.229l-.15.043a.64.64 0 0 0-.38.921l.074.136c.305.561-.309 1.175-.87.87l-.136-.075a.64.64 0 0 0-.92.382l-.045.149c-.18.612-1.048.612-1.229 0l-.043-.15a.64.64 0 0 0-.921-.38l-.136.074c-.561.305-1.175-.309-.87-.87l.075-.136a.64.64 0 0 0-.382-.92l-.148-.045c-.613-.18-.613-1.048 0-1.229l.148-.043a.64.64 0 0 0 .382-.921l-.074-.136c-.306-.561.308-1.175.869-.87l.136.075a.64.64 0 0 0 .92-.382zM14 12.5a1.5 1.5 0 1 0-3 0 1.5 1.5 0 0 0 3 0"/>',
-    '0 0 16 16',
-    'width="36" height="36" fill="#1769aa"'
+    "0 0 16 16",
+    'width="36" height="36" fill="#1769aa"',
   );
 
   // FaCheck
   const faCheck = svgIcon(
     '<path d="M173.898 439.404l-166.4-166.4c-9.997-9.997-9.997-26.206 0-36.204l36.203-36.204c9.997-9.998 26.207-9.998 36.204 0L192 312.69 432.095 72.596c9.997-9.997 26.207-9.997 36.204 0l36.203 36.204c9.997 9.997 9.997 26.206 0 36.204l-294.4 294.401c-9.998 9.997-26.207 9.997-36.204-.001z"/>',
-    '0 0 512 512',
-    'width="22" height="22" fill="#0c2d5e"'
+    "0 0 512 512",
+    'width="22" height="22" fill="#0c2d5e"',
   );
 
   // FaTimes
   const faTimes = svgIcon(
     '<path d="M242.72 256l100.07-100.07c12.28-12.28 12.28-32.19 0-44.48l-22.24-22.24c-12.28-12.28-32.19-12.28-44.48 0L176 189.28 75.93 89.21c-12.28-12.28-32.19-12.28-44.48 0L9.21 111.45c-12.28 12.28-12.28 32.19 0 44.48L109.28 256 9.21 356.07c-12.28 12.28-12.28 32.19 0 44.48l22.24 22.24c12.28 12.28 32.2 12.28 44.48 0L176 322.72l100.07 100.07c12.28 12.28 32.2 12.28 44.48 0l22.24-22.24c12.28-12.28 12.28-32.19 0-44.48L242.72 256z"/>',
-    '0 0 352 512',
-    'width="18" height="18" fill="#1769aa"'
+    "0 0 352 512",
+    'width="18" height="18" fill="#1769aa"',
   );
 
   // IoSearch
   const ioSearch = svgIcon(
     '<path d="M456.69 421.39 362.6 327.3a173.8 173.8 0 0 0 34.84-104.58C397.44 126.38 319.06 48 222.72 48S48 126.38 48 222.72s78.38 174.72 174.72 174.72A173.8 173.8 0 0 0 327.3 362.6l94.09 94.09a25 25 0 0 0 35.3-35.3M97.92 222.72a124.8 124.8 0 1 1 124.8 124.8 124.95 124.95 0 0 1-124.8-124.8"/>',
-    '0 0 512 512',
-    'width="18" height="18"'
+    "0 0 512 512",
+    'width="18" height="18"',
   );
 
   const totalRooms = state.rooms.length;
-  const tersediaRooms = state.rooms.filter(r => r.status === "Tersedia").length;
-  const terpakaiRooms = state.rooms.filter(r => r.status === "Sedang Digunakan" || r.status === "Terpakai").length;
-  const perbaikanRooms = state.rooms.filter(r => r.status === "Dalam Perbaikan" || r.status === "Perbaikan").length;
+  const tersediaRooms = state.rooms.filter(
+    (r) => r.status === "Tersedia",
+  ).length;
+  const terpakaiRooms = state.rooms.filter(
+    (r) => r.status === "Sedang Digunakan" || r.status === "Terpakai",
+  ).length;
+  const perbaikanRooms = state.rooms.filter(
+    (r) => r.status === "Dalam Perbaikan" || r.status === "Perbaikan",
+  ).length;
 
   const customCSS = `
     <style>
@@ -1412,6 +1808,8 @@ function rooms() {
       /* Modal Style for Tambahan Ruangan */
       .custom-room-modal {
         width: min(520px, 94vw);
+        max-height: 90vh;
+        overflow-y: auto;
         background: #ffffff;
         border-radius: 20px;
         padding: 32px 36px 36px;
@@ -1464,6 +1862,89 @@ function rooms() {
         background-repeat: no-repeat;
         background-position: right 16px center;
         cursor: pointer;
+      }
+      .crm-upload-box {
+        border: 2px dashed #b9cde3;
+        border-radius: 14px;
+        background: #f7fafe;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        overflow: hidden;
+        position: relative;
+      }
+      .crm-upload-box:hover,
+      .crm-upload-box.dragover {
+        border-color: #1769aa;
+        background: #edf5fc;
+      }
+      .crm-image-preview-wrap {
+        width: 100%;
+        min-height: 110px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+      }
+      .crm-image-preview-wrap.has-image {
+        min-height: 140px;
+        max-height: 180px;
+      }
+      .crm-img-preview {
+        width: 100%;
+        height: 150px;
+        object-fit: cover;
+        display: block;
+        border-radius: 12px;
+      }
+      .crm-upload-placeholder {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 20px 16px;
+        text-align: center;
+      }
+      .crm-upload-icon {
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        background: #e1effa;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #1769aa;
+      }
+      .crm-upload-text strong {
+        font-size: 13.5px;
+        color: #0c2d5e;
+        display: block;
+        font-weight: 600;
+      }
+      .crm-upload-text small {
+        font-size: 11.5px;
+        color: #718dae;
+        display: block;
+        margin-top: 3px;
+      }
+      .crm-upload-overlay {
+        position: absolute;
+        inset: 0;
+        background: rgba(12, 45, 94, 0.65);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        color: #ffffff;
+        font-size: 13px;
+        font-weight: 600;
+        opacity: 0;
+        transition: opacity 0.2s ease;
+        border-radius: 12px;
+      }
+      .crm-upload-box:hover .crm-upload-overlay {
+        opacity: 1;
       }
       .crm-actions {
         display: flex;
@@ -1596,20 +2077,23 @@ function roomCards(data) {
   }
   return data
     .map(
-      (r) => `
+      (r) => {
+        const count = Array.isArray(r.images) && r.images.length > 1 ? r.images.length : (r.image ? 1 : 0);
+        return `
         <div class="custom-room-card" onclick="editRoom(${r.id})">
-          <div class="crc-img-wrap">
+          <div class="crc-img-wrap" style="position:relative;">
             <img src="${getRoomImage(r)}" alt="${esc(r.name)}" class="crc-img">
+            ${count > 1 ? `<span style="position:absolute;bottom:10px;right:10px;background:rgba(12,45,94,0.85);color:#fff;padding:4px 8px;border-radius:6px;font-size:11px;font-weight:700;letter-spacing:0.3px;display:flex;align-items:center;gap:4px;backdrop-filter:blur(4px);box-shadow:0 2px 6px rgba(0,0,0,0.25);">${count} View</span>` : ""}
           </div>
           <div class="crc-footer">
             <span>${esc(r.name)}</span>
           </div>
         </div>
-      `
+      `;
+      },
     )
     .join("");
 }
-
 
 function users() {
   const faUsers = svgIcon(
@@ -1728,10 +2212,38 @@ function users() {
         margin: 0;
       }
       
+      .btn-add-user {
+        background: #0c2d5e;
+        color: #ffffff;
+        border: none;
+        padding: 10px 22px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 700;
+        font-family: 'Poppins', sans-serif;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: background 0.2s;
+      }
+      .btn-add-user:hover {
+        background: #1769aa;
+      }
+      
       .dash-filters {
         display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
         gap: 16px;
         margin-bottom: 24px;
+      }
+      .dash-filters-left {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        flex-wrap: wrap;
       }
       .dash-search-box { position: relative; display: flex; align-items: center; width: 320px; }
       .dash-search-box svg { position: absolute; left: 14px; color: #1769aa; }
@@ -1751,7 +2263,7 @@ function users() {
 
   const numUsers = state.users.length;
   const numAdmins = state.users.filter(
-    (u) => u.role.includes("Admin") || u.role === "Administrator",
+    (u) => (u.role || "").includes("Admin") || u.role === "Administrator",
   ).length;
 
   return (
@@ -1788,16 +2300,31 @@ function users() {
       
       <div class="dash-table-container">
         <div class="dash-filters">
-          <div class="dash-search-box">
-            ${ioSearch}
-            <input id="userSearch" placeholder="Cari pengguna..." oninput="filterUsers()">
+          <div class="dash-filters-left">
+            <div class="dash-search-box">
+              ${ioSearch}
+              <input id="userSearch" placeholder="Cari nama, username, email..." oninput="filterUsers()">
+            </div>
+            <select id="userRole" onchange="filterUsers()">
+              <option value="">Semua Role</option>
+              <option value="User">User</option>
+              <option value="Administrator">Administrator</option>
+              <option value="Approval 1">Approval 1</option>
+              <option value="Approval 2">Approval 2</option>
+              <option value="Admin Ruangan">Admin Ruangan</option>
+              <option value="Admin Sistem">Admin Sistem</option>
+            </select>
           </div>
-          <select id="userRole" onchange="filterUsers()">
-            <option value="">Semua Role</option>
-            <option>User</option>
-            <option>Admin Utama</option>
-            <option>Admin Persetujuan</option>
-          </select>
+          ${
+            isMainAdmin()
+              ? `
+          <button class="btn-add-user" onclick="openUserModal()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            Tambah Pengguna
+          </button>
+          `
+              : ""
+          }
         </div>
         
         <div id="userTable">${userTable(state.users)}</div>
@@ -1819,12 +2346,43 @@ function userTable(data) {
     'width="14" height="14"',
   );
 
-  return `<div class="table-wrap"><table class="table"><thead><tr><th>No</th><th>Nama</th><th>Email</th><th>Jabatan/Unit</th><th>Role</th><th>Aksi</th></tr></thead><tbody>${data
+  const mainAdmin = isMainAdmin();
+
+  return `<div class="table-wrap"><table class="table"><thead><tr><th>No</th><th>Nama & Akun</th><th>Email</th><th>Jabatan/Unit</th><th>Role</th><th>Status</th><th>Aksi</th></tr></thead><tbody>${data
     .map((u, i) => {
-      let roleColor = "#ffe6e6"; // Default/pinkish
-      if (u.role === "User") roleColor = "#ffe5d9"; // Peach
-      const badgeStyle = `background:${roleColor};color:#0c2d5e;padding:6px 12px;border-radius:12px;font-size:11px;font-weight:700;`;
-      return `<tr><td>${i + 1}</td><td><b>${esc(u.name)}</b></td><td>${esc(u.email)}</td><td>${esc(u.dept)}</td><td><span style="${badgeStyle}">${esc(u.role)}</span></td><td><div class="actions" style="gap:12px;"><button style="background:none;border:none;color:#4b6a90;cursor:pointer;" title="Edit" onclick="editUser(${u.id})">${faPencilAlt}</button><button style="background:none;border:none;color:#4b6a90;cursor:pointer;" title="Hapus" onclick="deleteUser(${u.id})">${faTrashAlt}</button></div></td></tr>`;
+      let roleColor = "#f1f5f9";
+      if (u.role === "User") roleColor = "#e6f0fa";
+      else if (u.role === "Administrator") roleColor = "#e0f5ec";
+      else if ((u.role || "").includes("Approval")) roleColor = "#fef3c7";
+      const badgeStyle = `background:${roleColor};color:#0c2d5e;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:700;`;
+      const statusStyle =
+        (u.status || "Aktif") === "Aktif"
+          ? "background:#d1fae5;color:#047857;padding:3px 8px;border-radius:8px;font-size:11px;font-weight:600;"
+          : "background:#fee2e2;color:#b91c1c;padding:3px 8px;border-radius:8px;font-size:11px;font-weight:600;";
+      const uid = typeof u.id === "string" ? `'${u.id}'` : u.id;
+      return `<tr>
+        <td>${i + 1}</td>
+        <td>
+          <div style="font-weight:700;color:#0c2d5e;">${esc(u.name)}</div>
+          ${u.username ? `<small style="color:#718dae;font-size:11px;">Username: <b>${esc(u.username)}</b></small>` : ""}
+        </td>
+        <td>${esc(u.email || "-")}</td>
+        <td>${esc(u.dept || "-")}</td>
+        <td><span style="${badgeStyle}">${esc(u.role)}</span></td>
+        <td><span style="${statusStyle}">${esc(u.status || "Aktif")}</span></td>
+        <td>
+          ${
+            mainAdmin
+              ? `
+            <div class="actions" style="gap:12px;">
+              <button style="background:none;border:none;color:#4b6a90;cursor:pointer;" title="Edit" onclick="editUser(${uid})">${faPencilAlt}</button>
+              ${u.username !== "admin" ? `<button style="background:none;border:none;color:#e53e3e;cursor:pointer;" title="Hapus" onclick="deleteUser(${uid})">${faTrashAlt}</button>` : ""}
+            </div>
+          `
+              : `<span style="font-size:11px;color:#94a3b8;font-style:italic;">Hanya Baca</span>`
+          }
+        </td>
+      </tr>`;
     })
     .join("")}</tbody></table></div>`;
 }
@@ -2031,8 +2589,9 @@ function reports() {
     "0 0 16 16",
     'width="24" height="24" fill="currentColor"',
   );
-  const biExport = svgIcon(
-    '<path d="M11 16h2V7h3l-4-5-4 5h3z"/><path d="M5 22h14c1.103 0 2-.897 2-2v-9c0-1.103-.897-2-2-2h-4v2h4v9H5v-9h4V9H5c-1.103 0-2 .897-2 2v9c0 1.103.897 2 2 2z"/>',
+  // TiExport — react-icons/ti (viewBox 0 0 24 24)
+  const tiExport = svgIcon(
+    '<path d="M8 16.5v.5c1.691-2.578 3.6-3.953 6-4v3c0 .551.511 1 1.143 1 .364 0 .675-.158.883-.391 1.933-2.029 5.974-6.109 5.974-6.109s-4.041-4.082-5.975-6.137c-.208-.205-.518-.363-.882-.363-.632 0-1.143.447-1.143 1v3c-4.66 0-6 4.871-6 8.5zM5 21h14c.553 0 1-.448 1-1v-6.046c-.664.676-1.364 1.393-2 2.047v2.999h-12v-12h7v-2h-8c-.553 0-1 .448-1 1v14c0 .552.447 1 1 1z"/>',
     "0 0 24 24",
     'width="18" height="18"',
   );
@@ -2149,12 +2708,22 @@ function reports() {
           <button class="btn-white" onclick="openFilterModal()">Filter Waktu</button>
           <button class="btn-blue" onclick="generateTrafficReport()">Tampilkan</button>
         </div>
-        <div>
-          <select class="rep-export-btn" id="exportDropdown" onchange="handleExportDropdown(this)" style="appearance:none; padding-right:10px;">
-            <option value="" disabled selected>📄 Export</option>
-            <option value="excel" style="background: white; color: black; text-align: left;">📊 Excel</option>
-            <option value="pdf" style="background: white; color: black; text-align: left;">📄 PDF</option>
-          </select>
+        <div class="rep-export-wrapper" style="position: relative; display: inline-block;">
+          <button class="rep-export-btn" id="exportBtn" type="button" onclick="toggleExportMenu(event)">
+            ${tiExport}
+            <span>Export</span>
+            <svg width="10" height="6" viewBox="0 0 10 6" fill="none" style="margin-left: 2px;">
+              <path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+          <div id="exportMenuDropdown" class="rep-export-menu" style="display: none; position: absolute; top: calc(100% + 6px); right: 0; background: #ffffff; border-radius: 8px; box-shadow: 0 10px 25px rgba(12, 45, 94, 0.12); border: 1px solid #e2e8f0; min-width: 140px; z-index: 1000; overflow: hidden;">
+            <button type="button" onclick="exportExcel(); closeExportMenu();" style="width: 100%; display: flex; align-items: center; gap: 8px; padding: 10px 16px; border: none; background: transparent; font-size: 13px; font-weight: 600; color: #0c2d5e; cursor: pointer; text-align: left; transition: background 0.15s;" onmouseover="this.style.background='#f0f4fa'" onmouseout="this.style.background='transparent'">
+              <span>📊</span> Export Excel
+            </button>
+            <button type="button" onclick="exportPDF(); closeExportMenu();" style="width: 100%; display: flex; align-items: center; gap: 8px; padding: 10px 16px; border: none; background: transparent; font-size: 13px; font-weight: 600; color: #0c2d5e; cursor: pointer; text-align: left; border-top: 1px solid #f1f5f9; transition: background 0.15s;" onmouseover="this.style.background='#f0f4fa'" onmouseout="this.style.background='transparent'">
+              <span>📄</span> Export PDF
+            </button>
+          </div>
         </div>
       </div>
       
@@ -2314,6 +2883,30 @@ function generateTrafficReport() {
   }
 }
 
+function toggleExportMenu(e) {
+  if (e) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+  const menu = document.getElementById("exportMenuDropdown");
+  if (menu) {
+    const isHidden = menu.style.display === "none";
+    menu.style.display = isHidden ? "block" : "none";
+  }
+}
+
+function closeExportMenu() {
+  const menu = document.getElementById("exportMenuDropdown");
+  if (menu) menu.style.display = "none";
+}
+
+document.addEventListener("click", (e) => {
+  const wrapper = document.querySelector(".rep-export-wrapper");
+  if (wrapper && !wrapper.contains(e.target)) {
+    closeExportMenu();
+  }
+});
+
 function handleExportDropdown(el) {
   if (el.value === "pdf") {
     exportPDF();
@@ -2335,19 +2928,19 @@ function settings() {
   const faUsers = svgIcon(
     '<path d="M96 224c35.3 0 64-28.7 64-64s-28.7-64-64-64-64 28.7-64 64 28.7 64 64 64zm448 0c35.3 0 64-28.7 64-64s-28.7-64-64-64-64 28.7-64 64 28.7 64 64 64zm32 32h-64c-17.6 0-33.5 7.1-45.1 18.6 40.3 22.1 68.9 62 75.1 109.4h66c17.7 0 32-14.3 32-32v-32c0-35.3-28.7-64-64-64zm-256 0c61.9 0 112-50.1 112-112S381.9 32 320 32 208 82.1 208 144s50.1 112 112 112zm76.8 32h-8.3c-20.8 10-43.9 16-68.5 16s-47.6-6-68.5-16h-8.3C179.6 288 128 339.6 128 403.2V432c0 26.5 21.5 48 48 48h288c26.5 0 48-21.5 48-48v-28.8c0-63.6-51.6-115.2-115.2-115.2zm-223.7-13.4C161.5 263.1 145.6 256 128 256H64c-35.3 0-64 28.7-64 64v32c0 17.7 14.3 32 32 32h65.9c6.3-47.4 34.9-87.3 75.2-109.4z"/>',
     "0 0 640 512",
-    'width="24" height="24" fill="#047857"'
+    'width="24" height="24" fill="#047857"',
   );
 
   const faUserCog = svgIcon(
     '<path d="M610.5 373.3c2.6-14.1 2.6-28.5 0-42.6l25.8-14.9c3-1.7 4.3-5.2 3.3-8.5-6.7-21.6-18.2-41.2-33.2-57.4-2.3-2.5-6-3.1-9-1.4l-25.8 14.9c-10.9-9.3-23.4-16.5-36.9-21.3v-29.8c0-3.4-2.4-6.4-5.7-7.1-22.3-5-45-4.8-66.2 0-3.3.7-5.7 3.7-5.7 7.1v29.8c-13.5 4.8-26 12-36.9 21.3l-25.8-14.9c-2.9-1.7-6.7-1.1-9 1.4-15 16.2-26.5 35.8-33.2 57.4-1 3.3.4 6.8 3.3 8.5l25.8 14.9c-2.6 14.1-2.6 28.5 0 42.6l-25.8 14.9c-3 1.7-4.3 5.2-3.3 8.5 6.7 21.6 18.2 41.1 33.2 57.4 2.3 2.5 6 3.1 9 1.4l25.8-14.9c10.9 9.3 23.4 16.5 36.9 21.3v29.8c0 3.4 2.4 6.4 5.7 7.1 22.3 5 45 4.8 66.2 0 3.3-.7 5.7-3.7 5.7-7.1v-29.8c13.5-4.8 26-12 36.9-21.3l25.8 14.9c2.9 1.7 6.7 1.1 9-1.4 15-16.2 26.5-35.8 33.2-57.4 1-3.3-.4-6.8-3.3-8.5l-25.8-14.9zM496 400.5c-26.8 0-48.5-21.8-48.5-48.5s21.8-48.5 48.5-48.5 48.5 21.8 48.5 48.5-21.7 48.5-48.5 48.5zM224 256c70.7 0 128-57.3 128-128S294.7 0 224 0 96 57.3 96 128s57.3 128 128 128zm201.2 226.5c-2.3-1.2-4.6-2.6-6.8-3.9l-7.9 4.6c-6 3.4-12.8 5.3-19.6 5.3-10.9 0-21.4-4.6-28.9-12.6-18.3-19.8-32.3-43.9-40.2-69.6-5.5-17.7 1.9-36.4 17.9-45.7l7.9-4.6c-.1-2.6-.1-5.2 0-7.8l-7.9-4.6c-16-9.2-23.4-28-17.9-45.7.9-2.9 2.2-5.8 3.2-8.7-3.8-.3-7.5-1.2-11.4-1.2h-16.7c-22.2 10.2-46.9 16-72.9 16s-50.6-5.8-72.9-16h-16.7C60.2 288 0 348.2 0 422.4V464c0 26.5 21.5 48 48 48h352c10.1 0 19.5-3.2 27.2-8.5-1.2-3.8-2-7.7-2-11.8v-9.2z"/>',
     "0 0 640 512",
-    'width="24" height="24" fill="#1769aa"'
+    'width="24" height="24" fill="#1769aa"',
   );
 
   const faCheck = svgIcon(
     '<path d="M173.898 439.404l-166.4-166.4c-9.997-9.997-9.997-26.206 0-36.204l36.203-36.204c9.997-9.998 26.207-9.998 36.204 0L192 312.69 432.095 72.596c9.997-9.997 26.207-9.997 36.204 0l36.203 36.204c9.997 9.997 9.997 26.206 0 36.204l-294.4 294.401c-9.998 9.997-26.207 9.997-36.204-.001z"/>',
     "0 0 512 512",
-    'width="20" height="20" fill="#d97706"'
+    'width="20" height="20" fill="#d97706"',
   );
 
   const fiAlertTriangle = `
@@ -2361,12 +2954,14 @@ function settings() {
   const faPencilAlt = svgIcon(
     '<path d="M497.9 142.1l-46.1 46.1c-4.7 4.7-12.3 4.7-17 0l-111-111c-4.7-4.7-4.7-12.3 0-17l46.1-46.1c18.7-18.7 49.1-18.7 67.9 0l60.1 60.1c18.8 18.7 18.8 49.1 0 67.9zM284.2 99.8L21.6 362.4.4 483.9c-2.9 16.4 11.4 30.6 27.8 27.8l121.5-21.3 262.6-262.6c4.7-4.7 4.7-12.3 0-17l-111-111c-4.8-4.7-12.4-4.7-17.1 0zM124.1 339.9c-5.5-5.5-5.5-14.3 0-19.8l154-154c5.5-5.5 14.3-5.5 19.8 0s5.5 14.3 0 19.8l-154 154c-5.5 5.5-14.3 5.5-19.8 0zM88 424h48v36.3l-64.5 11.3-31.1-31.1L51.7 376H88v48z"/>',
     "0 0 512 512",
-    'width="15" height="15" fill="#0c2d5e"'
+    'width="15" height="15" fill="#0c2d5e"',
   );
 
   const totalRoles = 4;
   const totalUsers = state.users ? state.users.length : 10;
-  const adminAktif = state.users ? state.users.filter(u => u.role === "Administrator").length : 1;
+  const adminAktif = state.users
+    ? state.users.filter((u) => u.role === "Administrator").length
+    : 1;
   const aksesBermasalah = 0;
 
   const rolesData = [
@@ -2655,7 +3250,9 @@ function settings() {
               </tr>
             </thead>
             <tbody>
-              ${rolesData.map(r => `
+              ${rolesData
+                .map(
+                  (r) => `
                 <tr>
                   <td class="td-no">${r.no}</td>
                   <td class="td-role">${r.name}</td>
@@ -2667,7 +3264,9 @@ function settings() {
                     </button>
                   </td>
                 </tr>
-              `).join("")}
+              `,
+                )
+                .join("")}
             </tbody>
           </table>
         </div>
@@ -2718,6 +3317,25 @@ function closeModal() {
   document.getElementById("modal").classList.remove("show");
 }
 
+function onToggleKepalaBiro(checkbox) {
+  if (checkbox && checkbox.checked) {
+    const reqInput = document.getElementById("fRequester");
+    if (
+      reqInput &&
+      (!reqInput.value ||
+        reqInput.value.trim() === "" ||
+        reqInput.value === "Unit Kerja")
+    ) {
+      reqInput.value = "Kepala Biro Keuangan dan BMN";
+    }
+    const statusSelect = document.getElementById("fStatus");
+    if (statusSelect && statusSelect.value === "Menunggu Approval") {
+      statusSelect.value = "Akan Datang";
+    }
+  }
+}
+window.onToggleKepalaBiro = onToggleKepalaBiro;
+
 function openMeetingModal(id = null) {
   const m = id
     ? state.meetings.find((x) => x.id === id)
@@ -2731,70 +3349,229 @@ function openMeetingModal(id = null) {
         participants: 10,
         status: "Menunggu Approval",
         desc: "",
+        isKepalaBiro: false,
       };
+
+  const isKepalaBiro =
+    m.isKepalaBiro ||
+    (m.requester && m.requester.toLowerCase().includes("kepala biro")) ||
+    (m.title && m.title.toLowerCase().includes("kepala biro"));
+
   openModal(
     id ? "Edit Rapat" : "Tambah Rapat",
     `<div class="form-grid">
- <div class="field full"><label>Judul Rapat</label><input id="fTitle" value="${esc(m.title)}"></div>
- <div class="field"><label>Pemesan</label><input id="fRequester" value="${esc(m.requester)}"></div>
- <div class="field"><label>Ruangan</label><select id="fRoom">${state.rooms.map((r) => `<option ${r.name === m.room ? "selected" : ""}>${esc(r.name)}</option>`).join("")}</select></div>
- <div class="field"><label>Tanggal</label><input id="fDate" type="date" value="${m.date}"></div>
- <div class="field"><label>Peserta</label><input id="fParticipants" type="number" value="${m.participants}"></div>
- <div class="field"><label>Mulai</label><input id="fStart" type="time" value="${m.start}"></div><div class="field"><label>Selesai</label><input id="fEnd" type="time" value="${m.end}"></div>
- <div class="field full"><label>Status</label><select id="fStatus">${["Menunggu Approval", "Akan Datang", "Segera", "Berjalan", "Selesai", "Dibatalkan"].map((s) => `<option ${s === m.status ? "selected" : ""}>${s}</option>`).join("")}</select></div>
- <div class="field full"><label>Deskripsi</label><textarea id="fDesc" rows="3">${esc(m.desc)}</textarea></div></div>
- <div class="modal-actions"><button class="btn btn-light" onclick="closeModal()">Batal</button><button class="btn btn-primary" onclick="saveMeeting(${id || "null"})">Simpan</button></div>`,
+      <div class="field full" style="background:#eaf2fb;padding:12px 16px;border-radius:12px;border:1.5px solid #b8d4f4;margin-bottom:6px;">
+        <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;margin:0;">
+          <input type="checkbox" id="fIsKepalaBiro" style="width:18px;height:18px;margin-top:2px;cursor:pointer;accent-color:#0c2d5e;" ${isKepalaBiro ? "checked" : ""} onchange="onToggleKepalaBiro(this)">
+          <div>
+            <span style="font-weight:700;font-size:13.5px;color:#0c2d5e;">Rapat Kepala Biro Keuangan dan BMN (Prioritas Utama)</span>
+            <span style="display:block;font-size:11.5px;color:#3d5a80;font-weight:400;margin-top:3px;line-height:1.4;">
+              Jika diaktifkan, jadwal rapat lain pada ruangan dan waktu yang sama akan <b>otomatis dibatalkan</b> (meskipun sudah disetujui / approve), dan <b>notifikasi pembatalan</b> akan langsung dikirimkan kepada pemesan sebelumnya.
+            </span>
+          </div>
+        </label>
+      </div>
+      <div class="field full"><label>Judul Rapat</label><input id="fTitle" value="${esc(m.title)}" placeholder="Contoh: Arahan Rencana Anggaran Biro Keuangan dan BMN"></div>
+      <div class="field"><label>Pemesan</label><input id="fRequester" value="${esc(m.requester)}" placeholder="Contoh: Kepala Biro Keuangan dan BMN"></div>
+      <div class="field"><label>Ruangan</label><select id="fRoom">${state.rooms.map((r) => `<option ${r.name === m.room ? "selected" : ""}>${esc(r.name)}</option>`).join("")}</select></div>
+      <div class="field"><label>Tanggal</label><input id="fDate" type="date" value="${m.date}"></div>
+      <div class="field"><label>Peserta</label><input id="fParticipants" type="number" value="${m.participants}"></div>
+      <div class="field"><label>Mulai</label><input id="fStart" type="time" value="${m.start}"></div><div class="field"><label>Selesai</label><input id="fEnd" type="time" value="${m.end}"></div>
+      <div class="field full"><label>Status</label><select id="fStatus">${["Menunggu Approval", "Akan Datang", "Segera", "Berjalan", "Selesai", "Dibatalkan"].map((s) => `<option ${s === m.status ? "selected" : ""}>${s}</option>`).join("")}</select></div>
+      <div class="field full"><label>Deskripsi</label><textarea id="fDesc" rows="3" placeholder="Deskripsi atau agenda pembahasan...">${esc(m.desc)}</textarea></div>
+    </div>
+    <div class="modal-actions"><button class="btn btn-light" onclick="closeModal()">Batal</button><button class="btn btn-primary" onclick="saveMeeting(${id || "null"})">Simpan</button></div>`,
   );
 }
 
 async function saveMeeting(id) {
+  const isCheckboxChecked =
+    document.getElementById("fIsKepalaBiro") &&
+    document.getElementById("fIsKepalaBiro").checked;
+  const titleVal = f("fTitle").trim();
+  const requesterVal = f("fRequester").trim();
+  const roomVal = f("fRoom");
+  const dateVal = f("fDate");
+  const startVal = f("fStart");
+  const endVal = f("fEnd");
+  const participantsVal = Number(f("fParticipants")) || 10;
+  let statusVal = f("fStatus");
+  const descVal = f("fDesc");
+
+  if (!titleVal) {
+    alert("Judul rapat tidak boleh kosong");
+    return;
+  }
+  if (!startVal || !endVal) {
+    alert("Waktu mulai dan selesai harus diisi");
+    return;
+  }
+
+  const reqLower = requesterVal.toLowerCase();
+  const titleLower = titleVal.toLowerCase();
+  const descLower = (descVal || "").toLowerCase();
+
+  const isKepalaBiro =
+    isCheckboxChecked ||
+    reqLower.includes("kepala biro keuangan") ||
+    reqLower.includes("ka. biro keuangan") ||
+    reqLower.includes("kepala biro") ||
+    reqLower.includes("biro keuangan dan bmn") ||
+    titleLower.includes("kepala biro keuangan") ||
+    titleLower.includes("ka. biro keuangan") ||
+    descLower.includes("kepala biro keuangan");
+
+  // Jika untuk Kepala Biro dan status default Menunggu Approval, otomatis menjadi Akan Datang
+  if (isKepalaBiro && statusVal === "Menunggu Approval") {
+    statusVal = "Akan Datang";
+  }
+
   const obj = {
     id: id || Date.now(),
-    title: f("fTitle"),
-    requester: f("fRequester"),
-    room: f("fRoom"),
-    date: f("fDate"),
-    start: f("fStart"),
-    end: f("fEnd"),
-    participants: Number(f("fParticipants")),
-    status: f("fStatus"),
-    desc: f("fDesc"),
+    title: titleVal,
+    requester:
+      requesterVal ||
+      (isKepalaBiro ? "Kepala Biro Keuangan dan BMN" : "Unit Kerja"),
+    room: roomVal,
+    date: dateVal,
+    start: startVal,
+    end: endVal,
+    participants: participantsVal,
+    status: statusVal,
+    desc: descVal,
+    isKepalaBiro: isKepalaBiro,
+    approvedBy: isKepalaBiro
+      ? "Kepala Biro Keuangan dan BMN"
+      : id
+        ? state.meetings.find((x) => x.id === id)?.approvedBy || ""
+        : "",
   };
 
-  const reqLower = obj.requester.toLowerCase();
-  if (reqLower.includes("pimpinan") || reqLower.includes("kepala")) {
-    let cancelled = false;
+  let cancelledMeetings = [];
+
+  // Jika rapat ini adalah untuk Kepala Biro Keuangan dan BMN:
+  // Batalkan otomatis rapat lain di ruangan dan tanggal yang sama jika waktunya bertabrakan (overlap)
+  if (isKepalaBiro) {
     state.meetings = state.meetings.map((m) => {
+      const isSameRoom = m.room === obj.room;
+      const isSameDate = m.date === obj.date;
+      const isDifferentMeeting = m.id !== obj.id;
+      const isNotCancelled =
+        m.status !== "Dibatalkan" && m.status !== "Selesai";
+      // Cek bentrok jam (overlapping)
+      const isTimeOverlap = obj.start < m.end && obj.end > m.start;
+
       if (
-        m.room === obj.room &&
-        m.date === obj.date &&
-        m.id !== obj.id &&
-        m.status !== "Dibatalkan" &&
-        m.status !== "Selesai"
+        isSameRoom &&
+        isSameDate &&
+        isDifferentMeeting &&
+        isNotCancelled &&
+        isTimeOverlap
       ) {
-        if (obj.start < m.end && obj.end > m.start) {
-          cancelled = true;
-          return {
-            ...m,
-            status: "Dibatalkan",
-            desc:
-              m.desc +
-              "\n[Dibatalkan otomatis: Jadwal diambil alih oleh Pimpinan/Kepala Bagian]",
-          };
-        }
+        cancelledMeetings.push({ ...m });
+        return {
+          ...m,
+          status: "Dibatalkan",
+          cancellationReason:
+            "Ruangan dialihkan untuk rapat Kepala Biro Keuangan dan BMN",
+          cancelledBy: "Kepala Biro Keuangan dan BMN",
+          cancelledAt: new Date().toISOString(),
+          desc:
+            (m.desc || "") +
+            "\n[Dibatalkan otomatis: Ruangan digunakan untuk rapat Kepala Biro Keuangan dan BMN]",
+        };
       }
       return m;
     });
-    if (cancelled)
-      toast("Beberapa rapat otomatis dibatalkan karena prioritas pimpinan.");
   }
 
-  if (id) state.meetings = state.meetings.map((x) => (x.id === id ? obj : x));
-  else state.meetings.unshift(obj);
+  if (id) {
+    state.meetings = state.meetings.map((x) => (x.id === id ? obj : x));
+  } else {
+    state.meetings.unshift(obj);
+  }
+
+  // Simpan data rapat ke LocalStorage agar tersinkronisasi
+  try {
+    getAppStorage().setItem("app_meetings", JSON.stringify(state.meetings));
+  } catch (e) {}
+
+  // Jika ada rapat yang dibatalkan karena bentrok dengan Kepala Biro:
+  if (cancelledMeetings.length > 0) {
+    const notifs = getNotifications();
+    const nowIso = new Date().toISOString();
+
+    cancelledMeetings.forEach((cm) => {
+      // 1. Kirim notifikasi pembatalan spesifik untuk pemesan sebelumnya
+      const cancelNotif = {
+        id: Date.now() + Math.floor(Math.random() * 10000),
+        meetingId: cm.id,
+        type: "CANCELED_PRIORITY",
+        title: "⚠️ Pembatalan Ruang Rapat (Prioritas Kepala Biro)",
+        message: `Yth. ${cm.requester || "Pemesan"}, pemesanan ruangan ${cm.room} pada tanggal ${formatDate(cm.date)} (${cm.start} - ${cm.end}) untuk agenda "${cm.title}" otomatis DIBATALKAN karena ruangan akan digunakan untuk rapat Kepala Biro Keuangan dan BMN.`,
+        room: cm.room,
+        requester: cm.requester,
+        date: cm.date,
+        time: `${cm.start} - ${cm.end}`,
+        agenda: cm.title,
+        status: "Dibatalkan",
+        cancellationReason:
+          "Ruangan dialihkan untuk rapat Kepala Biro Keuangan dan BMN",
+        createdAt: nowIso,
+        readBy: [],
+        isUrgent: true,
+      };
+
+      // 2. Perbarui notifikasi permintaan sebelumnya jika ada
+      const existingNotif = notifs.find((n) => n.meetingId === cm.id);
+      if (existingNotif) {
+        existingNotif.status = "Dibatalkan";
+        existingNotif.cancellationReason =
+          "Ruangan dialihkan untuk rapat Kepala Biro Keuangan dan BMN";
+        existingNotif.message = `[DIBATALKAN] Pemesanan ${cm.room} oleh ${cm.requester} otomatis dibatalkan karena ruangan akan digunakan untuk rapat Kepala Biro Keuangan dan BMN.`;
+      }
+
+      notifs.unshift(cancelNotif);
+    });
+
+    saveNotifications(notifs);
+    playNotificationSound();
+
+    // Trigger update notifikasi lintas frame/tab
+    try {
+      getAppStorage().setItem("app_notifications", JSON.stringify(notifs));
+      if (window.parent && window.parent.dispatchEvent) {
+        window.parent.dispatchEvent(new Event("app_notifications_updated"));
+      }
+    } catch (e) {}
+
+    const cancelSummary = cancelledMeetings
+      .map(
+        (cm) =>
+          `• "${cm.title}" (Pemesan: ${cm.requester}, Waktu: ${cm.start}-${cm.end})`,
+      )
+      .join("\n");
+
+    setTimeout(() => {
+      alert(
+        `⚠️ PEMBERITAHUAN PRIORITAS KEPALA BIRO KEUANGAN DAN BMN:\n\n` +
+          `Rapat berikut yang sebelumnya berada di jadwal yang sama otomatis DIBATALKAN (walaupun sudah disetujui):\n\n` +
+          cancelSummary +
+          `\n\n` +
+          `Notifikasi pembatalan resmi telah dikirimkan ke pemesan ruangan terkait.`,
+      );
+    }, 150);
+  }
 
   closeModal();
   render();
-  toast(id ? "Rapat berhasil diedit" : "Rapat berhasil ditambahkan");
+  toast(
+    cancelledMeetings.length > 0
+      ? "Rapat Kepala Biro berhasil ditambahkan. Rapat yang bertabrakan otomatis dibatalkan."
+      : id
+        ? "Rapat berhasil diedit"
+        : "Rapat berhasil ditambahkan",
+  );
 
   try {
     await fetch("/api/dashboard/meetings", {
@@ -2814,12 +3591,20 @@ function approveMeeting(id) {
   if (!targetMeeting) return;
 
   // Jika sudah di approve oleh salah satu akun maka di akun lain tidak bisa approve lagi
-  if (targetMeeting.approvedBy || targetMeeting.status !== "Menunggu Approval") {
-    alert("Rapat ini sudah disetujui sebelumnya oleh " + (targetMeeting.approvedBy || "akun lain") + " dan tidak dapat disetujui kembali.");
+  if (
+    targetMeeting.approvedBy ||
+    targetMeeting.status !== "Menunggu Approval"
+  ) {
+    alert(
+      "Rapat ini sudah disetujui sebelumnya oleh " +
+        (targetMeeting.approvedBy || "akun lain") +
+        " dan tidak dapat disetujui kembali.",
+    );
     return;
   }
 
-  const approverName = user.name || user.username || user.role || "Admin Persetujuan";
+  const approverName =
+    user.name || user.username || user.role || "Admin Persetujuan";
   const approverRole = user.role || "Approval";
   const approvedTag = approverName + (approverRole ? " - " + approverRole : "");
 
@@ -2836,7 +3621,18 @@ function approveMeeting(id) {
   });
 
   try {
-    window.parent.localStorage.setItem("app_meetings", JSON.stringify(state.meetings));
+    getAppStorage().setItem("app_meetings", JSON.stringify(state.meetings));
+  } catch (e) {}
+
+  // Update notification item status
+  try {
+    const notifs = getNotifications();
+    const notif = notifs.find((n) => n.meetingId === id);
+    if (notif) {
+      notif.status = "Akan Datang";
+      notif.approvedBy = approvedTag;
+      saveNotifications(notifs);
+    }
   } catch (e) {}
 
   render();
@@ -2849,7 +3645,7 @@ function checkInMeeting(id) {
     return m;
   });
   try {
-    window.parent.localStorage.setItem("app_meetings", JSON.stringify(state.meetings));
+    getAppStorage().setItem("app_meetings", JSON.stringify(state.meetings));
   } catch (e) {}
   render();
   toast("Berhasil Check-In! Rapat telah berjalan.");
@@ -2862,7 +3658,7 @@ function checkOutMeeting(id) {
       return m;
     });
     try {
-      window.parent.localStorage.setItem("app_meetings", JSON.stringify(state.meetings));
+      getAppStorage().setItem("app_meetings", JSON.stringify(state.meetings));
     } catch (e) {}
     render();
     toast("Berhasil Check-Out! Rapat telah selesai.");
@@ -2871,8 +3667,15 @@ function checkOutMeeting(id) {
 
 function rejectMeeting(id) {
   const targetMeeting = state.meetings.find((m) => m.id === id);
-  if (targetMeeting && (targetMeeting.approvedBy || targetMeeting.status !== "Menunggu Approval")) {
-    alert("Rapat ini sudah disetujui oleh " + (targetMeeting.approvedBy || "akun lain") + " sehingga tidak dapat ditolak.");
+  if (
+    targetMeeting &&
+    (targetMeeting.approvedBy || targetMeeting.status !== "Menunggu Approval")
+  ) {
+    alert(
+      "Rapat ini sudah disetujui oleh " +
+        (targetMeeting.approvedBy || "akun lain") +
+        " sehingga tidak dapat ditolak.",
+    );
     return;
   }
   openModal(
@@ -2895,7 +3698,8 @@ function confirmReject(id) {
   const reason =
     document.getElementById("fRejectReason").value.trim() ||
     "Tidak ada alasan yang diberikan";
-  const rejecterName = user.name || user.username || user.role || "Admin Persetujuan";
+  const rejecterName =
+    user.name || user.username || user.role || "Admin Persetujuan";
   const rejecterRole = user.role || "Approval";
   const rejecterTag = rejecterName + (rejecterRole ? " - " + rejecterRole : "");
 
@@ -2905,13 +3709,25 @@ function confirmReject(id) {
         ...m,
         status: "Dibatalkan",
         rejectedBy: rejecterTag,
-        desc: m.desc + "\n\n[Dibatalkan oleh " + rejecterName + ": " + reason + "]",
+        desc:
+          m.desc + "\n\n[Dibatalkan oleh " + rejecterName + ": " + reason + "]",
       };
     return m;
   });
 
   try {
-    window.parent.localStorage.setItem("app_meetings", JSON.stringify(state.meetings));
+    getAppStorage().setItem("app_meetings", JSON.stringify(state.meetings));
+  } catch (e) {}
+
+  // Update notification item status
+  try {
+    const notifs = getNotifications();
+    const notif = notifs.find((n) => n.meetingId === id);
+    if (notif) {
+      notif.status = "Dibatalkan";
+      notif.rejectedBy = rejecterTag;
+      saveNotifications(notifs);
+    }
   } catch (e) {}
 
   closeModal();
@@ -2925,12 +3741,28 @@ function editMeeting(id) {
 
 function viewMeeting(id) {
   const m = state.meetings.find((x) => x.id === id);
+  if (!m) return;
+  const isCanceled = m.status === "Dibatalkan";
+  const cancelBox = isCanceled
+    ? `<div style="background:#fee2e2;border:1.5px solid #fca5a5;color:#991b1b;padding:12px 16px;border-radius:10px;margin:14px 0;font-size:13px;line-height:1.45;">
+        <div style="font-weight:700;display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+          <span>⚠️</span> Status: Dibatalkan
+        </div>
+        <div>${esc(m.cancellationReason || "Ruangan telah dialihkan untuk rapat prioritas Kepala Biro Keuangan dan BMN.")}</div>
+       </div>`
+    : "";
+
   openModal(
     "Detail Rapat",
-    `<p><b>${esc(m.title)}</b></p><p class="muted" style="margin:12px 0">${formatDate(m.date)} · ${m.start}-${m.end}</p><p>📍 ${esc(m.room)}</p><p>👤 ${esc(m.requester)}</p><p>👥 ${m.participants} peserta</p><p style="margin-top:15px">${esc(m.desc)}</p>
+    `<p style="font-size:16px;color:#0c2d5e;"><b>${esc(m.title)}</b></p>
+    ${cancelBox}
+    <p class="muted" style="margin:12px 0">${formatDate(m.date)} · ${m.start}-${m.end}</p>
+    <p>📍 ${esc(m.room)}</p>
+    <p>👤 <b>Pemesan:</b> ${esc(m.requester)}</p>
+    <p>👥 ${m.participants} peserta</p>
+    <p style="margin-top:15px;color:#334155;white-space:pre-line;">${esc(m.desc)}</p>
     <div class="modal-actions" style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px;">
-      <button class="btn btn-primary" style="background-color: #4a5568; border-color: #4a5568;" onclick="exportNotulensiPDF(${id})">📄 Notulensi</button>
-      
+      <button class="btn btn-primary" style="background-color: #4a5568; border-color: #4a5568; display: inline-flex; align-items: center; gap: 6px;" onclick="exportNotulensiPDF(${id})">${ICONS.export} <span>Notulensi</span></button>
     </div>`,
   );
 }
@@ -2949,9 +3781,182 @@ async function deleteMeeting(id) {
   }
 }
 
+// State foto ruangan saat modal dibuka
+window._currentRoomImages = [];
+window._activeRoomImageIndex = 0;
+
+function renderRoomImagesGallery() {
+  const wrap = document.getElementById("rGalleryWrap");
+  if (!wrap) return;
+
+  const images = window._currentRoomImages || [];
+  if (images.length === 0) {
+    wrap.innerHTML = `
+      <div class="crm-upload-box" id="crmUploadBox" onclick="document.getElementById('rImageInput').click()" ondragover="event.preventDefault(); this.classList.add('dragover');" ondragleave="this.classList.remove('dragover');" ondrop="handleRoomImageDrop(event)">
+        <div class="crm-upload-placeholder">
+          <div class="crm-upload-icon">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#1769aa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+          </div>
+          <div class="crm-upload-text">
+            <strong>Klik atau seret foto ruangan ke sini untuk upload</strong>
+            <small>Bisa memilih <b>lebih dari satu foto sekaligus</b> untuk berbagai sudut pandang/view ruangan (JPG, PNG, WebP maks. 5MB)</small>
+          </div>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  const activeIdx = Math.min(Math.max(0, window._activeRoomImageIndex || 0), images.length - 1);
+  window._activeRoomImageIndex = activeIdx;
+  const activeImg = images[activeIdx];
+  const total = images.length;
+
+  wrap.innerHTML = `
+    <div class="crm-gallery-wrapper">
+      <!-- Main Active Image Display -->
+      <div class="crm-main-preview-container">
+        <img src="${activeImg}" alt="Preview View ${activeIdx + 1}" class="crm-main-img-preview">
+        
+        <div class="crm-main-badge">
+          <span>View ${activeIdx + 1} dari ${total}</span>
+          ${activeIdx === 0 ? '<span class="crm-tag-primary">★ Foto Utama</span>' : ""}
+        </div>
+
+        ${
+          total > 1
+            ? `
+          <button type="button" class="crm-nav-btn prev" onclick="navigateRoomImage(-1)" title="Lihat View Sebelumnya">‹</button>
+          <button type="button" class="crm-nav-btn next" onclick="navigateRoomImage(1)" title="Lihat View Selanjutnya">›</button>
+        `
+            : ""
+        }
+
+        <div class="crm-main-actions">
+          ${
+            activeIdx !== 0
+              ? `<button type="button" class="crm-act-btn" onclick="setPrimaryRoomImage(${activeIdx})" title="Jadikan sebagai foto utama">★ Jadikan Foto Utama</button>`
+              : ""
+          }
+          <button type="button" class="crm-act-btn danger" onclick="removeRoomImage(${activeIdx})" title="Hapus foto view ini">🗑 Hapus Foto</button>
+        </div>
+      </div>
+
+      <!-- Thumbnails Grid & Add Button -->
+      <div class="crm-thumbs-bar">
+        <div class="crm-thumbs-list">
+          ${images
+            .map(
+              (img, idx) => `
+            <div class="crm-thumb-item ${idx === activeIdx ? "active" : ""}" onclick="selectRoomImage(${idx})" title="View ${idx + 1}${idx === 0 ? " (Foto Utama)" : ""}">
+              <img src="${img}" alt="Thumb ${idx + 1}">
+              ${idx === 0 ? '<span class="crm-thumb-star">★</span>' : ""}
+              <button type="button" class="crm-thumb-del" onclick="event.stopPropagation(); removeRoomImage(${idx})" title="Hapus foto">&times;</button>
+            </div>
+          `,
+            )
+            .join("")}
+
+          <!-- Tombol Tambah View Foto Lain -->
+          <div class="crm-thumb-add" onclick="document.getElementById('rImageInput').click()" title="Tambah view foto ruangan lain">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1769aa" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            <span>+ View Lain</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+window.renderRoomImagesGallery = renderRoomImagesGallery;
+
+function handleRoomImageUpload(event) {
+  const files = event.target.files;
+  if (!files || files.length === 0) return;
+  processMultipleRoomImageFiles(Array.from(files));
+  event.target.value = "";
+}
+window.handleRoomImageUpload = handleRoomImageUpload;
+
+function handleRoomImageDrop(event) {
+  event.preventDefault();
+  const box = document.getElementById("crmUploadBox");
+  if (box) box.classList.remove("dragover");
+  const files = event.dataTransfer && event.dataTransfer.files;
+  if (!files || files.length === 0) return;
+  processMultipleRoomImageFiles(Array.from(files));
+}
+window.handleRoomImageDrop = handleRoomImageDrop;
+
+function processMultipleRoomImageFiles(files) {
+  const validFiles = files.filter((f) => {
+    if (!f.type.startsWith("image/")) {
+      alert(`File "${f.name}" bukan gambar yang valid (JPG, PNG, WebP)`);
+      return false;
+    }
+    if (f.size > 5 * 1024 * 1024) {
+      alert(`Ukuran file "${f.name}" melebihi batas 5MB`);
+      return false;
+    }
+    return true;
+  });
+
+  if (validFiles.length === 0) return;
+
+  let loaded = 0;
+  validFiles.forEach((file) => {
+    const reader = new FileReader();
+    reader.onload = function (e) {
+      window._currentRoomImages.push(e.target.result);
+      loaded++;
+      if (loaded === validFiles.length) {
+        window._activeRoomImageIndex = window._currentRoomImages.length - 1;
+        renderRoomImagesGallery();
+        toast(`${validFiles.length} foto view ruangan berhasil ditambahkan`);
+      }
+    };
+    reader.readAsDataURL(file);
+  });
+}
+window.processMultipleRoomImageFiles = processMultipleRoomImageFiles;
+
+function selectRoomImage(index) {
+  window._activeRoomImageIndex = index;
+  renderRoomImagesGallery();
+}
+window.selectRoomImage = selectRoomImage;
+
+function navigateRoomImage(direction) {
+  const len = window._currentRoomImages.length;
+  if (len <= 1) return;
+  window._activeRoomImageIndex = (window._activeRoomImageIndex + direction + len) % len;
+  renderRoomImagesGallery();
+}
+window.navigateRoomImage = navigateRoomImage;
+
+function setPrimaryRoomImage(index) {
+  if (index <= 0 || index >= window._currentRoomImages.length) return;
+  const [target] = window._currentRoomImages.splice(index, 1);
+  window._currentRoomImages.unshift(target);
+  window._activeRoomImageIndex = 0;
+  renderRoomImagesGallery();
+  toast("Foto utama berhasil diubah");
+}
+window.setPrimaryRoomImage = setPrimaryRoomImage;
+
+function removeRoomImage(index) {
+  if (index < 0 || index >= window._currentRoomImages.length) return;
+  window._currentRoomImages.splice(index, 1);
+  if (window._activeRoomImageIndex >= window._currentRoomImages.length) {
+    window._activeRoomImageIndex = Math.max(0, window._currentRoomImages.length - 1);
+  }
+  renderRoomImagesGallery();
+  toast("Foto view ruangan dihapus");
+}
+window.removeRoomImage = removeRoomImage;
 
 function openRoomModal(id = null) {
-  const r = id
+  const isEdit = id !== null && id !== undefined;
+  const r = isEdit
     ? state.rooms.find((x) => x.id === id)
     : {
         name: "",
@@ -2959,24 +3964,61 @@ function openRoomModal(id = null) {
         capacity: "",
         status: "Tersedia",
         facilities: "",
+        image: "",
+        images: [],
       };
+
+  if (isEdit && r) {
+    if (Array.isArray(r.images) && r.images.length > 0) {
+      window._currentRoomImages = [...r.images];
+    } else if (r.image && !r.image.includes("unsplash")) {
+      window._currentRoomImages = [r.image];
+    } else {
+      const defaultImg = getRoomImage(r);
+      window._currentRoomImages = defaultImg ? [defaultImg] : [];
+    }
+  } else {
+    // Tambah Ruangan: WAJIB KOSONG di awal
+    window._currentRoomImages = [];
+  }
+  window._activeRoomImageIndex = 0;
 
   const modalBackdrop = document.getElementById("modal");
   modalBackdrop.innerHTML = `
     <div class="custom-room-modal" onclick="event.stopPropagation()">
-      <h2>Tambahan Ruangan</h2>
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 20px;">
+        <div>
+          <h2 style="margin:0 0 4px; font-size:22px; font-weight:800; color:#0c2d5e;">
+            ${id ? "Edit Ruangan" : "Tambah Ruangan"}
+          </h2>
+          <p style="margin:0; font-size:13px; color:#4b6a90;">
+            Kelola data ruangan dan unggah berbagai foto sudut pandang/view ruangan
+          </p>
+        </div>
+        <button type="button" onclick="closeModal()" style="background:none; border:none; font-size:26px; color:#a0aec0; cursor:pointer; line-height:1; padding:0 4px;" title="Tutup">&times;</button>
+      </div>
+
       <div class="crm-field full">
-        <label>Nama Ruangan</label>
-        <input id="rName" value="${esc(r.name)}" placeholder="">
+        <label style="display:flex; justify-content:space-between; align-items:center;">
+          <span>Foto Ruangan (Mendukung Multi-View)</span>
+          <span style="font-size:12px; font-weight:500; color:#1769aa;">Bisa unggah lebih dari 1 foto</span>
+        </label>
+        <input type="file" id="rImageInput" accept="image/*" multiple style="display:none;" onchange="handleRoomImageUpload(event)">
+        <div id="rGalleryWrap"></div>
+      </div>
+
+      <div class="crm-field full">
+        <label>Nama Ruangan <span style="color:#e53e3e;">*</span></label>
+        <input id="rName" value="${esc(r.name)}" placeholder="Contoh: Ruang Rapat Utama">
       </div>
       <div class="crm-row">
         <div class="crm-field">
           <label>Lokasi</label>
-          <input id="rLocation" value="${esc(r.location)}" placeholder="">
+          <input id="rLocation" value="${esc(r.location)}" placeholder="Contoh: Gedung A - Lantai 3">
         </div>
         <div class="crm-field">
           <label>Kapasitas</label>
-          <input id="rCapacity" type="number" value="${r.capacity || ''}" placeholder="">
+          <input id="rCapacity" type="number" value="${r.capacity || ""}" placeholder="Contoh: 20">
         </div>
       </div>
       <div class="crm-row">
@@ -2990,19 +4032,20 @@ function openRoomModal(id = null) {
         </div>
         <div class="crm-field">
           <label>Fasilitas</label>
-          <input id="rFacilities" value="${esc(r.facilities)}" placeholder="">
+          <input id="rFacilities" value="${esc(r.facilities)}" placeholder="Contoh: TV, WiFi, AC">
         </div>
       </div>
       <div class="crm-actions">
         <button type="button" class="crm-btn-cancel" onclick="closeModal()">Batal</button>
-        <button type="button" class="crm-btn-save" onclick="saveRoom(${id || "null"})">Simpan</button>
+        <button type="button" class="crm-btn-save" onclick="saveRoom(${id || "null"})">Simpan Ruangan</button>
       </div>
     </div>
   `;
-  modalBackdrop.onclick = function(e) {
+  modalBackdrop.onclick = function (e) {
     if (e.target === modalBackdrop) closeModal();
   };
   modalBackdrop.classList.add("show");
+  renderRoomImagesGallery();
 }
 
 async function saveRoom(id) {
@@ -3011,6 +4054,14 @@ async function saveRoom(id) {
     alert("Nama ruangan tidak boleh kosong");
     return;
   }
+  const images =
+    window._currentRoomImages && window._currentRoomImages.length > 0
+      ? [...window._currentRoomImages]
+      : id
+        ? state.rooms.find((x) => x.id === id)?.images || [getRoomImage({ name })]
+        : [getRoomImage({ name })];
+  const primaryImage = images[0] || getRoomImage({ name });
+
   const obj = {
     id: id || Date.now(),
     name: name,
@@ -3018,8 +4069,9 @@ async function saveRoom(id) {
     capacity: Number(f("rCapacity")) || 10,
     status: f("rStatus") || "Tersedia",
     facilities: f("rFacilities") || "",
+    image: primaryImage,
+    images: images,
   };
-  obj.image = getRoomImage(obj);
 
   if (id) {
     state.rooms = state.rooms.map((x) => (x.id === id ? { ...x, ...obj } : x));
@@ -3028,12 +4080,12 @@ async function saveRoom(id) {
   }
 
   try {
-    window.parent.localStorage.setItem("app_rooms", JSON.stringify(state.rooms));
-  } catch(e) {}
+    getAppStorage().setItem("app_rooms", JSON.stringify(state.rooms));
+  } catch (e) {}
 
   closeModal();
   render();
-  toast("Data ruangan disimpan");
+  toast("Data ruangan & foto view berhasil disimpan");
 
   try {
     await fetch("/api/dashboard/rooms", {
@@ -3050,58 +4102,277 @@ function editRoom(id) {
   openRoomModal(id);
 }
 
-
 function openUserModal(id = null) {
-  const u = id
-    ? state.users.find((x) => x.id === id)
-    : { name: "", email: "", dept: "", role: "User", status: "Aktif" };
-  openModal(
-    id ? "Edit Pengguna" : "Tambah Pengguna",
-    `<div class="form-grid"><div class="field full"><label>Nama</label><input id="uName" value="${esc(u.name)}"></div><div class="field"><label>Email</label><input id="uEmail" type="email" value="${esc(u.email)}"></div><div class="field"><label>Unit/Jabatan</label><input id="uDept" value="${esc(u.dept)}"></div><div class="field"><label>Role</label><select id="uRole">${["User", "Admin Ruangan", "Admin Sistem", "Administrator"].map((s) => `<option ${s === u.role ? "selected" : ""}>${s}</option>`).join("")}</select></div><div class="field"><label>Status</label><select id="uStatus"><option ${u.status === "Aktif" ? "selected" : ""}>Aktif</option><option ${u.status === "Nonaktif" ? "selected" : ""}>Nonaktif</option></select></div></div><div class="modal-actions"><button class="btn btn-light" onclick="closeModal()">Batal</button><button class="btn btn-primary" onclick="saveUser(${id || "null"})">Simpan</button></div>`,
-  );
+  if (!isMainAdmin()) {
+    alert("Hanya Admin Utama yang berhak menambah atau mengubah data pengguna.");
+    return;
+  }
+
+  let u = { name: "", username: "", password: "", email: "", dept: "", role: "User", status: "Aktif" };
+  if (id !== null && id !== undefined) {
+    const found = state.users.find((x) => x.id === id);
+    if (found) {
+      u = { ...found };
+      try {
+        const loginUsers = JSON.parse(getAppStorage().getItem("app_login_users") || "[]");
+        const lu = loginUsers.find((x) => x.id === id || (x.username && found.username && x.username.toLowerCase() === found.username.toLowerCase()));
+        if (lu) {
+          u.username = lu.username || u.username || "";
+          u.password = lu.password || u.password || "";
+        }
+      } catch (e) {}
+    }
+  }
+
+  const isEditingAdmin = id && (u.username === "admin" || u.name === "Admin Utama");
+
+  const modalBackdrop = document.getElementById("modal");
+  modalBackdrop.innerHTML = `
+    <div class="custom-user-modal" style="width: min(540px, 94vw); background: #ffffff !important; border-radius: 20px; padding: 32px 36px 36px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.28); font-family: 'Poppins', sans-serif; box-sizing: border-box; position: relative; z-index: 10000;">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 22px;">
+        <div>
+          <h2 style="margin:0 0 4px; font-size:22px; font-weight:800; color:#0c2d5e;">
+            ${id ? "Edit Pengguna" : "Tambah Pengguna Baru"}
+          </h2>
+          <p style="margin:0; font-size:13px; color:#4b6a90;">
+            ${id ? "Perbarui informasi akun dan kredensial login" : "Tambahkan pengguna baru yang dapat login ke sistem"}
+          </p>
+        </div>
+        <button type="button" onclick="closeModal()" style="background:none; border:none; font-size:26px; color:#a0aec0; cursor:pointer; line-height:1; padding:0 4px;" title="Tutup">&times;</button>
+      </div>
+
+      <div class="crm-field full">
+        <label>Nama Lengkap <span style="color:#e53e3e;">*</span></label>
+        <input id="uName" value="${esc(u.name || "")}" placeholder="Contoh: Budi Santoso">
+      </div>
+
+      <div class="crm-row">
+        <div class="crm-field">
+          <label>Username (Untuk Login) <span style="color:#e53e3e;">*</span></label>
+          <input id="uUsername" value="${esc(u.username || "")}" placeholder="Contoh: budi123" ${isEditingAdmin ? "readonly style='background:#e2e8f0; cursor:not-allowed;'" : ""}>
+        </div>
+        <div class="crm-field">
+          <label>Password (Untuk Login) <span style="color:#e53e3e;">*</span></label>
+          <input id="uPassword" type="text" value="${esc(u.password || "")}" placeholder="Masukkan password">
+        </div>
+      </div>
+
+      <div class="crm-row">
+        <div class="crm-field">
+          <label>Email</label>
+          <input id="uEmail" type="email" value="${esc(u.email || "")}" placeholder="Contoh: budi@kemnaker.go.id">
+        </div>
+        <div class="crm-field">
+          <label>Unit / Jabatan</label>
+          <input id="uDept" value="${esc(u.dept || "")}" placeholder="Contoh: Biro Keuangan dan BMN">
+        </div>
+      </div>
+
+      <div class="crm-row">
+        <div class="crm-field">
+          <label>Role Akun</label>
+          <select id="uRole" ${isEditingAdmin ? "disabled style='background:#e2e8f0; cursor:not-allowed;'" : ""}>
+            ${["User", "Administrator", "Approval 1", "Approval 2", "Admin Ruangan", "Admin Sistem"]
+              .map((r) => `<option value="${r}" ${r === u.role ? "selected" : ""}>${r}</option>`)
+              .join("")}
+          </select>
+        </div>
+        <div class="crm-field">
+          <label>Status Akun</label>
+          <select id="uStatus" ${isEditingAdmin ? "disabled style='background:#e2e8f0; cursor:not-allowed;'" : ""}>
+            <option value="Aktif" ${u.status === "Aktif" ? "selected" : ""}>Aktif</option>
+            <option value="Nonaktif" ${u.status === "Nonaktif" ? "selected" : ""}>Nonaktif</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="crm-actions" style="margin-top: 24px;">
+        <button type="button" class="crm-btn-cancel" onclick="closeModal()">Batal</button>
+        <button type="button" class="crm-btn-save" onclick="saveUser(${id ? (typeof id === 'string' ? `'${id}'` : id) : "null"})">
+          ${id ? "Simpan Perubahan" : "Tambah Pengguna"}
+        </button>
+      </div>
+    </div>
+  `;
+  modalBackdrop.onclick = function (e) {
+    if (e.target === modalBackdrop) closeModal();
+  };
+  modalBackdrop.classList.add("show");
 }
 
 async function saveUser(id) {
-  const obj = {
-    id: id || Date.now(),
-    name: f("uName"),
-    email: f("uEmail"),
-    dept: f("uDept"),
-    role: f("uRole"),
-    status: f("uStatus"),
+  if (!isMainAdmin()) {
+    alert("Hanya Admin Utama yang berhak menambah atau mengubah data pengguna.");
+    return;
+  }
+
+  const name = (document.getElementById("uName")?.value || "").trim();
+  const username = (document.getElementById("uUsername")?.value || "").trim();
+  const password = (document.getElementById("uPassword")?.value || "").trim();
+  const email = (document.getElementById("uEmail")?.value || "").trim();
+  const dept = (document.getElementById("uDept")?.value || "").trim() || "Biro Keuangan dan BMN";
+  const roleEl = document.getElementById("uRole");
+  const role = roleEl ? roleEl.value : "User";
+  const statusEl = document.getElementById("uStatus");
+  const status = statusEl ? statusEl.value : "Aktif";
+
+  if (!name) {
+    alert("Nama lengkap tidak boleh kosong!");
+    return;
+  }
+  if (!username) {
+    alert("Username untuk login tidak boleh kosong!");
+    return;
+  }
+  if (!password) {
+    alert("Password untuk login tidak boleh kosong!");
+    return;
+  }
+
+  const lowerUsername = username.toLowerCase();
+  let loginUsers = [];
+  try {
+    loginUsers = JSON.parse(getAppStorage().getItem("app_login_users") || "[]");
+  } catch (e) {}
+
+  const currentEditing = id ? state.users.find((x) => x.id === id) : null;
+  const oldUsername = (currentEditing?.username || "").toLowerCase();
+
+  // Cek duplikasi jika membuat akun baru atau mengganti username
+  if (!id || oldUsername !== lowerUsername) {
+    const isDuplicateInState = state.users.some(
+      (u) => (id ? u.id !== id : true) && (u.username || "").toLowerCase() === lowerUsername,
+    );
+    const isDuplicateInLogin = loginUsers.some(
+      (u) => (id ? u.id !== id : true) && (u.username || "").toLowerCase() === lowerUsername,
+    );
+    const defaultReserved = ["admin", "approval1", "approval2"];
+    if (isDuplicateInState || isDuplicateInLogin || (defaultReserved.includes(lowerUsername) && lowerUsername !== oldUsername)) {
+      alert(`Username "${username}" sudah digunakan! Silakan pilih username yang lain.`);
+      return;
+    }
+  }
+
+  const userId = id || ("user_" + Date.now());
+  const userObj = {
+    id: userId,
+    name: name,
+    username: username,
+    password: password,
+    email: email || `${lowerUsername}@kemnaker.go.id`,
+    dept: dept,
+    role: role,
+    status: status,
   };
-  if (id) state.users = state.users.map((x) => (x.id === id ? obj : x));
-  else state.users.push(obj);
+
+  if (id) {
+    state.users = state.users.map((x) => (x.id === id ? { ...x, ...userObj } : x));
+  } else {
+    state.users.push(userObj);
+  }
+
+  try {
+    getAppStorage().setItem("app_users", JSON.stringify(state.users));
+  } catch (e) {}
+
+  try {
+    let allLogin = JSON.parse(getAppStorage().getItem("app_login_users") || "[]");
+    const existingIdx = allLogin.findIndex(
+      (x) => x.id === userId || (x.username && x.username.toLowerCase() === lowerUsername),
+    );
+    if (existingIdx >= 0) {
+      allLogin[existingIdx] = userObj;
+    } else {
+      allLogin.push(userObj);
+    }
+    getAppStorage().setItem("app_login_users", JSON.stringify(allLogin));
+  } catch (e) {}
+
+  try {
+    let savedAcc = JSON.parse(getAppStorage().getItem("savedAccounts") || "[]");
+    const accData = {
+      username: username,
+      name: name,
+      role: role,
+      email: email,
+      dept: dept,
+    };
+    const sIdx = savedAcc.findIndex((x) => (x.username || "").toLowerCase() === lowerUsername);
+    if (sIdx >= 0) {
+      if (status === "Nonaktif") {
+        savedAcc.splice(sIdx, 1);
+      } else {
+        savedAcc[sIdx] = accData;
+      }
+    } else if (status === "Aktif") {
+      savedAcc.push(accData);
+    }
+    getAppStorage().setItem("savedAccounts", JSON.stringify(savedAcc));
+  } catch (e) {}
+
   closeModal();
   render();
-  toast("Data pengguna disimpan");
+  toast(id ? "Data pengguna berhasil diperbarui" : "Pengguna baru berhasil ditambahkan dan dapat login");
 
   try {
     await fetch("/api/dashboard/users", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(obj),
+      body: JSON.stringify(userObj),
     });
-  } catch (err) {
-    console.error("Gagal menyimpan pengguna ke backend:", err);
-  }
+  } catch (err) {}
 }
 
 function editUser(id) {
+  if (!isMainAdmin()) {
+    alert("Hanya Admin Utama yang berhak mengubah data pengguna.");
+    return;
+  }
   openUserModal(id);
 }
 
 async function deleteUser(id) {
-  if (confirm("Hapus pengguna ini?")) {
+  if (!isMainAdmin()) {
+    alert("Hanya Admin Utama yang berhak menghapus pengguna.");
+    return;
+  }
+  const target = state.users.find((x) => x.id === id);
+  if (!target) return;
+
+  if (target.username === "admin" || target.name === "Admin Utama") {
+    alert("Akun Admin Utama tidak dapat dihapus!");
+    return;
+  }
+
+  if (confirm(`Hapus pengguna "${target.name}"? Pengguna ini tidak akan dapat login lagi.`)) {
     state.users = state.users.filter((x) => x.id !== id);
+
+    try {
+      getAppStorage().setItem("app_users", JSON.stringify(state.users));
+    } catch (e) {}
+
+    try {
+      let allLogin = JSON.parse(getAppStorage().getItem("app_login_users") || "[]");
+      allLogin = allLogin.filter(
+        (x) => x.id !== id && (x.username || "").toLowerCase() !== (target.username || "").toLowerCase(),
+      );
+      getAppStorage().setItem("app_login_users", JSON.stringify(allLogin));
+    } catch (e) {}
+
+    try {
+      let savedAcc = JSON.parse(getAppStorage().getItem("savedAccounts") || "[]");
+      savedAcc = savedAcc.filter(
+        (x) => (x.username || "").toLowerCase() !== (target.username || "").toLowerCase(),
+      );
+      getAppStorage().setItem("savedAccounts", JSON.stringify(savedAcc));
+    } catch (e) {}
+
     render();
-    toast("Pengguna dihapus");
+    toast("Pengguna berhasil dihapus");
 
     try {
       await fetch(`/api/dashboard/users/${id}`, { method: "DELETE" });
-    } catch (err) {
-      console.error("Gagal menghapus pengguna di backend:", err);
-    }
+    } catch (err) {}
   }
 }
 
@@ -3134,18 +4405,23 @@ function filterMeetings(status, el) {
   filterMeetingTable();
 }
 
-
 function filterRooms() {
-  const q = (document.getElementById("roomSearch")?.value || "").toLowerCase().trim();
+  const q = (document.getElementById("roomSearch")?.value || "")
+    .toLowerCase()
+    .trim();
   const s = document.getElementById("roomStatus")?.value || "";
 
   const filtered = state.rooms.filter((r) => {
-    const matchName = r.name.toLowerCase().includes(q) || (r.location && r.location.toLowerCase().includes(q));
+    const matchName =
+      r.name.toLowerCase().includes(q) ||
+      (r.location && r.location.toLowerCase().includes(q));
     if (!matchName) return false;
     if (!s) return true;
     if (s === "Tersedia") return r.status === "Tersedia";
-    if (s === "Sedang Digunakan") return r.status === "Sedang Digunakan" || r.status === "Terpakai";
-    if (s === "Dalam Perbaikan") return r.status === "Dalam Perbaikan" || r.status === "Perbaikan";
+    if (s === "Sedang Digunakan")
+      return r.status === "Sedang Digunakan" || r.status === "Terpakai";
+    if (s === "Dalam Perbaikan")
+      return r.status === "Dalam Perbaikan" || r.status === "Perbaikan";
     return r.status === s;
   });
 
@@ -3155,14 +4431,25 @@ function filterRooms() {
   }
 }
 
-
 function filterUsers() {
-  const q = (document.getElementById("userSearch").value || "").toLowerCase(),
-    r = document.getElementById("userRole").value;
-  document.getElementById("userTable").innerHTML = userTable(
+  const q = (document.getElementById("userSearch")?.value || "").toLowerCase().trim();
+  const r = document.getElementById("userRole")?.value || "";
+  const tableEl = document.getElementById("userTable");
+  if (!tableEl) return;
+  tableEl.innerHTML = userTable(
     state.users.filter(
       (u) =>
-        (u.name + " " + u.email).toLowerCase().includes(q) &&
+        (
+          (u.name || "") +
+          " " +
+          (u.username || "") +
+          " " +
+          (u.email || "") +
+          " " +
+          (u.dept || "")
+        )
+          .toLowerCase()
+          .includes(q) &&
         (!r || u.role === r),
     ),
   );
@@ -3464,7 +4751,122 @@ async function fetchDashboardData(showToast = false) {
   }
 }
 
+// ----------------------------------------------------------------------
+// SINKRONISASI REAL-TIME & NOTIFIKASI LIVE
+// ----------------------------------------------------------------------
+let knownMeetingIds = new Set();
+let hasInitializedSync = false;
+
+function initNotificationSync() {
+  if (hasInitializedSync) return;
+  hasInitializedSync = true;
+
+  if (Array.isArray(state.meetings)) {
+    state.meetings.forEach((m) => knownMeetingIds.add(m.id));
+  }
+
+  const checkSync = () => {
+    try {
+      const stored = getAppStorage().getItem("app_meetings");
+      if (!stored) return;
+      const latestMeetings = JSON.parse(stored);
+      if (!Array.isArray(latestMeetings)) return;
+
+      // Temukan pesanan baru berstatus "Menunggu Approval"
+      const newRequests = latestMeetings.filter(
+        (m) => !knownMeetingIds.has(m.id) && m.status === "Menunggu Approval",
+      );
+
+      if (newRequests.length > 0) {
+        state.meetings = latestMeetings;
+        newRequests.forEach((r) => knownMeetingIds.add(r.id));
+
+        // Bunyikan nada notifikasi & munculkan pop-up toast
+        playNotificationSound();
+        showLiveBookingToast(newRequests[newRequests.length - 1]);
+
+        render();
+      } else if (
+        latestMeetings.length !== state.meetings.length ||
+        JSON.stringify(latestMeetings) !== JSON.stringify(state.meetings)
+      ) {
+        state.meetings = latestMeetings;
+        latestMeetings.forEach((m) => knownMeetingIds.add(m.id));
+        render();
+      }
+    } catch (e) {}
+  };
+
+  // Cek berkala setiap 2.5 detik
+  setInterval(checkSync, 2500);
+
+  // Listener storage lintas tab/window
+  window.addEventListener("storage", (e) => {
+    if (e.key === "app_meetings" || e.key === "app_notifications") {
+      checkSync();
+    }
+  });
+
+  try {
+    if (window.parent && window.parent !== window) {
+      window.parent.addEventListener("storage", (e) => {
+        if (e.key === "app_meetings" || e.key === "app_notifications") {
+          checkSync();
+        }
+      });
+      window.parent.addEventListener("app_notifications_updated", checkSync);
+    }
+  } catch (e) {}
+}
+
+// ----------------------------------------------------------------------
+// SINKRONISASI DAUR HIDUP DEV RUN (ONE FLOW RUN)
+// ----------------------------------------------------------------------
+async function checkDevSessionLifecycle() {
+  try {
+    const res = await fetch("/api/dev-session");
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.sessionId) {
+        const storage = getAppStorage();
+        const lastSession = storage.getItem("app_dev_run_id");
+        if (lastSession && lastSession !== data.sessionId) {
+          console.info(
+            "[DevSession] Sesi baru npm run dev terdeteksi di dashboard. Mereset data ke 1 dummy item.",
+          );
+          storage.removeItem("app_meetings");
+          storage.removeItem("app_notifications");
+          storage.removeItem("app_rooms");
+          storage.removeItem("app_users");
+          storage.removeItem("app_login_users");
+          storage.setItem("app_dev_run_id", data.sessionId);
+          state.meetings = [
+            {
+              id: 1,
+              title: "Rapat Koordinasi Biro Keuangan",
+              requester: "Andi Pratama",
+              room: "Ruang Rapat Besar",
+              date: "2026-09-22",
+              start: "08:00",
+              end: "10:00",
+              status: "Berjalan",
+              participants: 12,
+              desc: "Pembahasan laporan keuangan dan evaluasi program.",
+            },
+          ];
+          storage.setItem("app_meetings", JSON.stringify(state.meetings));
+          render();
+        } else if (!lastSession) {
+          storage.setItem("app_dev_run_id", data.sessionId);
+        }
+      }
+    }
+  } catch (e) {}
+}
+
 render();
+initNotificationSync();
+checkDevSessionLifecycle();
 fetchDashboardData(false);
 setInterval(() => fetchDashboardData(false), 30000);
 
@@ -3474,16 +4876,26 @@ setInterval(() => fetchDashboardData(false), 30000);
 function logout(e) {
   if (e) e.stopPropagation();
   if (confirm("Apakah Anda yakin ingin keluar?")) {
-    window.parent.localStorage.removeItem("isAuthenticated");
+    getAppStorage().removeItem("isAuthenticated");
     window.parent.location.href = "/login";
   }
 }
 
 function getCurrentUser() {
-  let u = { role: "User", name: "User" };
+  let u = { username: "admin", role: "Administrator", name: "Admin Utama" };
   try {
-    const s = window.parent.localStorage.getItem("currentUser");
+    const s = getAppStorage().getItem("currentUser");
     if (s) u = JSON.parse(s);
   } catch (e) {}
   return u;
+}
+
+function isMainAdmin() {
+  const u = getCurrentUser();
+  if (!u) return false;
+  return (
+    u.username === "admin" ||
+    u.name === "Admin Utama" ||
+    (u.role === "Administrator" && (!u.username || u.username === "admin"))
+  );
 }

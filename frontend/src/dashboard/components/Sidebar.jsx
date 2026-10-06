@@ -151,47 +151,66 @@ export default function Sidebar({
           flexShrink: 0,
         }}
       >
-        {/* Ke Display TV */}
-        <a
-          href="/display"
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{
-            ...navItemBase,
-            color: 'rgba(255,255,255,0.72)',
-            textDecoration: 'none',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'rgba(255,255,255,0.08)';
-            e.currentTarget.style.color = '#fff';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'transparent';
-            e.currentTarget.style.color = 'rgba(255,255,255,0.72)';
-          }}
-        >
-          <FaTv size={16} style={{ flexShrink: 0 }} />
-          <span>Ke Display TV</span>
-        </a>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          {/* Display TV */}
+          <a
+            href="/display"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              flex: 1.2,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '7px 6px',
+              borderRadius: '6px',
+              fontSize: '11px',
+              fontWeight: 600,
+              background: 'rgba(255,255,255,0.12)',
+              color: '#fff',
+              textDecoration: 'none',
+              textAlign: 'center',
+              whiteSpace: 'nowrap',
+              transition: 'background 0.2s',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'rgba(255,255,255,0.22)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'rgba(255,255,255,0.12)';
+            }}
+          >
+            <span>Display TV</span>
+          </a>
 
-        {/* Keluar */}
-        <div
-          style={{
-            ...navItemBase,
-            color: '#ff8a80',
-          }}
-          onClick={() => onLogout && onLogout()}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'rgba(255,80,80,0.12)';
-            e.currentTarget.style.color = '#ff5252';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'transparent';
-            e.currentTarget.style.color = '#ff8a80';
-          }}
-        >
-          <FaSignOutAlt size={16} style={{ flexShrink: 0 }} />
-          <span>Keluar</span>
+          {/* Keluar */}
+          <div
+            style={{
+              flex: 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '7px 6px',
+              borderRadius: '6px',
+              fontSize: '11px',
+              fontWeight: 600,
+              background: 'rgba(220,38,38,0.75)',
+              color: '#fff',
+              cursor: 'pointer',
+              textAlign: 'center',
+              whiteSpace: 'nowrap',
+              transition: 'background 0.2s',
+            }}
+            onClick={() => onLogout && onLogout()}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'rgba(220,38,38,0.95)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'rgba(220,38,38,0.75)';
+            }}
+          >
+            <span>Keluar</span>
+          </div>
         </div>
 
         {/* Current user chip */}

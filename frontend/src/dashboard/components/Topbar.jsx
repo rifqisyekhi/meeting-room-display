@@ -34,15 +34,62 @@ export default function Topbar({
   calendarStatus = 'default',
 }) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [notifOpen, setNotifOpen]       = useState(false);
   const [searchValue, setSearchValue]   = useState('');
   const [syncing, setSyncing]           = useState(false);
   const dropdownRef                     = useRef(null);
+  const notifRef                        = useRef(null);
+  const [notifList, setNotifList]       = useState([]);
+
+  useEffect(() => {
+    const loadNotifs = () => {
+      try {
+        const stored = localStorage.getItem('app_notifications');
+        if (stored) {
+          setNotifList(JSON.parse(stored));
+        } else {
+          const storedMeetings = localStorage.getItem('app_meetings');
+          if (storedMeetings) {
+            const ms = JSON.parse(storedMeetings);
+            const pending = ms.filter((m) => m.status === 'Menunggu Approval');
+            setNotifList(
+              pending.map((m) => ({
+                id: m.id,
+                meetingId: m.id,
+                title: 'Permintaan Booking Ruang Rapat',
+                requester: m.requester,
+                room: m.room,
+                date: m.date,
+                time: `${m.start}-${m.end}`,
+                status: m.status,
+                createdAt: m.createdAt || new Date().toISOString(),
+                readBy: [],
+              }))
+            );
+          }
+        }
+      } catch (e) {}
+    };
+
+    loadNotifs();
+    window.addEventListener('storage', loadNotifs);
+    window.addEventListener('app_notifications_updated', loadNotifs);
+    const interval = setInterval(loadNotifs, 3000);
+    return () => {
+      window.removeEventListener('storage', loadNotifs);
+      window.removeEventListener('app_notifications_updated', loadNotifs);
+      clearInterval(interval);
+    };
+  }, []);
 
   // Close dropdown when clicking outside
   useEffect(() => {
     const handler = (e) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
         setDropdownOpen(false);
+      }
+      if (notifRef.current && !notifRef.current.contains(e.target)) {
+        setNotifOpen(false);
       }
     };
     document.addEventListener('mousedown', handler);
@@ -160,39 +207,174 @@ export default function Topbar({
         </button>
 
         {/* Bell / notifications */}
-        <button
-          title="Notifikasi"
-          style={{
-            width: '38px',
-            height: '38px',
-            border: '1px solid #e3eaf3',
-            borderRadius: '10px',
-            background: '#fff',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            position: 'relative',
-            color: '#5a7399',
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = '#f4f7fb')}
-          onMouseLeave={(e) => (e.currentTarget.style.background = '#fff')}
-        >
-          <FiBell size={17} />
-          {/* unread dot — optionally driven by a prop */}
-          <span
+        <div style={{ position: 'relative' }} ref={notifRef}>
+          <button
+            title="Notifikasi"
+            onClick={() => setNotifOpen((prev) => !prev)}
             style={{
-              position: 'absolute',
-              top: '8px',
-              right: '9px',
-              width: '7px',
-              height: '7px',
-              borderRadius: '50%',
-              background: '#ef4444',
-              border: '2px solid #fff',
+              width: '38px',
+              height: '38px',
+              border: '1px solid #e3eaf3',
+              borderRadius: '10px',
+              background: '#fff',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              position: 'relative',
+              color: '#5a7399',
             }}
-          />
-        </button>
+            onMouseEnter={(e) => (e.currentTarget.style.background = '#f4f7fb')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = '#fff')}
+          >
+            <FiBell size={17} />
+            {notifList.filter((n) => n.status === 'Menunggu Approval').length > 0 && (
+              <span
+                style={{
+                  position: 'absolute',
+                  top: '-4px',
+                  right: '-4px',
+                  background: '#ef4444',
+                  color: '#fff',
+                  fontSize: '10px',
+                  fontWeight: 700,
+                  padding: '1px 5px',
+                  minWidth: '17px',
+                  height: '17px',
+                  borderRadius: '10px',
+                  border: '2px solid #fff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                {notifList.filter((n) => n.status === 'Menunggu Approval').length > 9
+                  ? '9+'
+                  : notifList.filter((n) => n.status === 'Menunggu Approval').length}
+              </span>
+            )}
+          </button>
+
+          {/* Notification Dropdown Panel */}
+          {notifOpen && (
+            <div
+              style={{
+                position: 'absolute',
+                top: 'calc(100% + 10px)',
+                right: 0,
+                width: '360px',
+                background: '#fff',
+                borderRadius: '12px',
+                boxShadow: '0 12px 36px rgba(12, 45, 94, 0.16)',
+                border: '1px solid #e2e8f0',
+                zIndex: 100,
+                overflow: 'hidden',
+                textAlign: 'left',
+              }}
+            >
+              <div
+                style={{
+                  padding: '12px 16px',
+                  borderBottom: '1px solid #edf2f7',
+                  background: '#f8fafc',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontWeight: 700, fontSize: '13.5px', color: '#0c2d5e' }}>
+                    Notifikasi
+                  </span>
+                  {notifList.filter((n) => n.status === 'Menunggu Approval').length > 0 && (
+                    <span
+                      style={{
+                        background: '#fff7ed',
+                        color: '#c2410c',
+                        fontSize: '10.5px',
+                        fontWeight: 700,
+                        padding: '2px 8px',
+                        borderRadius: '10px',
+                        border: '1px solid #ffedd5',
+                      }}
+                    >
+                      {notifList.filter((n) => n.status === 'Menunggu Approval').length} Menunggu
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div style={{ maxHeight: '340px', overflowY: 'auto' }}>
+                {notifList.length === 0 ? (
+                  <div style={{ padding: '30px 16px', textAlign: 'center', color: '#94a3b8' }}>
+                    <div style={{ fontSize: '28px', marginBottom: '6px' }}>🔔</div>
+                    <div style={{ fontSize: '13px', fontWeight: 600, color: '#0c2d5e' }}>
+                      Tidak Ada Notifikasi
+                    </div>
+                  </div>
+                ) : (
+                  notifList.map((n) => (
+                    <div
+                      key={n.id}
+                      style={{
+                        padding: '12px 16px',
+                        borderBottom: '1px solid #f1f5f9',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '4px',
+                        background: n.status === 'Menunggu Approval' ? '#fbfcfe' : '#fff',
+                        borderLeft:
+                          n.status === 'Menunggu Approval'
+                            ? '3px solid #f97316'
+                            : '3px solid transparent',
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                        }}
+                      >
+                        <strong style={{ fontSize: '12.5px', color: '#0c2d5e' }}>
+                          {n.title || 'Request Pemesanan'}
+                        </strong>
+                        <span
+                          style={{
+                            fontSize: '10px',
+                            fontWeight: 700,
+                            padding: '2px 6px',
+                            borderRadius: '8px',
+                            background:
+                              n.status === 'Menunggu Approval'
+                                ? '#fff7ed'
+                                : n.status === 'Akan Datang'
+                                ? '#f0fdf4'
+                                : '#fef2f2',
+                            color:
+                              n.status === 'Menunggu Approval'
+                                ? '#ea580c'
+                                : n.status === 'Akan Datang'
+                                ? '#16a34a'
+                                : '#dc2626',
+                          }}
+                        >
+                          {n.status}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '11.5px', color: '#475569' }}>
+                        {n.message || `Pemohon: ${n.requester} · ${n.room}`}
+                      </div>
+                      <div style={{ fontSize: '10.5px', color: '#94a3b8' }}>
+                        🏛️ {n.room} · 📅 {n.date} ({n.time})
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* ── Profile dropdown ── */}
         <div style={{ position: 'relative' }} ref={dropdownRef}>

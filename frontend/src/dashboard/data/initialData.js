@@ -1,15 +1,7 @@
 export const initialMeetings = [
-  { id: 1, title: 'Rapat Biro Keuangan', requester: 'Andi Pratama', room: 'Ruang Nusantara', date: '2026-09-22', start: '08:00', end: '10:00', status: 'Berjalan', participants: 12, desc: 'Pembahasan laporan keuangan dan evaluasi program.' },
-  { id: 2, title: 'Koordinasi Tim IT', requester: 'Siti Rahma', room: 'Ruang Garuda', date: '2026-09-22', start: '10:00', end: '12:00', status: 'Menunggu Approval', participants: 8, desc: 'Koordinasi pengembangan sistem.' },
-  { id: 3, title: 'Evaluasi Program 2026', requester: 'Budi Santoso', room: 'Ruang Merdeka', date: '2026-09-22', start: '13:00', end: '15:00', status: 'Akan Datang', participants: 15, desc: 'Evaluasi capaian program.' },
-  { id: 901, title: 'Sosialisasi SOP Baru', requester: 'Biro SDM', room: 'Ruang Nusantara', date: '2026-09-23', start: '09:00', end: '11:00', status: 'Menunggu Approval', participants: 25, desc: 'Pemahaman terkait standar operasional prosedur yang baru dirilis.' },
-  { id: 902, title: 'Rapat Perencanaan Anggaran', requester: 'Kepala Bagian Anggaran', room: 'Ruang Rapat Utama', date: '2026-09-24', start: '13:00', end: '16:00', status: 'Menunggu Approval', participants: 20, desc: 'Draft awal perencanaan anggaran 2027.' },
-  { id: 4, title: 'Rapat Internal', requester: 'Dewi Lestari', room: 'Ruang Indonesia', date: '2026-09-22', start: '15:00', end: '17:00', status: 'Akan Datang', participants: 10, desc: 'Rapat internal biro.' },
-  { id: 5, title: 'Diskusi Anggaran', requester: 'Rizky Handoko', room: 'Ruang Kemnaker', date: '2026-09-22', start: '19:00', end: '21:00', status: 'Selesai', participants: 7, desc: 'Diskusi anggaran.' },
-  { id: 6, title: 'Rapat Pengembangan SDM', requester: 'Maya Sari', room: 'Ruang Pancasila', date: '2026-09-23', start: '09:00', end: '11:00', status: 'Akan Datang', participants: 14, desc: 'Pengembangan SDM.' },
-  { id: 7, title: 'Review Kinerja Triwulan', requester: 'Agus Widodo', room: 'Ruang Kolaborasi', date: '2026-09-23', start: '13:00', end: '15:00', status: 'Akan Datang', participants: 9, desc: 'Review kinerja.' },
-  { id: 8, title: 'Presentasi Program', requester: 'Nina Kartika', room: 'Ruang Bhinneka', date: '2026-09-23', start: '16:00', end: '17:30', status: 'Akan Datang', participants: 18, desc: 'Presentasi program.' },
+  { id: 1, title: 'Rapat Koordinasi Biro Keuangan', requester: 'Andi Pratama', room: 'Ruang Rapat Besar', date: '2026-09-22', start: '08:00', end: '10:00', status: 'Berjalan', participants: 12, desc: 'Pembahasan laporan keuangan dan evaluasi program.' },
 ];
+
 
 export const initialRooms = [
   { id: 1, name: 'Ruang Nusantara', location: 'Gedung Pusat, Lt. 3', capacity: 20, status: 'Tersedia', facilities: 'Proyektor, TV, WiFi, Sound System' },
