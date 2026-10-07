@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const dashboardService = require("../services/dashboard.service");
+const whatsappService = require("../services/whatsapp.service");
 
 // Ambil seluruh data dashboard (Google Calendar + Ruangan + Pengguna)
 router.get("/data", async (req, res) => {
@@ -13,13 +14,58 @@ router.get("/data", async (req, res) => {
   }
 });
 
-// Simpan / update rapat (otomatis sinkron ke Google Calendar)
+// Simpan / update rapat (otomatis sinkron ke Google Calendar & notif WA atasan jika butuh approval)
 router.post("/meetings", async (req, res) => {
   try {
     const saved = await dashboardService.saveMeeting(req.body);
+
+    // Jika status "Menunggu Approval", kirim notifikasi WhatsApp ke Atasan
+    if (saved.status === "Menunggu Approval") {
+      whatsappService.sendNotificationToApprovers(saved).catch((err) => {
+        console.error("Gagal kirim notifikasi WA:", err.message);
+      });
+    }
+
     res.json({ success: true, meeting: saved });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// Webhook untuk balasan WhatsApp Atasan (Ketik 1 = Approve, 2 = Tolak)
+router.post("/whatsapp/reply", async (req, res) => {
+  try {
+    const result = await whatsappService.handleApproverReply(req.body);
+    res.json({
+      success: result.success,
+      action: result.action || null,
+      replyText: result.replyText,
+      message: result.replyText,
+    });
+  } catch (err) {
+    console.error("WhatsApp webhook reply error:", err);
+    res.status(500).json({
+      success: false,
+      replyText: "Terjadi kesalahan internal pada sistem saat memproses permohonan.",
+      error: err.message,
+    });
+  }
+});
+
+// Manual trigger kirim ulang notifikasi WhatsApp permohonan rapat ke Atasan
+router.post("/whatsapp/notify/:id", async (req, res) => {
+  try {
+    const store = dashboardService.readStore();
+    const meeting = (store.meetings || []).find((m) => String(m.id) === String(req.params.id));
+
+    if (!meeting) {
+      return res.status(404).json({ success: false, error: "Rapat tidak ditemukan" });
+    }
+
+    const result = await whatsappService.sendNotificationToApprovers(meeting);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 

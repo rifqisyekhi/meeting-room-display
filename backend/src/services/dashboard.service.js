@@ -536,4 +536,6 @@ module.exports = {
   saveRoom,
   saveUser,
   deleteUser,
+  readStore,
+  writeStore,
 };
