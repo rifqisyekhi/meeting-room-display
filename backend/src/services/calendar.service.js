@@ -82,6 +82,9 @@ function parseDescription(description = "") {
 }
 
 function getEventStatus(start, end, now = new Date(), customStatus = "") {
+  // Jika waktu rapat sudah berakhir, otomatis selesai dan ruangan tersedia kembali
+  if (now >= end) return "AVAILABLE";
+
   if (customStatus) {
     const s = customStatus.toLowerCase().trim();
     if (s === "berjalan" || s === "in_progress") return "IN_PROGRESS";

@@ -22,9 +22,35 @@ function isDummyMeeting(m) {
   return false;
 }
 
+function isMeetingFinished(m, now = new Date()) {
+  if (!m || !m.date) return false;
+  const end = m.end || m.endTime;
+  if (!end) return false;
+  try {
+    const [y, mth, d] = m.date.split("-").map(Number);
+    const [eh, em] = end.split(":").map(Number);
+    if (!y || !mth || !d || isNaN(eh) || isNaN(em)) return false;
+    const endDateTime = new Date(y, mth - 1, d, eh, em, 0);
+    return now >= endDateTime;
+  } catch (e) {
+    return false;
+  }
+}
+
 function sanitizeMeetings(list) {
   if (!Array.isArray(list)) return [];
-  const filtered = list.filter((m) => !isDummyMeeting(m));
+  const now = new Date();
+  const updated = list.map((m) => {
+    if (!m) return m;
+    // Rapat otomatis selesai jika jam berakhir rapat sudah lewat
+    if (isMeetingFinished(m, now)) {
+      if (m.status === "Berjalan" || m.status === "Akan Datang" || m.status === "Segera") {
+        return { ...m, status: "Selesai" };
+      }
+    }
+    return m;
+  });
+  const filtered = updated.filter((m) => !isDummyMeeting(m));
 
   // Deduplikasi: jika ada 2 rapat dengan id sama, atau jadwal slot sama (tanggal + jam mulai + ruangan),
   // prioritaskan rapat yang sudah disetujui / memiliki googleId
@@ -4962,6 +4988,22 @@ function initNotificationSync() {
       const newRequests = latestMeetings.filter(
         (m) => !knownMeetingIds.has(m.id) && m.status === "Menunggu Approval",
       );
+
+      // Cek apakah ada rapat yang otomatis selesai
+      const autoCompleted = latestMeetings.filter((lm) => {
+        const prev = state.meetings.find((sm) => String(sm.id) === String(lm.id));
+        return prev && (prev.status === "Berjalan" || prev.status === "Akan Datang") && lm.status === "Selesai";
+      });
+
+      if (autoCompleted.length > 0) {
+        autoCompleted.forEach((ac) => {
+          fetch("/api/dashboard/meetings", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(ac),
+          }).catch((e) => console.warn("Sync auto-complete:", e));
+        });
+      }
 
       if (newRequests.length > 0) {
         state.meetings = latestMeetings;

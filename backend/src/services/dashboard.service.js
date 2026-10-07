@@ -150,7 +150,11 @@ async function getGoogleCalendarEvents() {
       const title = fields.agenda || cleanSummary || "Rapat Koordinasi";
       const participants = parseInt(fields.peserta || fields.jumlah_peserta) || (item.attendees?.length ? item.attendees.length : 10);
       const desc = fields.keterangan || fields.catatan || item.description || "";
-      const status = fields.status || getMeetingStatus(startDate, endDate, now);
+      let status = fields.status || getMeetingStatus(startDate, endDate, now);
+      // Rapat otomatis selesai jika waktu rapat telah berakhir
+      if (now >= endDate && status !== "Dibatalkan" && status !== "Menunggu Approval") {
+        status = "Selesai";
+      }
 
       meetings.push({
         id: item.id || String(index + 1),
@@ -229,9 +233,17 @@ async function getDashboardData() {
         const [eh, em] = (m.end || "").split(":").map(Number);
         const start = new Date(y, mth - 1, d, sh, sm);
         const end = new Date(y, mth - 1, d, eh, em);
+        let s = m.status;
+        if (s === "Menunggu Approval" || s === "Dibatalkan") {
+          // Tetap status aslinya
+        } else if (now >= end) {
+          s = "Selesai";
+        } else if (s !== "Berjalan") {
+          s = getMeetingStatus(start, end, now);
+        }
         return {
           ...m,
-          status: m.status === "Menunggu Approval" ? m.status : getMeetingStatus(start, end, now),
+          status: s,
         };
       } catch {
         return m;
