@@ -299,8 +299,14 @@ async function saveMeeting(meeting) {
   if (!store.meetings) store.meetings = [];
 
   const originalId = meeting.id;
-  const isPending = meeting.status === "Menunggu Approval";
-  const isCancelled = meeting.status === "Dibatalkan" || meeting.status === "Ditolak";
+  const normStatus = (meeting.status || "").toLowerCase().trim();
+  const isPending = normStatus.includes("menunggu") || normStatus === "pending";
+  const isCancelled = normStatus === "dibatalkan" || normStatus === "ditolak" || normStatus === "cancelled";
+  if (isPending) {
+    meeting.status = "Menunggu Approval";
+  } else if (!isCancelled && (!meeting.status || isPending)) {
+    meeting.status = "Akan Datang";
+  }
   const gcal = getGoogleCalendarClient();
   let googleEvent = null;
 

@@ -57,6 +57,24 @@
       "dept": "IT Support",
       "role": "Admin Sistem",
       "status": "Aktif"
+    },
+    {
+      "id": "approval1",
+      "name": "Pimpinan",
+      "username": "approval1",
+      "email": "pimpinan@kemnaker.go.id",
+      "dept": "Biro Keuangan dan BMN",
+      "role": "Approval 1",
+      "status": "Aktif"
+    },
+    {
+      "id": "approval2",
+      "name": "Wakil Pimpinan",
+      "username": "approval2",
+      "email": "wakil.pimpinan@kemnaker.go.id",
+      "dept": "Biro Keuangan dan BMN",
+      "role": "Approval 2",
+      "status": "Aktif"
     }
   ],
   "meetings": [

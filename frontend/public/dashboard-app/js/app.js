@@ -1,4 +1,42 @@
 // ----------------------------------------------------------------------
+// HELPER ROLE & ACCESS CONTROL
+// ----------------------------------------------------------------------
+function isAtasanRole(user) {
+  if (!user) return false;
+  const role = (user.role || "").toLowerCase();
+  const uname = (user.username || "").toLowerCase();
+  if (role === "administrator" || role.includes("admin") || uname === "admin") {
+    return false;
+  }
+  return role.includes("approval") || role.includes("pimpinan") || role.includes("atasan");
+}
+
+function isAdminRole(user) {
+  if (!user) return false;
+  const role = (user.role || "").toLowerCase();
+  const uname = (user.username || "").toLowerCase();
+  return role === "administrator" || role.includes("admin") || uname === "admin";
+}
+
+function getTodayIsoDate() {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getDefaultMeetingHours() {
+  const now = new Date();
+  const startH = (now.getHours() + 1) % 24;
+  const endH = (startH + 1) % 24;
+  return {
+    start: `${String(startH).padStart(2, "0")}:00`,
+    end: `${String(endH).padStart(2, "0")}:00`,
+  };
+}
+
+// ----------------------------------------------------------------------
 // HELPER STORAGE & PEMBERSIHAN DATA DUMMY
 // ----------------------------------------------------------------------
 function getAppStorage() {
@@ -701,12 +739,7 @@ function openNotifFromToast(id, btn) {
 
 function getNotifDropdownContentHTML(currentUser) {
   const notifs = getNotifications();
-  const userRole = (currentUser?.role || "").toLowerCase();
-  const userName = (currentUser?.username || "").toLowerCase();
-  const canApprove =
-    userRole.includes("approval") ||
-    userRole.includes("admin") ||
-    userName === "admin";
+  const canApprove = isAtasanRole(currentUser);
   const pendingCount = notifs.filter((n) =>
     (n.status || "").toLowerCase().includes("menunggu"),
   ).length;
@@ -742,7 +775,7 @@ function getNotifDropdownContentHTML(currentUser) {
         if (isPriorityCancel) {
           statusBadge = `<span class="notif-status-badge rejected" style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;">✕ Dibatalkan (Prioritas Ka. Biro)</span>`;
         } else if (isPending) {
-          statusBadge = `<span class="notif-status-badge pending">⏳ Menunggu Persetujuan</span>`;
+          statusBadge = `<span class="notif-status-badge pending">⏳ Menunggu Persetujuan Atasan</span>`;
         } else if (isApproved) {
           statusBadge = `<span class="notif-status-badge approved">✓ Disetujui (${esc(m.approvedBy || "Pimpinan")})</span>`;
         } else if (isRejected) {
@@ -851,21 +884,38 @@ function getNotifDropdownContentHTML(currentUser) {
 }
 
 function getProfileHTML() {
-  const defaultUser = {
+  const defaultAccounts = [
+    { username: "approval1", name: "Pimpinan", role: "Approval 1", dept: "Biro Keuangan dan BMN" },
+    { username: "approval2", name: "Wakil Pimpinan", role: "Approval 2", dept: "Biro Keuangan dan BMN" },
+    { username: "admin", name: "Admin Utama", role: "Administrator", dept: "Biro Keuangan dan BMN" },
+  ];
+
+  let currentUser = {
     username: "admin",
     name: "Admin Utama",
     role: "Administrator",
   };
-  let currentUser = defaultUser;
   try {
     const stored = getAppStorage().getItem("currentUser");
     if (stored) currentUser = JSON.parse(stored);
   } catch (e) {}
 
-  let savedAccounts = [];
+  let savedAccounts = [...defaultAccounts];
   try {
     const storedSaved = getAppStorage().getItem("savedAccounts");
-    if (storedSaved) savedAccounts = JSON.parse(storedSaved);
+    if (storedSaved) {
+      const parsed = JSON.parse(storedSaved);
+      if (Array.isArray(parsed)) {
+        parsed.forEach((u) => {
+          const idx = savedAccounts.findIndex((x) => x.username.toLowerCase() === (u.username || "").toLowerCase());
+          if (idx >= 0) {
+            savedAccounts[idx] = { ...savedAccounts[idx], ...u };
+          } else if (u.username) {
+            savedAccounts.push(u);
+          }
+        });
+      }
+    }
   } catch (e) {}
 
   const initial = currentUser.name
@@ -873,14 +923,17 @@ function getProfileHTML() {
     : "A";
 
   const savedItems = savedAccounts
-    .filter((u) => u.username !== currentUser.username)
+    .filter((u) => (u.username || "").toLowerCase() !== (currentUser.username || "").toLowerCase())
     .map(
-      (u) => `
-    <div onclick="switchToAccount(event, '${esc(u.username)}')" style="padding:12px 16px;cursor:pointer;font-size:12px;font-weight:500;border-bottom:1px solid #e2e8f0;color:#333;display:flex;flex-direction:column;gap:2px;" onmouseover="this.style.background='#f7fafc'" onmouseout="this.style.background='white'">
-      <div style="display:flex;align-items:center;gap:8px;">👤 ${esc(u.name)}</div>
-      <small style="color:#718096;margin-left:22px;">Role: ${esc(u.role)}</small>
+      (u) => {
+        const isAtasan = (u.role || "").toLowerCase().includes("approval") || (u.role || "").toLowerCase().includes("pimpinan");
+        return `
+    <div onclick="switchToAccount(event, '${esc(u.username)}')" style="padding:10px 14px;cursor:pointer;font-size:12px;font-weight:500;border-bottom:1px solid #e2e8f0;color:#333;display:flex;flex-direction:column;gap:2px;transition:background 0.15s;" onmouseover="this.style.background='${isAtasan ? "#f0fdf4" : "#eff6ff"}'" onmouseout="this.style.background='white'">
+      <div style="display:flex;align-items:center;gap:8px;font-weight:600;color:#0f172a;">${isAtasan ? "👑" : "🛡️"} ${esc(u.name)}</div>
+      <small style="color:${isAtasan ? "#16a34a" : "#2563eb"};margin-left:22px;font-weight:600;">Role: ${esc(u.role)} ${isAtasan ? "(Hak Akses Approve)" : "(Monitoring & Check In)"}</small>
     </div>
-  `,
+  `;
+      },
     )
     .join("");
 
@@ -913,13 +966,13 @@ function getProfileHTML() {
         <div class="avatar" style="width:40px;height:40px;border-radius:50%;background:#fff;color:#0c2d5e;font-weight:700;font-size:16px;display:flex;align-items:center;justify-content:center;border:2px solid #d4e6f6;flex-shrink:0;">${initial}</div>
         <div>
           <div style="font-weight:700;font-size:14px;color:#0c2d5e;line-height:1.2;">${esc(currentUser.name)}</div>
-          <div style="font-size:12px;color:#4b6a90;font-weight:500;">${esc(currentUser.role)}</div>
+          <div style="font-size:12px;color:#4b6a90;font-weight:600;">${esc(currentUser.role)}</div>
         </div>
-        <div id="profileDropdown" style="display:none;position:absolute;top:120%;right:0;background:white;border-radius:8px;box-shadow:0 10px 25px rgba(0,0,0,0.15);width:220px;z-index:100;overflow:hidden;border:1px solid #e2e8f0;text-align:left;">
-          <div style="padding:10px 16px;font-size:11px;font-weight:600;color:#a0aec0;background:#f7fafc;border-bottom:1px solid #e2e8f0;text-transform:uppercase;">Ganti Akun Cepat</div>
+        <div id="profileDropdown" style="display:none;position:absolute;top:120%;right:0;background:white;border-radius:8px;box-shadow:0 10px 25px rgba(0,0,0,0.15);width:260px;z-index:100;overflow:hidden;border:1px solid #e2e8f0;text-align:left;">
+          <div style="padding:10px 14px;font-size:11px;font-weight:700;color:#64748b;background:#f8fafc;border-bottom:1px solid #e2e8f0;text-transform:uppercase;letter-spacing:0.5px;">Ganti Akun Cepat</div>
           ${savedItems}
-          <div onclick="switchRole(event)" style="padding:12px 16px;cursor:pointer;font-size:13px;font-weight:500;border-bottom:1px solid #e2e8f0;color:#333;display:flex;align-items:center;gap:8px;" onmouseover="this.style.background='#f7fafc'" onmouseout="this.style.background='white'">➕ Tambah Akun Lain</div>
-          <div onclick="logout(event)" style="padding:12px 16px;cursor:pointer;font-size:13px;font-weight:500;color:#e53e3e;display:flex;align-items:center;gap:8px;" onmouseover="this.style.background='#fff5f5'" onmouseout="this.style.background='white'">🚪 Log Out</div>
+          <div onclick="switchRole(event)" style="padding:11px 14px;cursor:pointer;font-size:12.5px;font-weight:500;border-bottom:1px solid #e2e8f0;color:#334155;display:flex;align-items:center;gap:8px;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">➕ Tambah Akun Lain</div>
+          <div onclick="logout(event)" style="padding:11px 14px;cursor:pointer;font-size:12.5px;font-weight:600;color:#dc2626;display:flex;align-items:center;gap:8px;" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='white'">🚪 Log Out</div>
         </div>
       </div>
     </div>
@@ -928,13 +981,27 @@ function getProfileHTML() {
 
 function switchToAccount(e, username) {
   if (e) e.stopPropagation();
-  let savedAccounts = [];
+  const defaultAccounts = [
+    { username: "approval1", name: "Pimpinan", role: "Approval 1", dept: "Biro Keuangan dan BMN" },
+    { username: "approval2", name: "Wakil Pimpinan", role: "Approval 2", dept: "Biro Keuangan dan BMN" },
+    { username: "admin", name: "Admin Utama", role: "Administrator", dept: "Biro Keuangan dan BMN" },
+  ];
+  let allAccounts = [...defaultAccounts];
   try {
     const storedSaved = getAppStorage().getItem("savedAccounts");
-    if (storedSaved) savedAccounts = JSON.parse(storedSaved);
+    if (storedSaved) {
+      const parsed = JSON.parse(storedSaved);
+      if (Array.isArray(parsed)) {
+        parsed.forEach((u) => {
+          const idx = allAccounts.findIndex((x) => x.username.toLowerCase() === (u.username || "").toLowerCase());
+          if (idx >= 0) allAccounts[idx] = { ...allAccounts[idx], ...u };
+          else if (u.username) allAccounts.push(u);
+        });
+      }
+    }
   } catch (err) {}
 
-  const user = savedAccounts.find((u) => u.username === username);
+  const user = allAccounts.find((u) => (u.username || "").toLowerCase() === (username || "").toLowerCase());
   if (user) {
     getAppStorage().setItem("currentUser", JSON.stringify(user));
     getAppStorage().setItem("isAuthenticated", "true");
@@ -1293,10 +1360,8 @@ function dashboard() {
 // ----------------------------------------------------------------------
 function meetingTable(data, actions = true, allowDelete = true) {
   const user = getCurrentUser();
-  const userRole = (user?.role || "").toLowerCase();
-  const userName = (user?.username || "").toLowerCase();
-  const isAdmin = userRole.includes("admin") || userName === "admin";
-  const canApprove = userRole.includes("approval") || isAdmin;
+  const isAtasan = isAtasanRole(user);
+  const isAdmin = isAdminRole(user);
 
   const rows = (!data || data.length === 0)
     ? `<tr><td colspan="8" style="text-align:center;padding:36px;color:#8c9ba5;font-weight:500;">Belum ada jadwal rapat</td></tr>`
@@ -1308,26 +1373,34 @@ function meetingTable(data, actions = true, allowDelete = true) {
             'width="16" height="16"',
           );
 
-          let actionButtons = `<button style="background-color:#f4f6f9;color:#0c2d5e;border:none;border-radius:10px;width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;margin-right:12px;box-shadow:0 2px 5px rgba(0,0,0,0.03);" title="Lihat" onclick="viewMeeting('${m.id}')">${faEye}</button>`;
+          let actionButtons = `<button style="background-color:#f4f6f9;color:#0c2d5e;border:none;border-radius:10px;width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;margin-right:8px;box-shadow:0 2px 5px rgba(0,0,0,0.03);" title="Lihat" onclick="viewMeeting('${m.id}')">${faEye}</button>`;
 
           if (actions) {
             const isPending = (m.status || "").toLowerCase().includes("menunggu");
             if (isPending) {
               if (m.rejectedBy) {
                 actionButtons += `<span style="font-size:11px;color:#ff4d4f;margin-right:8px;font-weight:700;background:#ffebee;padding:6px 12px;border-radius:12px;">Ditolak (${esc(m.rejectedBy)})</span>`;
-              } else if (canApprove) {
-                actionButtons += `<button style="background-color:#219653;color:#fff;border:none;border-radius:24px;padding:8px 16px;font-weight:700;font-size:12px;cursor:pointer;margin-right:6px;" title="Setujui" onclick="approveMeeting('${m.id}')">Setujui</button>`;
-                actionButtons += `<button style="background-color:#ff4d4f;color:#fff;border:none;border-radius:24px;padding:8px 16px;font-weight:700;font-size:12px;cursor:pointer;" title="Tolak" onclick="rejectMeeting('${m.id}')">Tolak</button>`;
+              } else if (isAtasan) {
+                // HANYA ROLE ATASAN YANG MELIHAT TOMBOL SETUJUI DAN TOLAK
+                actionButtons += `<button style="background-color:#219653;color:#fff;border:none;border-radius:24px;padding:8px 16px;font-weight:700;font-size:12px;cursor:pointer;margin-right:6px;" title="Setujui" onclick="approveMeeting('${m.id}')">✓ Setujui</button>`;
+                actionButtons += `<button style="background-color:#ff4d4f;color:#fff;border:none;border-radius:24px;padding:8px 16px;font-weight:700;font-size:12px;cursor:pointer;" title="Tolak" onclick="rejectMeeting('${m.id}')">✕ Tolak</button>`;
               } else {
-                actionButtons += `<span style="font-size:11px;color:#718096;margin-right:8px;font-weight:600;">Menunggu Approval</span>`;
+                // ADMIN HANYA MONITORING
+                actionButtons += `<span style="font-size:11px;color:#d97706;background:#fef3c7;padding:5px 10px;border-radius:12px;font-weight:600;">⏳ Menunggu Atasan</span>`;
               }
             } else if (m.status === "Akan Datang") {
               if (isAdmin) {
+                // ADMIN BERTANGGUNG JAWAB CHECK IN
                 actionButtons += `<button style="background-color:#219653;color:#fff;border:none;border-radius:24px;padding:8px 16px;font-weight:700;font-size:13px;cursor:pointer;box-shadow:0 4px 10px rgba(33,150,83,0.2);" title="Check In" onclick="checkInMeeting('${m.id}')">Check In</button>`;
+              } else {
+                actionButtons += `<span style="font-size:11px;color:#219653;background:#e0f5ec;padding:5px 10px;border-radius:12px;font-weight:600;">✓ Disetujui</span>`;
               }
             } else if (m.status === "Berjalan") {
               if (isAdmin) {
+                // ADMIN BERTANGGUNG JAWAB CHECK OUT
                 actionButtons += `<button style="background-color:#ff4d4f;color:#fff;border:none;border-radius:24px;padding:8px 16px;font-weight:700;font-size:13px;cursor:pointer;box-shadow:0 4px 10px rgba(255,77,79,0.2);" title="Check Out" onclick="checkOutMeeting('${m.id}')">Check Out</button>`;
+              } else {
+                actionButtons += `<span style="font-size:11px;color:#2563eb;background:#dbeafe;padding:5px 10px;border-radius:12px;font-weight:600;">Sedang Berjalan</span>`;
               }
             }
           }
@@ -3491,15 +3564,16 @@ function onToggleKepalaBiro(checkbox) {
 window.onToggleKepalaBiro = onToggleKepalaBiro;
 
 function openMeetingModal(id = null) {
+  const defaultHours = getDefaultMeetingHours();
   const m = id
     ? state.meetings.find((x) => String(x.id) === String(id))
     : {
         title: "",
         requester: "",
-        room: state.rooms[0]?.name || "Ruang Rapat",
-        date: "2026-09-24",
-        start: "09:00",
-        end: "10:00",
+        room: state.rooms[0]?.name || "Ruang Rapat Besar",
+        date: getTodayIsoDate(),
+        start: defaultHours.start,
+        end: defaultHours.end,
         participants: 10,
         status: "Menunggu Approval",
         desc: "",
@@ -3740,22 +3814,31 @@ async function saveMeeting(id) {
 
 function approveMeeting(id) {
   const user = getCurrentUser();
-  const targetMeeting = state.meetings.find((m) => String(m.id) === String(id));
+  if (!isAtasanRole(user)) {
+    alert(
+      "Hak Akses Dibatasi:\nHanya akun role Atasan (Pimpinan / Approval 1 / Approval 2) yang dapat menyetujui permohonan rapat.\n\nAkun Administrator bertugas memonitor dashboard dan melakukan Check In / Check Out saat peserta hadir.",
+    );
+    return;
+  }
 
-  if (!targetMeeting) return;
+  let targetMeeting = state.meetings.find((m) => String(m.id) === String(id));
+  if (!targetMeeting) {
+    try {
+      const stored = JSON.parse(getAppStorage().getItem("app_meetings") || "[]");
+      targetMeeting = stored.find((m) => String(m.id) === String(id));
+      if (targetMeeting) {
+        state.meetings.unshift(targetMeeting);
+      }
+    } catch (e) {}
+  }
 
-  const userRole = (user?.role || "").toLowerCase();
-  const userName = (user?.username || "").toLowerCase();
-  const isAdmin = userRole.includes("admin") || userName === "admin";
-  const canApprove = userRole.includes("approval") || isAdmin;
-
-  if (!canApprove) {
-    alert("Anda tidak memiliki hak akses untuk menyetujui permohonan rapat.");
+  if (!targetMeeting) {
+    alert("Data rapat tidak ditemukan.");
     return;
   }
 
   const statusLower = (targetMeeting.status || "").toLowerCase().trim();
-  const isPending = statusLower.includes("menunggu");
+  const isPending = statusLower.includes("menunggu") || statusLower === "pending";
 
   if (!isPending) {
     alert(
@@ -3767,10 +3850,9 @@ function approveMeeting(id) {
     return;
   }
 
-  const approverName =
-    user.name || user.username || (isAdmin ? "Administrator" : "Admin Persetujuan");
-  const approverRole = user.role || (isAdmin ? "Administrator" : "Approval");
-  const approvedTag = approverName + (approverRole ? " - " + approverRole : "");
+  const approverName = user.name || "Pimpinan";
+  const approverRole = user.role || "Approval 1";
+  const approvedTag = `${approverName} - ${approverRole}`;
 
   targetMeeting.status = "Akan Datang";
   targetMeeting.approvedBy = approvedTag;
@@ -3824,7 +3906,7 @@ function approveMeeting(id) {
     .catch((e) => console.warn("Sync approved meeting:", e));
 
   render();
-  toast("Rapat berhasil disetujui oleh " + approverName);
+  toast("✓ Rapat berhasil disetujui oleh " + approvedTag);
 }
 
 function checkInMeeting(id) {
@@ -3878,22 +3960,25 @@ function checkOutMeeting(id) {
 }
 
 function rejectMeeting(id) {
-  const targetMeeting = state.meetings.find((m) => String(m.id) === String(id));
-  if (!targetMeeting) return;
-
   const user = getCurrentUser();
-  const userRole = (user?.role || "").toLowerCase();
-  const userName = (user?.username || "").toLowerCase();
-  const isAdmin = userRole.includes("admin") || userName === "admin";
-  const canApprove = userRole.includes("approval") || isAdmin;
-
-  if (!canApprove) {
-    alert("Anda tidak memiliki hak akses untuk menolak permohonan rapat.");
+  if (!isAtasanRole(user)) {
+    alert(
+      "Hak Akses Dibatasi:\nHanya akun role Atasan (Pimpinan / Approval 1 / Approval 2) yang dapat menolak permohonan rapat.",
+    );
     return;
   }
 
+  let targetMeeting = state.meetings.find((m) => String(m.id) === String(id));
+  if (!targetMeeting) {
+    try {
+      const stored = JSON.parse(getAppStorage().getItem("app_meetings") || "[]");
+      targetMeeting = stored.find((m) => String(m.id) === String(id));
+    } catch (e) {}
+  }
+  if (!targetMeeting) return;
+
   const statusLower = (targetMeeting.status || "").toLowerCase().trim();
-  const isPending = statusLower.includes("menunggu");
+  const isPending = statusLower.includes("menunggu") || statusLower === "pending";
 
   if (!isPending) {
     alert(
@@ -3921,16 +4006,16 @@ function rejectMeeting(id) {
 
 function confirmReject(id) {
   const user = getCurrentUser();
-  const userRole = (user?.role || "").toLowerCase();
-  const userName = (user?.username || "").toLowerCase();
-  const isAdmin = userRole.includes("admin") || userName === "admin";
+  if (!isAtasanRole(user)) {
+    alert("Hanya role Atasan yang berhak menolak permohonan rapat.");
+    return;
+  }
   const reason =
     document.getElementById("fRejectReason")?.value.trim() ||
     "Tidak ada alasan yang diberikan";
-  const rejecterName =
-    user.name || user.username || (isAdmin ? "Administrator" : "Admin Persetujuan");
-  const rejecterRole = user.role || (isAdmin ? "Administrator" : "Approval");
-  const rejecterTag = rejecterName + (rejecterRole ? " - " + rejecterRole : "");
+  const rejecterName = user.name || "Pimpinan";
+  const rejecterRole = user.role || "Approval 1";
+  const rejecterTag = `${rejecterName} - ${rejecterRole}`;
 
   state.meetings = state.meetings.map((m) => {
     if (String(m.id) === String(id))
@@ -3981,10 +4066,8 @@ function viewMeeting(id) {
   const m = state.meetings.find((x) => String(x.id) === String(id));
   if (!m) return;
   const user = getCurrentUser();
-  const userRole = (user?.role || "").toLowerCase();
-  const userName = (user?.username || "").toLowerCase();
-  const isAdmin = userRole.includes("admin") || userName === "admin";
-  const canApprove = userRole.includes("approval") || isAdmin;
+  const isAtasan = isAtasanRole(user);
+  const isAdmin = isAdminRole(user);
 
   const isCanceled = m.status === "Dibatalkan";
   const cancelBox = isCanceled
@@ -3999,16 +4082,23 @@ function viewMeeting(id) {
   let actionBtns = `<button class="btn btn-light" style="display:inline-flex;align-items:center;gap:6px;" onclick="exportNotulensiPDF('${m.id}')">${ICONS.export} <span>Notulensi</span></button>`;
 
   const isPending = (m.status || "").toLowerCase().includes("menunggu");
-  if (isPending && canApprove) {
-    actionBtns += `<button class="btn btn-primary" style="background:#219653;border-color:#219653;font-weight:700;" onclick="closeModal(); approveMeeting('${m.id}')">✓ Setujui Rapat</button>`;
-    actionBtns += `<button class="btn btn-primary" style="background:#ff4d4f;border-color:#ff4d4f;font-weight:700;" onclick="closeModal(); rejectMeeting('${m.id}')">✕ Tolak Rapat</button>`;
+  if (isPending) {
+    if (isAtasan) {
+      // HANYA ROLE ATASAN YANG BISA SETUJUI DAN TOLAK
+      actionBtns += `<button class="btn btn-primary" style="background:#219653;border-color:#219653;font-weight:700;" onclick="closeModal(); approveMeeting('${m.id}')">✓ Setujui Rapat</button>`;
+      actionBtns += `<button class="btn btn-primary" style="background:#ff4d4f;border-color:#ff4d4f;font-weight:700;" onclick="closeModal(); rejectMeeting('${m.id}')">✕ Tolak Rapat</button>`;
+    } else {
+      actionBtns += `<div style="font-size:12px;color:#d97706;background:#fef3c7;padding:7px 12px;border-radius:8px;font-weight:600;display:inline-flex;align-items:center;">⏳ Menunggu Persetujuan Atasan</div>`;
+    }
   } else if (m.status === "Akan Datang" && isAdmin) {
+    // ADMIN CHECK IN
     actionBtns += `<button class="btn btn-primary" style="background:#219653;border-color:#219653;font-weight:700;" onclick="closeModal(); checkInMeeting('${m.id}')">Check In</button>`;
   } else if (m.status === "Berjalan" && isAdmin) {
+    // ADMIN CHECK OUT
     actionBtns += `<button class="btn btn-primary" style="background:#ff4d4f;border-color:#ff4d4f;font-weight:700;" onclick="closeModal(); checkOutMeeting('${m.id}')">Check Out</button>`;
   }
 
-  if (isAdmin || canApprove) {
+  if (isAdmin || isAtasan) {
     actionBtns += `<button class="btn btn-primary" onclick="closeModal(); editMeeting('${m.id}')">Edit Rapat</button>`;
   }
 
@@ -4021,10 +4111,10 @@ function viewMeeting(id) {
     <p>👤 <b>Pemesan:</b> ${esc(m.requester)}</p>
     <p>👥 ${m.participants} peserta</p>
     <p>🏷️ <b>Status:</b> ${badge(m.status)}</p>
-    ${m.approvedBy ? `<p>✓ <b>Disetujui Oleh:</b> ${esc(m.approvedBy)}</p>` : ""}
+    ${m.approvedBy ? `<p>✓ <b>Disetujui Oleh:</b> <span style="color:#15803d;font-weight:600;">${esc(m.approvedBy)}</span></p>` : ""}
     ${m.rejectedBy ? `<p style="color:#dc2626;">✕ <b>Ditolak Oleh:</b> ${esc(m.rejectedBy)}</p>` : ""}
     <p style="margin-top:15px;color:#334155;white-space:pre-line;">${esc(m.desc)}</p>
-    <div class="modal-actions" style="margin-top:20px;display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;">
+    <div class="modal-actions" style="margin-top:20px;display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;align-items:center;">
       ${actionBtns}
     </div>`,
   );

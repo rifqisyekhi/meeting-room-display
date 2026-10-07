@@ -225,6 +225,76 @@ export default function LoginPage() {
             <button type="submit" className="login-submit-btn">
               Masuk
             </button>
+
+            <div style={{ marginTop: "24px", paddingTop: "18px", borderTop: "1px dashed #cbd5e1" }}>
+              <div style={{ fontSize: "12px", fontWeight: "700", color: "#475569", marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                Pilih Akun Cepat (Testing):
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                <button
+                  type="button"
+                  onClick={() => { setUsername("approval1"); setPassword("approval123"); }}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "8px 12px",
+                    background: "#f0fdf4",
+                    border: "1px solid #bbf7d0",
+                    borderRadius: "8px",
+                    cursor: "pointer",
+                    textAlign: "left",
+                    color: "#166534",
+                    fontSize: "12px",
+                  }}
+                >
+                  <span>👑 <b>Atasan (Pimpinan)</b> - <code>approval1</code></span>
+                  <span style={{ fontWeight: 600, fontSize: "11px", background: "#dcfce7", padding: "2px 6px", borderRadius: "4px" }}>Bisa Approve</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => { setUsername("approval2"); setPassword("approval234"); }}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "8px 12px",
+                    background: "#f0fdf4",
+                    border: "1px solid #bbf7d0",
+                    borderRadius: "8px",
+                    cursor: "pointer",
+                    textAlign: "left",
+                    color: "#166534",
+                    fontSize: "12px",
+                  }}
+                >
+                  <span>👑 <b>Atasan (Wakil Pimpinan)</b> - <code>approval2</code></span>
+                  <span style={{ fontWeight: 600, fontSize: "11px", background: "#dcfce7", padding: "2px 6px", borderRadius: "4px" }}>Bisa Approve</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => { setUsername("admin"); setPassword("admin123"); }}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "8px 12px",
+                    background: "#eff6ff",
+                    border: "1px solid #bfdbfe",
+                    borderRadius: "8px",
+                    cursor: "pointer",
+                    textAlign: "left",
+                    color: "#1e40af",
+                    fontSize: "12px",
+                  }}
+                >
+                  <span>🛡️ <b>Admin Utama</b> - <code>admin</code></span>
+                  <span style={{ fontWeight: 600, fontSize: "11px", background: "#dbeafe", padding: "2px 6px", borderRadius: "4px" }}>Monitoring & Check-In</span>
+                </button>
+              </div>
+            </div>
           </form>
         </div>
       </div>
