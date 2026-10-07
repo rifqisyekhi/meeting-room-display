@@ -33,80 +33,6 @@ const HOUR_CELLS = Array.from({ length: DAY_HOURS }, (unused, index) => DAY_STAR
    enough to be worth raising the alarm over. */
 const STALE_ALERT_AFTER = 3
 
-/* Testing aid. Forces one room to render the "in use + next booking" state
-   from invented data, so that layout can be reviewed without waiting for a
-   real meeting to start. A card fed by this always carries a DEMO badge.
-
-   The demo does not merge with the calendar, it REPLACES that room's entire
-   day: real bookings would go unseen and the footer totals would count
-   invented meetings. So it must never reach the board in the hallway.
-
-   Guarding it with import.meta.env.DEV makes that structural rather than a
-   thing to remember. Vite substitutes the flag literally at build time, so
-   in a production bundle this whole expression folds to null and demoEvents
-   is dropped as dead code — 'npm run build' cannot emit the demo even if
-   VITE_DEMO_ROOM is set in the environment.
-
-   To switch it on locally, put this in frontend/.env.local (git-ignored):
-     VITE_DEMO_ROOM=ruangKonsultasi        (or ruangRapatBesar) */
-const DEMO_ROOM = import.meta.env.DEV ? import.meta.env.VITE_DEMO_ROOM || null : null
-
-/* Times are fixed once at mount, not recomputed per render — otherwise they
-   would slide forward every second and the countdown would never move. */
-function demoEvents(mountedAt) {
-  const at = (offsetMinutes) => mountedAt.add(offsetMinutes, 'minute').format('HH:mm')
-
-  return {
-    /* One event per timeline state, so all three cell colours are on screen
-       at once. The finished and scheduled slots use fixed morning/evening
-       hours (rather than offsets from now) so they stay inside the 08-20
-       strip whatever time the board is opened. */
-    today: [
-      {
-        agenda: 'Rapat Pembukaan Pelatihan Vokasi',
-        bagian: 'Bagian Umum',
-        tanggal: mountedAt.format('ddd, DD MMM'),
-        mulai: '08:00',
-        selesai: '09:30',
-        status: 'AVAILABLE',   // selesai  -> abu
-      },
-      {
-        agenda: 'Asesmen Calon Instruktur Pelatihan Nasional',
-        bagian: 'Bagian Sumber Daya Manusia',
-        tanggal: mountedAt.format('ddd, DD MMM'),
-        mulai: at(-47),
-        selesai: at(28),
-        status: 'IN_PROGRESS', // berlangsung -> emas
-      },
-      {
-        agenda: 'Koordinasi Teknis Balai Latihan Kerja (BBPVP)',
-        bagian: 'Bagian Perencanaan dan Kerja Sama',
-        tanggal: mountedAt.format('ddd, DD MMM'),
-        mulai: '17:00',
-        selesai: '19:00',
-        status: 'UPCOMING',    // terjadwal -> biru
-      },
-    ],
-    upcoming: [
-      {
-        agenda: 'Koordinasi Teknis Balai Latihan Kerja (BBPVP)',
-        bagian: 'Bagian Perencanaan dan Kerja Sama',
-        tanggal: mountedAt.format('ddd, DD MMM'),
-        mulai: '17:00',
-        selesai: '19:00',
-        status: 'UPCOMING',
-      },
-      {
-        agenda: 'Konsultasi Penyusunan RKA-KL Tahun Anggaran 2027',
-        bagian: 'Bagian Akuntansi',
-        tanggal: mountedAt.add(1, 'day').format('ddd, DD MMM'),
-        mulai: '09:00',
-        selesai: '11:00',
-        status: 'UPCOMING',
-      },
-    ],
-  }
-}
 
 function pad(value) {
   return String(value).padStart(2, '0')
@@ -259,7 +185,7 @@ function Timeline({ events, now }) {
   )
 }
 
-function RoomPanel({ room, todayEvents, upcomingEvents, now, demo }) {
+function RoomPanel({ room, todayEvents, upcomingEvents, now }) {
   const current = todayEvents.find((event) => event.status === 'IN_PROGRESS')
   const queue = upcomingEvents.filter((event) => event.status === 'UPCOMING')
   const next = queue[0]
@@ -269,7 +195,6 @@ function RoomPanel({ room, todayEvents, upcomingEvents, now, demo }) {
       <div className="room__head">
         <div className="room__title">
           <h2>{room.name}</h2>
-          {demo && <span className="demo-badge">Data demo</span>}
         </div>
         <span className="status"><i />{current ? 'Sedang Digunakan' : 'Tersedia'}</span>
       </div>
@@ -424,20 +349,9 @@ function DisplayPage() {
     return () => window.clearInterval(id)
   }, [])
 
-  const [demo] = useState(() => (DEMO_ROOM ? demoEvents(dayjs()) : null))
-
-  const shownToday = useMemo(
-    () => (demo ? { ...today, [DEMO_ROOM]: demo.today } : today),
-    [today, demo],
-  )
-  const shownUpcoming = useMemo(
-    () => (demo ? { ...upcoming, [DEMO_ROOM]: demo.upcoming } : upcoming),
-    [upcoming, demo],
-  )
-
-  const allToday = useMemo(() => [...shownToday.ruangRapatBesar, ...shownToday.ruangKonsultasi], [shownToday])
+  const allToday = useMemo(() => [...today.ruangRapatBesar, ...today.ruangKonsultasi], [today])
   const duration = allToday.reduce((total, event) => total + durationInMinutes(event), 0)
-  const activeRooms = ROOMS.filter((room) => shownToday[room.key].some((event) => event.status === 'IN_PROGRESS')).length
+  const activeRooms = ROOMS.filter((room) => today[room.key].some((event) => event.status === 'IN_PROGRESS')).length
   const utilization = allToday.length ? Math.round((duration / (DAY_HOURS * 60 * ROOMS.length)) * 100) : 0
 
   return (
@@ -484,10 +398,9 @@ function DisplayPage() {
           <RoomPanel
             key={room.key}
             room={room}
-            todayEvents={shownToday[room.key]}
-            upcomingEvents={shownUpcoming[room.key]}
+            todayEvents={today[room.key]}
+            upcomingEvents={upcoming[room.key]}
             now={now}
-            demo={DEMO_ROOM === room.key}
           />
         ))}
       </section>
