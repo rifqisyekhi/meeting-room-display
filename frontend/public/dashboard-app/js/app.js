@@ -111,14 +111,32 @@ function purgeAllDummyData() {
 // Eksekusi pembersihan dummy secara instan saat script dimuat
 purgeAllDummyData();
 
+function tanggalKe(offsetHari = 0) {
+  const d = new Date();
+  d.setDate(d.getDate() + offsetHari);
+  const bulan = String(d.getMonth() + 1).padStart(2, "0");
+  const hari = String(d.getDate()).padStart(2, "0");
+  return d.getFullYear() + "-" + bulan + "-" + hari;
+}
+
+function awalBulan() {
+  return tanggalKe(1 - new Date().getDate());
+}
+
+function akhirBulan() {
+  const d = new Date();
+  const akhir = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  return tanggalKe(akhir - d.getDate());
+}
+
 const state = {
   page: location.hash.replace("#", "") || "dashboard",
   googleCalendarConnected: false,
   calendarMessage: "Menghubungkan ke backend...",
   reportFilter: {
     mode: "bulanan",
-    startDate: "2026-09-01",
-    endDate: "2026-09-30",
+    startDate: awalBulan(),
+    endDate: akhirBulan(),
   },
   meetings: (() => {
     try {
@@ -141,8 +159,8 @@ const state = {
         capacity: 30,
         status: "Tersedia",
         facilities: "Proyektor, Sound System, Mic Wireless, AC, WiFi",
-        image: "/dashboard/assets/Ruang Rapat Besar.jpeg",
-        images: ["/dashboard/assets/Ruang Rapat Besar.jpeg"],
+        image: "/dashboard-app/assets/Ruang Rapat Besar.jpeg",
+        images: ["/dashboard-app/assets/Ruang Rapat Besar.jpeg"],
       },
       {
         id: 2,
@@ -151,8 +169,8 @@ const state = {
         capacity: 12,
         status: "Tersedia",
         facilities: "Smart TV, Whiteboard, AC, WiFi",
-        image: "/dashboard/assets/Ruang Konsultasi.jpeg",
-        images: ["/dashboard/assets/Ruang Konsultasi.jpeg"],
+        image: "/dashboard-app/assets/Ruang Konsultasi.jpeg",
+        images: ["/dashboard-app/assets/Ruang Konsultasi.jpeg"],
       },
     ];
     try {
@@ -168,8 +186,8 @@ const state = {
             let primaryImg = r.image;
             if (!primaryImg || primaryImg.includes("unsplash")) {
               primaryImg = n.includes("konsultasi")
-                ? "/dashboard/assets/Ruang Konsultasi.jpeg"
-                : "/dashboard/assets/Ruang Rapat Besar.jpeg";
+                ? "/dashboard-app/assets/Ruang Konsultasi.jpeg"
+                : "/dashboard-app/assets/Ruang Rapat Besar.jpeg";
             }
             let imgs = Array.isArray(r.images) && r.images.length > 0 ? r.images : [primaryImg];
             return {
@@ -287,7 +305,7 @@ const ICONS = {
   ),
   // IoSettingsOutline — react-icons/io5 (viewBox 0 0 512 512)
   settings: svgIcon(
-    `<path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="32" d="M262.29 192.31a64 64 0 1 0 57.4 57.4 64.13 64.13 0 0 0-57.4-57.4M416.39 256a154 154 0 0 1-1.53 20.79l45.21 35.46a10.81 10.81 0 0 1 2.45 13.75l-42.77 74a10.81 10.81 0 0 1-13.14 4.59l-44.9-18.08a16.11 16.11 0 0 0-15.17 1.75A164.5 164.5 0 0 1 325 400.8a15.94 15.94 0 0 0-8.82 12.14l-6.73 47.89a11.08 11.08 0 0 1-10.68 9.17h-85.54a11.11 11.11 0 0 1-10.69-8.87l-6.72-47.82a16.07 16.07 0 0 0-9-12.22 155 155 0 0 1-21.46-12.57 16 16 0 0 0-15.11-1.71l-44.89 18.07a10.81 10.81 0 0 1-13.14-4.58l-42.77-74a10.8 10.8 0 0 1 2.45-13.75l38.21-30a16.05 16.05 0 0 0 6-14.08c-.36-4.17-.58-8.33-.58-12.5s.21-8.27.58-12.35a16 16 0 0 0-6.07-13.94l-38.19-30A10.81 10.81 0 0 1 49.48 186l42.77-74a10.81 10.81 0 0 1 13.14-4.59l44.9 18.08a16.11 16.11 0 0 0 15.17-1.75A164.5 164.5 0 0 1 187 111.2a15.94 15.94 0 0 0 8.82-12.14l6.73-47.89A11.08 11.08 0 0 1 213.23 42h85.54a11.11 11.11 0 0 1 10.69 8.87l6.72 47.82a16.07 16.07 0 0 0 9 12.22 155 155 0 0 1 21.46 12.57 16 16 0 0 0 15.11 1.71l44.89-18.07a10.81 10.81 0 0 1 13.14 4.58l42.77 74a10.8 10.8 0 0 1-2.45 13.75l-38.21 30a16.05 16.05 0 0 0-6.05 14.08c.33 4.14.55 8.3.55 12.47"/>`,
+    `<path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="32" d="M262.29 192.31a64 64 0 1 0 57.4 57.4 64.13 64.13 0 0 0-57.4-57.4M416.39 256a154 154 0 0 1-1.53 20.79l45.21 35.46a10.81 10.81 0 0 1 2.45 13.75l-42.77 74a10.81 10.81 0 0 1-13.14 4.59l-44.9-18.08a16.11 16.11 0 0 0-15.17 1.75A164.5 164.5 0 0 1 325 400.8a15.94 15.94 0 0 0-8.82 12.14l-6.73 47.89a11.08 11.08 0 0 1-10.68 9.17h-85.54a11.11 11.11 0 0 1-10.69-8.87l-6.72-47.82a16.07 16.07 0 0 0-9-12.22 155 155 0 0 1-21.46-12.57 16 16 0 0 0-15.11-1.71l-44.89 18.07a10.81 10.81 0 0 1-13.14-4.58l-42.77-74a10.8 10.8 0 0 1 2.45-13.75l38.21-30a16.05 16.05 0 0 0 6-14.08c-.36-4.17-.58-8.33-.58-12.5s.21-8.27.58-12.35a16 16 0 0 0-6.07-13.94l-38.19-30A10.81 10.81 0 0 1 49.48 186l42.77-74a10.81 10.81 0 0 1 13.14-4.59l44.9 18.08a16.11 16.11 0 0 0 15.17-1.75A164.5 164.5 0 0 1 187 111.2a15.94 15.94 0 0 0 8.82-12.14l6.73-47.89A11.08 11.08 0 0 1 213.23 42h85.54a11.11 11.11 0 0 1 10.69 8.87l6.72 47.82a16.07 16.07 0 0 0 9 12.22 155 155 0 0 1 21.46 12.57 16 16 0 0 0 15.11 1.71l44.89-18.07a10.81 10.81 0 0 1 13.14 4.58l42.77 74a10.8 10.8 0 0 1-2.45 13.75l-38.21 30a16.05 16.05 0 0 0 6-14.08c.33 4.14.55 8.3.55 12.47"/>`,
     "0 0 512 512",
     'fill="none"',
   ),
@@ -342,6 +360,13 @@ function badge(s) {
   return `<span class="badge ${statusClass(s)}">${esc(s)}</span>`;
 }
 
+/* Panel berjudul "Hari Ini" sebelumnya memakai slice(0, 6) tanpa menyaring
+   tanggal, jadi rapat besok ikut tampil di bawah judul itu. */
+function rapatHariIni() {
+  const hariIni = tanggalKe(0);
+  return state.meetings.filter((m) => m.date === hariIni);
+}
+
 function layout(content) {
   let currentUser = { role: "Administrator" };
   try {
@@ -350,7 +375,7 @@ function layout(content) {
   } catch (e) {}
 
   return `<div class="app-shell"><aside class="sidebar">
-    <div class="brand"><img src="/dashboard/assets/kemenaker-white.png" alt="Logo Kemenaker" class="brand-logo"><div><b>MEETING DISPLAY ROOM</b><small>BIRO KEUANGAN DAN BMN</small></div></div>
+    <div class="brand"><img src="/dashboard-app/assets/kemenaker-white.png" alt="Logo Kemenaker" class="brand-logo"><div><b>MEETING DISPLAY ROOM</b><small>BIRO KEUANGAN DAN BMN</small></div></div>
     <nav class="nav">${nav
       .filter(
         ([id]) => id !== "settings" || currentUser.role === "Administrator",
@@ -397,15 +422,6 @@ function layout(content) {
 // ----------------------------------------------------------------------
 // SISTEM NOTIFIKASI & PENYIMPANAN DASHBOARD
 // ----------------------------------------------------------------------
-function getAppStorage() {
-  try {
-    if (window.parent && window.parent.localStorage) {
-      return window.parent.localStorage;
-    }
-  } catch (e) {}
-  return window.localStorage;
-}
-
 function getNotifications() {
   let notifs = [];
   try {
@@ -1630,9 +1646,9 @@ function getRoomImage(r) {
   if (r && r.image && !r.image.includes("unsplash")) return r.image;
   const n = (r && r.name ? r.name : "").toLowerCase();
   if (n.includes("konsultasi")) {
-    return "/dashboard/assets/Ruang Konsultasi.jpeg";
+    return "/dashboard-app/assets/Ruang Konsultasi.jpeg";
   }
-  return "/dashboard/assets/Ruang Rapat Besar.jpeg";
+  return "/dashboard-app/assets/Ruang Rapat Besar.jpeg";
 }
 
 function rooms() {
@@ -2649,7 +2665,7 @@ function calendar() {
     <div class="cal-body">
       <div class="cal-card">
         <div class="cal-card-header">
-          <h2>September 2026</h2>
+          <h2>${new Date().toLocaleDateString("id-ID", { month: "long", year: "numeric" })}</h2>
           <div style="display:flex;gap:6px;">
             <button class="cal-nav-btn">‹</button>
             <button class="cal-nav-btn">›</button>
@@ -2671,7 +2687,7 @@ function calendar() {
 
 // ----------------------------------------------------------------------
 // BAGIAN YANG DIUBAH: meetingTable pada Laporan diset tanpa tombol Hapus
-// `meetingTable(state.meetings, true, false)`
+// `meetingTable(state.meetings, false)`
 // ----------------------------------------------------------------------
 function reports() {
   const liaUsersSolid = svgIcon(
@@ -3914,8 +3930,8 @@ function viewMeeting(id) {
     <p>👤 <b>Pemesan:</b> ${esc(m.requester)}</p>
     <p>👥 ${m.participants} peserta</p>
     <p style="margin-top:15px;color:#334155;white-space:pre-line;">${esc(m.desc)}</p>
-    <div class="modal-actions" style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px;">
       <button class="btn btn-primary" style="background-color: #4a5568; border-color: #4a5568; display: inline-flex; align-items: center; gap: 6px;" onclick="exportNotulensiPDF(${id})">${ICONS.export} <span>Notulensi</span></button>
+      <button class="btn btn-primary" onclick="editMeeting(${id})">Edit Rapat</button>
     </div>`,
   );
 }

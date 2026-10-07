@@ -79,7 +79,7 @@ export default function Sidebar({
         }}
       >
         <img
-          src="/dashboard/assets/kemenaker-white.jpeg"
+          src="/dashboard-app/assets/kemenaker-white.jpeg"
           alt="Kemenaker Logo"
           style={{
             width: '42px',

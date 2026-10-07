@@ -118,6 +118,12 @@ function getRoomFromEvent(event, fields) {
   return match?.[1] || "";
 }
 
+/* YYYY-MM-DD menurut zona waktu kalender, bukan zona waktu server. */
+function isoDate(date, timeZone) {
+  const { year, month, day } = getDateParts(date, timeZone);
+  return year + "-" + month + "-" + day;
+}
+
 function toDashboardEvent(event, now, timeZone) {
   if (!event.start?.dateTime && !event.start?.date) return null;
 
@@ -138,6 +144,11 @@ function toDashboardEvent(event, now, timeZone) {
       agenda: fields.agenda || cleanSummary || rawSummary,
       bagian: fields.bagian || fields.pemesan || fields.nama || "-",
       tanggal: formatDate(start, timeZone),
+      /* Bentuk yang bisa diolah mesin. "tanggal" di atas sudah dipakai papan
+         TV untuk ditampilkan apa adanya, jadi dibiarkan; dashboard butuh
+         tanggal yang bisa diurutkan dan disaring per rentang. Penambahan
+         murni: tidak ada yang lama berubah bentuk. */
+      tanggalIso: isoDate(start, timeZone),
       mulai: formatTime(start, timeZone),
       selesai: formatTime(end, timeZone),
       status: getEventStatus(start, end, now),

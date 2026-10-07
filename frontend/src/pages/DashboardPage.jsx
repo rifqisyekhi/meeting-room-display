@@ -17,7 +17,7 @@ export default function DashboardPage() {
       }}
     >
       <iframe
-        src="/dashboard/index.html"
+        src="/dashboard-app/index.html"
         title="Dashboard Admin Booking Ruang Rapat"
         style={{
           width: "100%",
