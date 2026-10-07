@@ -74,14 +74,20 @@ function parseDescription(description = "") {
   const fields = {};
 
   description.split(/\r?\n/).forEach((line) => {
-    const match = line.match(/^\s*(Ruang|Agenda|Bagian)\s*:\s*(.+?)\s*$/i);
+    const match = line.match(/^\s*(Ruang|Agenda|Bagian|Pemesan|Status|Disetujui Oleh)\s*:\s*(.+?)\s*$/i);
     if (match) fields[match[1].toLowerCase()] = match[2];
   });
 
   return fields;
 }
 
-function getEventStatus(start, end, now = new Date()) {
+function getEventStatus(start, end, now = new Date(), customStatus = "") {
+  if (customStatus) {
+    const s = customStatus.toLowerCase().trim();
+    if (s === "berjalan" || s === "in_progress") return "IN_PROGRESS";
+    if (s === "selesai" || s === "available") return "AVAILABLE";
+    if (s === "akan datang" || s === "upcoming") return "UPCOMING";
+  }
   if (now >= start && now < end) return "IN_PROGRESS";
   if (now < start) return "UPCOMING";
   return "AVAILABLE";
@@ -151,7 +157,7 @@ function toDashboardEvent(event, now, timeZone) {
       tanggalIso: isoDate(start, timeZone),
       mulai: formatTime(start, timeZone),
       selesai: formatTime(end, timeZone),
-      status: getEventStatus(start, end, now),
+      status: getEventStatus(start, end, now, fields.status),
     },
   };
 }

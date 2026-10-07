@@ -647,7 +647,7 @@ function showLiveBookingToast(meeting) {
       <div class="ntb-meta">Agenda: "${esc(meeting.title)}" · ${formatDate(meeting.date)} (${meeting.start}-${meeting.end})</div>
     </div>
     <div class="ntb-actions">
-      <button class="ntb-btn-review" onclick="openNotifFromToast(${meeting.id}, this)">Periksa</button>
+      <button class="ntb-btn-review" onclick="openNotifFromToast('${meeting.id}', this)">Periksa</button>
       <button class="ntb-btn-close" onclick="this.closest('.notif-toast-banner').remove()">✕</button>
     </div>
   `;
@@ -725,21 +725,21 @@ function getNotifDropdownContentHTML(currentUser) {
           if (canApprove) {
             actionsHTML = `
               <div class="notif-action-row">
-                <button class="notif-btn-approve" onclick="approveMeetingFromNotif(event, ${m.id})">✓ Setujui</button>
-                <button class="notif-btn-reject" onclick="rejectMeetingFromNotif(event, ${m.id})">✕ Tolak</button>
+                <button class="notif-btn-approve" onclick="approveMeetingFromNotif(event, '${m.id}')">✓ Setujui</button>
+                <button class="notif-btn-reject" onclick="rejectMeetingFromNotif(event, '${m.id}')">✕ Tolak</button>
               </div>
             `;
           } else {
             actionsHTML = `
               <div class="notif-action-row">
-                <button class="notif-btn-view" onclick="viewMeetingFromNotif(event, ${m.id})">Lihat Detail</button>
+                <button class="notif-btn-view" onclick="viewMeetingFromNotif(event, '${m.id}')">Lihat Detail</button>
               </div>
             `;
           }
         } else {
           actionsHTML = `
             <div class="notif-action-row">
-              <button class="notif-btn-view" onclick="viewMeetingFromNotif(event, ${m.id})">Detail Rapat</button>
+              <button class="notif-btn-view" onclick="viewMeetingFromNotif(event, '${m.id}')">Detail Rapat</button>
             </div>
           `;
         }
@@ -1264,7 +1264,7 @@ function meetingTable(data, actions = true, allowDelete = true) {
   const user = getCurrentUser();
   // Hanya role yang mengandung kata "Approval" yang berhak memberi persetujuan
   const canApprove = user.role.includes("Approval");
-  const isAdmin = user.role === "Administrator";
+  const isAdmin = user.role === "Administrator" || (user.role && user.role.toLowerCase().includes("admin"));
 
   const rows = (!data || data.length === 0)
     ? `<tr><td colspan="8" style="text-align:center;padding:36px;color:#8c9ba5;font-weight:500;">Belum ada jadwal rapat</td></tr>`
@@ -1276,25 +1276,25 @@ function meetingTable(data, actions = true, allowDelete = true) {
             'width="16" height="16"',
           );
 
-          let actionButtons = `<button style="background-color:#f4f6f9;color:#0c2d5e;border:none;border-radius:10px;width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;margin-right:12px;box-shadow:0 2px 5px rgba(0,0,0,0.03);" title="Lihat" onclick="viewMeeting(${m.id})">${faEye}</button>`;
+          let actionButtons = `<button style="background-color:#f4f6f9;color:#0c2d5e;border:none;border-radius:10px;width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;margin-right:12px;box-shadow:0 2px 5px rgba(0,0,0,0.03);" title="Lihat" onclick="viewMeeting('${m.id}')">${faEye}</button>`;
 
           if (actions) {
             if (m.status === "Menunggu Approval") {
               if (m.rejectedBy) {
                 actionButtons += `<span style="font-size:11px;color:#ff4d4f;margin-right:8px;font-weight:700;background:#ffebee;padding:6px 12px;border-radius:12px;">Ditolak (${esc(m.rejectedBy)})</span>`;
               } else if (canApprove) {
-                actionButtons += `<button style="background-color:#219653;color:#fff;border:none;border-radius:24px;padding:8px 16px;font-weight:700;font-size:12px;cursor:pointer;margin-right:6px;" title="Setujui" onclick="approveMeeting(${m.id})">Setujui</button>`;
-                actionButtons += `<button style="background-color:#ff4d4f;color:#fff;border:none;border-radius:24px;padding:8px 16px;font-weight:700;font-size:12px;cursor:pointer;" title="Tolak" onclick="rejectMeeting(${m.id})">Tolak</button>`;
+                actionButtons += `<button style="background-color:#219653;color:#fff;border:none;border-radius:24px;padding:8px 16px;font-weight:700;font-size:12px;cursor:pointer;margin-right:6px;" title="Setujui" onclick="approveMeeting('${m.id}')">Setujui</button>`;
+                actionButtons += `<button style="background-color:#ff4d4f;color:#fff;border:none;border-radius:24px;padding:8px 16px;font-weight:700;font-size:12px;cursor:pointer;" title="Tolak" onclick="rejectMeeting('${m.id}')">Tolak</button>`;
               } else {
                 actionButtons += `<span style="font-size:11px;color:#718096;margin-right:8px;font-weight:600;">Menunggu Approval</span>`;
               }
             } else if (m.status === "Akan Datang") {
               if (isAdmin) {
-                actionButtons += `<button style="background-color:#219653;color:#fff;border:none;border-radius:24px;padding:8px 16px;font-weight:700;font-size:13px;cursor:pointer;box-shadow:0 4px 10px rgba(33,150,83,0.2);" title="Check In" onclick="checkInMeeting(${m.id})">Check In</button>`;
+                actionButtons += `<button style="background-color:#219653;color:#fff;border:none;border-radius:24px;padding:8px 16px;font-weight:700;font-size:13px;cursor:pointer;box-shadow:0 4px 10px rgba(33,150,83,0.2);" title="Check In" onclick="checkInMeeting('${m.id}')">Check In</button>`;
               }
             } else if (m.status === "Berjalan") {
               if (isAdmin) {
-                actionButtons += `<button style="background-color:#ff4d4f;color:#fff;border:none;border-radius:24px;padding:8px 16px;font-weight:700;font-size:13px;cursor:pointer;box-shadow:0 4px 10px rgba(255,77,79,0.2);" title="Check Out" onclick="checkOutMeeting(${m.id})">Check Out</button>`;
+                actionButtons += `<button style="background-color:#ff4d4f;color:#fff;border:none;border-radius:24px;padding:8px 16px;font-weight:700;font-size:13px;cursor:pointer;box-shadow:0 4px 10px rgba(255,77,79,0.2);" title="Check Out" onclick="checkOutMeeting('${m.id}')">Check Out</button>`;
               }
             }
           }
@@ -2790,7 +2790,7 @@ function reports() {
       statusText = "#b38600";
     } // Segera etc
 
-    let actionBtn = `<button style="background-color:#f4f6f9;color:#0c2d5e;border:none;border-radius:10px;width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;" title="Lihat" onclick="viewMeeting(${m.id})">${faEye}</button>`;
+    let actionBtn = `<button style="background-color:#f4f6f9;color:#0c2d5e;border:none;border-radius:10px;width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;" title="Lihat" onclick="viewMeeting('${m.id}')">${faEye}</button>`;
 
     customTableHTML += `<tr>
       <td>${i + 1}</td>
@@ -3707,7 +3707,7 @@ async function saveMeeting(id) {
 
 function approveMeeting(id) {
   const user = getCurrentUser();
-  const targetMeeting = state.meetings.find((m) => m.id === id);
+  const targetMeeting = state.meetings.find((m) => String(m.id) === String(id));
 
   if (!targetMeeting) return;
 
@@ -3730,7 +3730,7 @@ function approveMeeting(id) {
   const approvedTag = approverName + (approverRole ? " - " + approverRole : "");
 
   state.meetings = state.meetings.map((m) => {
-    if (m.id === id) {
+    if (String(m.id) === String(id)) {
       return {
         ...m,
         status: "Akan Datang",
@@ -3748,7 +3748,7 @@ function approveMeeting(id) {
   // Update notification item status
   try {
     const notifs = getNotifications();
-    const notif = notifs.find((n) => n.meetingId === id);
+    const notif = notifs.find((n) => String(n.meetingId) === String(id));
     if (notif) {
       notif.status = "Akan Datang";
       notif.approvedBy = approvedTag;
@@ -3756,7 +3756,7 @@ function approveMeeting(id) {
     }
   } catch (e) {}
 
-  const targetApproved = state.meetings.find((m) => m.id === id);
+  const targetApproved = state.meetings.find((m) => String(m.id) === String(id));
   if (targetApproved) {
     fetch("/api/dashboard/meetings", {
       method: "POST",
@@ -3785,19 +3785,23 @@ function approveMeeting(id) {
 
 function checkInMeeting(id) {
   state.meetings = state.meetings.map((m) => {
-    if (m.id === id) return { ...m, status: "Berjalan" };
+    if (String(m.id) === String(id)) return { ...m, status: "Berjalan" };
     return m;
   });
   try {
     getAppStorage().setItem("app_meetings", JSON.stringify(state.meetings));
   } catch (e) {}
-  const targetCheckIn = state.meetings.find((m) => m.id === id);
+  const targetCheckIn = state.meetings.find((m) => String(m.id) === String(id));
   if (targetCheckIn) {
     fetch("/api/dashboard/meetings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(targetCheckIn),
-    }).catch((e) => console.warn("Sync check-in meeting:", e));
+    })
+      .then(async () => {
+        await fetchDashboardData(false);
+      })
+      .catch((e) => console.warn("Sync check-in meeting:", e));
   }
   render();
   toast("Berhasil Check-In! Rapat telah berjalan.");
@@ -3806,19 +3810,23 @@ function checkInMeeting(id) {
 function checkOutMeeting(id) {
   if (confirm("Tandai rapat ini sebagai selesai?")) {
     state.meetings = state.meetings.map((m) => {
-      if (m.id === id) return { ...m, status: "Selesai" };
+      if (String(m.id) === String(id)) return { ...m, status: "Selesai" };
       return m;
     });
     try {
       getAppStorage().setItem("app_meetings", JSON.stringify(state.meetings));
     } catch (e) {}
-    const targetCheckOut = state.meetings.find((m) => m.id === id);
+    const targetCheckOut = state.meetings.find((m) => String(m.id) === String(id));
     if (targetCheckOut) {
       fetch("/api/dashboard/meetings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(targetCheckOut),
-      }).catch((e) => console.warn("Sync check-out meeting:", e));
+      })
+        .then(async () => {
+          await fetchDashboardData(false);
+        })
+        .catch((e) => console.warn("Sync check-out meeting:", e));
     }
     render();
     toast("Berhasil Check-Out! Rapat telah selesai.");
@@ -3826,7 +3834,7 @@ function checkOutMeeting(id) {
 }
 
 function rejectMeeting(id) {
-  const targetMeeting = state.meetings.find((m) => m.id === id);
+  const targetMeeting = state.meetings.find((m) => String(m.id) === String(id));
   if (
     targetMeeting &&
     (targetMeeting.approvedBy || targetMeeting.status !== "Menunggu Approval")
@@ -3848,7 +3856,7 @@ function rejectMeeting(id) {
      </div>
      <div class="modal-actions" style="margin-top:20px; display:flex; justify-content:flex-end; gap:8px;">
        <button class="btn btn-light" onclick="closeModal()">Batal</button>
-       <button class="btn btn-primary" style="background:#c9363d;border-color:#c9363d;" onclick="confirmReject(${id})">Tolak Rapat</button>
+       <button class="btn btn-primary" style="background:#c9363d;border-color:#c9363d;" onclick="confirmReject('${id}')">Tolak Rapat</button>
      </div>`,
   );
 }
@@ -3864,7 +3872,7 @@ function confirmReject(id) {
   const rejecterTag = rejecterName + (rejecterRole ? " - " + rejecterRole : "");
 
   state.meetings = state.meetings.map((m) => {
-    if (m.id === id)
+    if (String(m.id) === String(id))
       return {
         ...m,
         status: "Dibatalkan",
@@ -3882,7 +3890,7 @@ function confirmReject(id) {
   // Update notification item status
   try {
     const notifs = getNotifications();
-    const notif = notifs.find((n) => n.meetingId === id);
+    const notif = notifs.find((n) => String(n.meetingId) === String(id));
     if (notif) {
       notif.status = "Dibatalkan";
       notif.rejectedBy = rejecterTag;
@@ -3890,7 +3898,7 @@ function confirmReject(id) {
     }
   } catch (e) {}
 
-  const targetRejected = state.meetings.find((m) => m.id === id);
+  const targetRejected = state.meetings.find((m) => String(m.id) === String(id));
   if (targetRejected) {
     fetch("/api/dashboard/meetings", {
       method: "POST",
@@ -3909,7 +3917,7 @@ function editMeeting(id) {
 }
 
 function viewMeeting(id) {
-  const m = state.meetings.find((x) => x.id === id);
+  const m = state.meetings.find((x) => String(x.id) === String(id));
   if (!m) return;
   const isCanceled = m.status === "Dibatalkan";
   const cancelBox = isCanceled
