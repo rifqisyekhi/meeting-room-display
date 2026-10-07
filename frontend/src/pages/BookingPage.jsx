@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { CiClock2 } from "react-icons/ci";
 import {
   FaUserFriends,
@@ -22,25 +22,13 @@ import { PiMonitor } from "react-icons/pi";
 import { HiSpeakerWave } from "react-icons/hi2";
 import { IoWaterSharp } from "react-icons/io5";
 import { IoLogoWhatsapp } from "react-icons/io";
+import { sanitizeMeetings } from "../utils/devSession";
 import "./BookingPage.css";
 import logo from "../assets/Logo Kemenaker White.png";
 import imgRuangRapatBesar from "../assets/Ruang Rapat Besar.jpeg";
 import imgRuangKonsultasi from "../assets/Ruang Konsultasi.jpeg";
 
-const initialMeetings = [
-  {
-    id: 1,
-    title: "Rapat Koordinasi Biro Keuangan",
-    requester: "Andi Pratama",
-    room: "Ruang Rapat Besar",
-    date: "2026-09-22",
-    start: "08:00",
-    end: "10:00",
-    status: "Berjalan",
-    participants: 12,
-    desc: "Pembahasan laporan keuangan dan evaluasi program.",
-  },
-];
+const initialMeetings = [];
 
 const defaultRooms = [
   {
@@ -85,8 +73,6 @@ const defaultRooms = [
   },
 ];
 
-const unavailableSlots = ["08:00 - 10:00", "10:00 - 12:00"];
-
 // Facility Icon Renderer using the user-specified icon components
 const FacilityIcon = ({ type }) => {
   const norm = (type || "").toLowerCase();
@@ -125,7 +111,45 @@ const FacilityIcon = ({ type }) => {
 export default function BookingPage() {
   const [selectedCategory, setSelectedCategory] = useState("Semua");
   const [selectedRoom, setSelectedRoom] = useState(null);
-  const [selectedDate, setSelectedDate] = useState("2026-09-23");
+  const [weekOffset, setWeekOffset] = useState(0);
+
+  const getWeekDays = (offset = 0) => {
+    const now = new Date();
+    const currentDay = now.getDay();
+    const distanceToMonday = (currentDay === 0 ? -6 : 1) - currentDay;
+    const monday = new Date(now);
+    monday.setDate(now.getDate() + distanceToMonday + offset * 7);
+
+    const dayNames = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat"];
+    const monthNames = [
+      "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+      "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+    ];
+
+    return dayNames.map((name, i) => {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const dateNum = String(d.getDate()).padStart(2, "0");
+      return {
+        day: name,
+        date: dateNum,
+        monthName: monthNames[d.getMonth()],
+        year: y,
+        full: `${y}-${m}-${dateNum}`,
+      };
+    });
+  };
+
+  const days = getWeekDays(weekOffset);
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const today = new Date();
+    const y = today.getFullYear();
+    const m = String(today.getMonth() + 1).padStart(2, "0");
+    const d = String(today.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  });
   const [selectedTime, setSelectedTime] = useState(null);
 
   // Time picker state: start & end hours (numpad input) & minutes (00 / 30)
@@ -156,13 +180,105 @@ export default function BookingPage() {
       : 1;
   const [mobileStep, setMobileStep] = useState(1); // 1, 2, 3
 
-  const days = [
-    { day: "Senin", date: "21", full: "2026-09-21" },
-    { day: "Selasa", date: "22", full: "2026-09-22" },
-    { day: "Rabu", date: "23", full: "2026-09-23" },
-    { day: "Kamis", date: "24", full: "2026-09-24" },
-    { day: "Jumat", date: "25", full: "2026-09-25" },
-  ];
+  const [allMeetings, setAllMeetings] = useState([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchMeetings = async () => {
+      try {
+        const res = await fetch("/api/dashboard/data");
+        if (res.ok) {
+          const data = await res.json();
+          if (isMounted && Array.isArray(data.meetings)) {
+            setAllMeetings(data.meetings);
+          }
+        }
+      } catch (err) {
+        console.warn("Gagal mengambil jadwal rapat:", err);
+      }
+    };
+
+    fetchMeetings();
+    const interval = setInterval(fetchMeetings, 10000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, []);
+
+  // Hitung jadwal tidak tersedia berdasarkan ruangan & tanggal yang dipilih (hanya yang sudah diapprove)
+  const unavailableSlots = useMemo(() => {
+    if (!selectedRoom || !selectedDate) return [];
+
+    let sourceMeetings = [...allMeetings];
+    try {
+      const stored = localStorage.getItem("app_meetings");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          sourceMeetings = [...sourceMeetings, ...parsed];
+        }
+      }
+    } catch (e) {}
+
+    const normSelectedRoom = (selectedRoom.name || "").toLowerCase().trim();
+
+    // Syarat dari user:
+    // 1. Ruangan sama
+    // 2. Tanggal sama dengan selectedDate
+    // 3. SUDAH DI-APPROVE (bukan Menunggu Approval, bukan Dibatalkan, bukan Ditolak)
+    const approvedMeetings = sourceMeetings.filter((m) => {
+      if (!m) return false;
+      const mDate = m.date || "";
+      if (mDate !== selectedDate) return false;
+
+      const normRoom = (m.room || "").toLowerCase().trim();
+      const roomMatch =
+        normRoom.includes(normSelectedRoom) ||
+        normSelectedRoom.includes(normRoom) ||
+        (normSelectedRoom.includes("besar") && normRoom.includes("besar")) ||
+        (normSelectedRoom.includes("konsultasi") && normRoom.includes("konsultasi"));
+      if (!roomMatch) return false;
+
+      const status = (m.status || "").toLowerCase().trim();
+      if (
+        status === "menunggu approval" ||
+        status === "dibatalkan" ||
+        status === "ditolak"
+      ) {
+        return false;
+      }
+      return true;
+    });
+
+    const slotMap = new Map();
+    approvedMeetings.forEach((m) => {
+      const start = (m.start || m.startTime || "").trim();
+      const end = (m.end || m.endTime || "").trim();
+      if (!start || !end) return;
+
+      const timeLabel = `${start} - ${end}`;
+      if (!slotMap.has(timeLabel)) {
+        slotMap.set(timeLabel, {
+          time: timeLabel,
+          start,
+          end,
+          agenda: m.title || m.agenda || "Rapat Terjadwal",
+          requester:
+            m.requester ||
+            m.bagian ||
+            m.organizer ||
+            m.nama ||
+            m.pemesan ||
+            "-",
+        });
+      }
+    });
+
+    return Array.from(slotMap.values()).sort((a, b) =>
+      a.start.localeCompare(b.start),
+    );
+  }, [allMeetings, selectedRoom, selectedDate]);
 
   const updateTimes = (sh, sm, eh, em) => {
     setStartHour(sh);
@@ -247,7 +363,7 @@ export default function BookingPage() {
 
   const selectedDayObj = days.find((d) => d.full === selectedDate);
   const formattedDateString = selectedDayObj
-    ? `${selectedDayObj.day}, ${selectedDayObj.date} September 2026`
+    ? `${selectedDayObj.day}, ${selectedDayObj.date} ${selectedDayObj.monthName || ""} ${selectedDayObj.year || ""}`.trim()
     : selectedDate;
 
   const handleBooking = () => {
@@ -276,6 +392,34 @@ export default function BookingPage() {
       end = parts[1].trim();
     }
 
+    // Periksa apakah waktu yang dipilih bertabrakan dengan jadwal yang sudah disetujui
+    const toMinutes = (timeStr) => {
+      const [h, m] = (timeStr || "00:00").split(":").map(Number);
+      return h * 60 + m;
+    };
+    const reqStart = toMinutes(start);
+    const reqEnd = toMinutes(end);
+
+    if (reqEnd <= reqStart) {
+      alert("Jam selesai harus lebih akhir daripada jam mulai rapat!");
+      return;
+    }
+
+    const conflictingSlot = unavailableSlots.find((slot) => {
+      const slotStart = toMinutes(slot.start);
+      const slotEnd = toMinutes(slot.end);
+      return reqStart < slotEnd && reqEnd > slotStart;
+    });
+
+    if (conflictingSlot) {
+      alert(
+        `Waktu yang Anda pilih (${start} - ${end}) bertabrakan dengan jadwal yang sudah disetujui sebelumnya:\n` +
+          `Pemesan: ${conflictingSlot.requester} (${conflictingSlot.time}).\n\n` +
+          `Silakan pilih jam lain yang masih tersedia.`,
+      );
+      return;
+    }
+
     const nowIso = new Date().toISOString();
     const newMeeting = {
       id: Date.now(),
@@ -293,13 +437,34 @@ export default function BookingPage() {
     let currentMeetings = [];
     try {
       const stored = localStorage.getItem("app_meetings");
-      currentMeetings = stored ? JSON.parse(stored) : initialMeetings;
-      if (!Array.isArray(currentMeetings)) currentMeetings = initialMeetings;
+      currentMeetings = stored ? sanitizeMeetings(JSON.parse(stored)) : [];
+      if (!Array.isArray(currentMeetings)) currentMeetings = [];
     } catch (e) {
-      currentMeetings = initialMeetings;
+      currentMeetings = [];
     }
     currentMeetings.push(newMeeting);
     localStorage.setItem("app_meetings", JSON.stringify(currentMeetings));
+
+    // Kirim ke backend & Google Calendar
+    try {
+      fetch("/api/dashboard/meetings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newMeeting),
+      })
+        .then(async (res) => {
+          if (res.ok) {
+            const result = await res.json();
+            if (result?.meeting?.id) {
+              newMeeting.id = result.meeting.id;
+              newMeeting.googleId = result.meeting.googleId;
+            }
+          }
+        })
+        .catch((err) => {
+          console.warn("Sinkronisasi ke Google Calendar/Backend:", err);
+        });
+    } catch (e) {}
 
     // Tambahkan notifikasi ke antrean untuk Dashboard Admin & Akun Approval
     try {
@@ -354,7 +519,11 @@ export default function BookingPage() {
     setShowSuccessModal(false);
     setBookedDetails(null);
     setSelectedRoom(null);
-    setSelectedDate("2026-09-23");
+    const today = new Date();
+    const y = today.getFullYear();
+    const m = String(today.getMonth() + 1).padStart(2, "0");
+    const d = String(today.getDate()).padStart(2, "0");
+    setSelectedDate(`${y}-${m}-${d}`);
     setSelectedTime(null);
     setStartHour("00");
     setStartMinute("00");
@@ -515,9 +684,14 @@ export default function BookingPage() {
       <h2 className="bk-col-title">PILIH TANGGAL &amp; WAKTU</h2>
       <div className="bk-datetime-scroll">
         <div className="bk-month-selector">
-          <h4>September 2026</h4>
+          <h4>{days[0]?.monthName} {days[0]?.year}</h4>
           <div className="bk-days-row">
-            <FaChevronLeft className="bk-nav-icon" />
+            <FaChevronLeft
+              className="bk-nav-icon"
+              style={{ cursor: "pointer" }}
+              title="Minggu Sebelumnya"
+              onClick={() => setWeekOffset((prev) => prev - 1)}
+            />
             {days.map((d) => (
               <div
                 key={d.full}
@@ -528,7 +702,12 @@ export default function BookingPage() {
                 <span className="bk-day-num">{d.date}</span>
               </div>
             ))}
-            <FaChevronRight className="bk-nav-icon" />
+            <FaChevronRight
+              className="bk-nav-icon"
+              style={{ cursor: "pointer" }}
+              title="Minggu Berikutnya"
+              onClick={() => setWeekOffset((prev) => prev + 1)}
+            />
           </div>
         </div>
 
@@ -631,20 +810,53 @@ export default function BookingPage() {
           {/* Section: Jam tidak tersedia */}
           <h3 className="bk-unavailable-title">Jam tidak tersedia</h3>
           <div className="bk-unavailable-grid">
-            {unavailableSlots.map((slot) => (
+            {unavailableSlots.length > 0 ? (
+              unavailableSlots.map((slot) => (
+                <div
+                  key={slot.time}
+                  className="bk-unavail-slot"
+                  title={`Jam ${slot.time} sudah terisi oleh ${slot.requester}`}
+                  onClick={() =>
+                    alert(
+                      `Jam ${slot.time} tidak tersedia karena sudah disetujui untuk pemesan:\n` +
+                        `• Pemesan: ${slot.requester}`,
+                    )
+                  }
+                >
+                  <span style={{ fontWeight: 700 }}>{slot.time}</span>
+                  <div
+                    style={{
+                      fontSize: "11px",
+                      opacity: 0.9,
+                      marginTop: "3px",
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      fontWeight: 500,
+                    }}
+                  >
+                    {slot.requester}
+                  </div>
+                </div>
+              ))
+            ) : (
               <div
-                key={slot}
-                className="bk-unavail-slot"
-                title="Jam ini tidak tersedia"
-                onClick={() =>
-                  alert(
-                    `Jam ${slot} tidak tersedia karena ruangan sedang digunakan.`,
-                  )
-                }
+                style={{
+                  gridColumn: "1 / -1",
+                  textAlign: "center",
+                  padding: "14px 10px",
+                  fontSize: "12px",
+                  color: "#64748b",
+                  background: "#f8fafc",
+                  borderRadius: "10px",
+                  border: "1px dashed #cbd5e1",
+                }}
               >
-                {slot}
+                {!selectedRoom
+                  ? "Pilih ruangan terlebih dahulu untuk melihat jadwal yang terisi"
+                  : "Semua jam tersedia untuk tanggal ini (belum ada rapat yang disetujui)"}
               </div>
-            ))}
+            )}
           </div>
         </div>
       </div>

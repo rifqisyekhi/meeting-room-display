@@ -1,3 +1,116 @@
+// ----------------------------------------------------------------------
+// HELPER STORAGE & PEMBERSIHAN DATA DUMMY
+// ----------------------------------------------------------------------
+function getAppStorage() {
+  try {
+    if (window.parent && window.parent.localStorage) {
+      return window.parent.localStorage;
+    }
+  } catch (e) {}
+  return window.localStorage;
+}
+
+function isDummyMeeting(m) {
+  if (!m) return false;
+  const title = (m.title || m.agenda || "").toLowerCase();
+  const date = m.date || "";
+  const organizer = (m.organizer || m.requester || m.bagian || "").toLowerCase();
+  if (title.includes("biro keuangan") || title.includes("rapat koordinasi biro keuangan")) return true;
+  if (date === "2026-09-22" || date === "22 Sep 2026") return true;
+  if (organizer.includes("andi") && title.includes("koordinasi")) return true;
+  if ((m.id === 1 || m.id === "1") && (title.includes("koordinasi") || date.includes("2026-09-22") || organizer.includes("andi"))) return true;
+  return false;
+}
+
+function sanitizeMeetings(list) {
+  if (!Array.isArray(list)) return [];
+  const filtered = list.filter((m) => !isDummyMeeting(m));
+
+  // Deduplikasi: jika ada 2 rapat dengan id sama, atau jadwal slot sama (tanggal + jam mulai + ruangan),
+  // prioritaskan rapat yang sudah disetujui / memiliki googleId
+  const result = [];
+  const seenKeys = new Set();
+
+  const sorted = [...filtered].sort((a, b) => {
+    if (a.googleId && !b.googleId) return -1;
+    if (!a.googleId && b.googleId) return 1;
+    if (a.status !== "Menunggu Approval" && b.status === "Menunggu Approval") return -1;
+    if (a.status === "Menunggu Approval" && b.status !== "Menunggu Approval") return 1;
+    return 0;
+  });
+
+  for (const m of sorted) {
+    if (!m) continue;
+    const date = m.date || "";
+    const start = m.start || m.startTime || "";
+    const room = (m.room || "").toLowerCase().trim();
+    const idKey = m.googleId ? `gid_${m.googleId}` : `id_${m.id}`;
+    const slotKey = `slot_${date}_${start}_${room}`;
+
+    if (seenKeys.has(idKey) || (date && start && room && seenKeys.has(slotKey))) {
+      continue;
+    }
+
+    seenKeys.add(idKey);
+    if (date && start && room) {
+      seenKeys.add(slotKey);
+    }
+    result.push(m);
+  }
+  return result;
+}
+
+function purgeAllDummyData() {
+  try {
+    const storages = [window.localStorage];
+    if (window.parent && window.parent.localStorage && window.parent.localStorage !== window.localStorage) {
+      storages.push(window.parent.localStorage);
+    }
+    storages.forEach((s) => {
+      if (!s) return;
+      const stored = s.getItem("app_meetings");
+      if (stored) {
+        try {
+          const list = JSON.parse(stored);
+          if (Array.isArray(list)) {
+            const clean = sanitizeMeetings(list);
+            s.setItem("app_meetings", JSON.stringify(clean));
+          }
+        } catch (e) {}
+      }
+      const notifs = s.getItem("app_notifications");
+      if (notifs) {
+        try {
+          const listN = JSON.parse(notifs);
+          if (Array.isArray(listN)) {
+            const cleanN = listN.filter((n) => {
+              const text = (n.title || n.description || n.message || "").toLowerCase();
+              return !(text.includes("biro keuangan") || text.includes("andi pratama") || text.includes("2026-09-22"));
+            });
+            s.setItem("app_notifications", JSON.stringify(cleanN));
+          }
+        } catch (e) {}
+      }
+      const rooms = s.getItem("app_rooms");
+      if (rooms) {
+        try {
+          const listR = JSON.parse(rooms);
+          if (Array.isArray(listR)) {
+            const cleanR = listR.filter((r) => {
+              const name = (r.name || "").toLowerCase();
+              return !name.includes("nusantara") && !name.includes("garuda");
+            });
+            s.setItem("app_rooms", JSON.stringify(cleanR));
+          }
+        } catch (e) {}
+      }
+    });
+  } catch (e) {}
+}
+
+// Eksekusi pembersihan dummy secara instan saat script dimuat
+purgeAllDummyData();
+
 const state = {
   page: location.hash.replace("#", "") || "dashboard",
   googleCalendarConnected: false,
@@ -9,30 +122,14 @@ const state = {
   },
   meetings: (() => {
     try {
-      const storage =
-        window.parent && window.parent.localStorage
-          ? window.parent.localStorage
-          : window.localStorage;
+      const storage = getAppStorage();
       const stored = storage.getItem("app_meetings");
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return sanitizeMeetings(parsed);
       }
     } catch (e) {}
-    return [
-      {
-        id: 1,
-        title: "Rapat Koordinasi Biro Keuangan",
-        requester: "Andi Pratama",
-        room: "Ruang Rapat Besar",
-        date: "2026-09-22",
-        start: "08:00",
-        end: "10:00",
-        status: "Berjalan",
-        participants: 12,
-        desc: "Pembahasan laporan keuangan dan evaluasi program.",
-      },
-    ];
+    return [];
   })(),
 
   rooms: (() => {
@@ -40,20 +137,20 @@ const state = {
       {
         id: 1,
         name: "Ruang Rapat Besar",
-        location: "Gedung A - Lantai 3",
-        capacity: 20,
+        location: "Gedung Pusat Kemnaker, Lt. 3",
+        capacity: 30,
         status: "Tersedia",
-        facilities: "Proyektor, TV, WiFi, Sound System",
+        facilities: "Proyektor, Sound System, Mic Wireless, AC, WiFi",
         image: "/dashboard/assets/Ruang Rapat Besar.jpeg",
         images: ["/dashboard/assets/Ruang Rapat Besar.jpeg"],
       },
       {
         id: 2,
         name: "Ruang Konsultasi",
-        location: "Gedung A - Lantai 3",
-        capacity: 10,
+        location: "Gedung Pusat Kemnaker, Lt. 3",
+        capacity: 12,
         status: "Tersedia",
-        facilities: "TV, WiFi, AC",
+        facilities: "Smart TV, Whiteboard, AC, WiFi",
         image: "/dashboard/assets/Ruang Konsultasi.jpeg",
         images: ["/dashboard/assets/Ruang Konsultasi.jpeg"],
       },
@@ -61,22 +158,27 @@ const state = {
     try {
       const saved = getAppStorage().getItem("app_rooms");
       if (saved) {
-        const parsed = JSON.parse(saved);
-        return parsed.map((r) => {
+        const parsed = JSON.parse(saved).filter((r) => {
           const n = (r.name || "").toLowerCase();
-          let primaryImg = r.image;
-          if (!primaryImg || primaryImg.includes("unsplash")) {
-            primaryImg = n.includes("konsultasi")
-              ? "/dashboard/assets/Ruang Konsultasi.jpeg"
-              : "/dashboard/assets/Ruang Rapat Besar.jpeg";
-          }
-          let imgs = Array.isArray(r.images) && r.images.length > 0 ? r.images : [primaryImg];
-          return {
-            ...r,
-            image: primaryImg,
-            images: imgs,
-          };
+          return !n.includes("nusantara") && !n.includes("garuda");
         });
+        if (parsed.length > 0) {
+          return parsed.map((r) => {
+            const n = (r.name || "").toLowerCase();
+            let primaryImg = r.image;
+            if (!primaryImg || primaryImg.includes("unsplash")) {
+              primaryImg = n.includes("konsultasi")
+                ? "/dashboard/assets/Ruang Konsultasi.jpeg"
+                : "/dashboard/assets/Ruang Rapat Besar.jpeg";
+            }
+            let imgs = Array.isArray(r.images) && r.images.length > 0 ? r.images : [primaryImg];
+            return {
+              ...r,
+              image: primaryImg,
+              images: imgs,
+            };
+          });
+        }
       }
     } catch (e) {}
     return defaultRooms;
@@ -1148,40 +1250,43 @@ function meetingTable(data, actions = true, allowDelete = true) {
   const canApprove = user.role.includes("Approval");
   const isAdmin = user.role === "Administrator";
 
-  return `<div class="table-wrap"><table class="table"><thead><tr><th>No</th><th>Judul Rapat</th><th>Pemesan</th><th>Ruangan</th><th>Tanggal</th><th>Waktu</th><th>Status</th><th>Aksi</th></tr></thead><tbody>
-  ${data
-    .map((m, i) => {
-      const faEye = svgIcon(
-        '<path d="M572.52 241.4C518.29 135.59 410.93 64 288 64S57.68 135.64 3.48 241.41a32.35 32.35 0 0 0 0 29.19C57.71 376.41 165.07 448 288 448s230.32-71.64 284.52-177.41a32.35 32.35 0 0 0 0-29.19zM288 400a144 144 0 1 1 144-144 143.93 143.93 0 0 1-144 144zm0-240a95.31 95.31 0 0 0-25.31 3.79 47.85 47.85 0 0 1-66.9 66.9A95.78 95.78 0 1 0 288 160z"/>',
-        "0 0 576 512",
-        'width="16" height="16"',
-      );
+  const rows = (!data || data.length === 0)
+    ? `<tr><td colspan="8" style="text-align:center;padding:36px;color:#8c9ba5;font-weight:500;">Belum ada jadwal rapat</td></tr>`
+    : data
+        .map((m, i) => {
+          const faEye = svgIcon(
+            '<path d="M572.52 241.4C518.29 135.59 410.93 64 288 64S57.68 135.64 3.48 241.41a32.35 32.35 0 0 0 0 29.19C57.71 376.41 165.07 448 288 448s230.32-71.64 284.52-177.41a32.35 32.35 0 0 0 0-29.19zM288 400a144 144 0 1 1 144-144 143.93 143.93 0 0 1-144 144zm0-240a95.31 95.31 0 0 0-25.31 3.79 47.85 47.85 0 0 1-66.9 66.9A95.78 95.78 0 1 0 288 160z"/>',
+            "0 0 576 512",
+            'width="16" height="16"',
+          );
 
-      let actionButtons = `<button style="background-color:#f4f6f9;color:#0c2d5e;border:none;border-radius:10px;width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;margin-right:12px;box-shadow:0 2px 5px rgba(0,0,0,0.03);" title="Lihat" onclick="viewMeeting(${m.id})">${faEye}</button>`;
+          let actionButtons = `<button style="background-color:#f4f6f9;color:#0c2d5e;border:none;border-radius:10px;width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;margin-right:12px;box-shadow:0 2px 5px rgba(0,0,0,0.03);" title="Lihat" onclick="viewMeeting(${m.id})">${faEye}</button>`;
 
-      if (actions) {
-        if (m.status === "Menunggu Approval") {
-          if (m.rejectedBy) {
-            actionButtons += `<span style="font-size:11px;color:#ff4d4f;margin-right:8px;font-weight:700;background:#ffebee;padding:6px 12px;border-radius:12px;">Ditolak (${esc(m.rejectedBy)})</span>`;
-          } else if (canApprove) {
-            actionButtons += `<button style="background-color:#219653;color:#fff;border:none;border-radius:24px;padding:8px 16px;font-weight:700;font-size:12px;cursor:pointer;margin-right:6px;" title="Setujui" onclick="approveMeeting(${m.id})">Setujui</button>`;
-            actionButtons += `<button style="background-color:#ff4d4f;color:#fff;border:none;border-radius:24px;padding:8px 16px;font-weight:700;font-size:12px;cursor:pointer;" title="Tolak" onclick="rejectMeeting(${m.id})">Tolak</button>`;
-          } else {
-            actionButtons += `<span style="font-size:11px;color:#718096;margin-right:8px;font-weight:600;">Menunggu Approval</span>`;
+          if (actions) {
+            if (m.status === "Menunggu Approval") {
+              if (m.rejectedBy) {
+                actionButtons += `<span style="font-size:11px;color:#ff4d4f;margin-right:8px;font-weight:700;background:#ffebee;padding:6px 12px;border-radius:12px;">Ditolak (${esc(m.rejectedBy)})</span>`;
+              } else if (canApprove) {
+                actionButtons += `<button style="background-color:#219653;color:#fff;border:none;border-radius:24px;padding:8px 16px;font-weight:700;font-size:12px;cursor:pointer;margin-right:6px;" title="Setujui" onclick="approveMeeting(${m.id})">Setujui</button>`;
+                actionButtons += `<button style="background-color:#ff4d4f;color:#fff;border:none;border-radius:24px;padding:8px 16px;font-weight:700;font-size:12px;cursor:pointer;" title="Tolak" onclick="rejectMeeting(${m.id})">Tolak</button>`;
+              } else {
+                actionButtons += `<span style="font-size:11px;color:#718096;margin-right:8px;font-weight:600;">Menunggu Approval</span>`;
+              }
+            } else if (m.status === "Akan Datang") {
+              if (isAdmin) {
+                actionButtons += `<button style="background-color:#219653;color:#fff;border:none;border-radius:24px;padding:8px 16px;font-weight:700;font-size:13px;cursor:pointer;box-shadow:0 4px 10px rgba(33,150,83,0.2);" title="Check In" onclick="checkInMeeting(${m.id})">Check In</button>`;
+              }
+            } else if (m.status === "Berjalan") {
+              if (isAdmin) {
+                actionButtons += `<button style="background-color:#ff4d4f;color:#fff;border:none;border-radius:24px;padding:8px 16px;font-weight:700;font-size:13px;cursor:pointer;box-shadow:0 4px 10px rgba(255,77,79,0.2);" title="Check Out" onclick="checkOutMeeting(${m.id})">Check Out</button>`;
+              }
+            }
           }
-        } else if (m.status === "Akan Datang") {
-          if (isAdmin) {
-            actionButtons += `<button style="background-color:#219653;color:#fff;border:none;border-radius:24px;padding:8px 16px;font-weight:700;font-size:13px;cursor:pointer;box-shadow:0 4px 10px rgba(33,150,83,0.2);" title="Check In" onclick="checkInMeeting(${m.id})">Check In</button>`;
-          }
-        } else if (m.status === "Berjalan") {
-          if (isAdmin) {
-            actionButtons += `<button style="background-color:#ff4d4f;color:#fff;border:none;border-radius:24px;padding:8px 16px;font-weight:700;font-size:13px;cursor:pointer;box-shadow:0 4px 10px rgba(255,77,79,0.2);" title="Check Out" onclick="checkOutMeeting(${m.id})">Check Out</button>`;
-          }
-        }
-      }
-      return `<tr><td>${i + 1}</td><td><b>${esc(m.title)}</b></td><td>${esc(m.requester)}</td><td>${esc(m.room)}</td><td>${formatDate(m.date)}</td><td>${m.start}-${m.end}</td><td>${badge(m.status)}</td><td><div class="actions">${actionButtons}</div></td></tr>`;
-    })
-    .join("")}</tbody></table></div>`;
+          return `<tr><td>${i + 1}</td><td><b>${esc(m.title)}</b></td><td>${esc(m.requester)}</td><td>${esc(m.room)}</td><td>${formatDate(m.date)}</td><td>${m.start}-${m.end}</td><td>${badge(m.status)}</td><td><div class="actions">${actionButtons}</div></td></tr>`;
+        })
+        .join("");
+
+  return `<div class="table-wrap"><table class="table"><thead><tr><th>No</th><th>Judul Rapat</th><th>Pemesan</th><th>Ruangan</th><th>Tanggal</th><th>Waktu</th><th>Status</th><th>Aksi</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
 function meetings() {
@@ -2770,9 +2875,9 @@ function reports() {
             <span style="display:flex;align-items:center;gap:4px;"><div style="width:6px;height:6px;background:#4285f4;border-radius:50%;"></div> Penggunaan</span>
             <span style="display:flex;align-items:center;gap:4px;"><div style="width:6px;height:6px;background:#4a4a4a;border-radius:50%;"></div> Kosong</span>
           </div>
-          <div style="font-size:10px;margin-bottom:2px;">Ruang Nusantara</div>
+          <div style="font-size:10px;margin-bottom:2px;">Ruang Rapat Besar</div>
           <div class="mock-stacked-bar"><div class="mock-stacked-bar-fill" style="width:85%"></div></div>
-          <div style="font-size:10px;margin-bottom:2px;">Ruang Garuda</div>
+          <div style="font-size:10px;margin-bottom:2px;">Ruang Konsultasi</div>
           <div class="mock-stacked-bar"><div class="mock-stacked-bar-fill" style="width:75%"></div></div>
         </div>
       </div>
@@ -3635,6 +3740,29 @@ function approveMeeting(id) {
     }
   } catch (e) {}
 
+  const targetApproved = state.meetings.find((m) => m.id === id);
+  if (targetApproved) {
+    fetch("/api/dashboard/meetings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(targetApproved),
+    })
+      .then(async (res) => {
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.meeting?.googleId) {
+            targetApproved.googleId = data.meeting.googleId;
+            targetApproved.id = data.meeting.id;
+            try {
+              getAppStorage().setItem("app_meetings", JSON.stringify(state.meetings));
+            } catch (e) {}
+          }
+          await fetchDashboardData(false);
+        }
+      })
+      .catch((e) => console.warn("Sync approved meeting:", e));
+  }
+
   render();
   toast("Rapat berhasil disetujui oleh " + approverName);
 }
@@ -3647,6 +3775,14 @@ function checkInMeeting(id) {
   try {
     getAppStorage().setItem("app_meetings", JSON.stringify(state.meetings));
   } catch (e) {}
+  const targetCheckIn = state.meetings.find((m) => m.id === id);
+  if (targetCheckIn) {
+    fetch("/api/dashboard/meetings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(targetCheckIn),
+    }).catch((e) => console.warn("Sync check-in meeting:", e));
+  }
   render();
   toast("Berhasil Check-In! Rapat telah berjalan.");
 }
@@ -3660,6 +3796,14 @@ function checkOutMeeting(id) {
     try {
       getAppStorage().setItem("app_meetings", JSON.stringify(state.meetings));
     } catch (e) {}
+    const targetCheckOut = state.meetings.find((m) => m.id === id);
+    if (targetCheckOut) {
+      fetch("/api/dashboard/meetings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(targetCheckOut),
+      }).catch((e) => console.warn("Sync check-out meeting:", e));
+    }
     render();
     toast("Berhasil Check-Out! Rapat telah selesai.");
   }
@@ -3729,6 +3873,15 @@ function confirmReject(id) {
       saveNotifications(notifs);
     }
   } catch (e) {}
+
+  const targetRejected = state.meetings.find((m) => m.id === id);
+  if (targetRejected) {
+    fetch("/api/dashboard/meetings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(targetRejected),
+    }).catch((e) => console.warn("Sync rejected meeting:", e));
+  }
 
   closeModal();
   render();
@@ -4724,11 +4877,16 @@ async function fetchDashboardData(showToast = false) {
     const res = await fetch("/api/dashboard/data");
     if (!res.ok) throw new Error("Gagal mengambil data dari backend");
     const data = await res.json();
-    if (Array.isArray(data.meetings) && data.meetings.length > 0) {
-      state.meetings = data.meetings;
+    if (Array.isArray(data.meetings)) {
+      state.meetings = sanitizeMeetings(data.meetings);
+      getAppStorage().setItem("app_meetings", JSON.stringify(state.meetings));
     }
     if (Array.isArray(data.rooms) && data.rooms.length > 0) {
-      state.rooms = data.rooms;
+      state.rooms = data.rooms.filter((r) => {
+        const n = (r.name || "").toLowerCase();
+        return !n.includes("nusantara") && !n.includes("garuda");
+      });
+      getAppStorage().setItem("app_rooms", JSON.stringify(state.rooms));
     }
     if (Array.isArray(data.users) && data.users.length > 0) {
       state.users = data.users;
@@ -4769,8 +4927,12 @@ function initNotificationSync() {
     try {
       const stored = getAppStorage().getItem("app_meetings");
       if (!stored) return;
-      const latestMeetings = JSON.parse(stored);
-      if (!Array.isArray(latestMeetings)) return;
+      const rawMeetings = JSON.parse(stored);
+      if (!Array.isArray(rawMeetings)) return;
+      const latestMeetings = sanitizeMeetings(rawMeetings);
+      if (latestMeetings.length !== rawMeetings.length) {
+        getAppStorage().setItem("app_meetings", JSON.stringify(latestMeetings));
+      }
 
       // Temukan pesanan baru berstatus "Menunggu Approval"
       const newRequests = latestMeetings.filter(
@@ -4840,21 +5002,8 @@ async function checkDevSessionLifecycle() {
           storage.removeItem("app_users");
           storage.removeItem("app_login_users");
           storage.setItem("app_dev_run_id", data.sessionId);
-          state.meetings = [
-            {
-              id: 1,
-              title: "Rapat Koordinasi Biro Keuangan",
-              requester: "Andi Pratama",
-              room: "Ruang Rapat Besar",
-              date: "2026-09-22",
-              start: "08:00",
-              end: "10:00",
-              status: "Berjalan",
-              participants: 12,
-              desc: "Pembahasan laporan keuangan dan evaluasi program.",
-            },
-          ];
-          storage.setItem("app_meetings", JSON.stringify(state.meetings));
+          state.meetings = [];
+          storage.setItem("app_meetings", JSON.stringify([]));
           render();
         } else if (!lastSession) {
           storage.setItem("app_dev_run_id", data.sessionId);

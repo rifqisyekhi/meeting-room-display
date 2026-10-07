@@ -1,18 +1,9 @@
-export const initialMeetings = [
-  { id: 1, title: 'Rapat Koordinasi Biro Keuangan', requester: 'Andi Pratama', room: 'Ruang Rapat Besar', date: '2026-09-22', start: '08:00', end: '10:00', status: 'Berjalan', participants: 12, desc: 'Pembahasan laporan keuangan dan evaluasi program.' },
-];
+export const initialMeetings = [];
 
 
 export const initialRooms = [
-  { id: 1, name: 'Ruang Nusantara', location: 'Gedung Pusat, Lt. 3', capacity: 20, status: 'Tersedia', facilities: 'Proyektor, TV, WiFi, Sound System' },
-  { id: 2, name: 'Ruang Garuda', location: 'Gedung Pusat, Lt. 3', capacity: 15, status: 'Tersedia', facilities: 'TV, WiFi, AC' },
-  { id: 3, name: 'Ruang Merdeka', location: 'Gedung Pusat, Lt. 4', capacity: 30, status: 'Terpakai', facilities: 'Proyektor, TV, WiFi, Whiteboard' },
-  { id: 4, name: 'Ruang Indonesia', location: 'Gedung Utama, Lt. 2', capacity: 50, status: 'Tersedia', facilities: 'Proyektor, Sound System, WiFi' },
-  { id: 5, name: 'Ruang Kemnaker', location: 'Gedung Utama, Lt. 1', capacity: 10, status: 'Tersedia', facilities: 'TV, WiFi' },
-  { id: 6, name: 'Ruang Pancasila', location: 'Gedung B, Lt. 2', capacity: 25, status: 'Perbaikan', facilities: 'Proyektor, TV, WiFi' },
-  { id: 7, name: 'Ruang Kolaborasi', location: 'Gedung B, Lt. 1', capacity: 12, status: 'Tersedia', facilities: 'TV, Whiteboard, WiFi' },
-  { id: 8, name: 'Ruang Bhinneka', location: 'Gedung C, Lt. 3', capacity: 20, status: 'Tersedia', facilities: 'Proyektor, TV, WiFi, AC' },
-  { id: 9, name: 'Ruang Rapat Utama', location: 'Gedung Pusat, Lt. 1', capacity: 40, status: 'Terpakai', facilities: 'Proyektor, Sound System, TV, WiFi' },
+  { id: 1, name: 'Ruang Rapat Besar', location: 'Gedung Pusat Kemnaker, Lt. 3', capacity: 30, status: 'Tersedia', facilities: 'Proyektor, Sound System, Mic Wireless, AC, WiFi' },
+  { id: 2, name: 'Ruang Konsultasi', location: 'Gedung Pusat Kemnaker, Lt. 3', capacity: 12, status: 'Tersedia', facilities: 'Smart TV, Whiteboard, AC, WiFi' },
 ];
 
 export const initialUsers = [

@@ -5,12 +5,63 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Admin - Booking Ruang Rapat</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/dashboard/css/style.css">
 </head>
 <body>
   <div id="app"></div>
+  <script>
+    try {
+      [window.localStorage, window.parent && window.parent.localStorage].forEach(function(s) {
+        if (!s) return;
+        var m = s.getItem("app_meetings");
+        if (m) {
+          try {
+            var parsed = JSON.parse(m);
+            if (Array.isArray(parsed)) {
+              var clean = parsed.filter(function(item) {
+                var t = (item.title || item.agenda || "").toLowerCase();
+                var d = item.date || "";
+                var o = (item.organizer || item.requester || item.bagian || "").toLowerCase();
+                if (t.includes("biro keuangan") || t.includes("rapat koordinasi biro keuangan")) return false;
+                if (d === "2026-09-22" || d === "22 Sep 2026") return false;
+                if (o.includes("andi") && t.includes("koordinasi")) return false;
+                if ((item.id === 1 || item.id === "1") && (t.includes("koordinasi") || d.includes("2026-09-22"))) return false;
+                return true;
+              });
+              s.setItem("app_meetings", JSON.stringify(clean));
+            }
+          } catch(e) {}
+        }
+        var n = s.getItem("app_notifications");
+        if (n) {
+          try {
+            var parsedN = JSON.parse(n);
+            if (Array.isArray(parsedN)) {
+              var cleanN = parsedN.filter(function(item) {
+                var text = (item.title || item.description || item.message || "").toLowerCase();
+                return !(text.includes("biro keuangan") || text.includes("andi pratama") || text.includes("2026-09-22"));
+              });
+              s.setItem("app_notifications", JSON.stringify(cleanN));
+            }
+          } catch(e) {}
+        }
+        var r = s.getItem("app_rooms");
+        if (r) {
+          try {
+            var parsedR = JSON.parse(r);
+            if (Array.isArray(parsedR)) {
+              var cleanR = parsedR.filter(function(item) {
+                var name = (item.name || "").toLowerCase();
+                return !name.includes("nusantara") && !name.includes("garuda");
+              });
+              s.setItem("app_rooms", JSON.stringify(cleanR));
+            }
+          } catch(e) {}
+        }
+      });
+    } catch(e) {}
+  </script>
   <script src="/dashboard/js/app.js"></script>
 </body>
 </html>

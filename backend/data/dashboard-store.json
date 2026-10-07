@@ -15,22 +15,6 @@
       "capacity": 12,
       "status": "Tersedia",
       "facilities": "Smart TV, Whiteboard, AC, WiFi"
-    },
-    {
-      "id": 3,
-      "name": "Ruang Nusantara",
-      "location": "Gedung Pusat Kemnaker, Lt. 2",
-      "capacity": 20,
-      "status": "Tersedia",
-      "facilities": "Proyektor, TV, WiFi, Sound System"
-    },
-    {
-      "id": 4,
-      "name": "Ruang Garuda",
-      "location": "Gedung Pusat Kemnaker, Lt. 2",
-      "capacity": 15,
-      "status": "Tersedia",
-      "facilities": "TV, WiFi, AC"
     }
   ],
   "users": [
@@ -77,16 +61,20 @@
   ],
   "meetings": [
     {
-      "id": 1,
-      "title": "Rapat Koordinasi Biro Keuangan",
-      "requester": "Andi Pratama",
+      "id": "73b0rm47pmi6p7olqq151vsp88",
+      "title": "testing by sakeh",
+      "requester": "TU",
       "room": "Ruang Rapat Besar",
-      "date": "2026-09-22",
-      "start": "08:00",
-      "end": "10:00",
-      "status": "Berjalan",
-      "participants": 12,
-      "desc": "Pembahasan laporan keuangan dan evaluasi program."
+      "date": "2026-10-07",
+      "start": "13:00",
+      "end": "13:30",
+      "status": "Akan Datang",
+      "participants": 20,
+      "desc": "testing by sakeh",
+      "createdAt": "2026-10-07T05:59:29.630Z",
+      "approvedBy": "Pimpinan - Approval 1",
+      "approvedAt": "2026-10-07T06:01:39.054Z",
+      "googleId": "73b0rm47pmi6p7olqq151vsp88"
     }
   ]
 }

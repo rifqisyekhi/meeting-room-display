@@ -26,36 +26,28 @@ function writeStore(data) {
   }
 }
 
-const DEFAULT_INITIAL_MEETING = [
-  {
-    id: 1,
-    title: "Rapat Koordinasi Biro Keuangan",
-    requester: "Andi Pratama",
-    room: "Ruang Rapat Besar",
-    date: "2026-09-22",
-    start: "08:00",
-    end: "10:00",
-    status: "Berjalan",
-    participants: 12,
-    desc: "Pembahasan laporan keuangan dan evaluasi program.",
-  },
-];
+function getGoogleCalendarClient() {
+  const calendarId = process.env.GOOGLE_CALENDAR_ID;
+  if (!calendarId) return null;
+  if (!fs.existsSync(CREDENTIALS_PATH)) return null;
 
-function resetStoreForDevSession() {
-  const store = readStore();
-  store.meetings = [...DEFAULT_INITIAL_MEETING];
-  writeStore(store);
-  console.log("🔄 [DevSession] Backend store di-reset ke 1 dummy meeting untuk one flow run.");
+  try {
+    const auth = new google.auth.GoogleAuth({
+      keyFile: CREDENTIALS_PATH,
+      scopes: ["https://www.googleapis.com/auth/calendar"],
+    });
+    const calendar = google.calendar({ version: "v3", auth });
+    return { calendar, calendarId };
+  } catch (err) {
+    console.error("Gagal inisialisasi Google Calendar client:", err.message);
+    return null;
+  }
 }
-
-// Jalankan reset saat server backend pertama kali menyala (npm run dev)
-resetStoreForDevSession();
-
 
 function parseDescription(description = "") {
   const fields = {};
   description.split(/\r?\n/).forEach((line) => {
-    const match = line.match(/^\s*(Ruang|Agenda|Bagian|Pemesan|Nama|Peserta|Jumlah Peserta|Kontak|No HP|Keterangan|Catatan)\s*:\s*(.+?)\s*$/i);
+    const match = line.match(/^\s*(Ruang|Agenda|Bagian|Pemesan|Nama|Peserta|Jumlah Peserta|Kontak|No HP|Keterangan|Catatan|Status|Disetujui Oleh)\s*:\s*(.+?)\s*$/i);
     if (match) {
       fields[match[1].toLowerCase().replace(/\s+/g, "_")] = match[2].trim();
     }
@@ -108,13 +100,13 @@ async function getGoogleCalendarEvents() {
   try {
     const auth = new google.auth.GoogleAuth({
       keyFile: CREDENTIALS_PATH,
-      scopes: ["https://www.googleapis.com/auth/calendar.readonly"],
+      scopes: ["https://www.googleapis.com/auth/calendar"],
     });
 
     const calendar = google.calendar({ version: "v3", auth });
 
     const now = new Date();
-    // Ambil dari 30 hari ke belakang sampai 90 hari ke depan
+    // Ambil rentang dari 30 hari ke belakang sampai 90 hari ke depan
     const timeMin = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
     const timeMax = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000).toISOString();
 
@@ -153,21 +145,26 @@ async function getGoogleCalendarEvents() {
         item.organizer?.displayName ||
         "Bagian Umum";
 
-      const title = fields.agenda || item.summary || "Rapat Koordinasi";
+      const rawSummary = item.summary || "Rapat Koordinasi";
+      const cleanSummary = rawSummary.replace(/\s*\([^)]+\)\s*$/, "").trim();
+      const title = fields.agenda || cleanSummary || "Rapat Koordinasi";
       const participants = parseInt(fields.peserta || fields.jumlah_peserta) || (item.attendees?.length ? item.attendees.length : 10);
       const desc = fields.keterangan || fields.catatan || item.description || "";
+      const status = fields.status || getMeetingStatus(startDate, endDate, now);
 
       meetings.push({
-        id: item.id || index + 1,
+        id: item.id || String(index + 1),
+        googleId: item.id,
         title,
         requester,
         room: roomName,
         date: formatDateISO(startDate),
         start: formatTimeHHMM(startDate),
         end: formatTimeHHMM(endDate),
-        status: getMeetingStatus(startDate, endDate, now),
+        status,
         participants,
         desc,
+        approvedBy: fields.disetujui_oleh || fields.approved_by || "",
       });
     });
 
@@ -193,25 +190,48 @@ async function getDashboardData() {
   let statusMessage = "";
 
   if (calendarResult.success) {
-    meetings = calendarResult.meetings;
+    const calendarMeetings = calendarResult.meetings || [];
     isGoogleConnected = true;
-    statusMessage = `Berhasil terhubung ke Google Calendar (${meetings.length} rapat)`;
+    statusMessage = `Berhasil terhubung ke Google Calendar (${calendarMeetings.length} jadwal disetujui)`;
+
+    // Ambil permohonan dari store lokal yang statusnya "Menunggu Approval" (belum disetujui admin)
+    // agar admin dapat melihat dan menyetujui / menolaknya di dashboard
+    const pendingMeetings = (store.meetings || []).filter((sm) => {
+      // HANYA rapat yang berstatus Menunggu Approval
+      if (sm.status !== "Menunggu Approval") return false;
+
+      // Cek apakah sudah disetujui dan ada di Google Calendar
+      const alreadyInGcal = calendarMeetings.some((cm) => {
+        if (String(cm.id) === String(sm.id)) return true;
+        if (sm.googleId && cm.id === sm.googleId) return true;
+        const sameDate = cm.date === sm.date;
+        const sameTime = cm.start === sm.start;
+        const normCmRoom = (cm.room || "").toLowerCase().replace(/\s+/g, "");
+        const normSmRoom = (sm.room || "").toLowerCase().replace(/\s+/g, "");
+        const sameRoom = normCmRoom.includes(normSmRoom) || normSmRoom.includes(normCmRoom);
+        return sameDate && sameTime && sameRoom;
+      });
+      return !alreadyInGcal;
+    });
+
+    // Gabungkan jadwal (permohonan Menunggu Approval di urutan teratas)
+    meetings = [...pendingMeetings, ...calendarMeetings];
   } else {
     isGoogleConnected = false;
     statusMessage = calendarResult.error;
 
-    // Pakai data lokal dari store
+    // Pakai data lokal dari store jika Google Calendar tidak dapat diakses
     const now = new Date();
     meetings = (store.meetings || []).map((m) => {
       try {
-        const [y, mth, d] = m.date.split("-").map(Number);
-        const [sh, sm] = m.start.split(":").map(Number);
-        const [eh, em] = m.end.split(":").map(Number);
+        const [y, mth, d] = (m.date || "").split("-").map(Number);
+        const [sh, sm] = (m.start || "").split(":").map(Number);
+        const [eh, em] = (m.end || "").split(":").map(Number);
         const start = new Date(y, mth - 1, d, sh, sm);
         const end = new Date(y, mth - 1, d, eh, em);
         return {
           ...m,
-          status: getMeetingStatus(start, end, now),
+          status: m.status === "Menunggu Approval" ? m.status : getMeetingStatus(start, end, now),
         };
       } catch {
         return m;
@@ -224,7 +244,7 @@ async function getDashboardData() {
     const isBusy = meetings.some(
       (m) =>
         m.status === "Berjalan" &&
-        m.room.toLowerCase().includes(room.name.toLowerCase().replace("ruang ", ""))
+        (m.room || "").toLowerCase().includes(room.name.toLowerCase().replace("ruang ", ""))
     );
     return {
       ...room,
@@ -255,31 +275,184 @@ async function getDashboardData() {
   };
 }
 
-function saveMeeting(meeting) {
+async function saveMeeting(meeting) {
   const store = readStore();
   if (!store.meetings) store.meetings = [];
 
-  if (meeting.id) {
-    const idx = store.meetings.findIndex((m) => String(m.id) === String(meeting.id));
-    if (idx !== -1) {
-      store.meetings[idx] = { ...store.meetings[idx], ...meeting };
-    } else {
-      store.meetings.unshift(meeting);
+  const originalId = meeting.id;
+  const isPending = meeting.status === "Menunggu Approval";
+  const isCancelled = meeting.status === "Dibatalkan" || meeting.status === "Ditolak";
+  const gcal = getGoogleCalendarClient();
+  let googleEvent = null;
+
+  // HANYA sinkronkan / masukkan ke Google Calendar jika SUDAH DISETUJUI (bukan "Menunggu Approval" dan bukan Dibatalkan)
+  if (gcal && !isPending && !isCancelled) {
+    try {
+      const room = meeting.room || "Ruang Rapat Besar";
+      const title = meeting.title || meeting.agenda || "Rapat Koordinasi";
+      const summary = `${title} (${room})`;
+
+      const descLines = [
+        `Ruang: ${room}`,
+        `Agenda: ${title}`,
+        `Bagian: ${meeting.requester || meeting.bagian || "Bagian Umum"}`,
+        `Pemesan: ${meeting.requester || meeting.bagian || "Bagian Umum"}`,
+        `Peserta: ${meeting.participants || 0}`,
+        `Status: ${meeting.status || "Akan Datang"}`,
+      ];
+      if (meeting.desc) descLines.push(`Keterangan: ${meeting.desc}`);
+      if (meeting.approvedBy) descLines.push(`Disetujui Oleh: ${meeting.approvedBy}`);
+
+      const meetingDate = meeting.date || formatDateISO(new Date());
+      const startTime = meeting.start || "08:00";
+      const endTime = meeting.end || "10:00";
+
+      const startIso = new Date(`${meetingDate}T${startTime}:00+07:00`).toISOString();
+      const endIso = new Date(`${meetingDate}T${endTime}:00+07:00`).toISOString();
+
+      const requestBody = {
+        summary,
+        description: descLines.join("\n"),
+        start: {
+          dateTime: startIso,
+          timeZone: DEFAULT_TIME_ZONE,
+        },
+        end: {
+          dateTime: endIso,
+          timeZone: DEFAULT_TIME_ZONE,
+        },
+      };
+
+      const existingGoogleId =
+        meeting.googleId ||
+        (typeof meeting.id === "string" && !/^\d+$/.test(meeting.id) ? meeting.id : null);
+
+      if (existingGoogleId) {
+        try {
+          const updated = await gcal.calendar.events.patch({
+            calendarId: gcal.calendarId,
+            eventId: existingGoogleId,
+            requestBody,
+          });
+          googleEvent = updated.data;
+          console.log(`✅ [Google Calendar] Event ${existingGoogleId} berhasil diperbarui.`);
+        } catch (patchErr) {
+          console.warn("[Google Calendar] Gagal patch, mencoba insert:", patchErr.message);
+          const inserted = await gcal.calendar.events.insert({
+            calendarId: gcal.calendarId,
+            requestBody,
+          });
+          googleEvent = inserted.data;
+          console.log(`✅ [Google Calendar] Event baru dibuat setelah approval: ${googleEvent.id}`);
+        }
+      } else {
+        const inserted = await gcal.calendar.events.insert({
+          calendarId: gcal.calendarId,
+          requestBody,
+        });
+        googleEvent = inserted.data;
+        console.log(`✅ [Google Calendar] Event baru dibuat setelah approval: ${googleEvent.id}`);
+      }
+    } catch (gcalErr) {
+      console.error("❌ [Google Calendar] Error simpan rapat:", gcalErr.message);
     }
-  } else {
+  } else if (gcal && isCancelled) {
+    // Jika rapat ditolak/dibatalkan, pastikan dihapus dari Google Calendar jika ada
+    try {
+      const existingGoogleId =
+        meeting.googleId ||
+        (typeof meeting.id === "string" && !/^\d+$/.test(meeting.id) ? meeting.id : null);
+      if (existingGoogleId) {
+        await gcal.calendar.events.delete({
+          calendarId: gcal.calendarId,
+          eventId: existingGoogleId,
+        });
+        console.log(`🗑️ [Google Calendar] Event ${existingGoogleId} dihapus dari Google Calendar karena dibatalkan/ditolak.`);
+        meeting.googleId = null;
+      }
+    } catch (cancelErr) {
+      console.warn("[Google Calendar] Batal event:", cancelErr.message);
+    }
+  } else if (isPending) {
+    console.log(`⏳ [Permohonan Booking] Rapat "${meeting.title || meeting.agenda}" disimpan dengan status Menunggu Approval (belum dikirim ke Google Calendar).`);
+  }
+
+  if (googleEvent) {
+    meeting.googleId = googleEvent.id;
+    meeting.id = googleEvent.id;
+  } else if (!meeting.id) {
     meeting.id = Date.now();
+  }
+
+  // Simpan di local store sebagai cache
+  const idx = store.meetings.findIndex((m) => {
+    if (originalId && String(m.id) === String(originalId)) return true;
+    if (meeting.id && String(m.id) === String(meeting.id)) return true;
+    if (meeting.googleId && m.googleId === meeting.googleId) return true;
+    const sameDate = m.date === meeting.date;
+    const sameTime = m.start === meeting.start;
+    const normMRoom = (m.room || "").toLowerCase().replace(/\s+/g, "");
+    const normMeetRoom = (meeting.room || "").toLowerCase().replace(/\s+/g, "");
+    const sameRoom = normMRoom.includes(normMeetRoom) || normMeetRoom.includes(normMRoom);
+    return sameDate && sameTime && sameRoom;
+  });
+
+  if (idx !== -1) {
+    store.meetings[idx] = { ...store.meetings[idx], ...meeting };
+  } else {
     store.meetings.unshift(meeting);
   }
+
+  // Hapus setiap duplikat lain yang mungkin tersisa di store.meetings
+  const primaryId = String(meeting.id);
+  store.meetings = store.meetings.filter((m, i) => {
+    if (idx !== -1 && i === idx) return true;
+    if (String(m.id) === primaryId) return false;
+    if (originalId && String(m.id) === String(originalId)) return false;
+    const sameDate = m.date === meeting.date;
+    const sameTime = m.start === meeting.start;
+    const normMRoom = (m.room || "").toLowerCase().replace(/\s+/g, "");
+    const normMeetRoom = (meeting.room || "").toLowerCase().replace(/\s+/g, "");
+    const sameRoom = normMRoom.includes(normMeetRoom) || normMeetRoom.includes(normMRoom);
+    if (sameDate && sameTime && sameRoom) {
+      return false;
+    }
+    return true;
+  });
 
   writeStore(store);
   return meeting;
 }
 
-function deleteMeeting(id) {
+async function deleteMeeting(id) {
   const store = readStore();
-  if (!store.meetings) return false;
-  store.meetings = store.meetings.filter((m) => String(m.id) !== String(id));
-  writeStore(store);
+  const gcal = getGoogleCalendarClient();
+
+  if (gcal) {
+    try {
+      const meetingInStore = (store.meetings || []).find((m) => String(m.id) === String(id));
+      const targetGoogleId =
+        meetingInStore?.googleId ||
+        (typeof id === "string" && !/^\d+$/.test(id) ? id : null);
+
+      if (targetGoogleId) {
+        await gcal.calendar.events.delete({
+          calendarId: gcal.calendarId,
+          eventId: targetGoogleId,
+        });
+        console.log(`🗑️ [Google Calendar] Event ${targetGoogleId} berhasil dihapus.`);
+      }
+    } catch (gcalErr) {
+      console.warn("⚠️ [Google Calendar] Gagal hapus event:", gcalErr.message);
+    }
+  }
+
+  if (store.meetings) {
+    store.meetings = store.meetings.filter(
+      (m) => String(m.id) !== String(id) && m.googleId !== id
+    );
+    writeStore(store);
+  }
   return true;
 }
 

@@ -8,7 +8,7 @@ const auth = new google.auth.GoogleAuth({
     __dirname,
     "../../credentials/google-service-account.json"
   ),
-  scopes: ["https://www.googleapis.com/auth/calendar.readonly"],
+  scopes: ["https://www.googleapis.com/auth/calendar"],
 });
 
 const calendar = google.calendar({
@@ -107,7 +107,7 @@ function formatDate(date, timeZone) {
 
 function getRoomKey(room = "") {
   const normalized = room.trim().toLowerCase();
-  if (normalized.includes("rapat besar")) return "ruangRapatBesar";
+  if (normalized.includes("rapat besar") || normalized.includes("besar")) return "ruangRapatBesar";
   if (normalized.includes("konsultasi")) return "ruangKonsultasi";
   return null;
 }
@@ -119,21 +119,24 @@ function getRoomFromEvent(event, fields) {
 }
 
 function toDashboardEvent(event, now, timeZone) {
-  if (!event.start?.dateTime || !event.end?.dateTime) return null;
+  if (!event.start?.dateTime && !event.start?.date) return null;
+
+  const start = event.start?.dateTime ? new Date(event.start.dateTime) : new Date(event.start.date);
+  const end = event.end?.dateTime ? new Date(event.end.dateTime) : new Date(start.getTime() + 2 * 60 * 60 * 1000);
 
   const fields = parseDescription(event.description);
   const room = getRoomFromEvent(event, fields);
   const roomKey = getRoomKey(room);
   if (!roomKey) return null;
 
-  const start = new Date(event.start.dateTime);
-  const end = new Date(event.end.dateTime);
+  const rawSummary = event.summary || "Tanpa agenda";
+  const cleanSummary = rawSummary.replace(/\s*\([^)]+\)\s*$/, "").trim();
 
   return {
     roomKey,
     event: {
-      agenda: fields.agenda || event.summary || "Tanpa agenda",
-      bagian: fields.bagian || "-",
+      agenda: fields.agenda || cleanSummary || rawSummary,
+      bagian: fields.bagian || fields.pemesan || fields.nama || "-",
       tanggal: formatDate(start, timeZone),
       mulai: formatTime(start, timeZone),
       selesai: formatTime(end, timeZone),

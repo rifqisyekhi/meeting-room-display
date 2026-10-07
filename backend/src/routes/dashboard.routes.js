@@ -13,20 +13,20 @@ router.get("/data", async (req, res) => {
   }
 });
 
-// Simpan / update rapat
-router.post("/meetings", (req, res) => {
+// Simpan / update rapat (otomatis sinkron ke Google Calendar)
+router.post("/meetings", async (req, res) => {
   try {
-    const saved = dashboardService.saveMeeting(req.body);
+    const saved = await dashboardService.saveMeeting(req.body);
     res.json({ success: true, meeting: saved });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// Hapus rapat
-router.delete("/meetings/:id", (req, res) => {
+// Hapus rapat (otomatis hapus dari Google Calendar)
+router.delete("/meetings/:id", async (req, res) => {
   try {
-    const ok = dashboardService.deleteMeeting(req.params.id);
+    const ok = await dashboardService.deleteMeeting(req.params.id);
     res.json({ success: ok });
   } catch (err) {
     res.status(500).json({ error: err.message });
