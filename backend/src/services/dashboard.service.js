@@ -198,16 +198,16 @@ async function getDashboardData() {
     isGoogleConnected = true;
     statusMessage = `Berhasil terhubung ke Google Calendar (${calendarMeetings.length} jadwal disetujui)`;
 
-    // Ambil permohonan dari store lokal yang statusnya "Menunggu Approval" (belum disetujui admin)
-    // agar admin dapat melihat dan menyetujui / menolaknya di dashboard
-    const pendingMeetings = (store.meetings || []).filter((sm) => {
-      // HANYA rapat yang berstatus Menunggu Approval
-      if (sm.status !== "Menunggu Approval") return false;
+    // Ambil permohonan dan jadwal lokal dari store yang belum ada di Google Calendar
+    const localPendingMeetings = [];
+    const localOtherMeetings = [];
 
-      // Cek apakah sudah disetujui dan ada di Google Calendar
+    (store.meetings || []).forEach((sm) => {
+      if (sm.status === "Dibatalkan") return;
+
       const alreadyInGcal = calendarMeetings.some((cm) => {
         if (String(cm.id) === String(sm.id)) return true;
-        if (sm.googleId && cm.id === sm.googleId) return true;
+        if (sm.googleId && (String(cm.id) === String(sm.googleId) || String(cm.googleId) === String(sm.googleId))) return true;
         const sameDate = cm.date === sm.date;
         const sameTime = cm.start === sm.start;
         const normCmRoom = (cm.room || "").toLowerCase().replace(/\s+/g, "");
@@ -215,11 +215,18 @@ async function getDashboardData() {
         const sameRoom = normCmRoom.includes(normSmRoom) || normSmRoom.includes(normCmRoom);
         return sameDate && sameTime && sameRoom;
       });
-      return !alreadyInGcal;
+
+      if (!alreadyInGcal) {
+        if (sm.status === "Menunggu Approval") {
+          localPendingMeetings.push(sm);
+        } else {
+          localOtherMeetings.push(sm);
+        }
+      }
     });
 
-    // Gabungkan jadwal (permohonan Menunggu Approval di urutan teratas)
-    meetings = [...pendingMeetings, ...calendarMeetings];
+    // Gabungkan jadwal (permohonan Menunggu Approval di urutan teratas, diikuti jadwal lokal aktif, lalu jadwal Google Calendar)
+    meetings = [...localPendingMeetings, ...localOtherMeetings, ...calendarMeetings];
   } else {
     isGoogleConnected = false;
     statusMessage = calendarResult.error;

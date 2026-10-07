@@ -701,9 +701,14 @@ function openNotifFromToast(id, btn) {
 
 function getNotifDropdownContentHTML(currentUser) {
   const notifs = getNotifications();
-  const canApprove = (currentUser?.role || "").includes("Approval");
-  const pendingCount = notifs.filter(
-    (n) => n.status === "Menunggu Approval",
+  const userRole = (currentUser?.role || "").toLowerCase();
+  const userName = (currentUser?.username || "").toLowerCase();
+  const canApprove =
+    userRole.includes("approval") ||
+    userRole.includes("admin") ||
+    userName === "admin";
+  const pendingCount = notifs.filter((n) =>
+    (n.status || "").toLowerCase().includes("menunggu"),
   ).length;
 
   let itemsHTML = "";
@@ -718,11 +723,11 @@ function getNotifDropdownContentHTML(currentUser) {
   } else {
     itemsHTML = notifs
       .map((n) => {
-        const m = state.meetings.find((x) => x.id === n.meetingId) || n;
-        const isPending = m.status === "Menunggu Approval";
+        const m = state.meetings.find((x) => String(x.id) === String(n.meetingId)) || n;
+        const isPending = (m.status || "").toLowerCase().includes("menunggu");
         const isApproved =
           m.status === "Akan Datang" ||
-          (m.status !== "Menunggu Approval" &&
+          (!isPending &&
             m.status !== "Dibatalkan" &&
             m.approvedBy);
         const isRejected = m.status === "Dibatalkan";
@@ -751,21 +756,21 @@ function getNotifDropdownContentHTML(currentUser) {
           if (canApprove) {
             actionsHTML = `
               <div class="notif-action-row">
-                <button class="notif-btn-approve" onclick="approveMeetingFromNotif(event, '${m.id}')">✓ Setujui</button>
-                <button class="notif-btn-reject" onclick="rejectMeetingFromNotif(event, '${m.id}')">✕ Tolak</button>
+                <button class="notif-btn-approve" onclick="approveMeetingFromNotif(event, '${esc(m.id)}')">✓ Setujui</button>
+                <button class="notif-btn-reject" onclick="rejectMeetingFromNotif(event, '${esc(m.id)}')">✕ Tolak</button>
               </div>
             `;
           } else {
             actionsHTML = `
               <div class="notif-action-row">
-                <button class="notif-btn-view" onclick="viewMeetingFromNotif(event, '${m.id}')">Lihat Detail</button>
+                <button class="notif-btn-view" onclick="viewMeetingFromNotif(event, '${esc(m.id)}')">Lihat Detail</button>
               </div>
             `;
           }
         } else {
           actionsHTML = `
             <div class="notif-action-row">
-              <button class="notif-btn-view" onclick="viewMeetingFromNotif(event, '${m.id}')">Detail Rapat</button>
+              <button class="notif-btn-view" onclick="viewMeetingFromNotif(event, '${esc(m.id)}')">Detail Rapat</button>
             </div>
           `;
         }
@@ -1288,9 +1293,10 @@ function dashboard() {
 // ----------------------------------------------------------------------
 function meetingTable(data, actions = true, allowDelete = true) {
   const user = getCurrentUser();
-  // Hanya role yang mengandung kata "Approval" yang berhak memberi persetujuan
-  const canApprove = user.role.includes("Approval");
-  const isAdmin = user.role === "Administrator" || (user.role && user.role.toLowerCase().includes("admin"));
+  const userRole = (user?.role || "").toLowerCase();
+  const userName = (user?.username || "").toLowerCase();
+  const isAdmin = userRole.includes("admin") || userName === "admin";
+  const canApprove = userRole.includes("approval") || isAdmin;
 
   const rows = (!data || data.length === 0)
     ? `<tr><td colspan="8" style="text-align:center;padding:36px;color:#8c9ba5;font-weight:500;">Belum ada jadwal rapat</td></tr>`
@@ -1305,7 +1311,8 @@ function meetingTable(data, actions = true, allowDelete = true) {
           let actionButtons = `<button style="background-color:#f4f6f9;color:#0c2d5e;border:none;border-radius:10px;width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;margin-right:12px;box-shadow:0 2px 5px rgba(0,0,0,0.03);" title="Lihat" onclick="viewMeeting('${m.id}')">${faEye}</button>`;
 
           if (actions) {
-            if (m.status === "Menunggu Approval") {
+            const isPending = (m.status || "").toLowerCase().includes("menunggu");
+            if (isPending) {
               if (m.rejectedBy) {
                 actionButtons += `<span style="font-size:11px;color:#ff4d4f;margin-right:8px;font-weight:700;background:#ffebee;padding:6px 12px;border-radius:12px;">Ditolak (${esc(m.rejectedBy)})</span>`;
               } else if (canApprove) {
@@ -3485,11 +3492,11 @@ window.onToggleKepalaBiro = onToggleKepalaBiro;
 
 function openMeetingModal(id = null) {
   const m = id
-    ? state.meetings.find((x) => x.id === id)
+    ? state.meetings.find((x) => String(x.id) === String(id))
     : {
         title: "",
         requester: "",
-        room: state.rooms[0].name,
+        room: state.rooms[0]?.name || "Ruang Rapat",
         date: "2026-09-24",
         start: "09:00",
         end: "10:00",
@@ -3527,7 +3534,7 @@ function openMeetingModal(id = null) {
       <div class="field full"><label>Status</label><select id="fStatus">${["Menunggu Approval", "Akan Datang", "Segera", "Berjalan", "Selesai", "Dibatalkan"].map((s) => `<option ${s === m.status ? "selected" : ""}>${s}</option>`).join("")}</select></div>
       <div class="field full"><label>Deskripsi</label><textarea id="fDesc" rows="3" placeholder="Deskripsi atau agenda pembahasan...">${esc(m.desc)}</textarea></div>
     </div>
-    <div class="modal-actions"><button class="btn btn-light" onclick="closeModal()">Batal</button><button class="btn btn-primary" onclick="saveMeeting(${id || "null"})">Simpan</button></div>`,
+    <div class="modal-actions"><button class="btn btn-light" onclick="closeModal()">Batal</button><button class="btn btn-primary" onclick="saveMeeting('${id ? esc(m.id) : ""}')">Simpan</button></div>`,
   );
 }
 
@@ -3737,23 +3744,37 @@ function approveMeeting(id) {
 
   if (!targetMeeting) return;
 
-  // Jika sudah di approve oleh salah satu akun maka di akun lain tidak bisa approve lagi
-  if (
-    targetMeeting.approvedBy ||
-    targetMeeting.status !== "Menunggu Approval"
-  ) {
+  const userRole = (user?.role || "").toLowerCase();
+  const userName = (user?.username || "").toLowerCase();
+  const isAdmin = userRole.includes("admin") || userName === "admin";
+  const canApprove = userRole.includes("approval") || isAdmin;
+
+  if (!canApprove) {
+    alert("Anda tidak memiliki hak akses untuk menyetujui permohonan rapat.");
+    return;
+  }
+
+  const statusLower = (targetMeeting.status || "").toLowerCase().trim();
+  const isPending = statusLower.includes("menunggu");
+
+  if (!isPending) {
     alert(
-      "Rapat ini sudah disetujui sebelumnya oleh " +
-        (targetMeeting.approvedBy || "akun lain") +
-        " dan tidak dapat disetujui kembali.",
+      "Rapat ini tidak dalam status menunggu persetujuan (Status saat ini: " +
+        targetMeeting.status +
+        (targetMeeting.approvedBy ? " oleh " + targetMeeting.approvedBy : "") +
+        ").",
     );
     return;
   }
 
   const approverName =
-    user.name || user.username || user.role || "Admin Persetujuan";
-  const approverRole = user.role || "Approval";
+    user.name || user.username || (isAdmin ? "Administrator" : "Admin Persetujuan");
+  const approverRole = user.role || (isAdmin ? "Administrator" : "Approval");
   const approvedTag = approverName + (approverRole ? " - " + approverRole : "");
+
+  targetMeeting.status = "Akan Datang";
+  targetMeeting.approvedBy = approvedTag;
+  targetMeeting.approvedAt = new Date().toISOString();
 
   state.meetings = state.meetings.map((m) => {
     if (String(m.id) === String(id)) {
@@ -3782,28 +3803,25 @@ function approveMeeting(id) {
     }
   } catch (e) {}
 
-  const targetApproved = state.meetings.find((m) => String(m.id) === String(id));
-  if (targetApproved) {
-    fetch("/api/dashboard/meetings", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(targetApproved),
-    })
-      .then(async (res) => {
-        if (res.ok) {
-          const data = await res.json();
-          if (data?.meeting?.googleId) {
-            targetApproved.googleId = data.meeting.googleId;
-            targetApproved.id = data.meeting.id;
-            try {
-              getAppStorage().setItem("app_meetings", JSON.stringify(state.meetings));
-            } catch (e) {}
-          }
-          await fetchDashboardData(false);
+  fetch("/api/dashboard/meetings", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(targetMeeting),
+  })
+    .then(async (res) => {
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.meeting?.googleId) {
+          targetMeeting.googleId = data.meeting.googleId;
+          targetMeeting.id = data.meeting.id;
+          try {
+            getAppStorage().setItem("app_meetings", JSON.stringify(state.meetings));
+          } catch (e) {}
         }
-      })
-      .catch((e) => console.warn("Sync approved meeting:", e));
-  }
+        await fetchDashboardData(false);
+      }
+    })
+    .catch((e) => console.warn("Sync approved meeting:", e));
 
   render();
   toast("Rapat berhasil disetujui oleh " + approverName);
@@ -3861,14 +3879,28 @@ function checkOutMeeting(id) {
 
 function rejectMeeting(id) {
   const targetMeeting = state.meetings.find((m) => String(m.id) === String(id));
-  if (
-    targetMeeting &&
-    (targetMeeting.approvedBy || targetMeeting.status !== "Menunggu Approval")
-  ) {
+  if (!targetMeeting) return;
+
+  const user = getCurrentUser();
+  const userRole = (user?.role || "").toLowerCase();
+  const userName = (user?.username || "").toLowerCase();
+  const isAdmin = userRole.includes("admin") || userName === "admin";
+  const canApprove = userRole.includes("approval") || isAdmin;
+
+  if (!canApprove) {
+    alert("Anda tidak memiliki hak akses untuk menolak permohonan rapat.");
+    return;
+  }
+
+  const statusLower = (targetMeeting.status || "").toLowerCase().trim();
+  const isPending = statusLower.includes("menunggu");
+
+  if (!isPending) {
     alert(
-      "Rapat ini sudah disetujui oleh " +
-        (targetMeeting.approvedBy || "akun lain") +
-        " sehingga tidak dapat ditolak.",
+      "Rapat ini tidak dalam status menunggu persetujuan (Status saat ini: " +
+        targetMeeting.status +
+        (targetMeeting.approvedBy ? " oleh " + targetMeeting.approvedBy : "") +
+        ") sehingga tidak dapat ditolak.",
     );
     return;
   }
@@ -3889,12 +3921,15 @@ function rejectMeeting(id) {
 
 function confirmReject(id) {
   const user = getCurrentUser();
+  const userRole = (user?.role || "").toLowerCase();
+  const userName = (user?.username || "").toLowerCase();
+  const isAdmin = userRole.includes("admin") || userName === "admin";
   const reason =
-    document.getElementById("fRejectReason").value.trim() ||
+    document.getElementById("fRejectReason")?.value.trim() ||
     "Tidak ada alasan yang diberikan";
   const rejecterName =
-    user.name || user.username || user.role || "Admin Persetujuan";
-  const rejecterRole = user.role || "Approval";
+    user.name || user.username || (isAdmin ? "Administrator" : "Admin Persetujuan");
+  const rejecterRole = user.role || (isAdmin ? "Administrator" : "Approval");
   const rejecterTag = rejecterName + (rejecterRole ? " - " + rejecterRole : "");
 
   state.meetings = state.meetings.map((m) => {
@@ -3904,7 +3939,7 @@ function confirmReject(id) {
         status: "Dibatalkan",
         rejectedBy: rejecterTag,
         desc:
-          m.desc + "\n\n[Dibatalkan oleh " + rejecterName + ": " + reason + "]",
+          (m.desc || "") + "\n\n[Dibatalkan oleh " + rejecterName + ": " + reason + "]",
       };
     return m;
   });
@@ -3945,6 +3980,12 @@ function editMeeting(id) {
 function viewMeeting(id) {
   const m = state.meetings.find((x) => String(x.id) === String(id));
   if (!m) return;
+  const user = getCurrentUser();
+  const userRole = (user?.role || "").toLowerCase();
+  const userName = (user?.username || "").toLowerCase();
+  const isAdmin = userRole.includes("admin") || userName === "admin";
+  const canApprove = userRole.includes("approval") || isAdmin;
+
   const isCanceled = m.status === "Dibatalkan";
   const cancelBox = isCanceled
     ? `<div style="background:#fee2e2;border:1.5px solid #fca5a5;color:#991b1b;padding:12px 16px;border-radius:10px;margin:14px 0;font-size:13px;line-height:1.45;">
@@ -3955,6 +3996,22 @@ function viewMeeting(id) {
        </div>`
     : "";
 
+  let actionBtns = `<button class="btn btn-light" style="display:inline-flex;align-items:center;gap:6px;" onclick="exportNotulensiPDF('${m.id}')">${ICONS.export} <span>Notulensi</span></button>`;
+
+  const isPending = (m.status || "").toLowerCase().includes("menunggu");
+  if (isPending && canApprove) {
+    actionBtns += `<button class="btn btn-primary" style="background:#219653;border-color:#219653;font-weight:700;" onclick="closeModal(); approveMeeting('${m.id}')">✓ Setujui Rapat</button>`;
+    actionBtns += `<button class="btn btn-primary" style="background:#ff4d4f;border-color:#ff4d4f;font-weight:700;" onclick="closeModal(); rejectMeeting('${m.id}')">✕ Tolak Rapat</button>`;
+  } else if (m.status === "Akan Datang" && isAdmin) {
+    actionBtns += `<button class="btn btn-primary" style="background:#219653;border-color:#219653;font-weight:700;" onclick="closeModal(); checkInMeeting('${m.id}')">Check In</button>`;
+  } else if (m.status === "Berjalan" && isAdmin) {
+    actionBtns += `<button class="btn btn-primary" style="background:#ff4d4f;border-color:#ff4d4f;font-weight:700;" onclick="closeModal(); checkOutMeeting('${m.id}')">Check Out</button>`;
+  }
+
+  if (isAdmin || canApprove) {
+    actionBtns += `<button class="btn btn-primary" onclick="closeModal(); editMeeting('${m.id}')">Edit Rapat</button>`;
+  }
+
   openModal(
     "Detail Rapat",
     `<p style="font-size:16px;color:#0c2d5e;"><b>${esc(m.title)}</b></p>
@@ -3963,9 +4020,12 @@ function viewMeeting(id) {
     <p>📍 ${esc(m.room)}</p>
     <p>👤 <b>Pemesan:</b> ${esc(m.requester)}</p>
     <p>👥 ${m.participants} peserta</p>
+    <p>🏷️ <b>Status:</b> ${badge(m.status)}</p>
+    ${m.approvedBy ? `<p>✓ <b>Disetujui Oleh:</b> ${esc(m.approvedBy)}</p>` : ""}
+    ${m.rejectedBy ? `<p style="color:#dc2626;">✕ <b>Ditolak Oleh:</b> ${esc(m.rejectedBy)}</p>` : ""}
     <p style="margin-top:15px;color:#334155;white-space:pre-line;">${esc(m.desc)}</p>
-      <button class="btn btn-primary" style="background-color: #4a5568; border-color: #4a5568; display: inline-flex; align-items: center; gap: 6px;" onclick="exportNotulensiPDF(${id})">${ICONS.export} <span>Notulensi</span></button>
-      <button class="btn btn-primary" onclick="editMeeting(${id})">Edit Rapat</button>
+    <div class="modal-actions" style="margin-top:20px;display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;">
+      ${actionBtns}
     </div>`,
   );
 }
@@ -4848,7 +4908,7 @@ async function exportNotulensiPDF(id) {
       format: "a4",
     });
 
-    const m = state.meetings.find((x) => x.id === id);
+    const m = state.meetings.find((x) => String(x.id) === String(id));
 
     if (!m) {
       toast("Data rapat tidak ditemukan");
