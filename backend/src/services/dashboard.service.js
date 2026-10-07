@@ -26,6 +26,32 @@ function writeStore(data) {
   }
 }
 
+const DEFAULT_INITIAL_MEETING = [
+  {
+    id: 1,
+    title: "Rapat Koordinasi Biro Keuangan",
+    requester: "Andi Pratama",
+    room: "Ruang Rapat Besar",
+    date: "2026-09-22",
+    start: "08:00",
+    end: "10:00",
+    status: "Berjalan",
+    participants: 12,
+    desc: "Pembahasan laporan keuangan dan evaluasi program.",
+  },
+];
+
+function resetStoreForDevSession() {
+  const store = readStore();
+  store.meetings = [...DEFAULT_INITIAL_MEETING];
+  writeStore(store);
+  console.log("🔄 [DevSession] Backend store di-reset ke 1 dummy meeting untuk one flow run.");
+}
+
+// Jalankan reset saat server backend pertama kali menyala (npm run dev)
+resetStoreForDevSession();
+
+
 function parseDescription(description = "") {
   const fields = {};
   description.split(/\r?\n/).forEach((line) => {

@@ -14,10 +14,20 @@ app.use("/api/events", calendarRoutes);
 app.use("/api/prayer", prayerRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 
+const BACKEND_DEV_SESSION_ID = "dev_be_" + Date.now() + "_" + Math.random().toString(36).substring(2, 8);
+
+app.get("/api/dev-session", (req, res) => {
+  res.json({
+    sessionId: BACKEND_DEV_SESSION_ID,
+    active: true,
+  });
+});
+
 app.get("/", (req, res) => {
   res.json({
     message: "Meeting Room Display API",
   });
 });
+
 
 module.exports = app;

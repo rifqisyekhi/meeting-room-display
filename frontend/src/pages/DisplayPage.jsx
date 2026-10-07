@@ -4,6 +4,7 @@ import dayjs from 'dayjs'
 import 'dayjs/locale/id'
 import { QRCodeSVG } from 'qrcode.react'
 import { Link } from 'react-router-dom'
+import { IoLogoWhatsapp } from "react-icons/io"
 import kemnakerLogo from '../assets/kemnaker-logo.png'
 import '../App.css'
 
@@ -273,14 +274,16 @@ function RoomPanel({ room, todayEvents, upcomingEvents, now, demo }) {
           <div className="slot__lead">
             <span className="slot__badge">{current ? <ClockIcon strokeWidth={2.2} /> : <CheckIcon />}</span>
             <div className="slot__headline">
-              <p className="slot__state">{current ? 'Ruangan sedang digunakan' : 'Ruangan tersedia'}</p>
-              <h3>{current ? current.agenda : 'Tidak ada jadwal rapat saat ini'}</h3>
-              {current ? (
+              <p className={`slot__state ${!current ? 'is-empty' : ''}`}>
+                {current ? 'Ruangan sedang digunakan' : 'Ruangan tersedia'}
+              </p>
+              {current && (
                 <>
+                  <h3>{current.agenda}</h3>
                   <p className="slot__pic">Dipimpin oleh: {current.bagian}</p>
                   <p className="slot__time"><ClockIcon className="icon" />{current.mulai} – {current.selesai} WIB</p>
                 </>
-              ) : null}
+              )}
             </div>
           </div>
 
@@ -497,22 +500,24 @@ function DisplayPage() {
           </div>
         </div>
 
-        {/* Tallies — read deliberately, not at a glance, so one line each.
-            "Ruang dipakai" is a live figure and belongs to today only; over a
-            whole year it would be meaningless. */}
-        <div className="recap">
-          <div>
-            <span className="eyebrow">Ringkasan hari ini</span>
-            <p>
-              <b>{allToday.length}</b> rapat · <b>{formatDuration(duration)}</b> durasi · <b>{activeRooms}/{ROOMS.length}</b> ruang · <b>{utilization}%</b> utilisasi
-            </p>
-          </div>
-          <div>
-            <span className="eyebrow">Ringkasan tahun {yearSummary.year} · s.d. {now.format('D MMM')}</span>
-            <p>
-              <b>{yearSummary.totalMeeting}</b> rapat · <b>{formatDuration(yearSummary.totalDurationMinutes)}</b> durasi · <b>{yearSummary.utilization}%</b> utilisasi
-            </p>
-          </div>
+        <div className="contact">
+          <p className="eyebrow">Kontak dan Bantuan Booking</p>
+          <ul>
+            <li>
+              <span className="contact__icon" style={{ color: '#90caf9' }}>A</span>
+              <div className="contact__info contact__info--reversed">
+                <span>Admin</span>
+                <strong>Windy Nur</strong>
+              </div>
+            </li>
+            <li>
+              <span className="contact__icon"><IoLogoWhatsapp style={{ fontSize: '1.2em' }} /></span>
+              <div className="contact__info">
+                <strong>WhatsApp bantuan</strong>
+                <span>+6285122777026</span>
+              </div>
+            </li>
+          </ul>
         </div>
       </footer>
 
