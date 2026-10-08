@@ -8,7 +8,6 @@ export const initialRooms = [
 
 export const initialUsers = [
   { id: 1, name: 'Windy Nuraini Putri', email: 'windy@kemnaker.go.id', dept: 'Biro Keuangan', role: 'Administrator', status: 'Aktif' },
-  { id: 2, name: 'Andi Pratama', email: 'andi@kemnaker.go.id', dept: 'Biro Keuangan', role: 'User', status: 'Aktif' },
   { id: 3, name: 'Siti Rahma', email: 'siti@kemnaker.go.id', dept: 'Biro Keuangan', role: 'User', status: 'Aktif' },
   { id: 4, name: 'Budi Santoso', email: 'budi@kemnaker.go.id', dept: 'Biro Umum', role: 'Admin Ruangan', status: 'Aktif' },
   { id: 5, name: 'Dewi Lestari', email: 'dewi@kemnaker.go.id', dept: 'Biro Keuangan', role: 'User', status: 'Aktif' },

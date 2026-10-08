@@ -3,7 +3,6 @@ import { IoMdHome } from 'react-icons/io';
 import { LiaUsersSolid } from 'react-icons/lia';
 import { BsBuildingFillGear } from 'react-icons/bs';
 import { FaUserGroup, FaCalendarAlt } from 'react-icons/fa6';
-import { RiBarChart2Fill } from 'react-icons/ri';
 import { IoSettingsOutline } from 'react-icons/io5';
 import { FaTv, FaSignOutAlt } from 'react-icons/fa';
 
@@ -48,7 +47,6 @@ const ALL_NAV_ITEMS = [
   { key: 'rooms',     label: 'Ruang Rapat',    icon: BsBuildingFillGear },
   { key: 'users',     label: 'Pengguna',       icon: FaUserGroup },
   { key: 'calendar',  label: 'Kalender',       icon: FaCalendarAlt },
-  { key: 'reports',   label: 'Laporan',        icon: RiBarChart2Fill },
   { key: 'settings',  label: 'Pengaturan',     icon: IoSettingsOutline, adminOnly: true },
 ];
 

@@ -108,9 +108,19 @@ export default function Topbar({
 
   const statusCfg = CALENDAR_STATUS_CONFIG[calendarStatus] || CALENDAR_STATUS_CONFIG.default;
 
-  const otherAccounts = savedAccounts.filter(
-    (acc) => acc.email !== currentUser?.email
-  );
+  const otherAccounts = savedAccounts
+    .filter(
+      (acc) =>
+        acc.email !== currentUser?.email &&
+        (acc.username || "").toLowerCase() !== (currentUser?.username || "").toLowerCase() &&
+        (acc.name || "").toLowerCase() !== "andi pratama",
+    )
+    .map((acc) => {
+      if (acc.role === "Approval 1" || acc.role === "Approval 2") {
+        return { ...acc, role: "Approval" };
+      }
+      return acc;
+    });
 
   return (
     <div style={topbarStyle}>
@@ -552,8 +562,7 @@ export default function Topbar({
                   onMouseEnter={(e) => (e.currentTarget.style.background = '#f0f4fa')}
                   onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                 >
-                  <FiPlusCircle size={15} />
-                  + Tambah Akun Lain
+                  Tambah Akun Lain
                 </button>
               </div>
 
@@ -583,7 +592,6 @@ export default function Topbar({
                   onMouseEnter={(e) => (e.currentTarget.style.background = '#fff5f5')}
                   onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                 >
-                  <FiLogOut size={15} />
                   Log Out
                 </button>
               </div>
