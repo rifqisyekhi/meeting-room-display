@@ -1,0 +1,159 @@
+.booking-account-bar {
+  position: relative;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  min-height: 60px;
+  padding: 9px 28px;
+  background: rgba(5, 29, 60, 0.56);
+}
+
+.booking-account-brand,
+.booking-account-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+
+.booking-account-brand img {
+  width: 31px;
+  height: 31px;
+  object-fit: contain;
+}
+
+.booking-account-brand span {
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.booking-account-actions {
+  position: relative;
+  z-index: 20;
+}
+
+.booking-section-nav {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  padding: 4px 8px;
+  border-radius: 12px;
+  background: rgba(4, 24, 52, .42);
+}
+
+.booking-section-nav button {
+  position: relative;
+  padding: 10px 14px 12px;
+  border: 0;
+  color: rgba(255,255,255,.82);
+  background: transparent;
+  font: 600 12px "Poppins", sans-serif;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color .2s, background .2s;
+}
+
+.booking-section-nav button:hover { color: #fff; }
+.booking-section-nav button.active { color: #fff; }
+.booking-section-nav button.active::after {
+  position: absolute;
+  right: 14px;
+  bottom: 3px;
+  left: 14px;
+  height: 2px;
+  border-radius: 2px;
+  background: #fff;
+  content: "";
+}
+
+.booking-account-help {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 13px;
+  border-radius: 18px;
+  color: #fff;
+  background: #20b86a;
+  text-decoration: none;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.booking-account-menu-wrap { position: relative; z-index: 22; }
+
+.booking-account-avatar {
+  width: 44px;
+  height: 44px;
+  border: 2px solid rgba(255,255,255,.85);
+  border-radius: 50%;
+  color: #102f57;
+  background: #fff;
+  font: 600 18px "Poppins", sans-serif;
+  cursor: pointer;
+}
+
+.booking-account-menu {
+  position: absolute;
+  top: calc(100% + 9px);
+  right: 0;
+  z-index: 24;
+  width: 230px;
+  overflow: hidden;
+  border: 1px solid #d8e0e9;
+  border-radius: 9px;
+  background: #fff;
+  box-shadow: 0 12px 28px rgba(5, 29, 60, .2);
+  color: #263b54;
+}
+
+.booking-account-menu-label {
+  padding: 10px 13px 7px;
+  color: #7a8797;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .5px;
+}
+
+.booking-account-current { padding: 5px 13px 11px; border-bottom: 1px solid #e7ebf0; }
+.booking-account-current strong { display: block; font-size: 12px; }
+.booking-account-current small { display: block; margin-top: 3px; color: #3570c5; font-size: 10px; }
+
+.booking-account-menu > button {
+  width: 100%;
+  padding: 11px 13px;
+  border: 0;
+  border-bottom: 1px solid #edf0f4;
+  color: #526174;
+  background: #fff;
+  text-align: left;
+  font: 500 11px "Poppins", sans-serif;
+  cursor: pointer;
+}
+
+.booking-account-menu > button:hover { background: #f5f8fc; }
+.booking-account-menu > button.booking-account-logout { color: #d8393e; }
+
+.booking-account-dismiss {
+  position: fixed;
+  inset: 0;
+  z-index: 19;
+  border: 0;
+  background: transparent;
+}
+
+@media (max-width: 767px) {
+  .booking-account-bar { min-height: 52px; padding: 8px 12px; gap: 8px; }
+  .booking-account-brand { gap: 7px; }
+  .booking-account-brand img { width: 25px; height: 25px; }
+  .booking-account-brand span { font-size: 10px; }
+  .booking-account-actions { gap: 7px; }
+  .booking-account-help { display: none; }
+  .booking-section-nav { gap: 0; padding: 3px; border-radius: 9px; }
+  .booking-section-nav button { padding: 8px 7px 10px; font-size: 8px; }
+  .booking-section-nav button.active::after { right: 7px; bottom: 2px; left: 7px; }
+  .booking-account-avatar { width: 36px; height: 36px; font-size: 15px; }
+  .booking-account-menu { width: 210px; }
+}

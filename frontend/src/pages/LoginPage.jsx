@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import "./LoginPage.css";
 import logoKemnaker from "../assets/Logo Kemenaker White.png";
 
@@ -22,6 +22,15 @@ const dummyDB = [
     role: "Approval 2",
     name: "Wakil Pimpinan",
   },
+  {
+    username: "andipratama",
+    password: "user123",
+    role: "User",
+    name: "Andi Pratama",
+    email: "andi@kemnaker.go.id",
+    dept: "Biro Keuangan",
+    status: "Aktif",
+  },
 ];
 
 export default function LoginPage() {
@@ -29,6 +38,9 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  const returnTo = location.state?.from?.pathname || "/dashboard";
+  const isBookingLogin = returnTo.startsWith("/booking");
 
   const getLoginAccounts = () => {
     let stored = [];
@@ -86,7 +98,7 @@ export default function LoginPage() {
         localStorage.setItem("savedAccounts", JSON.stringify(saved));
       }
 
-      navigate("/dashboard");
+      navigate(returnTo, { replace: true });
     } else {
       alert("Username atau password salah!");
     }
@@ -132,8 +144,10 @@ export default function LoginPage() {
       {/* Right Login Form Panel */}
       <div className="login-right-panel">
         <div className="login-card">
-          <h2 className="login-title">Login Dashboard</h2>
-          <p className="login-subtitle">Masuk untuk kelola Ruang Rapat</p>
+          <h2 className="login-title">{isBookingLogin ? "Login Booking" : "Login Dashboard"}</h2>
+          <p className="login-subtitle">
+            {isBookingLogin ? "Masuk untuk memesan Ruang Rapat" : "Masuk untuk kelola Ruang Rapat"}
+          </p>
 
           <form onSubmit={handleLogin} className="login-form">
             <div className="login-form-group">
@@ -225,6 +239,7 @@ export default function LoginPage() {
             <button type="submit" className="login-submit-btn">
               Masuk
             </button>
+
 
             <div style={{ marginTop: "24px", paddingTop: "18px", borderTop: "1px dashed #cbd5e1" }}>
               <div style={{ fontSize: "12px", fontWeight: "700", color: "#475569", marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.5px" }}>

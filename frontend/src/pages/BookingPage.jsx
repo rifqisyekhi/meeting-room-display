@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { useLocation } from "react-router-dom";
 import { CiClock2 } from "react-icons/ci";
 import {
   FaUserFriends,
@@ -23,8 +24,8 @@ import { HiSpeakerWave } from "react-icons/hi2";
 import { IoWaterSharp } from "react-icons/io5";
 import { IoLogoWhatsapp } from "react-icons/io";
 import { sanitizeMeetings } from "../utils/devSession";
+import BookingAccountBar from "../components/BookingAccountBar";
 import "./BookingPage.css";
-import logo from "../assets/Logo Kemenaker White.png";
 import imgRuangRapatBesar from "../assets/Ruang Rapat Besar.jpeg";
 import imgRuangKonsultasi from "../assets/Ruang Konsultasi.jpeg";
 
@@ -109,8 +110,29 @@ const FacilityIcon = ({ type }) => {
 };
 
 export default function BookingPage() {
+  const location = useLocation();
+  const suggestedBooking = location.state?.bookingRecommendation;
+  const currentUser = useMemo(() => {
+    try {
+      return JSON.parse(localStorage.getItem("currentUser") || "{}");
+    } catch {
+      return {};
+    }
+  }, []);
   const [selectedCategory, setSelectedCategory] = useState("Semua");
-  const [selectedRoom, setSelectedRoom] = useState(null);
+  const [selectedRoom, setSelectedRoom] = useState(() => {
+    if (!suggestedBooking?.room) return null;
+    const template = defaultRooms.find((room) => room.name.toLowerCase() === suggestedBooking.room.toLowerCase());
+    return {
+      ...(template || {}),
+      id: template?.id || `recommended-${suggestedBooking.room}`,
+      name: suggestedBooking.room,
+      capacity: suggestedBooking.capacity || template?.capacity || 20,
+      location: suggestedBooking.location || template?.location || "",
+      img: suggestedBooking.image || template?.img || imgRuangRapatBesar,
+      images: template?.images || [suggestedBooking.image || template?.img || imgRuangRapatBesar],
+    };
+  });
   const [weekOffset, setWeekOffset] = useState(0);
 
   const getWeekDays = (offset = 0) => {
@@ -144,24 +166,62 @@ export default function BookingPage() {
 
   const days = getWeekDays(weekOffset);
   const [selectedDate, setSelectedDate] = useState(() => {
+    if (suggestedBooking?.date) return suggestedBooking.date;
     const today = new Date();
     const y = today.getFullYear();
     const m = String(today.getMonth() + 1).padStart(2, "0");
     const d = String(today.getDate()).padStart(2, "0");
     return `${y}-${m}-${d}`;
   });
-  const [selectedTime, setSelectedTime] = useState(null);
+  useEffect(() => {
+    if (!suggestedBooking?.date) return;
+    const requestedDate = new Date(`${suggestedBooking.date}T00:00:00`);
+    if (Number.isNaN(requestedDate.getTime())) return;
+    const mondayOf = (date) => {
+      const value = new Date(date);
+      value.setHours(0, 0, 0, 0);
+      value.setDate(value.getDate() - ((value.getDay() + 6) % 7));
+      return value;
+    };
+    const weeks = Math.round((mondayOf(requestedDate) - mondayOf(new Date())) / (7 * 24 * 60 * 60 * 1000));
+    setWeekOffset(weeks);
+  }, [suggestedBooking?.date]);
+  const [selectedTime, setSelectedTime] = useState(() =>
+    suggestedBooking?.start && suggestedBooking?.end
+      ? `${suggestedBooking.start} - ${suggestedBooking.end}`
+      : null,
+  );
 
   // Time picker state: start & end hours (numpad input) & minutes (00 / 30)
-  const [startHour, setStartHour] = useState("00");
-  const [startMinute, setStartMinute] = useState("00");
-  const [endHour, setEndHour] = useState("00");
-  const [endMinute, setEndMinute] = useState("00");
+  const [startHour, setStartHour] = useState(() => suggestedBooking?.start?.split(":")[0] || "00");
+  const [startMinute, setStartMinute] = useState(() => suggestedBooking?.start?.split(":")[1] || "00");
+  const [endHour, setEndHour] = useState(() => suggestedBooking?.end?.split(":")[0] || "00");
+  const [endMinute, setEndMinute] = useState(() => suggestedBooking?.end?.split(":")[1] || "00");
 
-  const [agenda, setAgenda] = useState("");
-  const [bagian, setBagian] = useState("");
-  const [customBagian, setCustomBagian] = useState("");
-  const [peserta, setPeserta] = useState("");
+  const [agenda, setAgenda] = useState(suggestedBooking?.title || "");
+  const [bagian, setBagian] = useState(() => {
+    try {
+      const user = JSON.parse(localStorage.getItem("currentUser") || "{}");
+      const department = (user.dept || "").trim().toUpperCase();
+      return ["TU", "AKLAP", "BMN", "PA", "PTUK"].includes(department)
+        ? department
+        : department ? "Other" : "";
+    } catch {
+      return "";
+    }
+  });
+  const [customBagian, setCustomBagian] = useState(() => {
+    try {
+      const user = JSON.parse(localStorage.getItem("currentUser") || "{}");
+      const department = (user.dept || "").trim();
+      return department && !["TU", "AKLAP", "BMN", "PA", "PTUK"].includes(department.toUpperCase())
+        ? department
+        : "";
+    } catch {
+      return "";
+    }
+  });
+  const [peserta, setPeserta] = useState(suggestedBooking?.participants ? String(suggestedBooking.participants) : "");
 
   // Modal notification state, facility modal state & room detail modal state
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -178,7 +238,7 @@ export default function BookingPage() {
         ? 3
         : 2
       : 1;
-  const [mobileStep, setMobileStep] = useState(1); // 1, 2, 3
+  const [mobileStep, setMobileStep] = useState(suggestedBooking ? 3 : 1); // 1, 2, 3
 
   const [allMeetings, setAllMeetings] = useState([]);
 
@@ -425,6 +485,8 @@ export default function BookingPage() {
       id: Date.now(),
       title: agenda,
       requester: finalBagian,
+      bookedBy: currentUser.name || currentUser.username || "",
+      bookedByUsername: currentUser.username || "",
       room: selectedRoom?.name,
       date: selectedDate,
       start,
@@ -696,7 +758,9 @@ export default function BookingPage() {
               <div
                 key={d.full}
                 className={`bk-day-box ${selectedDate === d.full ? "active" : ""}`}
-                onClick={() => setSelectedDate(d.full)}
+                onClick={() => {
+                  setSelectedDate(d.full);
+                }}
               >
                 <span className="bk-day-name">{d.day}</span>
                 <span className="bk-day-num">{d.date}</span>
@@ -975,22 +1039,7 @@ export default function BookingPage() {
     <div className="bk-container">
       {/* Header */}
       <header className="bk-header">
-        <div className="bk-logo-area">
-          <div className="bk-logo-left">
-            <img src={logo} alt="Logo" className="bk-logo" />
-            <span className="bk-logo-text">BIRO KEUANGAN DAN BMN</span>
-          </div>
-          <a
-            href="http://wa.me/+6285122777026"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="bk-header-wa-btn"
-            title="Hubungi Bantuan via WhatsApp"
-          >
-            <IoLogoWhatsapp className="bk-header-wa-icon" />
-            <span>Hubungi Bantuan</span>
-          </a>
-        </div>
+        <BookingAccountBar currentUser={currentUser} />
         <div className="bk-header-content">
           <h1>BOOKING RUANG RAPAT</h1>
           <p>
