@@ -20,6 +20,8 @@ export default function App() {
         {/* Tampilan Layar TV / Display Ruangan */}
         <Route path="/" element={<DisplayPage />} />
         <Route path="/display" element={<DisplayPage />} />
+        <Route path="/tv" element={<DisplayPage />} />
+        <Route path="/TV" element={<DisplayPage />} />
 
         {/* Halaman Login */}
         <Route path="/login" element={<LoginPage />} />
