@@ -23,7 +23,8 @@
   color: white;
   padding: 0;
   position: relative;
-  overflow: hidden;
+  z-index: 30;
+  overflow: visible;
 }
 
 .bk-logo-area {
@@ -1355,9 +1356,7 @@
   }
 }
 
-/* ────────────────────────────────────────────
-   TABLET (768–1023px) — 2-col grid
-──────────────────────────────────────────── */
+
 @media (min-width: 768px) and (max-width: 1023px) {
   .bk-desktop {
     grid-template-columns: 1fr 1fr;
