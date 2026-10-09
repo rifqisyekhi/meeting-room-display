@@ -27,14 +27,6 @@
       "status": "Aktif"
     },
     {
-      "id": 2,
-      "name": "Andi Pratama",
-      "email": "andi@kemnaker.go.id",
-      "dept": "Biro Keuangan",
-      "role": "User",
-      "status": "Aktif"
-    },
-    {
       "id": 3,
       "name": "Siti Rahma",
       "email": "siti@kemnaker.go.id",
@@ -64,7 +56,7 @@
       "username": "approval1",
       "email": "pimpinan@kemnaker.go.id",
       "dept": "Biro Keuangan dan BMN",
-      "role": "Approval 1",
+      "role": "Approval",
       "status": "Aktif"
     },
     {
@@ -73,7 +65,7 @@
       "username": "approval2",
       "email": "wakil.pimpinan@kemnaker.go.id",
       "dept": "Biro Keuangan dan BMN",
-      "role": "Approval 2",
+      "role": "Approval",
       "status": "Aktif"
     }
   ],
@@ -90,7 +82,7 @@
       "participants": 20,
       "desc": "testing by sakeh",
       "createdAt": "2026-10-07T05:59:29.630Z",
-      "approvedBy": "Pimpinan - Approval 1",
+      "approvedBy": "Pimpinan - Approval",
       "approvedAt": "2026-10-07T06:01:39.054Z",
       "googleId": "73b0rm47pmi6p7olqq151vsp88"
     }

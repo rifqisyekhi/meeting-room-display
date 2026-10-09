@@ -13,13 +13,13 @@ const dummyDB = [
   {
     username: "approval1",
     password: "approval123",
-    role: "Approval 1",
+    role: "Approval",
     name: "Pimpinan",
   },
   {
     username: "approval2",
     password: "approval234",
-    role: "Approval 2",
+    role: "Approval",
     name: "Wakil Pimpinan",
   },
 ];
@@ -73,18 +73,37 @@ export default function LoginPage() {
       localStorage.setItem("isAuthenticated", "true");
       localStorage.setItem("currentUser", JSON.stringify(userData));
 
-      // Selalu sinkronkan nama & role di savedAccounts dengan akun login terbaru
-      let saved = JSON.parse(localStorage.getItem("savedAccounts") || "[]");
+      // Sinkronkan savedAccounts: jika bukan tambah akun lain, hanya simpan akun yang login saat ini
+      const isAdding = sessionStorage.getItem("isAddingAccount") === "true";
+      sessionStorage.removeItem("isAddingAccount");
+
+      let saved = isAdding
+        ? JSON.parse(localStorage.getItem("savedAccounts") || "[]")
+        : [];
+
+      // Filter nama Andi Pratama dan normalisasi role Approval
+      saved = saved
+        .filter(
+          (u) =>
+            (u.name || "").toLowerCase() !== "andi pratama" &&
+            (u.username || "").toLowerCase() !== "andipratama",
+        )
+        .map((u) => {
+          if (u.role === "Approval 1" || u.role === "Approval 2") {
+            return { ...u, role: "Approval" };
+          }
+          return u;
+        });
+
       const existingIdx = saved.findIndex(
         (u) => (u.username || "").toLowerCase() === user.username.toLowerCase(),
       );
       if (existingIdx >= 0) {
         saved[existingIdx] = userData;
-        localStorage.setItem("savedAccounts", JSON.stringify(saved));
       } else {
         saved.push(userData);
-        localStorage.setItem("savedAccounts", JSON.stringify(saved));
       }
+      localStorage.setItem("savedAccounts", JSON.stringify(saved));
 
       navigate("/dashboard");
     } else {
@@ -248,7 +267,7 @@ export default function LoginPage() {
                     fontSize: "12px",
                   }}
                 >
-                  <span>👑 <b>Atasan (Pimpinan)</b> - <code>approval1</code></span>
+                  <span><b>Atasan (Pimpinan)</b> - <code>approval1</code></span>
                   <span style={{ fontWeight: 600, fontSize: "11px", background: "#dcfce7", padding: "2px 6px", borderRadius: "4px" }}>Bisa Approve</span>
                 </button>
 
@@ -269,7 +288,7 @@ export default function LoginPage() {
                     fontSize: "12px",
                   }}
                 >
-                  <span>👑 <b>Atasan (Wakil Pimpinan)</b> - <code>approval2</code></span>
+                  <span><b>Atasan (Wakil Pimpinan)</b> - <code>approval2</code></span>
                   <span style={{ fontWeight: 600, fontSize: "11px", background: "#dcfce7", padding: "2px 6px", borderRadius: "4px" }}>Bisa Approve</span>
                 </button>
 
@@ -290,7 +309,7 @@ export default function LoginPage() {
                     fontSize: "12px",
                   }}
                 >
-                  <span>🛡️ <b>Admin Utama</b> - <code>admin</code></span>
+                  <span><b>Admin Utama</b> - <code>admin</code></span>
                   <span style={{ fontWeight: 600, fontSize: "11px", background: "#dbeafe", padding: "2px 6px", borderRadius: "4px" }}>Monitoring & Check-In</span>
                 </button>
               </div>

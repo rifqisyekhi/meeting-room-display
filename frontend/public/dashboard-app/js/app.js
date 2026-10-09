@@ -8,14 +8,20 @@ function isAtasanRole(user) {
   if (role === "administrator" || role.includes("admin") || uname === "admin") {
     return false;
   }
-  return role.includes("approval") || role.includes("pimpinan") || role.includes("atasan");
+  return (
+    role.includes("approval") ||
+    role.includes("pimpinan") ||
+    role.includes("atasan")
+  );
 }
 
 function isAdminRole(user) {
   if (!user) return false;
   const role = (user.role || "").toLowerCase();
   const uname = (user.username || "").toLowerCase();
-  return role === "administrator" || role.includes("admin") || uname === "admin";
+  return (
+    role === "administrator" || role.includes("admin") || uname === "admin"
+  );
 }
 
 function getTodayIsoDate() {
@@ -52,11 +58,26 @@ function isDummyMeeting(m) {
   if (!m) return false;
   const title = (m.title || m.agenda || "").toLowerCase();
   const date = m.date || "";
-  const organizer = (m.organizer || m.requester || m.bagian || "").toLowerCase();
-  if (title.includes("biro keuangan") || title.includes("rapat koordinasi biro keuangan")) return true;
+  const organizer = (
+    m.organizer ||
+    m.requester ||
+    m.bagian ||
+    ""
+  ).toLowerCase();
+  if (
+    title.includes("biro keuangan") ||
+    title.includes("rapat koordinasi biro keuangan")
+  )
+    return true;
   if (date === "2026-09-22" || date === "22 Sep 2026") return true;
   if (organizer.includes("andi") && title.includes("koordinasi")) return true;
-  if ((m.id === 1 || m.id === "1") && (title.includes("koordinasi") || date.includes("2026-09-22") || organizer.includes("andi"))) return true;
+  if (
+    (m.id === 1 || m.id === "1") &&
+    (title.includes("koordinasi") ||
+      date.includes("2026-09-22") ||
+      organizer.includes("andi"))
+  )
+    return true;
   return false;
 }
 
@@ -82,7 +103,11 @@ function sanitizeMeetings(list) {
     if (!m) return m;
     // Rapat otomatis selesai jika jam berakhir rapat sudah lewat
     if (isMeetingFinished(m, now)) {
-      if (m.status === "Berjalan" || m.status === "Akan Datang" || m.status === "Segera") {
+      if (
+        m.status === "Berjalan" ||
+        m.status === "Akan Datang" ||
+        m.status === "Segera"
+      ) {
         return { ...m, status: "Selesai" };
       }
     }
@@ -98,8 +123,10 @@ function sanitizeMeetings(list) {
   const sorted = [...filtered].sort((a, b) => {
     if (a.googleId && !b.googleId) return -1;
     if (!a.googleId && b.googleId) return 1;
-    if (a.status !== "Menunggu Approval" && b.status === "Menunggu Approval") return -1;
-    if (a.status === "Menunggu Approval" && b.status !== "Menunggu Approval") return 1;
+    if (a.status !== "Menunggu Approval" && b.status === "Menunggu Approval")
+      return -1;
+    if (a.status === "Menunggu Approval" && b.status !== "Menunggu Approval")
+      return 1;
     return 0;
   });
 
@@ -111,7 +138,10 @@ function sanitizeMeetings(list) {
     const idKey = m.googleId ? `gid_${m.googleId}` : `id_${m.id}`;
     const slotKey = `slot_${date}_${start}_${room}`;
 
-    if (seenKeys.has(idKey) || (date && start && room && seenKeys.has(slotKey))) {
+    if (
+      seenKeys.has(idKey) ||
+      (date && start && room && seenKeys.has(slotKey))
+    ) {
       continue;
     }
 
@@ -127,7 +157,11 @@ function sanitizeMeetings(list) {
 function purgeAllDummyData() {
   try {
     const storages = [window.localStorage];
-    if (window.parent && window.parent.localStorage && window.parent.localStorage !== window.localStorage) {
+    if (
+      window.parent &&
+      window.parent.localStorage &&
+      window.parent.localStorage !== window.localStorage
+    ) {
       storages.push(window.parent.localStorage);
     }
     storages.forEach((s) => {
@@ -148,8 +182,17 @@ function purgeAllDummyData() {
           const listN = JSON.parse(notifs);
           if (Array.isArray(listN)) {
             const cleanN = listN.filter((n) => {
-              const text = (n.title || n.description || n.message || "").toLowerCase();
-              return !(text.includes("biro keuangan") || text.includes("andi pratama") || text.includes("2026-09-22"));
+              const text = (
+                n.title ||
+                n.description ||
+                n.message ||
+                ""
+              ).toLowerCase();
+              return !(
+                text.includes("biro keuangan") ||
+                text.includes("andi pratama") ||
+                text.includes("2026-09-22")
+              );
             });
             s.setItem("app_notifications", JSON.stringify(cleanN));
           }
@@ -253,7 +296,10 @@ const state = {
                 ? "/dashboard-app/assets/Ruang Konsultasi.jpeg"
                 : "/dashboard-app/assets/Ruang Rapat Besar.jpeg";
             }
-            let imgs = Array.isArray(r.images) && r.images.length > 0 ? r.images : [primaryImg];
+            let imgs =
+              Array.isArray(r.images) && r.images.length > 0
+                ? r.images
+                : [primaryImg];
             return {
               ...r,
               image: primaryImg,
@@ -284,7 +330,7 @@ const state = {
         password: "approval123",
         email: "pimpinan@kemnaker.go.id",
         dept: "Biro Keuangan dan BMN",
-        role: "Approval 1",
+        role: "Approval",
         status: "Aktif",
       },
       {
@@ -294,17 +340,7 @@ const state = {
         password: "approval234",
         email: "wakil.pimpinan@kemnaker.go.id",
         dept: "Biro Keuangan dan BMN",
-        role: "Approval 2",
-        status: "Aktif",
-      },
-      {
-        id: 2,
-        name: "Andi Pratama",
-        username: "andipratama",
-        password: "user123",
-        email: "andi@kemnaker.go.id",
-        dept: "Biro Keuangan",
-        role: "User",
+        role: "Approval",
         status: "Aktif",
       },
     ];
@@ -326,6 +362,19 @@ const state = {
           list.push(lu);
         }
       });
+      // Filter out Andi Pratama and normalize Approval roles
+      list = list
+        .filter(
+          (u) =>
+            (u.name || "").toLowerCase() !== "andi pratama" &&
+            (u.username || "").toLowerCase() !== "andipratama",
+        )
+        .map((u) => {
+          if (u.role === "Approval 1" || u.role === "Approval 2") {
+            return { ...u, role: "Approval" };
+          }
+          return u;
+        });
       return list;
     } catch (e) {}
     return defaultUsers;
@@ -375,7 +424,7 @@ const ICONS = {
   ),
   // TiExport — react-icons/ti (viewBox 0 0 24 24)
   export: svgIcon(
-    '<path d="M8 16.5v.5c1.691-2.578 3.6-3.953 6-4v3c0 .551.511 1 1.143 1 .364 0 .675-.158.883-.391 1.933-2.029 5.974-6.109 5.974-6.109s-4.041-4.082-5.975-6.137c-.208-.205-.518-.363-.882-.363-.632 0-1.143.447-1.143 1v3c-4.66 0-6 4.871-6 8.5zM5 21h14c.553 0 1-.448 1-1v-6.046c-.664.676-1.364 1.393-2 2.047v2.999h-12v-12h7v-2h-8c-.553 0-1 .448-1 1v14c0 .552.447 1 1 1z"/>',
+    '<path d="M22.711 9.796c-.041-.041-4.055-4.096-5.982-6.146-.42-.414-.999-.65-1.586-.65-1.182 0-2.143.896-2.143 2h-8c-.553 0-1 .448-1 1v14c0 .552.447 1 1 1h14c.553 0 1-.448 1-1v-6.045c1.434-1.461 2.688-2.729 2.711-2.751.387-.39.387-1.018 0-1.408zm-7.432 6.145l-.136.059-.144-.04v-3.96h-1c-1.771.034-3.336.68-4.753 1.958.43-2.215 1.6-4.958 4.753-4.958h1v-3.958l.144-.042.154.05c1.436 1.525 4.051 4.187 5.297 5.45-.253.257-4.342 4.422-5.315 5.441zm-9.279 3.059v-12h8v1c-4.66 0-6 4.871-6 8.5v.5c1.691-2.578 3.6-3.953 6-4v3c0 .551.512 1 1.143 1 .364 0 .676-.158.883-.391.539-.565 1.242-1.291 1.976-2.043v4.434h-12.002z"/>',
     "0 0 24 24",
   ),
 };
@@ -386,7 +435,6 @@ const nav = [
   ["rooms", ICONS.rooms, "Manajemen Ruangan"],
   ["users", ICONS.users, "Pengguna"],
   ["calendar", ICONS.calendar, "Kalender"],
-  ["reports", ICONS.reports, "Laporan"],
   ["settings", ICONS.settings, "Pengaturan"],
 ];
 
@@ -464,7 +512,6 @@ function layout(content) {
         "rooms",
         "users",
         "calendar",
-        "reports",
         "settings",
       ].includes(state.page)
         ? ""
@@ -476,11 +523,10 @@ function layout(content) {
         <button class="btn btn-light" onclick="fetchDashboardData(true)" style="padding:6px 12px;font-size:12px;display:flex;align-items:center;gap:4px;white-space:nowrap;" title="Sinkronkan data terbaru dari Google Calendar / backend">
           🔄 Sinkron
         </button>
-        <span>🔔</span>
         ${getProfileHTML()}
       </div>
     </header>`
-    }<section class="content" ${["dashboard", "meetings", "rooms", "users", "calendar", "reports", "settings"].includes(state.page) ? 'style="padding:0;max-width:none;"' : ""}>${content}</section></main></div><div id="modal" class="modal-backdrop"></div>`;
+    }<section class="content" ${["dashboard", "meetings", "rooms", "users", "calendar", "settings"].includes(state.page) ? 'style="padding:0;max-width:none;"' : ""}>${content}</section></main></div><div id="modal" class="modal-backdrop"></div>`;
 }
 
 // ----------------------------------------------------------------------
@@ -628,23 +674,10 @@ function playNotificationSound() {
 
 function toggleNotifDropdown(e) {
   if (e) e.stopPropagation();
-  const dropdown = document.getElementById("notifDropdown");
-  const profileDropdown = document.getElementById("profileDropdown");
-  if (profileDropdown) profileDropdown.style.display = "none";
-
-  if (dropdown) {
-    const isShowing = dropdown.style.display === "block";
-    dropdown.style.display = isShowing ? "none" : "block";
-    if (!isShowing) {
-      dropdown.innerHTML = getNotifDropdownContentHTML(getCurrentUser());
-    }
-  }
 }
 
 function closeNotifDropdown(e) {
   if (e) e.stopPropagation();
-  const dropdown = document.getElementById("notifDropdown");
-  if (dropdown) dropdown.style.display = "none";
 }
 
 function markAllNotifsRead(e) {
@@ -665,21 +698,15 @@ function markAllNotifsRead(e) {
 function approveMeetingFromNotif(e, id) {
   if (e) e.stopPropagation();
   approveMeeting(id);
-  const dropdown = document.getElementById("notifDropdown");
-  if (dropdown) {
-    dropdown.innerHTML = getNotifDropdownContentHTML(getCurrentUser());
-  }
 }
 
 function rejectMeetingFromNotif(e, id) {
   if (e) e.stopPropagation();
-  closeNotifDropdown();
   rejectMeeting(id);
 }
 
 function viewMeetingFromNotif(e, id) {
   if (e) e.stopPropagation();
-  closeNotifDropdown();
   if (state.page !== "meetings") {
     state.page = "meetings";
     location.hash = "meetings";
@@ -737,7 +764,7 @@ function openNotifFromToast(id, btn) {
   setTimeout(() => viewMeeting(id), 120);
 }
 
-function getNotifDropdownContentHTML(currentUser) {
+function getDashboardNotifPanelHTML(currentUser) {
   const notifs = getNotifications();
   const canApprove = isAtasanRole(currentUser);
   const pendingCount = notifs.filter((n) =>
@@ -747,22 +774,21 @@ function getNotifDropdownContentHTML(currentUser) {
   let itemsHTML = "";
   if (notifs.length === 0) {
     itemsHTML = `
-      <div class="notif-empty-state">
+      <div class="notif-empty-state" style="padding:40px 20px;text-align:center;width:100%;">
         <div style="font-size:32px;margin-bottom:8px;">🔔</div>
-        <div style="font-size:13.5px;font-weight:600;color:#0c2d5e;">Tidak Ada Notifikasi</div>
-        <div style="font-size:12px;color:#94a3b8;margin-top:4px;">Belum ada request peminjaman ruangan saat ini.</div>
+        <div style="font-size:14px;font-weight:700;color:#0c2d5e;">Tidak Ada Notifikasi</div>
+        <div style="font-size:12px;color:#94a3b8;margin-top:2px;">Belum ada request peminjaman ruangan saat ini.</div>
       </div>
     `;
   } else {
     itemsHTML = notifs
       .map((n) => {
-        const m = state.meetings.find((x) => String(x.id) === String(n.meetingId)) || n;
+        const m =
+          state.meetings.find((x) => String(x.id) === String(n.meetingId)) || n;
         const isPending = (m.status || "").toLowerCase().includes("menunggu");
         const isApproved =
           m.status === "Akan Datang" ||
-          (!isPending &&
-            m.status !== "Dibatalkan" &&
-            m.approvedBy);
+          (!isPending && m.status !== "Dibatalkan" && m.approvedBy);
         const isRejected = m.status === "Dibatalkan";
         const isPriorityCancel =
           n.type === "CANCELED_PRIORITY" ||
@@ -773,37 +799,37 @@ function getNotifDropdownContentHTML(currentUser) {
 
         let statusBadge = "";
         if (isPriorityCancel) {
-          statusBadge = `<span class="notif-status-badge rejected" style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;">✕ Dibatalkan (Prioritas Ka. Biro)</span>`;
+          statusBadge = `<span class="notif-status-badge rejected" style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;font-size:10.5px;padding:3px 8px;border-radius:10px;font-weight:600;display:inline-block;white-space:nowrap;">✕ Dibatalkan (Prioritas)</span>`;
         } else if (isPending) {
-          statusBadge = `<span class="notif-status-badge pending">⏳ Menunggu Persetujuan Atasan</span>`;
+          statusBadge = `<span class="notif-status-badge pending" style="background:#fff7ed;color:#ea580c;border:1px solid #fed7aa;font-size:10.5px;padding:3px 8px;border-radius:10px;font-weight:600;display:inline-block;white-space:nowrap;">⏳ Menunggu Persetujuan</span>`;
         } else if (isApproved) {
-          statusBadge = `<span class="notif-status-badge approved">✓ Disetujui (${esc(m.approvedBy || "Pimpinan")})</span>`;
+          statusBadge = `<span class="notif-status-badge approved" style="background:#ecfdf5;color:#15803d;border:1px solid #bbf7d0;font-size:10.5px;padding:3px 8px;border-radius:10px;font-weight:600;display:inline-block;white-space:nowrap;">✓ Disetujui (${esc(m.approvedBy || "Pimpinan")})</span>`;
         } else if (isRejected) {
-          statusBadge = `<span class="notif-status-badge rejected">✕ Dibatalkan</span>`;
+          statusBadge = `<span class="notif-status-badge rejected" style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;font-size:10.5px;padding:3px 8px;border-radius:10px;font-weight:600;display:inline-block;white-space:nowrap;">✕ Dibatalkan</span>`;
         } else {
-          statusBadge = `<span class="notif-status-badge default">${esc(m.status)}</span>`;
+          statusBadge = `<span class="notif-status-badge default" style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;font-size:10.5px;padding:3px 8px;border-radius:10px;font-weight:600;display:inline-block;white-space:nowrap;">${esc(m.status)}</span>`;
         }
 
         let actionsHTML = "";
         if (isPending) {
           if (canApprove) {
             actionsHTML = `
-              <div class="notif-action-row">
-                <button class="notif-btn-approve" onclick="approveMeetingFromNotif(event, '${esc(m.id)}')">✓ Setujui</button>
-                <button class="notif-btn-reject" onclick="rejectMeetingFromNotif(event, '${esc(m.id)}')">✕ Tolak</button>
+              <div class="notif-action-row" style="display:flex;gap:6px;">
+                <button class="notif-btn-approve" onclick="approveMeetingFromNotif(event, '${esc(m.id)}')" style="background:#16a34a;color:#fff;border:none;padding:5px 10px;border-radius:6px;font-size:11.5px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:3px;transition:background 0.15s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">✓ Setujui</button>
+                <button class="notif-btn-reject" onclick="rejectMeetingFromNotif(event, '${esc(m.id)}')" style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;padding:5px 10px;border-radius:6px;font-size:11.5px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:3px;transition:background 0.15s;" onmouseover="this.style.background='#fecaca'" onmouseout="this.style.background='#fee2e2'">✕ Tolak</button>
               </div>
             `;
           } else {
             actionsHTML = `
               <div class="notif-action-row">
-                <button class="notif-btn-view" onclick="viewMeetingFromNotif(event, '${esc(m.id)}')">Lihat Detail</button>
+                <button class="notif-btn-view" onclick="viewMeeting('${esc(m.id)}')" style="background:#1d4ed8;color:#fff;border:none;padding:5px 12px;border-radius:6px;font-size:11.5px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;transition:background 0.15s;" onmouseover="this.style.background='#1e40af'" onmouseout="this.style.background='#1d4ed8'">Lihat Detail</button>
               </div>
             `;
           }
         } else {
           actionsHTML = `
             <div class="notif-action-row">
-              <button class="notif-btn-view" onclick="viewMeetingFromNotif(event, '${esc(m.id)}')">Detail Rapat</button>
+              <button class="notif-btn-view" onclick="viewMeeting('${esc(m.id)}')" style="background:#1d4ed8;color:#fff;border:none;padding:5px 12px;border-radius:6px;font-size:11.5px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;transition:background 0.15s;" onmouseover="this.style.background='#1e40af'" onmouseout="this.style.background='#1d4ed8'">Detail Rapat</button>
             </div>
           `;
         }
@@ -824,38 +850,51 @@ function getNotifDropdownContentHTML(currentUser) {
               : "#dc2626";
 
         return `
-          <div class="notif-item ${isPending ? "highlight-pending" : ""}" style="${isPriorityCancel ? "border-left: 4px solid #ef4444;" : ""}">
-            <div class="notif-item-top">
-              <div style="display:flex;align-items:flex-start;gap:10px;">
-                <div style="width:34px;height:34px;border-radius:50%;background:${iconBg};color:${iconColor};display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;margin-top:2px;">
+          <div class="dash-notif-item ${isPending ? "highlight-pending" : ""}" style="${isPriorityCancel ? "border-left: 4px solid #ef4444;" : isApproved ? "border-left: 4px solid #16a34a;" : ""}">
+            <!-- Top: Icon, Judul, Waktu -->
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
+              <div style="display:flex;align-items:flex-start;gap:8px;min-width:0;flex:1;">
+                <div style="width:28px;height:28px;border-radius:8px;background:${iconBg};color:${iconColor};display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;margin-top:1px;">
                   ${isPriorityCancel ? "⚠️" : isPending ? "⏳" : isApproved ? "✓" : "✕"}
                 </div>
-                <div>
-                  <div class="notif-item-title" style="${isPriorityCancel ? "color:#b91c1c;font-weight:700;" : ""}">${esc(n.title || m.title || "Request Pemesanan")}</div>
-                  <div class="notif-item-requester">Pemohon: <b>${esc(m.requester || "Bagian")}</b></div>
+                <div style="min-width:0;flex:1;">
+                  <div class="notif-item-title" style="font-size:13px;font-weight:700;${isPriorityCancel ? "color:#b91c1c;" : "color:#0c2d5e;"}white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3;" title="${esc(n.title || m.title || "Permintaan Booking")}">
+                    ${esc(n.title || m.title || "Permintaan Booking")}
+                  </div>
+                  <div class="notif-item-requester" style="font-size:11.5px;color:#4b6a90;margin-top:2px;">
+                    Pemohon: <b style="color:#0c2d5e;">${esc(m.requester || "Bagian")}</b>
+                  </div>
                 </div>
               </div>
-              <div class="notif-item-time">${getTimeAgo(n.createdAt)}</div>
+              <span class="notif-item-time" style="font-size:10.5px;color:#94a3b8;white-space:nowrap;flex-shrink:0;margin-top:2px;">
+                ${getTimeAgo(n.createdAt)}
+              </span>
             </div>
 
-            <div class="notif-item-meta-box">
-              <div class="notif-meta-col">🏛️ <b>Ruang:</b> ${esc(m.room)}</div>
-              <div class="notif-meta-col">📅 <b>Jadwal:</b> ${formatDate(m.date)} (${m.start || ""}-${m.end || ""})</div>
+            <!-- Detail Ruang & Jadwal -->
+            <div class="notif-item-meta-box" style="background:#f8fafc;border:1px solid #eef2f6;border-radius:8px;padding:7px 10px;font-size:11.5px;color:#334155;display:flex;flex-direction:column;gap:3px;margin:2px 0;">
+              <div>🏛️ <b>Ruang:</b> <span style="font-weight:600;color:#0c2d5e;">${esc(m.room)}</span></div>
+              <div style="color:#64748b;">📅 <b>Jadwal:</b> ${formatDate(m.date)} (${m.start || ""}-${m.end || ""})</div>
             </div>
 
             ${
               isPriorityCancel
                 ? `
-              <div style="margin-top:8px;font-size:11.5px;color:#991b1b;background:#fef2f2;border:1px solid #fecaca;padding:8px 12px;border-radius:8px;line-height:1.45;">
-                ⚠️ <b>Pemberitahuan Pemesan (${esc(m.requester || "Pemesan")}):</b> Pemesanan ruangan ini otomatis dibatalkan karena ruangan akan digunakan untuk agenda rapat <b>Kepala Biro Keuangan dan BMN</b>.
+              <div style="font-size:11px;color:#991b1b;background:#fef2f2;border:1px solid #fecaca;padding:5px 8px;border-radius:6px;line-height:1.35;">
+                ⚠️ Dialihkan untuk <b>Ka. Biro Keuangan</b>.
               </div>
             `
                 : ""
             }
 
-            <div class="notif-item-bottom">
-              <div>${statusBadge}</div>
-              <div>${actionsHTML}</div>
+            <!-- Bottom: Status Badge & Aksi -->
+            <div class="notif-item-bottom" style="display:flex;align-items:center;justify-content:space-between;margin-top:3px;flex-wrap:wrap;gap:8px;">
+              <div>
+                ${statusBadge}
+              </div>
+              <div>
+                ${actionsHTML}
+              </div>
             </div>
           </div>
         `;
@@ -864,32 +903,28 @@ function getNotifDropdownContentHTML(currentUser) {
   }
 
   return `
-    <div class="notif-dropdown-header">
-      <div style="display:flex;align-items:center;gap:8px;">
-        <span style="font-weight:700;font-size:14.5px;color:#0c2d5e;">Notifikasi</span>
-        ${pendingCount > 0 ? `<span class="notif-pending-pill">${pendingCount} Request Menunggu</span>` : ""}
+    <div class="dash-section-header" style="margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid #eef3f9;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="display:flex;align-items:center;gap:6px;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0c2d5e" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+          <h2 style="font-size:16px;font-weight:700;color:#0c2d5e;margin:0;">Notifikasi & Permintaan</h2>
+        </div>
+        ${pendingCount > 0 ? `<span class="notif-pending-pill" style="font-size:11px;padding:3px 9px;background:#ffedd5;color:#c2410c;border-radius:12px;font-weight:700;">${pendingCount} Menunggu</span>` : ""}
       </div>
-      ${notifs.length > 0 ? `<button type="button" class="notif-mark-read-btn" onclick="markAllNotifsRead(event)">Tandai Dibaca</button>` : ""}
+      ${notifs.length > 0 ? `<button type="button" class="notif-mark-read-btn" style="font-size:12px;color:#1769aa;font-weight:600;padding:5px 10px;border-radius:6px;background:#f0f7ff;border:none;cursor:pointer;transition:background 0.15s;" onmouseover="this.style.background='#e0f0fe'" onmouseout="this.style.background='#f0f7ff'" onclick="markAllNotifsRead(event)">Tandai Dibaca</button>` : ""}
     </div>
-    <div class="notif-dropdown-body">
+    <div id="dashNotifBody" class="dash-notif-body">
       ${itemsHTML}
     </div>
-    <div class="notif-dropdown-footer">
-      <a href="#meetings" onclick="closeNotifDropdown(event)">
-        <span>Buka Semua di Manajemen Rapat</span>
-        <span>→</span>
+    <div style="padding-top:12px;margin-top:auto;border-top:1px solid #eef3f9;display:flex;align-items:center;justify-content:flex-end;">
+      <a href="#meetings" style="font-size:12px;font-weight:600;color:#1769aa;text-decoration:none;display:flex;align-items:center;gap:4px;transition:opacity 0.15s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">
+        Buka Semua di Manajemen Rapat <span>→</span>
       </a>
     </div>
   `;
 }
 
 function getProfileHTML() {
-  const defaultAccounts = [
-    { username: "approval1", name: "Pimpinan", role: "Approval 1", dept: "Biro Keuangan dan BMN" },
-    { username: "approval2", name: "Wakil Pimpinan", role: "Approval 2", dept: "Biro Keuangan dan BMN" },
-    { username: "admin", name: "Admin Utama", role: "Administrator", dept: "Biro Keuangan dan BMN" },
-  ];
-
   let currentUser = {
     username: "admin",
     name: "Admin Utama",
@@ -900,67 +935,63 @@ function getProfileHTML() {
     if (stored) currentUser = JSON.parse(stored);
   } catch (e) {}
 
-  let savedAccounts = [...defaultAccounts];
+  if (currentUser.role === "Approval 1" || currentUser.role === "Approval 2") {
+    currentUser.role = "Approval";
+  }
+
+  let savedAccounts = [];
   try {
     const storedSaved = getAppStorage().getItem("savedAccounts");
     if (storedSaved) {
       const parsed = JSON.parse(storedSaved);
       if (Array.isArray(parsed)) {
-        parsed.forEach((u) => {
-          const idx = savedAccounts.findIndex((x) => x.username.toLowerCase() === (u.username || "").toLowerCase());
-          if (idx >= 0) {
-            savedAccounts[idx] = { ...savedAccounts[idx], ...u };
-          } else if (u.username) {
-            savedAccounts.push(u);
-          }
-        });
+        savedAccounts = parsed;
       }
     }
   } catch (e) {}
+
+  savedAccounts = savedAccounts
+    .filter(
+      (u) =>
+        (u.name || "").toLowerCase() !== "andi pratama" &&
+        (u.username || "").toLowerCase() !== "andipratama",
+    )
+    .map((u) => {
+      if (u.role === "Approval 1" || u.role === "Approval 2") {
+        return { ...u, role: "Approval" };
+      }
+      return u;
+    });
 
   const initial = currentUser.name
     ? currentUser.name.charAt(0).toUpperCase()
     : "A";
 
-  const savedItems = savedAccounts
-    .filter((u) => (u.username || "").toLowerCase() !== (currentUser.username || "").toLowerCase())
-    .map(
-      (u) => {
-        const isAtasan = (u.role || "").toLowerCase().includes("approval") || (u.role || "").toLowerCase().includes("pimpinan");
-        return `
-    <div onclick="switchToAccount(event, '${esc(u.username)}')" style="padding:10px 14px;cursor:pointer;font-size:12px;font-weight:500;border-bottom:1px solid #e2e8f0;color:#333;display:flex;flex-direction:column;gap:2px;transition:background 0.15s;" onmouseover="this.style.background='${isAtasan ? "#f0fdf4" : "#eff6ff"}'" onmouseout="this.style.background='white'">
-      <div style="display:flex;align-items:center;gap:8px;font-weight:600;color:#0f172a;">${isAtasan ? "👑" : "🛡️"} ${esc(u.name)}</div>
-      <small style="color:${isAtasan ? "#16a34a" : "#2563eb"};margin-left:22px;font-weight:600;">Role: ${esc(u.role)} ${isAtasan ? "(Hak Akses Approve)" : "(Monitoring & Check In)"}</small>
-    </div>
-  `;
-      },
-    )
-    .join("");
+  const otherAccounts = savedAccounts.filter(
+    (u) =>
+      (u.username || "").toLowerCase() !==
+      (currentUser.username || "").toLowerCase(),
+  );
 
-  const unreadCount = getUnreadNotifCount(currentUser);
-  const badgeHTML =
-    unreadCount > 0
-      ? `<span class="notif-badge">${unreadCount > 9 ? "9+" : unreadCount}</span>`
-      : "";
+  const savedItems =
+    otherAccounts.length > 0
+      ? otherAccounts
+          .map((u) => {
+            const isAtasan =
+              (u.role || "").toLowerCase().includes("approval") ||
+              (u.role || "").toLowerCase().includes("pimpinan");
+            return `
+      <div onclick="switchToAccount(event, '${esc(u.username)}')" style="padding:10px 14px;cursor:pointer;font-size:12px;font-weight:500;border-bottom:1px solid #e2e8f0;color:#333;display:flex;flex-direction:column;gap:2px;transition:background 0.15s;" onmouseover="this.style.background='${isAtasan ? "#f0fdf4" : "#eff6ff"}'" onmouseout="this.style.background='white'">
+        <div style="font-weight:600;color:#0f172a;">${esc(u.name)}</div>
+        <small style="color:${isAtasan ? "#16a34a" : "#2563eb"};font-weight:600;">Role: ${esc(u.role)} ${isAtasan ? "(Hak Akses Approve)" : "(Monitoring & Check In)"}</small>
+      </div>
+    `;
+          })
+          .join("")
+      : `<div style="padding:10px 14px;font-size:12px;color:#94a3b8;border-bottom:1px solid #e2e8f0;font-style:italic;">Tidak ada akun lain tersimpan</div>`;
 
   return `
-    <div style="display:flex;align-items:center;gap:16px;">
-      <!-- Bell Notification Container -->
-      <div class="notif-container" id="notifContainer" style="position:relative;">
-        <button
-          type="button"
-          class="notif-bell-btn"
-          onclick="toggleNotifDropdown(event)"
-          title="Notifikasi Permintaan Booking Ruang Rapat"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0c2d5e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
-          ${badgeHTML}
-        </button>
-        <div id="notifDropdown" class="notif-dropdown" style="display:none;">
-          ${getNotifDropdownContentHTML(currentUser)}
-        </div>
-      </div>
-
+    <div style="display:flex;align-items:center;">
       <!-- Profile Menu -->
       <div class="profile" onclick="toggleProfileMenu()" style="cursor:pointer;position:relative;display:flex;align-items:center;gap:12px;">
         <div class="avatar" style="width:40px;height:40px;border-radius:50%;background:#fff;color:#0c2d5e;font-weight:700;font-size:16px;display:flex;align-items:center;justify-content:center;border:2px solid #d4e6f6;flex-shrink:0;">${initial}</div>
@@ -971,8 +1002,8 @@ function getProfileHTML() {
         <div id="profileDropdown" style="display:none;position:absolute;top:120%;right:0;background:white;border-radius:8px;box-shadow:0 10px 25px rgba(0,0,0,0.15);width:260px;z-index:100;overflow:hidden;border:1px solid #e2e8f0;text-align:left;">
           <div style="padding:10px 14px;font-size:11px;font-weight:700;color:#64748b;background:#f8fafc;border-bottom:1px solid #e2e8f0;text-transform:uppercase;letter-spacing:0.5px;">Ganti Akun Cepat</div>
           ${savedItems}
-          <div onclick="switchRole(event)" style="padding:11px 14px;cursor:pointer;font-size:12.5px;font-weight:500;border-bottom:1px solid #e2e8f0;color:#334155;display:flex;align-items:center;gap:8px;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">➕ Tambah Akun Lain</div>
-          <div onclick="logout(event)" style="padding:11px 14px;cursor:pointer;font-size:12.5px;font-weight:600;color:#dc2626;display:flex;align-items:center;gap:8px;" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='white'">🚪 Log Out</div>
+          <div onclick="switchRole(event)" style="padding:11px 14px;cursor:pointer;font-size:12.5px;font-weight:500;border-bottom:1px solid #e2e8f0;color:#334155;display:flex;align-items:center;gap:8px;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">Tambah Akun Lain</div>
+          <div onclick="logout(event)" style="padding:11px 14px;cursor:pointer;font-size:12.5px;font-weight:600;color:#dc2626;display:flex;align-items:center;gap:8px;" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='white'">Log Out</div>
         </div>
       </div>
     </div>
@@ -981,30 +1012,27 @@ function getProfileHTML() {
 
 function switchToAccount(e, username) {
   if (e) e.stopPropagation();
-  const defaultAccounts = [
-    { username: "approval1", name: "Pimpinan", role: "Approval 1", dept: "Biro Keuangan dan BMN" },
-    { username: "approval2", name: "Wakil Pimpinan", role: "Approval 2", dept: "Biro Keuangan dan BMN" },
-    { username: "admin", name: "Admin Utama", role: "Administrator", dept: "Biro Keuangan dan BMN" },
-  ];
-  let allAccounts = [...defaultAccounts];
+  let allAccounts = [];
   try {
     const storedSaved = getAppStorage().getItem("savedAccounts");
     if (storedSaved) {
-      const parsed = JSON.parse(storedSaved);
-      if (Array.isArray(parsed)) {
-        parsed.forEach((u) => {
-          const idx = allAccounts.findIndex((x) => x.username.toLowerCase() === (u.username || "").toLowerCase());
-          if (idx >= 0) allAccounts[idx] = { ...allAccounts[idx], ...u };
-          else if (u.username) allAccounts.push(u);
-        });
-      }
+      allAccounts = JSON.parse(storedSaved) || [];
     }
   } catch (err) {}
 
-  const user = allAccounts.find((u) => (u.username || "").toLowerCase() === (username || "").toLowerCase());
+  const user = allAccounts.find(
+    (u) => (u.username || "").toLowerCase() === (username || "").toLowerCase(),
+  );
   if (user) {
+    if (user.role === "Approval 1" || user.role === "Approval 2") {
+      user.role = "Approval";
+    }
     getAppStorage().setItem("currentUser", JSON.stringify(user));
     getAppStorage().setItem("isAuthenticated", "true");
+    try {
+      localStorage.setItem("currentUser", JSON.stringify(user));
+      localStorage.setItem("isAuthenticated", "true");
+    } catch (e) {}
     window.location.reload();
   }
 }
@@ -1040,7 +1068,16 @@ document.addEventListener("click", (e) => {
 
 function switchRole(e) {
   if (e) e.stopPropagation();
+  try {
+    sessionStorage.setItem("isAddingAccount", "true");
+    if (window.parent && window.parent.sessionStorage) {
+      window.parent.sessionStorage.setItem("isAddingAccount", "true");
+    }
+  } catch (err) {}
   getAppStorage().removeItem("isAuthenticated");
+  try {
+    localStorage.removeItem("isAuthenticated");
+  } catch (err) {}
   window.parent.location.href = "/login";
 }
 
@@ -1053,302 +1090,497 @@ function pageHead(title, desc, button = "") {
 }
 
 function dashboard() {
-  const running = state.meetings.filter((x) => x.status === "Berjalan").length;
-  const soon = state.meetings.filter((x) => x.status === "Akan Datang").length;
-  const done = state.meetings.filter((x) => x.status === "Selesai").length;
-
-  const faCheck = svgIcon(
-    '<path d="M173.898 439.404l-166.4-166.4c-9.997-9.997-9.997-26.206 0-36.204l36.203-36.204c9.997-9.998 26.207-9.998 36.204 0L192 312.69 432.095 72.596c9.997-9.997 26.207-9.997 36.204 0l36.203 36.204c9.997 9.997 9.997 26.206 0 36.204l-294.4 294.401c-9.998 9.997-26.207 9.997-36.204-.001z"/>',
-    "0 0 512 512",
-    'width="24" height="24"',
+  const liaUsersSolid = svgIcon(
+    '<path d="M 11.5 6 C 9.578125 6 8 7.578125 8 9.5 C 8 11.421875 9.578125 13 11.5 13 C 13.421875 13 15 11.421875 15 9.5 C 15 7.578125 13.421875 6 11.5 6 Z M 20.5 6 C 18.578125 6 17 7.578125 17 9.5 C 17 11.421875 18.578125 13 20.5 13 C 22.421875 13 24 11.421875 24 9.5 C 24 7.578125 22.421875 6 20.5 6 Z M 11.5 8 C 12.339844 8 13 8.660156 13 9.5 C 13 10.339844 12.339844 11 11.5 11 C 10.660156 11 10 10.339844 10 9.5 C 10 8.660156 10.660156 8 11.5 8 Z M 20.5 8 C 21.339844 8 22 8.660156 22 9.5 C 22 10.339844 21.339844 11 20.5 11 C 19.660156 11 19 10.339844 19 9.5 C 19 8.660156 19.660156 8 20.5 8 Z M 7 12 C 4.800781 12 3 13.800781 3 16 C 3 17.113281 3.476563 18.117188 4.21875 18.84375 C 2.886719 19.746094 2 21.28125 2 23 L 4 23 C 4 21.332031 5.332031 20 7 20 C 8.667969 20 10 21.332031 10 23 L 12 23 C 12 21.28125 11.113281 19.746094 9.78125 18.84375 C 10.523438 18.117188 11 17.113281 11 16 C 11 13.800781 9.199219 12 7 12 Z M 12 23 C 11.375 23.835938 11 24.886719 11 26 L 13 26 C 13 24.332031 14.332031 23 16 23 C 17.667969 23 19 24.332031 19 26 L 21 26 C 21 24.886719 20.625 23.835938 20 23 C 19.660156 22.546875 19.25 22.160156 18.78125 21.84375 C 19.523438 21.117188 20 20.113281 20 19 C 20 16.800781 18.199219 15 16 15 C 13.800781 15 12 16.800781 12 19 C 12 20.113281 12.476563 21.117188 13.21875 21.84375 C 12.75 22.160156 12.339844 22.546875 12 23 Z M 20 23 L 22 23 C 22 21.332031 23.332031 20 25 20 C 26.667969 20 28 21.332031 28 23 L 30 23 C 30 21.28125 29.113281 19.746094 27.78125 18.84375 C 28.523438 18.117188 29 17.113281 29 16 C 29 13.800781 27.199219 12 25 12 C 22.800781 12 21 13.800781 21 16 C 21 17.113281 21.476563 18.117188 22.21875 18.84375 C 20.886719 19.746094 20 21.28125 20 23 Z M 7 14 C 8.117188 14 9 14.882813 9 16 C 9 17.117188 8.117188 18 7 18 C 5.882813 18 5 17.117188 5 16 C 5 14.882813 5.882813 14 7 14 Z M 25 14 C 26.117188 14 27 14.882813 27 16 C 27 17.117188 26.117188 18 25 18 C 23.882813 18 23 17.117188 23 16 C 23 14.882813 23.882813 14 25 14 Z M 16 17 C 17.117188 17 18 17.882813 18 19 C 18 20.117188 17.117188 21 16 21 C 14.882813 21 14 20.117188 14 19 C 14 17.882813 14.882813 17 16 17 Z"/>',
+    "0 0 32 32",
+    'width="28" height="28"',
   );
   const faClock = svgIcon(
     '<path d="M256,8C119,8,8,119,8,256S119,504,256,504,504,393,504,256,393,8,256,8Zm92.49,313h0l-20,25a16,16,0,0,1-22.49,2.5h0l-67-49.72a40,40,0,0,1-15-31.23V112a16,16,0,0,1,16-16h32a16,16,0,0,1,16,16V256l58,42.5A16,16,0,0,1,348.49,321Z"/>',
     "0 0 512 512",
     'width="24" height="24"',
   );
-  const faPlay = svgIcon(
-    '<path d="M424.4 214.7L72.4 6.6C43.8-10.3 0 6.1 0 47.9V464c0 37.5 40.7 60.1 72.4 41.3l352-208c31.4-18.5 31.5-64.1 0-82.6z"/>',
-    "0 0 448 512",
-    'width="20" height="20"',
+  const faUsers = svgIcon(
+    '<path d="M96 224c35.3 0 64-28.7 64-64s-28.7-64-64-64-64 28.7-64 64 28.7 64 64 64zm448 0c35.3 0 64-28.7 64-64s-28.7-64-64-64-64 28.7-64 64 28.7 64 64 64zm32 32h-64c-17.6 0-33.5 7.1-45.1 18.6 40.3 22.1 68.9 62 75.1 109.4h66c17.7 0 32-14.3 32-32v-32c0-35.3-28.7-64-64-64zm-256 0c61.9 0 112-50.1 112-112S381.9 32 320 32 208 82.1 208 144s50.1 112 112 112zm76.8 32h-8.3c-20.8 10-43.9 16-68.5 16s-47.6-6-68.5-16h-8.3C179.6 288 128 339.6 128 403.2V432c0 26.5 21.5 48 48 48h288c26.5 0 48-21.5 48-48v-28.8c0-63.6-51.6-115.2-115.2-115.2zm-223.7-13.4C161.5 263.1 145.6 256 128 256H64c-35.3 0-64 28.7-64 64v32c0 17.7 14.3 32 32 32h65.9c6.3-47.4 34.9-87.3 75.2-109.4z"/>',
+    "0 0 640 512",
+    'width="26" height="26"',
   );
-  const faCalendarAlt = svgIcon(
-    '<path d="M0 464c0 26.5 21.5 48 48 48h352c26.5 0 48-21.5 48-48V192H0v272zm320-196c0-6.6 5.4-12 12-12h40c6.6 0 12 5.4 12 12v40c0 6.6-5.4 12-12 12h-40c-6.6 0-12-5.4-12-12v-40zm0 128c0-6.6 5.4-12 12-12h40c6.6 0 12 5.4 12 12v40c0 6.6-5.4 12-12 12h-40c-6.6 0-12-5.4-12-12v-40zM192 268c0-6.6 5.4-12 12-12h40c6.6 0 12 5.4 12 12v40c0 6.6-5.4 12-12 12h-40c-6.6 0-12-5.4-12-12v-40zm0 128c0-6.6 5.4-12 12-12h40c6.6 0 12 5.4 12 12v40c0 6.6-5.4 12-12 12h-40c-6.6 0-12-5.4-12-12v-40zM64 268c0-6.6 5.4-12 12-12h40c6.6 0 12 5.4 12 12v40c0 6.6-5.4 12-12 12H76c-6.6 0-12-5.4-12-12v-40zm0 128c0-6.6 5.4-12 12-12h40c6.6 0 12 5.4 12 12v40c0 6.6-5.4 12-12 12H76c-6.6 0-12-5.4-12-12v-40zM400 64h-48V16c0-8.8-7.2-16-16-16h-32c-8.8 0-16 7.2-16 16v48H160V16c0-8.8-7.2-16-16-16h-32c-8.8 0-16 7.2-16 16v48H48C21.5 64 0 85.5 0 112v48h448v-48c0-26.5-21.5-48-48-48z"/>',
-    "0 0 448 512",
-    'width="20" height="20"',
+  const bsBuilding = svgIcon(
+    '<path d="M2 1a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v7.256A4.5 4.5 0 0 0 12.5 8a4.5 4.5 0 0 0-3.59 1.787A.5.5 0 0 0 9 9.5v-1a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .39-.187A4.5 4.5 0 0 0 8.027 12H6.5a.5.5 0 0 0-.5.5V16H3a1 1 0 0 1-1-1zm2 1.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5m3 0v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5m3.5-.5a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5zM4 5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5M7.5 5a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5zm2.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5M4.5 8a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5z"/><path d="M11.886 9.46c.18-.613 1.048-.613 1.229 0l.043.148a.64.64 0 0 0 .921.382l.136-.074c.561-.306 1.175.308.87.869l-.075.136a.64.64 0 0 0 .382.92l.149.045c.612.18.612 1.048 0 1.229l-.15.043a.64.64 0 0 0-.38.921l.074.136c.305.561-.309 1.175-.87.87l-.136-.075a.64.64 0 0 0-.92.382l-.045.149c-.18.612-1.048.612-1.229 0l-.043-.15a.64.64 0 0 0-.921-.38l-.136.074c-.561.305-1.175-.309-.87-.87l.075-.136a.64.64 0 0 0-.382-.92l-.148-.045c-.613-.18-.613-1.048 0-1.229l.148-.043a.64.64 0 0 0 .382-.921l-.074-.136c-.306-.561.308-1.175.869-.87l.136.075a.64.64 0 0 0 .92-.382zM14 12.5a1.5 1.5 0 1 0-3 0 1.5 1.5 0 0 0 3 0"/>',
+    "0 0 16 16",
+    'width="24" height="24" fill="currentColor"',
+  );
+  // TiExport — react-icons/ti (viewBox 0 0 24 24)
+  const tiExport = svgIcon(
+    '<path d="M22.711 9.796c-.041-.041-4.055-4.096-5.982-6.146-.42-.414-.999-.65-1.586-.65-1.182 0-2.143.896-2.143 2h-8c-.553 0-1 .448-1 1v14c0 .552.447 1 1 1h14c.553 0 1-.448 1-1v-6.045c1.434-1.461 2.688-2.729 2.711-2.751.387-.39.387-1.018 0-1.408zm-7.432 6.145l-.136.059-.144-.04v-3.96h-1c-1.771.034-3.336.68-4.753 1.958.43-2.215 1.6-4.958 4.753-4.958h1v-3.958l.144-.042.154.05c1.436 1.525 4.051 4.187 5.297 5.45-.253.257-4.342 4.422-5.315 5.441zm-9.279 3.059v-12h8v1c-4.66 0-6 4.871-6 8.5v.5c1.691-2.578 3.6-3.953 6-4v3c0 .551.512 1 1.143 1 .364 0 .676-.158.883-.391.539-.565 1.242-1.291 1.976-2.043v4.434h-12.002z"/>',
+    "0 0 24 24",
+  );
+  const faEye = svgIcon(
+    '<path d="M572.52 241.4C518.29 135.59 410.93 64 288 64S57.68 135.64 3.48 241.41a32.35 32.35 0 0 0 0 29.19C57.71 376.41 165.07 448 288 448s230.32-71.64 284.52-177.41a32.35 32.35 0 0 0 0-29.19zM288 400a144 144 0 1 1 144-144 143.93 143.93 0 0 1-144 144zm0-240a95.31 95.31 0 0 0-25.31 3.79 47.85 47.85 0 0 1-66.9 66.9A95.78 95.78 0 1 0 288 160z"/>',
+    "0 0 576 512",
+    'width="16" height="16"',
   );
 
   const customCSS = `
     <style>
-      .dashboard-wrapper {
-        background: linear-gradient(180deg, #d4e6f6 0%, #edf5fc 300px);
-        min-height: 100vh;
+      .rep-page-wrapper { background: linear-gradient(180deg, #d4e6f6 0%, #edf5fc 300px); min-height: 100vh; display: flex; flex-direction: column; }
+      .rep-header { display: flex; justify-content: space-between; align-items: flex-start; padding: 30px 40px 24px; }
+      .rep-breadcrumb { font-size: 12px; color: #4b6a90; margin-bottom: 8px; font-weight: 500; }
+      .rep-header h1 { font-size: 28px; font-weight: 700; color: #0c2d5e; margin-bottom: 6px; }
+      .rep-header p { color: #4b6a90; font-size: 14px; font-weight: 500; }
+      
+      .rep-filters-row { display: flex; justify-content: space-between; align-items: center; padding: 0 40px 20px; }
+      .rep-filters-left { display: flex; gap: 12px; align-items: center; }
+      .rep-filters-left select, .rep-filters-left button { padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; outline: none; border: 1px solid #e2eaf5; cursor: pointer; }
+      .rep-filters-left select { background: #fff; color: #0c2d5e; min-width: 150px; appearance: none; -webkit-appearance: none; padding-right: 32px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%230c2d5e' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; }
+      .rep-filters-left .btn-white { background: #fff; color: #4b6a90; }
+      .rep-filters-left .btn-blue { background: #1769aa; color: #fff; }
+      .rep-export-btn { background: #0c2d5e; color: #fff; border: none; padding: 8px 20px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+      
+      .rep-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; padding: 0 40px 24px; }
+      .rep-card { background: rgba(255,255,255,0.85); border-radius: 12px; padding: 20px; display: flex; align-items: center; gap: 16px; box-shadow: 0 4px 20px rgba(12, 45, 94, 0.04); }
+      .rc-icon { width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center; }
+      .rc-icon.blue1 { background: #e6f0fa; color: #1769aa; }
+      .rc-text strong { display: block; font-size: 24px; font-weight: 700; color: #0c2d5e; line-height: 1.1; }
+      .rc-text span { display: block; font-size: 12px; font-weight: 500; color: #4b6a90; margin-top: 4px; }
+      
+      .rep-charts { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 20px; padding: 0 40px 24px; }
+      .rep-chart-card { background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 4px 20px rgba(12, 45, 94, 0.04); }
+      .rep-chart-card h2 { font-size: 16px; font-weight: 700; color: #0c2d5e; margin-bottom: 20px; }
+      
+      .rep-list { background: #fff; margin: 0 40px 40px; border-radius: 12px; padding: 24px; box-shadow: 0 4px 20px rgba(12, 45, 94, 0.04); }
+      .rep-list table { width: 100%; border-collapse: collapse; }
+      .rep-list th { text-align: left; padding: 12px 16px; color: #4b6a90; font-weight: 600; font-size: 13px; border-bottom: 1px solid #eef3f9; }
+      .rep-list td { padding: 16px; color: #0c2d5e; font-size: 13px; font-weight: 500; border-bottom: 1px solid #f4f8fc; }
+
+      /* Middle Grid: Charts on the left, Notifications & Requests on the right */
+      .dash-middle-grid { display: grid; grid-template-columns: 1.55fr 1fr; gap: 20px; padding: 0 40px 24px; align-items: stretch; }
+      @media (max-width: 1200px) { .dash-middle-grid { grid-template-columns: 1fr; } }
+      .dash-charts-col { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+      .dash-charts-subgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; min-width: 0; }
+      @media (max-width: 768px) { .dash-charts-subgrid { grid-template-columns: 1fr; } }
+      /* Bottom Grid: Meetings Table & Notifications side-by-side */
+      .dash-bottom-grid { display: grid; grid-template-columns: 1.65fr 1fr; gap: 20px; padding: 0 40px 40px; align-items: stretch; }
+      @media (max-width: 1200px) { .dash-bottom-grid { grid-template-columns: 1fr; } }
+      .dash-table-col { min-width: 0; display: flex; flex-direction: column; }
+      .dash-table-col .dash-table-card { width: 100%; flex: 1; display: flex; flex-direction: column; box-sizing: border-box; }
+      .dash-table-col .dash-table-wrapper { flex: 1; }
+      .dash-notif-col { min-width: 0; display: flex; flex-direction: column; }
+      .dash-notif-col .dash-notif-card { width: 100%; height: 100%; flex: 1; display: flex; flex-direction: column; box-sizing: border-box; }
+      .dash-notif-col .dash-notif-body { flex: 1; min-height: 250px; max-height: 560px; overflow-y: auto; }
+
+      /* Layout Template Khusus Approval & Non-Admin (Sesuai Sketsa) */
+      .dash-approval-layout {
+        display: grid;
+        grid-template-columns: 1.7fr 1fr;
+        gap: 20px;
+        padding: 0 40px 40px;
+        align-items: stretch;
+      }
+      @media (max-width: 1200px) {
+        .dash-approval-layout {
+          grid-template-columns: 1fr;
+        }
+      }
+      .dash-approval-left {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        min-width: 0;
+      }
+      .dash-approval-left .dash-table-card {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        margin: 0;
+        box-sizing: border-box;
+      }
+      .dash-approval-left .dash-table-wrapper {
+        flex: 1;
+      }
+      .dash-approval-right {
+        min-width: 0;
         display: flex;
         flex-direction: column;
       }
-      .dash-header {
+      .dash-approval-right .dash-notif-card {
+        width: 100%;
+        height: 100%;
+        flex: 1;
         display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        padding: 40px 40px 30px;
+        flex-direction: column;
+        box-sizing: border-box;
       }
-      .dash-title h1 {
-        font-size: 28px;
-        font-weight: 700;
-        color: #0c2d5e;
-        margin-bottom: 6px;
+      .dash-approval-right .dash-notif-body {
+        flex: 1;
+        min-height: 250px;
+        max-height: 560px;
+        overflow-y: auto;
       }
-      .dash-title p {
-        color: #4b6a90;
-        font-size: 14px;
-        font-weight: 500;
-      }
-      .dash-actions {
-        display: flex;
-        align-items: center;
-        gap: 24px;
-      }
-      .dash-bell {
-        width: 44px;
-        height: 44px;
-        border-radius: 50%;
-        background: rgba(255,255,255,0.7);
-        display: grid;
-        place-items: center;
-        position: relative;
-        cursor: pointer;
-        font-size: 16px;
-      }
-      .dash-bell::after {
-        content: '';
-        position: absolute;
-        top: 12px;
-        right: 14px;
-        width: 6px;
-        height: 6px;
-        background: red;
-        border-radius: 50%;
-      }
-      /* Inherited profile styling is slightly adjusted here */
-      .dash-actions .profile {
-        margin: 0;
-        background: transparent;
-      }
-      .dash-actions .avatar {
-        background: rgba(255,255,255,0.6);
-        color: #0c2d5e;
-        border: 1px solid #d4e6f6;
-      }
-      
-      .dash-cards {
+
+      /* Compact Stat Cards (Sejajar dengan Tabel Rapat) */
+      .rep-cards-compact {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
-        gap: 20px;
-        padding: 0 40px 30px;
+        gap: 12px;
       }
-      .d-card {
-        background: rgba(255,255,255,0.85);
-        border: 1px solid #fff;
-        border-radius: 16px;
-        padding: 24px;
-        display: flex;
-        align-items: center;
-        gap: 18px;
-        box-shadow: 0 10px 30px rgba(12, 45, 94, 0.05);
-        backdrop-filter: blur(10px);
+      @media (max-width: 900px) {
+        .rep-cards-compact {
+          grid-template-columns: repeat(2, 1fr);
+        }
       }
-      .dc-icon {
-        width: 56px;
-        height: 56px;
-        border-radius: 50%;
-        display: grid;
-        place-items: center;
-      }
-      .dc-icon.blue { background: #e6f0fa; color: #1769aa; }
-      .dc-icon.green { background: #e2f7ec; color: #13865b; }
-      .dc-icon.yellow { background: #fff5da; color: #aa7600; }
-      .dc-icon.purple { background: #efeaff; color: #1769aa; } /* used purple bg but blue icon matching mockup */
-      
-      .dc-text strong {
-        display: block;
-        font-size: 26px;
-        font-weight: 700;
-        color: #0c2d5e;
-        line-height: 1.1;
-      }
-      .dc-text span {
-        display: block;
-        font-size: 14px;
-        font-weight: 600;
-        color: #0c2d5e;
-        margin-top: 4px;
-      }
-      .dc-text small {
-        display: block;
-        font-size: 11px;
-        color: #4b6a90;
-        margin-top: 2px;
-        font-weight: 500;
-      }
-      
-      .dash-table-container {
-        flex: 1;
-        background: #fff;
-        border-radius: 30px 30px 0 0;
-        padding: 30px 40px;
-        box-shadow: 0 -4px 20px rgba(0,0,0,0.02);
-        margin: 0;
-      }
-      .dash-table-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 24px;
-      }
-      .dash-table-title {
+      .rep-card-compact {
+        background: #ffffff;
+        border-radius: 12px;
+        padding: 12px 14px;
         display: flex;
         align-items: center;
         gap: 12px;
-        font-size: 16px;
-        font-weight: 600;
-        color: #0c2d5e;
+        box-shadow: 0 4px 18px rgba(12, 45, 94, 0.04);
+        border: 1px solid #eef3f9;
+        min-width: 0;
       }
-      .dash-table-title svg { color: #1769aa; }
-      
-      .dash-btn-add {
-        background: #003b8e;
-        color: #fff;
-        padding: 9px 18px;
-        border-radius: 8px;
+      .rc-icon-compact {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        display: grid;
+        place-items: center;
+        flex-shrink: 0;
+        background: #e6f0fa;
+        color: #1769aa;
+      }
+      .rc-icon-compact svg {
+        width: 20px !important;
+        height: 20px !important;
+      }
+      .rc-text-compact {
+        min-width: 0;
+      }
+      .rc-text-compact strong {
+        display: block;
+        font-size: 18px;
         font-weight: 700;
-        font-size: 13.5px;
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        cursor: pointer;
-        border: none;
-        box-shadow: 0 4px 12px rgba(0, 59, 142, 0.2);
-        transition: transform 0.15s, background 0.15s;
-        font-family: inherit;
-      }
-      .dash-btn-add:hover {
-        background: #002e70;
-        transform: translateY(-1px);
-      }
-      
-      .dash-table-footer {
-        display: flex;
-        justify-content: flex-end;
-        align-items: center;
-        margin-top: 20px;
-        padding-top: 4px;
-      }
-      
-      .dash-link {
-        color: #004b93;
-        font-size: 14.5px;
-        font-weight: 600;
-        text-decoration: none;
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        transition: opacity 0.2s;
-        font-family: inherit;
-        cursor: pointer;
-      }
-      .dash-link-text {
-        text-decoration: underline;
-        text-underline-offset: 3px;
-      }
-      .dash-link:hover { opacity: 0.8; }
-      .dash-link:hover .dash-link-arrow { transform: translateX(3px); }
-      .dash-link-arrow { transition: transform 0.2s; }
-      
-      /* Force table style */
-      .dash-table-container .table th {
-        background: #f4f8fc;
         color: #0c2d5e;
-        font-weight: 600;
-        border-bottom: 1px solid #eef3f9;
+        line-height: 1.15;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
-      .dash-table-container .table td {
-        border-bottom: 1px solid #f4f8fc;
+      .rc-text-compact span {
+        display: block;
+        font-size: 11px;
+        font-weight: 500;
+        color: #4b6a90;
+        margin-top: 2px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
-      .dash-table-container .table tr:hover td {
-        background: #f9fbff;
+
+      .dash-notif-card { background: #fff; border-radius: 12px; padding: 22px 24px; box-shadow: 0 4px 20px rgba(12, 45, 94, 0.04); display: flex; flex-direction: column; min-width: 0; }
+      .dash-section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 14px; border-bottom: 1px solid #eef3f9; }
+      .dash-notif-body {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        max-height: 480px;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding-right: 4px;
+        scroll-behavior: smooth;
       }
+      .dash-notif-body::-webkit-scrollbar { width: 5px; }
+      .dash-notif-body::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
+      .dash-notif-body::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+      .dash-notif-body::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+      .dash-notif-item {
+        width: 100%;
+        box-sizing: border-box;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 13px 15px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        transition: all 0.15s ease;
+        box-shadow: 0 2px 6px rgba(12, 45, 94, 0.03);
+      }
+      .dash-notif-item:hover {
+        background: #f8fafc;
+        border-color: #cbd5e1;
+        box-shadow: 0 4px 12px rgba(12, 45, 94, 0.06);
+      }
+      .dash-notif-item.highlight-pending {
+        background: #fffcf8;
+        border: 1.5px solid #fed7aa;
+        border-left: 4px solid #ea580c;
+        box-shadow: 0 3px 12px rgba(234, 88, 12, 0.08);
+      }
+      
+      /* Bottom Meeting Table Card */
+      .dash-table-card { background: #fff; margin: 0; border-radius: 12px; padding: 24px; box-shadow: 0 4px 20px rgba(12, 45, 94, 0.04); display: flex; flex-direction: column; }
+      .dash-table-wrapper { overflow-x: auto; width: 100%; -webkit-overflow-scrolling: touch; }
+      .dash-table-wrapper table { width: 100%; border-collapse: collapse; }
+      .dash-table-wrapper th { text-align: left; padding: 12px 14px; color: #4b6a90; font-weight: 600; font-size: 13px; border-bottom: 1px solid #eef3f9; white-space: nowrap; }
+      .dash-table-wrapper td { padding: 14px; color: #0c2d5e; font-size: 13px; font-weight: 500; border-bottom: 1px solid #f4f8fc; }
+      
+      /* Chart Mocks */
+      .mock-bar-chart { display: flex; align-items: flex-end; gap: 12px; height: 200px; padding-top: 20px; }
+      .mock-bar { background: #82b1ff; width: 100%; border-radius: 4px 4px 0 0; position: relative; }
+      .mock-bar.dark { background: #1769aa; }
+      .mock-bar span { position: absolute; top: -20px; width: 100%; text-align: center; font-size: 10px; color: #4b6a90; }
+      
+      .mock-donut { width: 180px; height: 180px; border-radius: 50%; margin: 0 auto; background: conic-gradient(#1f9e5c 0 57%, #f8b449 57% 83%, #8ab4f8 83% 100%); position: relative; }
+      .mock-donut::after { content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 0; height: 0; background: #fff; border-radius: 50%; }
+      
+      .mock-stacked-bar { height: 70px; background: #4a4a4a; display: flex; margin-bottom: 24px; }
+      .mock-stacked-bar-fill { height: 100%; background: #4285f4; }
     </style>
+  `;
+
+  const currentUser = getCurrentUser();
+  const isAdmin = isAdminRole(currentUser);
+
+  let customTableHTML = `
+    <div class="dash-table-card" style="margin:0;">
+      <div class="dash-section-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid #eef3f9;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0c2d5e" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+          <h2 style="font-size:16px;font-weight:700;color:#0c2d5e;margin:0;">Jadwal Rapat Hari Ini</h2>
+        </div>
+        <button type="button" class="btn btn-primary" onclick="openMeetingModal()" style="background:#0c2d5e;color:#fff;border:none;padding:9px 18px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:background 0.15s;box-shadow:0 2px 6px rgba(12,45,94,0.15);" onmouseover="this.style.background='#133b75'" onmouseout="this.style.background='#0c2d5e'">
+          <span style="font-size:16px;font-weight:700;line-height:1;">+</span>
+          <span>Tambah Rapat</span>
+        </button>
+      </div>
+      <div class="dash-table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:36px;text-align:center;">No</th>
+              <th>Judul Rapat</th>
+              <th>Pemesan</th>
+              <th>Ruangan</th>
+              <th>Tanggal</th>
+              <th>Waktu</th>
+              <th>Status</th>
+              <th style="text-align:center;">Aksi</th>
+            </tr>
+          </thead>
+          <tbody>
+  `;
+
+  if (!state.meetings || state.meetings.length === 0) {
+    customTableHTML += `<tr><td colspan="8" style="text-align:center;padding:36px;color:#8c9ba5;font-weight:500;">Belum ada jadwal rapat</td></tr>`;
+  } else {
+    state.meetings.forEach((m, i) => {
+      let statusColor = "#e0f2fe";
+      let statusText = "#0284c7";
+      if (m.status === "Berjalan") {
+        statusColor = "#dcfce7";
+        statusText = "#15803d";
+      } else if (m.status === "Selesai") {
+        statusColor = "#e0f2fe";
+        statusText = "#0284c7";
+      } else if (m.status === "Akan Datang") {
+        statusColor = "#fef3c7";
+        statusText = "#b45309";
+      } else if (m.status === "Dibatalkan") {
+        statusColor = "#fee2e2";
+        statusText = "#dc2626";
+      } else if (m.status === "Segera") {
+        statusColor = "#ffedd5";
+        statusText = "#c2410c";
+      } else {
+        statusColor = "#fff7ed";
+        statusText = "#ea580c";
+      }
+
+      let actionBtn = `<button style="background-color:#f1f5f9;color:#0c2d5e;border:none;border-radius:50%;width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:background 0.15s;" title="Lihat Detail" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'" onclick="viewMeeting('${m.id}')">${faEye}</button>`;
+
+      customTableHTML += `<tr>
+        <td style="text-align:center;">${i + 1}</td>
+        <td style="font-weight:700;white-space:nowrap;max-width:200px;overflow:hidden;text-overflow:ellipsis;" title="${esc(m.title)}">${esc(m.title)}</td>
+        <td style="white-space:nowrap;">${esc(m.requester)}</td>
+        <td style="white-space:nowrap;">${esc(m.room)}</td>
+        <td style="white-space:nowrap;">${formatDate(m.date)}</td>
+        <td style="white-space:nowrap;">${m.start}-${m.end}</td>
+        <td><span style="background:${statusColor};color:${statusText};padding:5px 12px;border-radius:14px;font-size:11.5px;font-weight:700;white-space:nowrap;">${esc(m.status)}</span></td>
+        <td style="text-align:center;">${actionBtn}</td>
+      </tr>`;
+    });
+  }
+  customTableHTML += `
+          </tbody>
+        </table>
+      </div>
+      <div style="display:flex;justify-content:flex-end;margin-top:auto;padding-top:14px;">
+        <a href="#meetings" style="font-size:13px;font-weight:700;color:#1769aa;text-decoration:none;display:inline-flex;align-items:center;gap:6px;transition:opacity 0.15s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">
+          <span>Lihat Semua</span>
+          <span style="font-size:15px;line-height:1;">→</span>
+        </a>
+      </div>
+    </div>
   `;
 
   return (
     customCSS +
     `
-    <div class="dashboard-wrapper">
-      <div class="dash-header">
-        <div class="dash-title">
-          <h1>Dashboard Admin</h1>
-          <p>Pantau dan kelola peminjaman ruang rapat dengan mudah.</p>
+    <div class="rep-page-wrapper">
+      <div class="rep-header">
+        <div>
+          <div class="rep-breadcrumb">Dashboard</div>
+          <h1>Dashboard</h1>
+          <p>Ringkasan statistik penggunaan rapat.</p>
         </div>
         <div class="dash-actions">
           ${getProfileHTML()}
         </div>
       </div>
-      <div class="dash-cards">
-        <div class="d-card">
-          <div class="dc-icon blue">${faCalendarAlt}</div>
-          <div class="dc-text">
-            <strong>${state.meetings.length}</strong>
-            <span>Total Rapat</span>
-            <small>4 x dari minggu lalu</small>
-          </div>
+      
+      <div class="rep-filters-row">
+        <div class="rep-filters-left">
+          <select id="trafficRoom">
+            <option value="semua">Semua Ruangan</option>
+            ${state.rooms.map((r) => `<option value="${r.name}">${esc(r.name)}</option>`).join("")}
+          </select>
+          <button class="btn-white" onclick="openFilterModal()">Filter Waktu</button>
+          <button class="btn-blue" onclick="generateTrafficReport()">Tampilkan</button>
         </div>
-        <div class="d-card">
-          <div class="dc-icon green">${faPlay}</div>
-          <div class="dc-text">
-            <strong>${running}</strong>
-            <span>Rapat Berjalan</span>
-            <small>Sedang berlangsung</small>
-          </div>
-        </div>
-        <div class="d-card">
-          <div class="dc-icon yellow">${faClock}</div>
-          <div class="dc-text">
-            <strong>${soon}</strong>
-            <span>Rapat Segera</span>
-            <small>Dalam 2 jam ke depan</small>
-          </div>
-        </div>
-        <div class="d-card">
-          <div class="dc-icon purple">${faCheck}</div>
-          <div class="dc-text">
-            <strong>${done}</strong>
-            <span>Rapat Selesai</span>
-            <small>Hari ini</small>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div class="rep-export-wrapper" style="position: relative; display: inline-block;">
+            <button class="rep-export-btn" id="exportBtn" type="button" onclick="toggleExportMenu(event)">
+              ${tiExport}
+              <span>Export</span>
+              <svg width="10" height="6" viewBox="0 0 10 6" fill="none" style="margin-left: 2px;">
+                <path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+            <div id="exportMenuDropdown" class="rep-export-menu" style="display: none; position: absolute; top: calc(100% + 6px); right: 0; background: #ffffff; border-radius: 8px; box-shadow: 0 10px 25px rgba(12, 45, 94, 0.12); border: 1px solid #e2e8f0; min-width: 140px; z-index: 1000; overflow: hidden;">
+              <button type="button" onclick="exportExcel(); closeExportMenu();" style="width: 100%; display: flex; align-items: center; gap: 8px; padding: 10px 16px; border: none; background: transparent; font-size: 13px; font-weight: 600; color: #0c2d5e; cursor: pointer; text-align: left; transition: background 0.15s;" onmouseover="this.style.background='#f0f4fa'" onmouseout="this.style.background='transparent'">
+                <span>📊</span> Export Excel
+              </button>
+              <button type="button" onclick="exportPDF(); closeExportMenu();" style="width: 100%; display: flex; align-items: center; gap: 8px; padding: 10px 16px; border: none; background: transparent; font-size: 13px; font-weight: 600; color: #0c2d5e; cursor: pointer; text-align: left; border-top: 1px solid #f1f5f9; transition: background 0.15s;" onmouseover="this.style.background='#f0f4fa'" onmouseout="this.style.background='transparent'">
+                <span>📄</span> Export PDF
+              </button>
+            </div>
           </div>
         </div>
       </div>
-      <div class="dash-table-container">
-        <div class="dash-table-header">
-          <div class="dash-table-title">${faCalendarAlt} Jadwal Rapat Hari Ini</div>
-          <button class="dash-btn-add" onclick="openMeetingModal()">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="12" y1="5" x2="12" y2="19"></line>
-              <line x1="5" y1="12" x2="19" y2="12"></line>
-            </svg>
-            Tambah Rapat
-          </button>
-        </div>
-        ${meetingTable(state.meetings.slice(0, 6), false)}
-        <div class="dash-table-footer">
-          <a href="#meetings" class="dash-link">
-            <span class="dash-link-text">Lihat Semua</span>
-            <svg class="dash-link-arrow" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="5" y1="12" x2="19" y2="12"></line>
-              <polyline points="12 5 19 12 12 19"></polyline>
-            </svg>
-          </a>
-        </div>
-      </div>
+      
+      ${
+        isAdmin
+          ? `
+          <div class="rep-cards">
+            <div class="rep-card">
+              <div class="rc-icon blue1">${liaUsersSolid}</div>
+              <div class="rc-text"><strong>128</strong><span>Total Rapat</span></div>
+            </div>
+            <div class="rep-card">
+              <div class="rc-icon blue1">${faClock}</div>
+              <div class="rc-text"><strong>256 Jam</strong><span>Total Durasi Rapat</span></div>
+            </div>
+            <div class="rep-card">
+              <div class="rc-icon blue1">${faUsers}</div>
+              <div class="rc-text"><strong>1.240</strong><span>Total Pengguna</span></div>
+            </div>
+            <div class="rep-card">
+              <div class="rc-icon blue1">${bsBuilding}</div>
+              <div class="rc-text"><strong>78%</strong><span>Tingkat Pemanfaatan Ruangan</span></div>
+            </div>
+          </div>
+          `
+          : ""
+      }
+      
+      <!-- Charts: Khusus Akun Admin -->
+      ${
+        isAdmin
+          ? `
+          <div class="rep-charts" style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 20px; padding: 0 40px 24px;">
+              <div class="rep-chart-card" style="margin:0;">
+                <div style="display:flex;justify-content:space-between;">
+                  <h2>Tren Jumlah Rapat</h2>
+                  <span id="chartLabel" style="font-size:12px;color:#4b6a90;">Bulan Ini</span>
+                </div>
+                <div class="mock-bar-chart">
+                  ${[20, 35, 45, 50, 60, 65, 75, 80, 85, 95, 100].map((h, i) => `<div class="mock-bar ${i % 2 === 0 ? "dark" : ""}" style="height:${h}%"><span>${i + 2}</span></div>`).join("")}
+                </div>
+              </div>
+                <div class="rep-chart-card" style="margin:0;">
+                  <h2>Status Rapat</h2>
+                  <div class="mock-donut">
+                     <div style="position:absolute; top:-10px; left:-5px; font-size:9px;">Selesai<br>15.8%</div>
+                     <div style="position:absolute; bottom:10px; left:-10px; font-size:9px;">Segera<br>26.3%</div>
+                     <div style="position:absolute; bottom:10px; right:-10px; font-size:9px;">Berjalan<br>57.9%</div>
+                  </div>
+                </div>
+                <div class="rep-chart-card" style="margin:0;">
+                  <h2>Penggunaan Ruangan</h2>
+                  <div style="font-size:11px; margin-bottom:4px; display:flex; gap:10px; justify-content:center; color:#4b6a90;">
+                    <span style="display:flex;align-items:center;gap:4px;"><div style="width:6px;height:6px;background:#4285f4;border-radius:50%;"></div> Penggunaan</span>
+                    <span style="display:flex;align-items:center;gap:4px;"><div style="width:6px;height:6px;background:#4a4a4a;border-radius:50%;"></div> Kosong</span>
+                  </div>
+                  <div style="font-size:10px;margin-bottom:2px;">Ruang Rapat Besar</div>
+                  <div class="mock-stacked-bar"><div class="mock-stacked-bar-fill" style="width:85%"></div></div>
+                  <div style="font-size:10px;margin-bottom:2px;">Ruang Konsultasi</div>
+                  <div class="mock-stacked-bar"><div class="mock-stacked-bar-fill" style="width:75%"></div></div>
+                </div>
+          </div>
+          `
+          : ""
+      }
+      
+      ${
+        isAdmin
+          ? `
+          <!-- Bottom Grid Admin: Jadwal Rapat Hari Ini & Notifikasi & Permintaan (Berdampingan) -->
+          <div class="dash-bottom-grid">
+            <div class="dash-table-col">
+              ${customTableHTML}
+            </div>
+            <div class="dash-notif-col">
+              <div class="dash-notif-card" style="margin:0;">
+                ${getDashboardNotifPanelHTML(currentUser)}
+              </div>
+            </div>
+          </div>
+          `
+          : `
+          <!-- Layout Template Khusus Approval & Akun Lain Sesuai Sketsa Template -->
+          <div class="dash-approval-layout">
+            <div class="dash-approval-left">
+              <div class="rep-cards-compact">
+                <div class="rep-card-compact">
+                  <div class="rc-icon-compact">${liaUsersSolid}</div>
+                  <div class="rc-text-compact"><strong>128</strong><span>Total Rapat</span></div>
+                </div>
+                <div class="rep-card-compact">
+                  <div class="rc-icon-compact">${faClock}</div>
+                  <div class="rc-text-compact"><strong>256 Jam</strong><span>Total Durasi</span></div>
+                </div>
+                <div class="rep-card-compact">
+                  <div class="rc-icon-compact">${faUsers}</div>
+                  <div class="rc-text-compact"><strong>1.240</strong><span>Total Pengguna</span></div>
+                </div>
+                <div class="rep-card-compact">
+                  <div class="rc-icon-compact">${bsBuilding}</div>
+                  <div class="rc-text-compact"><strong>78%</strong><span>Pemanfaatan</span></div>
+                </div>
+              </div>
+
+              ${customTableHTML}
+            </div>
+            <div class="dash-approval-right">
+              <div class="dash-notif-card" style="margin:0; width:100%; height:100%; display:flex; flex-direction:column;">
+                ${getDashboardNotifPanelHTML(currentUser)}
+              </div>
+            </div>
+          </div>
+          `
+      }
     </div>
   `
   );
@@ -1363,50 +1595,53 @@ function meetingTable(data, actions = true, allowDelete = true) {
   const isAtasan = isAtasanRole(user);
   const isAdmin = isAdminRole(user);
 
-  const rows = (!data || data.length === 0)
-    ? `<tr><td colspan="8" style="text-align:center;padding:36px;color:#8c9ba5;font-weight:500;">Belum ada jadwal rapat</td></tr>`
-    : data
-        .map((m, i) => {
-          const faEye = svgIcon(
-            '<path d="M572.52 241.4C518.29 135.59 410.93 64 288 64S57.68 135.64 3.48 241.41a32.35 32.35 0 0 0 0 29.19C57.71 376.41 165.07 448 288 448s230.32-71.64 284.52-177.41a32.35 32.35 0 0 0 0-29.19zM288 400a144 144 0 1 1 144-144 143.93 143.93 0 0 1-144 144zm0-240a95.31 95.31 0 0 0-25.31 3.79 47.85 47.85 0 0 1-66.9 66.9A95.78 95.78 0 1 0 288 160z"/>',
-            "0 0 576 512",
-            'width="16" height="16"',
-          );
+  const rows =
+    !data || data.length === 0
+      ? `<tr><td colspan="8" style="text-align:center;padding:36px;color:#8c9ba5;font-weight:500;">Belum ada jadwal rapat</td></tr>`
+      : data
+          .map((m, i) => {
+            const faEye = svgIcon(
+              '<path d="M572.52 241.4C518.29 135.59 410.93 64 288 64S57.68 135.64 3.48 241.41a32.35 32.35 0 0 0 0 29.19C57.71 376.41 165.07 448 288 448s230.32-71.64 284.52-177.41a32.35 32.35 0 0 0 0-29.19zM288 400a144 144 0 1 1 144-144 143.93 143.93 0 0 1-144 144zm0-240a95.31 95.31 0 0 0-25.31 3.79 47.85 47.85 0 0 1-66.9 66.9A95.78 95.78 0 1 0 288 160z"/>',
+              "0 0 576 512",
+              'width="16" height="16"',
+            );
 
-          let actionButtons = `<button style="background-color:#f4f6f9;color:#0c2d5e;border:none;border-radius:10px;width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;margin-right:8px;box-shadow:0 2px 5px rgba(0,0,0,0.03);" title="Lihat" onclick="viewMeeting('${m.id}')">${faEye}</button>`;
+            let actionButtons = `<button style="background-color:#f4f6f9;color:#0c2d5e;border:none;border-radius:10px;width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;margin-right:8px;box-shadow:0 2px 5px rgba(0,0,0,0.03);" title="Lihat" onclick="viewMeeting('${m.id}')">${faEye}</button>`;
 
-          if (actions) {
-            const isPending = (m.status || "").toLowerCase().includes("menunggu");
-            if (isPending) {
-              if (m.rejectedBy) {
-                actionButtons += `<span style="font-size:11px;color:#ff4d4f;margin-right:8px;font-weight:700;background:#ffebee;padding:6px 12px;border-radius:12px;">Ditolak (${esc(m.rejectedBy)})</span>`;
-              } else if (isAtasan) {
-                // HANYA ROLE ATASAN YANG MELIHAT TOMBOL SETUJUI DAN TOLAK
-                actionButtons += `<button style="background-color:#219653;color:#fff;border:none;border-radius:24px;padding:8px 16px;font-weight:700;font-size:12px;cursor:pointer;margin-right:6px;" title="Setujui" onclick="approveMeeting('${m.id}')">✓ Setujui</button>`;
-                actionButtons += `<button style="background-color:#ff4d4f;color:#fff;border:none;border-radius:24px;padding:8px 16px;font-weight:700;font-size:12px;cursor:pointer;" title="Tolak" onclick="rejectMeeting('${m.id}')">✕ Tolak</button>`;
-              } else {
-                // ADMIN HANYA MONITORING
-                actionButtons += `<span style="font-size:11px;color:#d97706;background:#fef3c7;padding:5px 10px;border-radius:12px;font-weight:600;">⏳ Menunggu Atasan</span>`;
-              }
-            } else if (m.status === "Akan Datang") {
-              if (isAdmin) {
-                // ADMIN BERTANGGUNG JAWAB CHECK IN
-                actionButtons += `<button style="background-color:#219653;color:#fff;border:none;border-radius:24px;padding:8px 16px;font-weight:700;font-size:13px;cursor:pointer;box-shadow:0 4px 10px rgba(33,150,83,0.2);" title="Check In" onclick="checkInMeeting('${m.id}')">Check In</button>`;
-              } else {
-                actionButtons += `<span style="font-size:11px;color:#219653;background:#e0f5ec;padding:5px 10px;border-radius:12px;font-weight:600;">✓ Disetujui</span>`;
-              }
-            } else if (m.status === "Berjalan") {
-              if (isAdmin) {
-                // ADMIN BERTANGGUNG JAWAB CHECK OUT
-                actionButtons += `<button style="background-color:#ff4d4f;color:#fff;border:none;border-radius:24px;padding:8px 16px;font-weight:700;font-size:13px;cursor:pointer;box-shadow:0 4px 10px rgba(255,77,79,0.2);" title="Check Out" onclick="checkOutMeeting('${m.id}')">Check Out</button>`;
-              } else {
-                actionButtons += `<span style="font-size:11px;color:#2563eb;background:#dbeafe;padding:5px 10px;border-radius:12px;font-weight:600;">Sedang Berjalan</span>`;
+            if (actions) {
+              const isPending = (m.status || "")
+                .toLowerCase()
+                .includes("menunggu");
+              if (isPending) {
+                if (m.rejectedBy) {
+                  actionButtons += `<span style="font-size:11px;color:#ff4d4f;margin-right:8px;font-weight:700;background:#ffebee;padding:6px 12px;border-radius:12px;">Ditolak (${esc(m.rejectedBy)})</span>`;
+                } else if (isAtasan) {
+                  // HANYA ROLE ATASAN YANG MELIHAT TOMBOL SETUJUI DAN TOLAK
+                  actionButtons += `<button style="background-color:#219653;color:#fff;border:none;border-radius:24px;padding:8px 16px;font-weight:700;font-size:12px;cursor:pointer;margin-right:6px;" title="Setujui" onclick="approveMeeting('${m.id}')">✓ Setujui</button>`;
+                  actionButtons += `<button style="background-color:#ff4d4f;color:#fff;border:none;border-radius:24px;padding:8px 16px;font-weight:700;font-size:12px;cursor:pointer;" title="Tolak" onclick="rejectMeeting('${m.id}')">✕ Tolak</button>`;
+                } else {
+                  // ADMIN HANYA MONITORING
+                  actionButtons += `<span style="font-size:11px;color:#d97706;background:#fef3c7;padding:5px 10px;border-radius:12px;font-weight:600;">⏳ Menunggu Atasan</span>`;
+                }
+              } else if (m.status === "Akan Datang") {
+                if (isAdmin) {
+                  // ADMIN BERTANGGUNG JAWAB CHECK IN
+                  actionButtons += `<button style="background-color:#219653;color:#fff;border:none;border-radius:24px;padding:8px 16px;font-weight:700;font-size:13px;cursor:pointer;box-shadow:0 4px 10px rgba(33,150,83,0.2);" title="Check In" onclick="checkInMeeting('${m.id}')">Check In</button>`;
+                } else {
+                  actionButtons += `<span style="font-size:11px;color:#219653;background:#e0f5ec;padding:5px 10px;border-radius:12px;font-weight:600;">✓ Disetujui</span>`;
+                }
+              } else if (m.status === "Berjalan") {
+                if (isAdmin) {
+                  // ADMIN BERTANGGUNG JAWAB CHECK OUT
+                  actionButtons += `<button style="background-color:#ff4d4f;color:#fff;border:none;border-radius:24px;padding:8px 16px;font-weight:700;font-size:13px;cursor:pointer;box-shadow:0 4px 10px rgba(255,77,79,0.2);" title="Check Out" onclick="checkOutMeeting('${m.id}')">Check Out</button>`;
+                } else {
+                  actionButtons += `<span style="font-size:11px;color:#2563eb;background:#dbeafe;padding:5px 10px;border-radius:12px;font-weight:600;">Sedang Berjalan</span>`;
+                }
               }
             }
-          }
-          return `<tr><td>${i + 1}</td><td><b>${esc(m.title)}</b></td><td>${esc(m.requester)}</td><td>${esc(m.room)}</td><td>${formatDate(m.date)}</td><td>${m.start}-${m.end}</td><td>${badge(m.status)}</td><td><div class="actions">${actionButtons}</div></td></tr>`;
-        })
-        .join("");
+            return `<tr><td>${i + 1}</td><td><b>${esc(m.title)}</b></td><td>${esc(m.requester)}</td><td>${esc(m.room)}</td><td>${formatDate(m.date)}</td><td>${m.start}-${m.end}</td><td>${badge(m.status)}</td><td><div class="actions">${actionButtons}</div></td></tr>`;
+          })
+          .join("");
 
   return `<div class="table-wrap"><table class="table"><thead><tr><th>No</th><th>Judul Rapat</th><th>Pemesan</th><th>Ruangan</th><th>Tanggal</th><th>Waktu</th><th>Status</th><th>Aksi</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
@@ -1746,7 +1981,13 @@ function meetings() {
 }
 
 function getRoomImage(r) {
-  if (r && Array.isArray(r.images) && r.images.length > 0 && r.images[0] && !r.images[0].includes("unsplash")) {
+  if (
+    r &&
+    Array.isArray(r.images) &&
+    r.images.length > 0 &&
+    r.images[0] &&
+    !r.images[0].includes("unsplash")
+  ) {
     return r.images[0];
   }
   if (r && r.image && !r.image.includes("unsplash")) return r.image;
@@ -2303,10 +2544,14 @@ function roomCards(data) {
     return '<div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: #4b6a90; font-weight: 500;">Tidak ada ruangan yang sesuai filter.</div>';
   }
   return data
-    .map(
-      (r) => {
-        const count = Array.isArray(r.images) && r.images.length > 1 ? r.images.length : (r.image ? 1 : 0);
-        return `
+    .map((r) => {
+      const count =
+        Array.isArray(r.images) && r.images.length > 1
+          ? r.images.length
+          : r.image
+            ? 1
+            : 0;
+      return `
         <div class="custom-room-card" onclick="editRoom(${r.id})">
           <div class="crc-img-wrap" style="position:relative;">
             <img src="${getRoomImage(r)}" alt="${esc(r.name)}" class="crc-img">
@@ -2317,8 +2562,7 @@ function roomCards(data) {
           </div>
         </div>
       `;
-      },
-    )
+    })
     .join("");
 }
 
@@ -2536,8 +2780,7 @@ function users() {
               <option value="">Semua Role</option>
               <option value="User">User</option>
               <option value="Administrator">Administrator</option>
-              <option value="Approval 1">Approval 1</option>
-              <option value="Approval 2">Approval 2</option>
+              <option value="Approval">Approval</option>
               <option value="Admin Ruangan">Admin Ruangan</option>
               <option value="Admin Sistem">Admin Sistem</option>
             </select>
@@ -2796,218 +3039,7 @@ function calendar() {
 // `meetingTable(state.meetings, false)`
 // ----------------------------------------------------------------------
 function reports() {
-  const liaUsersSolid = svgIcon(
-    '<path d="M 11.5 6 C 9.578125 6 8 7.578125 8 9.5 C 8 11.421875 9.578125 13 11.5 13 C 13.421875 13 15 11.421875 15 9.5 C 15 7.578125 13.421875 6 11.5 6 Z M 20.5 6 C 18.578125 6 17 7.578125 17 9.5 C 17 11.421875 18.578125 13 20.5 13 C 22.421875 13 24 11.421875 24 9.5 C 24 7.578125 22.421875 6 20.5 6 Z M 11.5 8 C 12.339844 8 13 8.660156 13 9.5 C 13 10.339844 12.339844 11 11.5 11 C 10.660156 11 10 10.339844 10 9.5 C 10 8.660156 10.660156 8 11.5 8 Z M 20.5 8 C 21.339844 8 22 8.660156 22 9.5 C 22 10.339844 21.339844 11 20.5 11 C 19.660156 11 19 10.339844 19 9.5 C 19 8.660156 19.660156 8 20.5 8 Z M 7 12 C 4.800781 12 3 13.800781 3 16 C 3 17.113281 3.476563 18.117188 4.21875 18.84375 C 2.886719 19.746094 2 21.28125 2 23 L 4 23 C 4 21.332031 5.332031 20 7 20 C 8.667969 20 10 21.332031 10 23 L 12 23 C 12 21.28125 11.113281 19.746094 9.78125 18.84375 C 10.523438 18.117188 11 17.113281 11 16 C 11 13.800781 9.199219 12 7 12 Z M 12 23 C 11.375 23.835938 11 24.886719 11 26 L 13 26 C 13 24.332031 14.332031 23 16 23 C 17.667969 23 19 24.332031 19 26 L 21 26 C 21 24.886719 20.625 23.835938 20 23 C 19.660156 22.546875 19.25 22.160156 18.78125 21.84375 C 19.523438 21.117188 20 20.113281 20 19 C 20 16.800781 18.199219 15 16 15 C 13.800781 15 12 16.800781 12 19 C 12 20.113281 12.476563 21.117188 13.21875 21.84375 C 12.75 22.160156 12.339844 22.546875 12 23 Z M 20 23 L 22 23 C 22 21.332031 23.332031 20 25 20 C 26.667969 20 28 21.332031 28 23 L 30 23 C 30 21.28125 29.113281 19.746094 27.78125 18.84375 C 28.523438 18.117188 29 17.113281 29 16 C 29 13.800781 27.199219 12 25 12 C 22.800781 12 21 13.800781 21 16 C 21 17.113281 21.476563 18.117188 22.21875 18.84375 C 20.886719 19.746094 20 21.28125 20 23 Z M 7 14 C 8.117188 14 9 14.882813 9 16 C 9 17.117188 8.117188 18 7 18 C 5.882813 18 5 17.117188 5 16 C 5 14.882813 5.882813 14 7 14 Z M 25 14 C 26.117188 14 27 14.882813 27 16 C 27 17.117188 26.117188 18 25 18 C 23.882813 18 23 17.117188 23 16 C 23 14.882813 23.882813 14 25 14 Z M 16 17 C 17.117188 17 18 17.882813 18 19 C 18 20.117188 17.117188 21 16 21 C 14.882813 21 14 20.117188 14 19 C 14 17.882813 14.882813 17 16 17 Z"/>',
-    "0 0 32 32",
-    'width="28" height="28"',
-  );
-  const faClock = svgIcon(
-    '<path d="M256,8C119,8,8,119,8,256S119,504,256,504,504,393,504,256,393,8,256,8Zm92.49,313h0l-20,25a16,16,0,0,1-22.49,2.5h0l-67-49.72a40,40,0,0,1-15-31.23V112a16,16,0,0,1,16-16h32a16,16,0,0,1,16,16V256l58,42.5A16,16,0,0,1,348.49,321Z"/>',
-    "0 0 512 512",
-    'width="24" height="24"',
-  );
-  const faUsers = svgIcon(
-    '<path d="M96 224c35.3 0 64-28.7 64-64s-28.7-64-64-64-64 28.7-64 64 28.7 64 64 64zm448 0c35.3 0 64-28.7 64-64s-28.7-64-64-64-64 28.7-64 64 28.7 64 64 64zm32 32h-64c-17.6 0-33.5 7.1-45.1 18.6 40.3 22.1 68.9 62 75.1 109.4h66c17.7 0 32-14.3 32-32v-32c0-35.3-28.7-64-64-64zm-256 0c61.9 0 112-50.1 112-112S381.9 32 320 32 208 82.1 208 144s50.1 112 112 112zm76.8 32h-8.3c-20.8 10-43.9 16-68.5 16s-47.6-6-68.5-16h-8.3C179.6 288 128 339.6 128 403.2V432c0 26.5 21.5 48 48 48h288c26.5 0 48-21.5 48-48v-28.8c0-63.6-51.6-115.2-115.2-115.2zm-223.7-13.4C161.5 263.1 145.6 256 128 256H64c-35.3 0-64 28.7-64 64v32c0 17.7 14.3 32 32 32h65.9c6.3-47.4 34.9-87.3 75.2-109.4z"/>',
-    "0 0 640 512",
-    'width="26" height="26"',
-  );
-  const bsBuilding = svgIcon(
-    '<path d="M2 1a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v7.256A4.5 4.5 0 0 0 12.5 8a4.5 4.5 0 0 0-3.59 1.787A.5.5 0 0 0 9 9.5v-1a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .39-.187A4.5 4.5 0 0 0 8.027 12H6.5a.5.5 0 0 0-.5.5V16H3a1 1 0 0 1-1-1zm2 1.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5m3 0v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5m3.5-.5a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5zM4 5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5M7.5 5a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5zm2.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5M4.5 8a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5z"/><path d="M11.886 9.46c.18-.613 1.048-.613 1.229 0l.043.148a.64.64 0 0 0 .921.382l.136-.074c.561-.306 1.175.308.87.869l-.075.136a.64.64 0 0 0 .382.92l.149.045c.612.18.612 1.048 0 1.229l-.15.043a.64.64 0 0 0-.38.921l.074.136c.305.561-.309 1.175-.87.87l-.136-.075a.64.64 0 0 0-.92.382l-.045.149c-.18.612-1.048.612-1.229 0l-.043-.15a.64.64 0 0 0-.921-.38l-.136.074c-.561.305-1.175-.309-.87-.87l.075-.136a.64.64 0 0 0-.382-.92l-.148-.045c-.613-.18-.613-1.048 0-1.229l.148-.043a.64.64 0 0 0 .382-.921l-.074-.136c-.306-.561.308-1.175.869-.87l.136.075a.64.64 0 0 0 .92-.382zM14 12.5a1.5 1.5 0 1 0-3 0 1.5 1.5 0 0 0 3 0"/>',
-    "0 0 16 16",
-    'width="24" height="24" fill="currentColor"',
-  );
-  // TiExport — react-icons/ti (viewBox 0 0 24 24)
-  const tiExport = svgIcon(
-    '<path d="M8 16.5v.5c1.691-2.578 3.6-3.953 6-4v3c0 .551.511 1 1.143 1 .364 0 .675-.158.883-.391 1.933-2.029 5.974-6.109 5.974-6.109s-4.041-4.082-5.975-6.137c-.208-.205-.518-.363-.882-.363-.632 0-1.143.447-1.143 1v3c-4.66 0-6 4.871-6 8.5zM5 21h14c.553 0 1-.448 1-1v-6.046c-.664.676-1.364 1.393-2 2.047v2.999h-12v-12h7v-2h-8c-.553 0-1 .448-1 1v14c0 .552.447 1 1 1z"/>',
-    "0 0 24 24",
-    'width="18" height="18"',
-  );
-
-  const faEye = svgIcon(
-    '<path d="M572.52 241.4C518.29 135.59 410.93 64 288 64S57.68 135.64 3.48 241.41a32.35 32.35 0 0 0 0 29.19C57.71 376.41 165.07 448 288 448s230.32-71.64 284.52-177.41a32.35 32.35 0 0 0 0-29.19zM288 400a144 144 0 1 1 144-144 143.93 143.93 0 0 1-144 144zm0-240a95.31 95.31 0 0 0-25.31 3.79 47.85 47.85 0 0 1-66.9 66.9A95.78 95.78 0 1 0 288 160z"/>',
-    "0 0 576 512",
-    'width="16" height="16"',
-  );
-
-  const customCSS = `
-    <style>
-      .rep-page-wrapper { background: linear-gradient(180deg, #d4e6f6 0%, #edf5fc 300px); min-height: 100vh; display: flex; flex-direction: column; }
-      .rep-header { display: flex; justify-content: space-between; align-items: flex-start; padding: 30px 40px 24px; }
-      .rep-breadcrumb { font-size: 12px; color: #4b6a90; margin-bottom: 8px; font-weight: 500; }
-      .rep-header h1 { font-size: 28px; font-weight: 700; color: #0c2d5e; margin-bottom: 6px; }
-      .rep-header p { color: #4b6a90; font-size: 14px; font-weight: 500; }
-      
-      .rep-filters-row { display: flex; justify-content: space-between; align-items: center; padding: 0 40px 20px; }
-      .rep-filters-left { display: flex; gap: 12px; align-items: center; }
-      .rep-filters-left select, .rep-filters-left button { padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; outline: none; border: 1px solid #e2eaf5; cursor: pointer; }
-      .rep-filters-left select { background: #fff; color: #0c2d5e; min-width: 150px; appearance: none; -webkit-appearance: none; padding-right: 32px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%230c2d5e' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; }
-      .rep-filters-left .btn-white { background: #fff; color: #4b6a90; }
-      .rep-filters-left .btn-blue { background: #1769aa; color: #fff; }
-      .rep-export-btn { background: #0c2d5e; color: #fff; border: none; padding: 8px 20px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; }
-      
-      .rep-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; padding: 0 40px 24px; }
-      .rep-card { background: rgba(255,255,255,0.85); border-radius: 12px; padding: 20px; display: flex; align-items: center; gap: 16px; box-shadow: 0 4px 20px rgba(12, 45, 94, 0.04); }
-      .rc-icon { width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center; }
-      .rc-icon.blue1 { background: #e6f0fa; color: #1769aa; }
-      .rc-text strong { display: block; font-size: 24px; font-weight: 700; color: #0c2d5e; line-height: 1.1; }
-      .rc-text span { display: block; font-size: 12px; font-weight: 500; color: #4b6a90; margin-top: 4px; }
-      
-      .rep-charts { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 20px; padding: 0 40px 24px; }
-      .rep-chart-card { background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 4px 20px rgba(12, 45, 94, 0.04); }
-      .rep-chart-card h2 { font-size: 16px; font-weight: 700; color: #0c2d5e; margin-bottom: 20px; }
-      
-      .rep-list { background: #fff; margin: 0 40px 40px; border-radius: 12px; padding: 24px; box-shadow: 0 4px 20px rgba(12, 45, 94, 0.04); }
-      .rep-list table { width: 100%; border-collapse: collapse; }
-      .rep-list th { text-align: left; padding: 12px 16px; color: #4b6a90; font-weight: 600; font-size: 13px; border-bottom: 1px solid #eef3f9; }
-      .rep-list td { padding: 16px; color: #0c2d5e; font-size: 13px; font-weight: 500; border-bottom: 1px solid #f4f8fc; }
-      
-      /* Chart Mocks */
-      .mock-bar-chart { display: flex; align-items: flex-end; gap: 12px; height: 200px; padding-top: 20px; }
-      .mock-bar { background: #82b1ff; width: 100%; border-radius: 4px 4px 0 0; position: relative; }
-      .mock-bar.dark { background: #1769aa; }
-      .mock-bar span { position: absolute; top: -20px; width: 100%; text-align: center; font-size: 10px; color: #4b6a90; }
-      
-      .mock-donut { width: 180px; height: 180px; border-radius: 50%; margin: 0 auto; background: conic-gradient(#1f9e5c 0 57%, #f8b449 57% 83%, #8ab4f8 83% 100%); position: relative; }
-      .mock-donut::after { content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 0; height: 0; background: #fff; border-radius: 50%; }
-      
-      .mock-stacked-bar { height: 70px; background: #4a4a4a; display: flex; margin-bottom: 24px; }
-      .mock-stacked-bar-fill { height: 100%; background: #4285f4; }
-    </style>
-  `;
-
-  let customTableHTML = `<div class="rep-list"><table><thead><tr><th>No</th><th>Nama Rapat</th><th>Pembicara</th><th>Ruangan</th><th>Tanggal</th><th>Waktu</th><th>Status</th><th>Aksi</th></tr></thead><tbody>`;
-  state.meetings.forEach((m, i) => {
-    let statusColor = "#e3f2fd";
-    let statusText = "#1769aa";
-    if (m.status === "Berjalan") {
-      statusColor = "#e0f5ec";
-      statusText = "#13865b";
-    } else if (m.status === "Selesai") {
-      statusColor = "#f3f0ff";
-      statusText = "#5b3dd3";
-    } else if (m.status === "Akan Datang") {
-      statusColor = "#fff7e0";
-      statusText = "#b38600";
-    } else if (m.status === "Sesuai") {
-      statusColor = "#d4e6f6";
-      statusText = "#1769aa";
-    } else {
-      statusColor = "#fff7e0";
-      statusText = "#b38600";
-    } // Segera etc
-
-    let actionBtn = `<button style="background-color:#f4f6f9;color:#0c2d5e;border:none;border-radius:10px;width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;" title="Lihat" onclick="viewMeeting('${m.id}')">${faEye}</button>`;
-
-    customTableHTML += `<tr>
-      <td>${i + 1}</td>
-      <td style="font-weight:700;">${esc(m.title)}</td>
-      <td>${esc(m.requester)}</td>
-      <td>${esc(m.room)}</td>
-      <td>${formatDate(m.date)}</td>
-      <td>${m.start}-${m.end}</td>
-      <td><span style="background:${statusColor};color:${statusText};padding:6px 12px;border-radius:12px;font-size:11px;font-weight:700;">${esc(m.status)}</span></td>
-      <td>${actionBtn}</td>
-    </tr>`;
-  });
-  customTableHTML += `</tbody></table></div>`;
-
-  return (
-    customCSS +
-    `
-    <div class="rep-page-wrapper">
-      <div class="rep-header">
-        <div>
-          <div class="rep-breadcrumb">Dashboard > Laporan</div>
-          <h1>Laporan</h1>
-          <p>Ringkasan statistik penggunaan rapat.</p>
-        </div>
-        <div class="dash-actions">
-          ${getProfileHTML()}
-        </div>
-      </div>
-      
-      <div class="rep-filters-row">
-        <div class="rep-filters-left">
-          <select id="trafficRoom">
-            <option value="semua">Semua Ruangan</option>
-            ${state.rooms.map((r) => `<option value="${r.name}">${esc(r.name)}</option>`).join("")}
-          </select>
-          <button class="btn-white" onclick="openFilterModal()">Filter Waktu</button>
-          <button class="btn-blue" onclick="generateTrafficReport()">Tampilkan</button>
-        </div>
-        <div class="rep-export-wrapper" style="position: relative; display: inline-block;">
-          <button class="rep-export-btn" id="exportBtn" type="button" onclick="toggleExportMenu(event)">
-            ${tiExport}
-            <span>Export</span>
-            <svg width="10" height="6" viewBox="0 0 10 6" fill="none" style="margin-left: 2px;">
-              <path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </button>
-          <div id="exportMenuDropdown" class="rep-export-menu" style="display: none; position: absolute; top: calc(100% + 6px); right: 0; background: #ffffff; border-radius: 8px; box-shadow: 0 10px 25px rgba(12, 45, 94, 0.12); border: 1px solid #e2e8f0; min-width: 140px; z-index: 1000; overflow: hidden;">
-            <button type="button" onclick="exportExcel(); closeExportMenu();" style="width: 100%; display: flex; align-items: center; gap: 8px; padding: 10px 16px; border: none; background: transparent; font-size: 13px; font-weight: 600; color: #0c2d5e; cursor: pointer; text-align: left; transition: background 0.15s;" onmouseover="this.style.background='#f0f4fa'" onmouseout="this.style.background='transparent'">
-              <span>📊</span> Export Excel
-            </button>
-            <button type="button" onclick="exportPDF(); closeExportMenu();" style="width: 100%; display: flex; align-items: center; gap: 8px; padding: 10px 16px; border: none; background: transparent; font-size: 13px; font-weight: 600; color: #0c2d5e; cursor: pointer; text-align: left; border-top: 1px solid #f1f5f9; transition: background 0.15s;" onmouseover="this.style.background='#f0f4fa'" onmouseout="this.style.background='transparent'">
-              <span>📄</span> Export PDF
-            </button>
-          </div>
-        </div>
-      </div>
-      
-      <div class="rep-cards">
-        <div class="rep-card">
-          <div class="rc-icon blue1">${liaUsersSolid}</div>
-          <div class="rc-text"><strong>128</strong><span>Total Rapat</span></div>
-        </div>
-        <div class="rep-card">
-          <div class="rc-icon blue1">${faClock}</div>
-          <div class="rc-text"><strong>256 Jam</strong><span>Total Durasi Rapat</span></div>
-        </div>
-        <div class="rep-card">
-          <div class="rc-icon blue1">${faUsers}</div>
-          <div class="rc-text"><strong>1.240</strong><span>Total Pengguna</span></div>
-        </div>
-        <div class="rep-card">
-          <div class="rc-icon blue1">${bsBuilding}</div>
-          <div class="rc-text"><strong>78%</strong><span>Tingkat Pemanfaatan Ruangan</span></div>
-        </div>
-      </div>
-      
-      <div class="rep-charts">
-        <div class="rep-chart-card">
-          <div style="display:flex;justify-content:space-between;">
-            <h2>Tren Jumlah Rapat</h2>
-            <span style="font-size:12px;color:#4b6a90;">Bulan Ini</span>
-          </div>
-          <div class="mock-bar-chart">
-            ${[20, 35, 45, 50, 60, 65, 75, 80, 85, 95, 100].map((h, i) => `<div class="mock-bar ${i % 2 === 0 ? "dark" : ""}" style="height:${h}%"><span>${i + 2}</span></div>`).join("")}
-          </div>
-        </div>
-        <div class="rep-chart-card">
-          <h2>Status Rapat</h2>
-          <div class="mock-donut">
-             <div style="position:absolute; top:-10px; left:-5px; font-size:9px;">Selesai<br>15.8%</div>
-             <div style="position:absolute; bottom:10px; left:-10px; font-size:9px;">Segera<br>26.3%</div>
-             <div style="position:absolute; bottom:10px; right:-10px; font-size:9px;">Berjalan<br>57.9%</div>
-          </div>
-        </div>
-        <div class="rep-chart-card">
-          <h2>Penggunaan Ruangan</h2>
-          <div style="font-size:11px; margin-bottom:4px; display:flex; gap:10px; justify-content:center; color:#4b6a90;">
-            <span style="display:flex;align-items:center;gap:4px;"><div style="width:6px;height:6px;background:#4285f4;border-radius:50%;"></div> Penggunaan</span>
-            <span style="display:flex;align-items:center;gap:4px;"><div style="width:6px;height:6px;background:#4a4a4a;border-radius:50%;"></div> Kosong</span>
-          </div>
-          <div style="font-size:10px;margin-bottom:2px;">Ruang Rapat Besar</div>
-          <div class="mock-stacked-bar"><div class="mock-stacked-bar-fill" style="width:85%"></div></div>
-          <div style="font-size:10px;margin-bottom:2px;">Ruang Konsultasi</div>
-          <div class="mock-stacked-bar"><div class="mock-stacked-bar-fill" style="width:75%"></div></div>
-        </div>
-      </div>
-      
-      ${customTableHTML}
-    </div>
-  `
-  );
+  return dashboard();
 }
 
 function openFilterModal() {
@@ -3518,7 +3550,11 @@ function render() {
 }
 
 window.addEventListener("hashchange", () => {
-  const page = location.hash.replace("#", "") || "dashboard";
+  let page = location.hash.replace("#", "") || "dashboard";
+  if (page === "reports") {
+    location.hash = "#dashboard";
+    return;
+  }
 
   const validPages = [
     "dashboard",
@@ -3526,7 +3562,6 @@ window.addEventListener("hashchange", () => {
     "rooms",
     "users",
     "calendar",
-    "reports",
     "settings",
   ];
 
@@ -3600,7 +3635,16 @@ function openMeetingModal(id = null) {
         </label>
       </div>
       <div class="field full"><label>Judul Rapat</label><input id="fTitle" value="${esc(m.title)}" placeholder="Contoh: Arahan Rencana Anggaran Biro Keuangan dan BMN"></div>
-      <div class="field"><label>Pemesan</label><input id="fRequester" value="${esc(m.requester)}" placeholder="Contoh: Kepala Biro Keuangan dan BMN"></div>
+      <div class="field"><label>Pemesan</label><input id="fRequester" list="requesterList" value="${esc(m.requester)}" placeholder="Contoh: TU, PA, Bagian Keuangan, dsb">
+        <datalist id="requesterList">
+          <option value="TU">
+          <option value="PA">
+          <option value="Bagian Keuangan">
+          <option value="Bagian BMN">
+          <option value="Bagian Umum">
+          <option value="Kepala Biro Keuangan dan BMN">
+        </datalist>
+      </div>
       <div class="field"><label>Ruangan</label><select id="fRoom">${state.rooms.map((r) => `<option ${r.name === m.room ? "selected" : ""}>${esc(r.name)}</option>`).join("")}</select></div>
       <div class="field"><label>Tanggal</label><input id="fDate" type="date" value="${m.date}"></div>
       <div class="field"><label>Peserta</label><input id="fParticipants" type="number" value="${m.participants}"></div>
@@ -3611,6 +3655,7 @@ function openMeetingModal(id = null) {
     <div class="modal-actions"><button class="btn btn-light" onclick="closeModal()">Batal</button><button class="btn btn-primary" onclick="saveMeeting('${id ? esc(m.id) : ""}')">Simpan</button></div>`,
   );
 }
+window.openMeetingModal = openMeetingModal;
 
 async function saveMeeting(id) {
   const isCheckboxChecked =
@@ -3816,7 +3861,7 @@ function approveMeeting(id) {
   const user = getCurrentUser();
   if (!isAtasanRole(user)) {
     alert(
-      "Hak Akses Dibatasi:\nHanya akun role Atasan (Pimpinan / Approval 1 / Approval 2) yang dapat menyetujui permohonan rapat.\n\nAkun Administrator bertugas memonitor dashboard dan melakukan Check In / Check Out saat peserta hadir.",
+      "Hak Akses Dibatasi:\nHanya akun role Atasan (Pimpinan / Approval) yang dapat menyetujui permohonan rapat.\n\nAkun Administrator bertugas memonitor dashboard dan melakukan Check In / Check Out saat peserta hadir.",
     );
     return;
   }
@@ -3824,7 +3869,9 @@ function approveMeeting(id) {
   let targetMeeting = state.meetings.find((m) => String(m.id) === String(id));
   if (!targetMeeting) {
     try {
-      const stored = JSON.parse(getAppStorage().getItem("app_meetings") || "[]");
+      const stored = JSON.parse(
+        getAppStorage().getItem("app_meetings") || "[]",
+      );
       targetMeeting = stored.find((m) => String(m.id) === String(id));
       if (targetMeeting) {
         state.meetings.unshift(targetMeeting);
@@ -3838,7 +3885,8 @@ function approveMeeting(id) {
   }
 
   const statusLower = (targetMeeting.status || "").toLowerCase().trim();
-  const isPending = statusLower.includes("menunggu") || statusLower === "pending";
+  const isPending =
+    statusLower.includes("menunggu") || statusLower === "pending";
 
   if (!isPending) {
     alert(
@@ -3851,7 +3899,7 @@ function approveMeeting(id) {
   }
 
   const approverName = user.name || "Pimpinan";
-  const approverRole = user.role || "Approval 1";
+  const approverRole = user.role || "Approval";
   const approvedTag = `${approverName} - ${approverRole}`;
 
   targetMeeting.status = "Akan Datang";
@@ -3897,7 +3945,10 @@ function approveMeeting(id) {
           targetMeeting.googleId = data.meeting.googleId;
           targetMeeting.id = data.meeting.id;
           try {
-            getAppStorage().setItem("app_meetings", JSON.stringify(state.meetings));
+            getAppStorage().setItem(
+              "app_meetings",
+              JSON.stringify(state.meetings),
+            );
           } catch (e) {}
         }
         await fetchDashboardData(false);
@@ -3942,7 +3993,9 @@ function checkOutMeeting(id) {
     try {
       getAppStorage().setItem("app_meetings", JSON.stringify(state.meetings));
     } catch (e) {}
-    const targetCheckOut = state.meetings.find((m) => String(m.id) === String(id));
+    const targetCheckOut = state.meetings.find(
+      (m) => String(m.id) === String(id),
+    );
     if (targetCheckOut) {
       fetch("/api/dashboard/meetings", {
         method: "POST",
@@ -3963,7 +4016,7 @@ function rejectMeeting(id) {
   const user = getCurrentUser();
   if (!isAtasanRole(user)) {
     alert(
-      "Hak Akses Dibatasi:\nHanya akun role Atasan (Pimpinan / Approval 1 / Approval 2) yang dapat menolak permohonan rapat.",
+      "Hak Akses Dibatasi:\nHanya akun role Atasan (Pimpinan / Approval) yang dapat menolak permohonan rapat.",
     );
     return;
   }
@@ -3971,14 +4024,17 @@ function rejectMeeting(id) {
   let targetMeeting = state.meetings.find((m) => String(m.id) === String(id));
   if (!targetMeeting) {
     try {
-      const stored = JSON.parse(getAppStorage().getItem("app_meetings") || "[]");
+      const stored = JSON.parse(
+        getAppStorage().getItem("app_meetings") || "[]",
+      );
       targetMeeting = stored.find((m) => String(m.id) === String(id));
     } catch (e) {}
   }
   if (!targetMeeting) return;
 
   const statusLower = (targetMeeting.status || "").toLowerCase().trim();
-  const isPending = statusLower.includes("menunggu") || statusLower === "pending";
+  const isPending =
+    statusLower.includes("menunggu") || statusLower === "pending";
 
   if (!isPending) {
     alert(
@@ -4014,7 +4070,7 @@ function confirmReject(id) {
     document.getElementById("fRejectReason")?.value.trim() ||
     "Tidak ada alasan yang diberikan";
   const rejecterName = user.name || "Pimpinan";
-  const rejecterRole = user.role || "Approval 1";
+  const rejecterRole = user.role || "Approval";
   const rejecterTag = `${rejecterName} - ${rejecterRole}`;
 
   state.meetings = state.meetings.map((m) => {
@@ -4024,7 +4080,12 @@ function confirmReject(id) {
         status: "Dibatalkan",
         rejectedBy: rejecterTag,
         desc:
-          (m.desc || "") + "\n\n[Dibatalkan oleh " + rejecterName + ": " + reason + "]",
+          (m.desc || "") +
+          "\n\n[Dibatalkan oleh " +
+          rejecterName +
+          ": " +
+          reason +
+          "]",
       };
     return m;
   });
@@ -4044,7 +4105,9 @@ function confirmReject(id) {
     }
   } catch (e) {}
 
-  const targetRejected = state.meetings.find((m) => String(m.id) === String(id));
+  const targetRejected = state.meetings.find(
+    (m) => String(m.id) === String(id),
+  );
   if (targetRejected) {
     fetch("/api/dashboard/meetings", {
       method: "POST",
@@ -4160,7 +4223,10 @@ function renderRoomImagesGallery() {
     return;
   }
 
-  const activeIdx = Math.min(Math.max(0, window._activeRoomImageIndex || 0), images.length - 1);
+  const activeIdx = Math.min(
+    Math.max(0, window._activeRoomImageIndex || 0),
+    images.length - 1,
+  );
   window._activeRoomImageIndex = activeIdx;
   const activeImg = images[activeIdx];
   const total = images.length;
@@ -4281,7 +4347,8 @@ window.selectRoomImage = selectRoomImage;
 function navigateRoomImage(direction) {
   const len = window._currentRoomImages.length;
   if (len <= 1) return;
-  window._activeRoomImageIndex = (window._activeRoomImageIndex + direction + len) % len;
+  window._activeRoomImageIndex =
+    (window._activeRoomImageIndex + direction + len) % len;
   renderRoomImagesGallery();
 }
 window.navigateRoomImage = navigateRoomImage;
@@ -4300,7 +4367,10 @@ function removeRoomImage(index) {
   if (index < 0 || index >= window._currentRoomImages.length) return;
   window._currentRoomImages.splice(index, 1);
   if (window._activeRoomImageIndex >= window._currentRoomImages.length) {
-    window._activeRoomImageIndex = Math.max(0, window._currentRoomImages.length - 1);
+    window._activeRoomImageIndex = Math.max(
+      0,
+      window._currentRoomImages.length - 1,
+    );
   }
   renderRoomImagesGallery();
   toast("Foto view ruangan dihapus");
@@ -4411,7 +4481,9 @@ async function saveRoom(id) {
     window._currentRoomImages && window._currentRoomImages.length > 0
       ? [...window._currentRoomImages]
       : id
-        ? state.rooms.find((x) => x.id === id)?.images || [getRoomImage({ name })]
+        ? state.rooms.find((x) => x.id === id)?.images || [
+            getRoomImage({ name }),
+          ]
         : [getRoomImage({ name })];
   const primaryImage = images[0] || getRoomImage({ name });
 
@@ -4457,18 +4529,36 @@ function editRoom(id) {
 
 function openUserModal(id = null) {
   if (!isMainAdmin()) {
-    alert("Hanya Admin Utama yang berhak menambah atau mengubah data pengguna.");
+    alert(
+      "Hanya Admin Utama yang berhak menambah atau mengubah data pengguna.",
+    );
     return;
   }
 
-  let u = { name: "", username: "", password: "", email: "", dept: "", role: "User", status: "Aktif" };
+  let u = {
+    name: "",
+    username: "",
+    password: "",
+    email: "",
+    dept: "",
+    role: "User",
+    status: "Aktif",
+  };
   if (id !== null && id !== undefined) {
     const found = state.users.find((x) => x.id === id);
     if (found) {
       u = { ...found };
       try {
-        const loginUsers = JSON.parse(getAppStorage().getItem("app_login_users") || "[]");
-        const lu = loginUsers.find((x) => x.id === id || (x.username && found.username && x.username.toLowerCase() === found.username.toLowerCase()));
+        const loginUsers = JSON.parse(
+          getAppStorage().getItem("app_login_users") || "[]",
+        );
+        const lu = loginUsers.find(
+          (x) =>
+            x.id === id ||
+            (x.username &&
+              found.username &&
+              x.username.toLowerCase() === found.username.toLowerCase()),
+        );
         if (lu) {
           u.username = lu.username || u.username || "";
           u.password = lu.password || u.password || "";
@@ -4477,7 +4567,8 @@ function openUserModal(id = null) {
     }
   }
 
-  const isEditingAdmin = id && (u.username === "admin" || u.name === "Admin Utama");
+  const isEditingAdmin =
+    id && (u.username === "admin" || u.name === "Admin Utama");
 
   const modalBackdrop = document.getElementById("modal");
   modalBackdrop.innerHTML = `
@@ -4525,8 +4616,17 @@ function openUserModal(id = null) {
         <div class="crm-field">
           <label>Role Akun</label>
           <select id="uRole" ${isEditingAdmin ? "disabled style='background:#e2e8f0; cursor:not-allowed;'" : ""}>
-            ${["User", "Administrator", "Approval 1", "Approval 2", "Admin Ruangan", "Admin Sistem"]
-              .map((r) => `<option value="${r}" ${r === u.role ? "selected" : ""}>${r}</option>`)
+            ${[
+              "User",
+              "Administrator",
+              "Approval",
+              "Admin Ruangan",
+              "Admin Sistem",
+            ]
+              .map(
+                (r) =>
+                  `<option value="${r}" ${r === u.role ? "selected" : ""}>${r}</option>`,
+              )
               .join("")}
           </select>
         </div>
@@ -4541,7 +4641,7 @@ function openUserModal(id = null) {
 
       <div class="crm-actions" style="margin-top: 24px;">
         <button type="button" class="crm-btn-cancel" onclick="closeModal()">Batal</button>
-        <button type="button" class="crm-btn-save" onclick="saveUser(${id ? (typeof id === 'string' ? `'${id}'` : id) : "null"})">
+        <button type="button" class="crm-btn-save" onclick="saveUser(${id ? (typeof id === "string" ? `'${id}'` : id) : "null"})">
           ${id ? "Simpan Perubahan" : "Tambah Pengguna"}
         </button>
       </div>
@@ -4555,7 +4655,9 @@ function openUserModal(id = null) {
 
 async function saveUser(id) {
   if (!isMainAdmin()) {
-    alert("Hanya Admin Utama yang berhak menambah atau mengubah data pengguna.");
+    alert(
+      "Hanya Admin Utama yang berhak menambah atau mengubah data pengguna.",
+    );
     return;
   }
 
@@ -4563,7 +4665,9 @@ async function saveUser(id) {
   const username = (document.getElementById("uUsername")?.value || "").trim();
   const password = (document.getElementById("uPassword")?.value || "").trim();
   const email = (document.getElementById("uEmail")?.value || "").trim();
-  const dept = (document.getElementById("uDept")?.value || "").trim() || "Biro Keuangan dan BMN";
+  const dept =
+    (document.getElementById("uDept")?.value || "").trim() ||
+    "Biro Keuangan dan BMN";
   const roleEl = document.getElementById("uRole");
   const role = roleEl ? roleEl.value : "User";
   const statusEl = document.getElementById("uStatus");
@@ -4594,19 +4698,29 @@ async function saveUser(id) {
   // Cek duplikasi jika membuat akun baru atau mengganti username
   if (!id || oldUsername !== lowerUsername) {
     const isDuplicateInState = state.users.some(
-      (u) => (id ? u.id !== id : true) && (u.username || "").toLowerCase() === lowerUsername,
+      (u) =>
+        (id ? u.id !== id : true) &&
+        (u.username || "").toLowerCase() === lowerUsername,
     );
     const isDuplicateInLogin = loginUsers.some(
-      (u) => (id ? u.id !== id : true) && (u.username || "").toLowerCase() === lowerUsername,
+      (u) =>
+        (id ? u.id !== id : true) &&
+        (u.username || "").toLowerCase() === lowerUsername,
     );
     const defaultReserved = ["admin", "approval1", "approval2"];
-    if (isDuplicateInState || isDuplicateInLogin || (defaultReserved.includes(lowerUsername) && lowerUsername !== oldUsername)) {
-      alert(`Username "${username}" sudah digunakan! Silakan pilih username yang lain.`);
+    if (
+      isDuplicateInState ||
+      isDuplicateInLogin ||
+      (defaultReserved.includes(lowerUsername) && lowerUsername !== oldUsername)
+    ) {
+      alert(
+        `Username "${username}" sudah digunakan! Silakan pilih username yang lain.`,
+      );
       return;
     }
   }
 
-  const userId = id || ("user_" + Date.now());
+  const userId = id || "user_" + Date.now();
   const userObj = {
     id: userId,
     name: name,
@@ -4619,7 +4733,9 @@ async function saveUser(id) {
   };
 
   if (id) {
-    state.users = state.users.map((x) => (x.id === id ? { ...x, ...userObj } : x));
+    state.users = state.users.map((x) =>
+      x.id === id ? { ...x, ...userObj } : x,
+    );
   } else {
     state.users.push(userObj);
   }
@@ -4629,9 +4745,13 @@ async function saveUser(id) {
   } catch (e) {}
 
   try {
-    let allLogin = JSON.parse(getAppStorage().getItem("app_login_users") || "[]");
+    let allLogin = JSON.parse(
+      getAppStorage().getItem("app_login_users") || "[]",
+    );
     const existingIdx = allLogin.findIndex(
-      (x) => x.id === userId || (x.username && x.username.toLowerCase() === lowerUsername),
+      (x) =>
+        x.id === userId ||
+        (x.username && x.username.toLowerCase() === lowerUsername),
     );
     if (existingIdx >= 0) {
       allLogin[existingIdx] = userObj;
@@ -4650,7 +4770,9 @@ async function saveUser(id) {
       email: email,
       dept: dept,
     };
-    const sIdx = savedAcc.findIndex((x) => (x.username || "").toLowerCase() === lowerUsername);
+    const sIdx = savedAcc.findIndex(
+      (x) => (x.username || "").toLowerCase() === lowerUsername,
+    );
     if (sIdx >= 0) {
       if (status === "Nonaktif") {
         savedAcc.splice(sIdx, 1);
@@ -4665,7 +4787,11 @@ async function saveUser(id) {
 
   closeModal();
   render();
-  toast(id ? "Data pengguna berhasil diperbarui" : "Pengguna baru berhasil ditambahkan dan dapat login");
+  toast(
+    id
+      ? "Data pengguna berhasil diperbarui"
+      : "Pengguna baru berhasil ditambahkan dan dapat login",
+  );
 
   try {
     await fetch("/api/dashboard/users", {
@@ -4697,7 +4823,11 @@ async function deleteUser(id) {
     return;
   }
 
-  if (confirm(`Hapus pengguna "${target.name}"? Pengguna ini tidak akan dapat login lagi.`)) {
+  if (
+    confirm(
+      `Hapus pengguna "${target.name}"? Pengguna ini tidak akan dapat login lagi.`,
+    )
+  ) {
     state.users = state.users.filter((x) => x.id !== id);
 
     try {
@@ -4705,17 +4835,26 @@ async function deleteUser(id) {
     } catch (e) {}
 
     try {
-      let allLogin = JSON.parse(getAppStorage().getItem("app_login_users") || "[]");
+      let allLogin = JSON.parse(
+        getAppStorage().getItem("app_login_users") || "[]",
+      );
       allLogin = allLogin.filter(
-        (x) => x.id !== id && (x.username || "").toLowerCase() !== (target.username || "").toLowerCase(),
+        (x) =>
+          x.id !== id &&
+          (x.username || "").toLowerCase() !==
+            (target.username || "").toLowerCase(),
       );
       getAppStorage().setItem("app_login_users", JSON.stringify(allLogin));
     } catch (e) {}
 
     try {
-      let savedAcc = JSON.parse(getAppStorage().getItem("savedAccounts") || "[]");
+      let savedAcc = JSON.parse(
+        getAppStorage().getItem("savedAccounts") || "[]",
+      );
       savedAcc = savedAcc.filter(
-        (x) => (x.username || "").toLowerCase() !== (target.username || "").toLowerCase(),
+        (x) =>
+          (x.username || "").toLowerCase() !==
+          (target.username || "").toLowerCase(),
       );
       getAppStorage().setItem("savedAccounts", JSON.stringify(savedAcc));
     } catch (e) {}
@@ -4785,7 +4924,9 @@ function filterRooms() {
 }
 
 function filterUsers() {
-  const q = (document.getElementById("userSearch")?.value || "").toLowerCase().trim();
+  const q = (document.getElementById("userSearch")?.value || "")
+    .toLowerCase()
+    .trim();
   const r = document.getElementById("userRole")?.value || "";
   const tableEl = document.getElementById("userTable");
   if (!tableEl) return;
@@ -5141,8 +5282,14 @@ function initNotificationSync() {
 
       // Cek apakah ada rapat yang otomatis selesai
       const autoCompleted = latestMeetings.filter((lm) => {
-        const prev = state.meetings.find((sm) => String(sm.id) === String(lm.id));
-        return prev && (prev.status === "Berjalan" || prev.status === "Akan Datang") && lm.status === "Selesai";
+        const prev = state.meetings.find(
+          (sm) => String(sm.id) === String(lm.id),
+        );
+        return (
+          prev &&
+          (prev.status === "Berjalan" || prev.status === "Akan Datang") &&
+          lm.status === "Selesai"
+        );
       });
 
       if (autoCompleted.length > 0) {
@@ -5241,7 +5388,32 @@ setInterval(() => fetchDashboardData(false), 30000);
 function logout(e) {
   if (e) e.stopPropagation();
   if (confirm("Apakah Anda yakin ingin keluar?")) {
-    getAppStorage().removeItem("isAuthenticated");
+    const storage = getAppStorage();
+    storage.removeItem("isAuthenticated");
+    storage.removeItem("currentUser");
+    storage.removeItem("savedAccounts");
+    try {
+      localStorage.removeItem("isAuthenticated");
+      localStorage.removeItem("currentUser");
+      localStorage.removeItem("savedAccounts");
+      sessionStorage.removeItem("isAuthenticated");
+      sessionStorage.removeItem("currentUser");
+      sessionStorage.removeItem("savedAccounts");
+      sessionStorage.removeItem("isAddingAccount");
+      if (window.parent) {
+        if (window.parent.localStorage) {
+          window.parent.localStorage.removeItem("isAuthenticated");
+          window.parent.localStorage.removeItem("currentUser");
+          window.parent.localStorage.removeItem("savedAccounts");
+        }
+        if (window.parent.sessionStorage) {
+          window.parent.sessionStorage.removeItem("isAuthenticated");
+          window.parent.sessionStorage.removeItem("currentUser");
+          window.parent.sessionStorage.removeItem("savedAccounts");
+          window.parent.sessionStorage.removeItem("isAddingAccount");
+        }
+      }
+    } catch (err) {}
     window.parent.location.href = "/login";
   }
 }
