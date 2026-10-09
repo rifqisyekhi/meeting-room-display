@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { FaCalendarAlt, FaChevronRight, FaClock, FaMapMarkerAlt, FaPlus, FaUsers } from "react-icons/fa";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FaCalendarAlt, FaChevronRight, FaClock, FaMapMarkerAlt, FaPlus, FaStar, FaUsers } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import BookingAccountBar from "../components/BookingAccountBar";
 import imgRuangRapatBesar from "../assets/Ruang Rapat Besar.jpeg";
@@ -29,6 +29,27 @@ const isExtensionWindowOpen = (meeting, now = new Date()) => {
   const endAt = new Date(`${meeting.date}T${end}:00`);
   const extensionClosesAt = endAt.getTime() - 30 * 60 * 1000;
   return !Number.isNaN(startAt.getTime()) && now >= startAt && now.getTime() < extensionClosesAt;
+};
+
+const isMeetingNotEnded = (meeting, now = new Date()) => {
+  if (!meeting.date) return false;
+  const end = meeting.end || meeting.endTime;
+  if (!end) return false;
+  const endAt = new Date(`${meeting.date}T${end}:00`);
+  return !Number.isNaN(endAt.getTime()) && now < endAt;
+};
+
+const isMeetingFinished = (meeting, now = new Date()) => {
+  if (!meeting.date || ["rejected", "cancelled", "pending"].includes(statusKey(meeting.status || meeting.approvalStatus))) return false;
+  const end = meeting.end || meeting.endTime;
+  if (!end) return false;
+  const endAt = new Date(`${meeting.date}T${end}:00`);
+  return !Number.isNaN(endAt.getTime()) && now >= endAt;
+};
+
+const effectiveStatusKey = (meeting, now = new Date()) => {
+  const key = statusKey(meeting.status || meeting.approvalStatus);
+  return key === "approved" && isMeetingFinished(meeting, now) ? "completed" : key;
 };
 
 const formatDate = (isoDate, options = {}) => {
@@ -80,6 +101,13 @@ export default function BookingHistoryPage() {
   const [expandedId, setExpandedId] = useState(null);
   const [extensionTarget, setExtensionTarget] = useState(null);
   const [extensionComplete, setExtensionComplete] = useState(null);
+  const [reviewTarget, setReviewTarget] = useState(null);
+  const [reviewRating, setReviewRating] = useState(0);
+  const [reviewText, setReviewText] = useState("");
+  const fromDateInput = useRef(null);
+  const toDateInput = useRef(null);
+  const [reviewComplete, setReviewComplete] = useState(null);
+  const [clockNow, setClockNow] = useState(() => new Date());
   const [recommendationTarget, setRecommendationTarget] = useState(null);
   const [selectedRecommendationSlots, setSelectedRecommendationSlots] = useState({});
   const [showAllRecommendations, setShowAllRecommendations] = useState(false);
@@ -95,9 +123,12 @@ export default function BookingHistoryPage() {
       const data = await response.json();
       if (Array.isArray(data.meetings)) {
         const local = readLocalMeetings();
-        const merged = [...data.meetings, ...local].filter((meeting, index, list) =>
-          list.findIndex((other) => String(other.id) === String(meeting.id)) === index,
-        );
+        const localById = new Map(local.map((meeting) => [String(meeting.id), meeting]));
+        const serverIds = new Set(data.meetings.map((meeting) => String(meeting.id)));
+        const merged = data.meetings.map((meeting) => {
+          const localMeeting = localById.get(String(meeting.id));
+          return !meeting.review && localMeeting?.review ? { ...meeting, review: localMeeting.review } : meeting;
+        }).concat(local.filter((meeting) => !serverIds.has(String(meeting.id))));
         setMeetings(merged);
       }
       if (Array.isArray(data.rooms) && data.rooms.length) {
@@ -127,6 +158,11 @@ export default function BookingHistoryPage() {
     };
   }, [refreshData]);
 
+  useEffect(() => {
+    const clockInterval = setInterval(() => setClockNow(new Date()), 10000);
+    return () => clearInterval(clockInterval);
+  }, []);
+
   const visibleMeetings = useMemo(() => {
     const query = search.trim().toLowerCase();
     return meetings.filter((meeting) => {
@@ -136,7 +172,7 @@ export default function BookingHistoryPage() {
         (currentUser.name && meeting.bookedBy &&
           meeting.bookedBy.toLowerCase() === currentUser.name.toLowerCase());
       if (!belongsToUser) return false;
-      const key = statusKey(meeting.status || meeting.approvalStatus);
+      const key = effectiveStatusKey(meeting, clockNow);
       if (filterStatus !== "all" && key !== filterStatus) return false;
       if (fromDate && (meeting.date || "") < fromDate) return false;
       if (toDate && (meeting.date || "") > toDate) return false;
@@ -144,7 +180,7 @@ export default function BookingHistoryPage() {
         .filter(Boolean).join(" ").toLowerCase();
       return !query || searchText.includes(query);
     }).sort((a, b) => `${b.date || ""} ${b.start || ""}`.localeCompare(`${a.date || ""} ${a.start || ""}`));
-  }, [meetings, isAdmin, currentUser, filterStatus, fromDate, toDate, search]);
+  }, [meetings, isAdmin, currentUser, filterStatus, fromDate, toDate, search, clockNow]);
 
   const recommendedRooms = useMemo(() => {
     if (!recommendationTarget) return [];
@@ -282,6 +318,65 @@ export default function BookingHistoryPage() {
     }
   };
 
+  const submitReview = async () => {
+    if (!reviewTarget || !reviewRating) return;
+    const submittedAt = new Date().toISOString();
+    const review = {
+      rating: reviewRating,
+      text: reviewText.trim(),
+      reviewer: currentUser.name || currentUser.username || "User",
+      reviewerUsername: currentUser.username || "",
+      submittedAt,
+    };
+    const updatedMeeting = { ...reviewTarget, review };
+    const updatedMeetings = meetings.map((meeting) => String(meeting.id) === String(reviewTarget.id) ? updatedMeeting : meeting);
+    const notification = {
+      id: `review-${reviewTarget.id}-${submittedAt}`,
+      meetingId: reviewTarget.id,
+      type: "MEETING_REVIEW",
+      title: `Ulasan Baru — ${reviewTarget.room || "Ruang Rapat"}`,
+      message: `${review.reviewer} memberi rating ${review.rating}/5${review.text ? `: ${review.text}` : "."}`,
+      room: reviewTarget.room,
+      requester: review.reviewer,
+      date: reviewTarget.date,
+      time: `${reviewTarget.start || reviewTarget.startTime} - ${reviewTarget.end || reviewTarget.endTime}`,
+      rating: review.rating,
+      review: review.text,
+      status: "Ulasan Baru",
+      targetRoles: ["Administrator", "Approval 1", "Approval 2"],
+      createdAt: submittedAt,
+      readBy: [],
+    };
+
+    try {
+      const savedNotifications = JSON.parse(localStorage.getItem("app_notifications") || "[]");
+      const existingNotifications = Array.isArray(savedNotifications) ? savedNotifications : [];
+      localStorage.setItem("app_notifications", JSON.stringify([notification, ...existingNotifications]));
+      localStorage.setItem("app_meetings", JSON.stringify(updatedMeetings));
+      window.dispatchEvent(new Event("app_notifications_updated"));
+      if (window.parent && window.parent !== window) window.parent.dispatchEvent(new Event("app_notifications_updated"));
+    } catch (error) {
+      console.warn("Gagal menyimpan ulasan lokal:", error);
+    }
+
+    setMeetings(updatedMeetings);
+    setReviewTarget(null);
+    setReviewRating(0);
+    setReviewText("");
+    try {
+      const response = await fetch("/api/dashboard/meetings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updatedMeeting),
+      });
+      if (!response.ok) throw new Error("Gagal menyinkronkan ulasan ke server.");
+    } catch (error) {
+      console.warn("Sinkronisasi ulasan:", error);
+      setNotice("Ulasan tersimpan di halaman ini, tetapi gagal disinkronkan ke server.");
+    }
+    setReviewComplete(review);
+  };
+
   const tabs = [
     ["all", "Semua"], ["pending", "Menunggu"], ["approved", "Disetujui"],
     ["rejected", "Ditolak"], ["completed", "Selesai"], ["cancelled", "Dibatalkan"],
@@ -305,13 +400,28 @@ export default function BookingHistoryPage() {
             ))}
           </div>
           <div className="booking-history-controls">
-            <label className="booking-history-date-filter">
+            <div className="booking-history-date-filter" onClick={(event) => {
+              if (event.target.closest("input")) return;
+              const input = fromDateInput.current;
+              if (typeof input?.showPicker === "function") input.showPicker();
+              else input?.focus();
+            }}>
               <FaCalendarAlt aria-hidden="true" />
               <span>Pilih Rentang Tanggal</span>
-              <input type="date" aria-label="Tanggal mulai" value={fromDate} onChange={(event) => setFromDate(event.target.value)} />
+              <input ref={fromDateInput} type="date" aria-label="Tanggal mulai" title="Klik untuk memilih tanggal dari kalender" value={fromDate}
+                onClick={(event) => { try { event.currentTarget.showPicker?.(); } catch { /* Kalender native mungkin sudah terbuka. */ } }}
+                onKeyDown={(event) => event.preventDefault()}
+                onBeforeInput={(event) => event.preventDefault()}
+                onPaste={(event) => event.preventDefault()}
+                onChange={(event) => setFromDate(event.target.value)} />
               <span>s/d</span>
-              <input type="date" aria-label="Tanggal akhir" value={toDate} onChange={(event) => setToDate(event.target.value)} />
-            </label>
+              <input ref={toDateInput} type="date" aria-label="Tanggal akhir" title="Klik untuk memilih tanggal dari kalender" value={toDate}
+                onClick={(event) => { try { event.currentTarget.showPicker?.(); } catch { /* Kalender native mungkin sudah terbuka. */ } }}
+                onKeyDown={(event) => event.preventDefault()}
+                onBeforeInput={(event) => event.preventDefault()}
+                onPaste={(event) => event.preventDefault()}
+                onChange={(event) => setToDate(event.target.value)} />
+            </div>
             <input className="booking-history-search" type="search"
               placeholder="Cari nama ruangan, agenda, atau bagian..." value={search}
               onChange={(event) => setSearch(event.target.value)} />
@@ -321,13 +431,15 @@ export default function BookingHistoryPage() {
 
       <section className="booking-history-list" aria-label="Daftar pemesanan">
         {visibleMeetings.length ? visibleMeetings.map((meeting) => {
-          const key = statusKey(meeting.status || meeting.approvalStatus);
+          const key = effectiveStatusKey(meeting, clockNow);
           const room = rooms.find((item) => item.name?.toLowerCase() === meeting.room?.toLowerCase()) ||
             roomDefaults.find((item) => meeting.room?.toLowerCase().includes(item.name.toLowerCase())) || roomDefaults[0];
           const isExpanded = String(expandedId) === String(meeting.id);
           const end = meeting.end || meeting.endTime || "00:00";
-          const canExtend = key === "approved" && isExtensionWindowOpen(meeting);
+          const canExtend = key === "approved" && isExtensionWindowOpen(meeting, clockNow);
+          const showExtensionButton = key === "approved" && isMeetingNotEnded(meeting, clockNow);
           const canRecommend = key === "rejected" || key === "cancelled";
+          const canReview = key === "completed" && !meeting.review;
           const submittedAt = meeting.createdAt;
           const changedAt = key === "rejected" ? meeting.rejectedAt : meeting.approvedAt || meeting.updatedAt;
           const statusText = {
@@ -346,6 +458,13 @@ export default function BookingHistoryPage() {
                     <small><FaUsers /> Kapasitas {room.capacity || meeting.participants || "-"} Orang</small>
                     <span><FaCalendarAlt /> {formatDate(meeting.date, { weekday: "long", day: "2-digit", month: "long", year: "numeric" })}</span>
                     <span><FaClock /> {meeting.start || meeting.startTime} - {end}</span>
+                  </span>
+                  <span className="booking-history-inline-details">
+                    <span title={`Agenda: ${meeting.title || meeting.agenda || "-"}`}><strong>Agenda:</strong> {meeting.title || meeting.agenda || "-"}</span>
+                    <span title={`Pemesan: ${meeting.bookedBy || meeting.requester || "-"}`}><strong>Pemesan:</strong> {meeting.bookedBy || meeting.requester || "-"}</span>
+                    <span title={`Bagian: ${meeting.requester || meeting.bagian || "-"}`}><strong>Bagian:</strong> {meeting.requester || meeting.bagian || "-"}</span>
+                    <span><strong>Jumlah peserta:</strong> {meeting.participants || 0} orang</span>
+                    <span title={`Catatan: ${meeting.desc || meeting.notes || "-"}`}><strong>Catatan:</strong> {meeting.desc || meeting.notes || "-"}</span>
                   </span>
                   <span className="booking-history-timeline">
                     <span className="booking-history-step done">
@@ -366,7 +485,7 @@ export default function BookingHistoryPage() {
                   <span className={`booking-history-status ${key}`}>{statusText}</span>
                   <FaChevronRight className="booking-history-chevron" />
                 </button>
-                {(canExtend || canRecommend) && (
+                {(showExtensionButton || canRecommend || canReview) && (
                   <div className="booking-history-row-actions">
                     {canRecommend && (
                       <button type="button" className="booking-history-recommendation-button"
@@ -374,9 +493,20 @@ export default function BookingHistoryPage() {
                         Lihat Rekomendasi <FaChevronRight />
                       </button>
                     )}
-                    {canExtend && (
-                      <button type="button" className="booking-history-add-time" onClick={() => { setNotice(""); setExtensionTarget(meeting); }}>
+                    {showExtensionButton && (
+                      <button type="button" className="booking-history-add-time" disabled={!canExtend}
+                        title={canExtend ? "Tambah waktu rapat" : "Aktif sejak rapat dimulai hingga 30 menit sebelum rapat selesai"}
+                        onClick={() => { if (canExtend) { setNotice(""); setExtensionTarget(meeting); } }}>
                         <FaPlus /> Tambah Waktu
+                      </button>
+                    )}
+                    {canReview && (
+                      <button type="button" className="booking-history-review-button" onClick={() => {
+                        setReviewTarget(meeting);
+                        setReviewRating(0);
+                        setReviewText("");
+                      }}>
+                        <FaStar /> Beri Rating
                       </button>
                     )}
                   </div>
@@ -384,13 +514,11 @@ export default function BookingHistoryPage() {
               </div>
               {isExpanded && (
                 <div className="booking-history-details">
-                  <span><strong>Agenda:</strong> {meeting.title || meeting.agenda || "-"}</span>
-                  <span><strong>Bagian:</strong> {meeting.requester || meeting.bagian || "-"}</span>
-                  <span><strong>Pemesan:</strong> {meeting.bookedBy || meeting.requester || "-"}</span>
-                  <span><strong>Jumlah peserta:</strong> {meeting.participants || 0} orang</span>
-                  {meeting.desc && <span><strong>Catatan:</strong> {meeting.desc}</span>}
                   {Array.isArray(meeting.extensionHistory) && meeting.extensionHistory.length > 0 && (
                     <span><strong>Tambahan waktu:</strong> {meeting.extensionHistory.map((item) => `+${item.hours} jam`).join(", ")}</span>
+                  )}
+                  {meeting.review && (
+                    <span><strong>Ulasan Anda:</strong> {"★".repeat(meeting.review.rating || 0)}{meeting.review.text ? ` — ${meeting.review.text}` : ""}</span>
                   )}
                 </div>
               )}
@@ -431,6 +559,44 @@ export default function BookingHistoryPage() {
             <p>{extensionComplete.meeting.room} berhasil diperpanjang {extensionComplete.hours} jam.</p>
             <strong>{extensionComplete.meeting.start || extensionComplete.meeting.startTime}–{extensionComplete.meeting.end}</strong>
             <button type="button" className="booking-history-extension-success-done" onClick={() => setExtensionComplete(null)}>Selesai</button>
+          </div>
+        </div>
+      )}
+
+      {reviewTarget && (
+        <div className="booking-history-modal-backdrop" onClick={() => setReviewTarget(null)}>
+          <section className="booking-history-modal booking-history-review-modal" role="dialog" aria-modal="true" aria-labelledby="booking-review-title" onClick={(event) => event.stopPropagation()}>
+            <button type="button" className="booking-history-modal-close" onClick={() => setReviewTarget(null)} aria-label="Tutup">×</button>
+            <h2 id="booking-review-title">Beri Rating &amp; Ulasan</h2>
+            <p>{reviewTarget.room} · {formatDate(reviewTarget.date, { day: "2-digit", month: "long", year: "numeric" })}</p>
+            <label className="booking-review-rating-label">Rating ({reviewRating}/5)</label>
+            <div className="booking-review-stars" role="radiogroup" aria-label="Pilih rating">
+              {[1, 2, 3, 4, 5].map((rating) => (
+                <button key={rating} type="button" role="radio" aria-checked={reviewRating === rating}
+                  aria-label={`${rating} dari 5 bintang`} onClick={() => setReviewRating(rating)}>
+                  <FaStar className={rating <= reviewRating ? "selected" : ""} />
+                </button>
+              ))}
+            </div>
+            <label className="booking-review-text-label" htmlFor="booking-review-text">Ulasan</label>
+            <textarea id="booking-review-text" value={reviewText} maxLength={1000}
+              onChange={(event) => setReviewText(event.target.value)} placeholder="Bagikan pengalaman Anda menggunakan ruangan ini..." />
+            <div className="booking-review-actions">
+              <button type="button" onClick={() => setReviewTarget(null)}>Batal</button>
+              <button type="button" disabled={!reviewRating} onClick={submitReview}>Kirim Ulasan</button>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {reviewComplete && (
+        <div className="booking-history-modal-backdrop" onClick={() => setReviewComplete(null)}>
+          <div className="booking-history-modal booking-history-extension-success" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+            <button type="button" className="booking-history-modal-close" onClick={() => setReviewComplete(null)} aria-label="Tutup">×</button>
+            <span className="booking-history-extension-success-icon">✓</span>
+            <h2>Ulasan Berhasil Dikirim</h2>
+            <p>Terima kasih atas ulasan Anda. Rating {reviewComplete.rating}/5 telah dikirim ke Admin dan Approval.</p>
+            <button type="button" className="booking-history-extension-success-done" onClick={() => setReviewComplete(null)}>Selesai</button>
           </div>
         </div>
       )}

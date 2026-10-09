@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { CiClock2 } from "react-icons/ci";
 import {
   FaUserFriends,
@@ -111,6 +111,7 @@ const FacilityIcon = ({ type }) => {
 
 export default function BookingPage() {
   const location = useLocation();
+  const navigate = useNavigate();
   const suggestedBooking = location.state?.bookingRecommendation;
   const currentUser = useMemo(() => {
     try {
@@ -192,7 +193,7 @@ export default function BookingPage() {
       : null,
   );
 
-  // Time picker state: start & end hours (numpad input) & minutes (00 / 30)
+  // Time picker state: start & end hours (numpad input) & 10-minute increments.
   const [startHour, setStartHour] = useState(() => suggestedBooking?.start?.split(":")[0] || "00");
   const [startMinute, setStartMinute] = useState(() => suggestedBooking?.start?.split(":")[1] || "00");
   const [endHour, setEndHour] = useState(() => suggestedBooking?.end?.split(":")[0] || "00");
@@ -596,6 +597,7 @@ export default function BookingPage() {
     setCustomBagian("");
     setPeserta("");
     setMobileStep(1);
+    navigate("/booking/history");
   };
 
   const getRoomsList = () => {
@@ -795,7 +797,7 @@ export default function BookingPage() {
             </div>
           </div>
 
-          {/* Time Picker Boxes: Mulai & Selesai (Hour via numpad, Minute via 00 / 30) */}
+          {/* Time Picker Boxes: Mulai & Selesai (hour via numpad, minute in 10-minute increments) */}
           <div className="bk-time-boxes">
             {/* Box Mulai */}
             <div className="bk-time-box">
@@ -823,10 +825,11 @@ export default function BookingPage() {
                     className="bk-select-time"
                     value={startMinute}
                     onChange={(e) => handleStartMinute(e.target.value)}
-                    title="Pilih menit (00 atau 30)"
+                    title="Pilih menit dengan kelipatan 10"
                   >
-                    <option value="00">00</option>
-                    <option value="30">30</option>
+                    {["00", "10", "20", "30", "40", "50"].map((minute) => (
+                      <option key={minute} value={minute}>{minute}</option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -858,10 +861,11 @@ export default function BookingPage() {
                     className="bk-select-time"
                     value={endMinute}
                     onChange={(e) => handleEndMinute(e.target.value)}
-                    title="Pilih menit (00 atau 30)"
+                    title="Pilih menit dengan kelipatan 10"
                   >
-                    <option value="00">00</option>
-                    <option value="30">30</option>
+                    {["00", "10", "20", "30", "40", "50"].map((minute) => (
+                      <option key={minute} value={minute}>{minute}</option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -1020,7 +1024,7 @@ export default function BookingPage() {
             <div className="bk-input-row">
               <input
                 type="number"
-                placeholder="Masukkan jumlah peserta"
+                placeholder="Jumlah peserta"
                 value={peserta}
                 onChange={(e) => setPeserta(e.target.value)}
               />
@@ -1251,7 +1255,7 @@ export default function BookingPage() {
                 </div>
               </div>
 
-              {/* Selesai & Hubungi Bantuan Buttons */}
+              {/* Bantuan & selesai */}
               <div className="bk-msum-action">
                 <a
                   href="http://wa.me/+6285122777026"
