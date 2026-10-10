@@ -113,7 +113,7 @@ function getGoogleCalendarClient() {
 function parseDescription(description = "") {
   const fields = {};
   description.split(/\r?\n/).forEach((line) => {
-    const match = line.match(/^\s*(Ruang|Agenda|Bagian|Pemesan|Nama|Peserta|Jumlah Peserta|Kontak|No HP|Keterangan|Catatan|Status|Disetujui Oleh)\s*:\s*(.+?)\s*$/i);
+    const match = line.match(/^\s*(Ruang|Agenda|Bagian|Pemesan|Booked By|Username|User|Nama|Peserta|Jumlah Peserta|Kontak|No HP|Keterangan|Catatan|Status|Disetujui Oleh)\s*:\s*(.+?)\s*$/i);
     if (match) {
       fields[match[1].toLowerCase().replace(/\s+/g, "_")] = match[2].trim();
     }
@@ -204,12 +204,15 @@ async function getGoogleCalendarEvents() {
       }
 
       const requester =
+        fields.bagian ||
         fields.pemesan ||
         fields.nama ||
-        fields.bagian ||
         item.creator?.displayName ||
         item.organizer?.displayName ||
         "Bagian Umum";
+
+      const bookedBy = fields.pemesan || fields.booked_by || fields.nama || requester;
+      const bookedByUsername = fields.username || fields.user || fields.booked_by_username || "";
 
       const rawSummary = item.summary || "Rapat Koordinasi";
       const cleanSummary = rawSummary.replace(/\s*\([^)]+\)\s*$/, "").trim();
@@ -227,6 +230,8 @@ async function getGoogleCalendarEvents() {
         googleId: item.id,
         title,
         requester,
+        bookedBy,
+        bookedByUsername,
         room: roomName,
         date: formatDateISO(startDate),
         start: formatTimeHHMM(startDate),
@@ -260,18 +265,31 @@ async function getDashboardData() {
   let statusMessage = "";
 
   if (calendarResult.success) {
-    const calendarMeetings = calendarResult.meetings || [];
-    const calendarMeetingsWithLocalReviews = calendarMeetings.map((calendarMeeting) => {
+    const calendarMeetingsWithLocalMetadata = calendarMeetings.map((calendarMeeting) => {
       const localMeeting = (store.meetings || []).find((storedMeeting) => {
         if (String(storedMeeting.id) === String(calendarMeeting.id)) return true;
-        if (storedMeeting.googleId && String(storedMeeting.googleId) === String(calendarMeeting.id)) return true;
+        if (storedMeeting.googleId && (String(storedMeeting.googleId) === String(calendarMeeting.id) || String(storedMeeting.googleId) === String(calendarMeeting.googleId))) return true;
         const sameDate = storedMeeting.date === calendarMeeting.date;
         const sameTime = storedMeeting.start === calendarMeeting.start;
         const storedRoom = (storedMeeting.room || "").toLowerCase().replace(/\s+/g, "");
         const calendarRoom = (calendarMeeting.room || "").toLowerCase().replace(/\s+/g, "");
         return sameDate && sameTime && storedRoom && calendarRoom && (storedRoom.includes(calendarRoom) || calendarRoom.includes(storedRoom));
       });
-      return localMeeting?.review ? { ...calendarMeeting, review: localMeeting.review } : calendarMeeting;
+      if (localMeeting) {
+        return {
+          ...calendarMeeting,
+          bookedBy: calendarMeeting.bookedBy || localMeeting.bookedBy || localMeeting.requester || "",
+          bookedByUsername: calendarMeeting.bookedByUsername || localMeeting.bookedByUsername || "",
+          attendees: localMeeting.attendees || calendarMeeting.attendees || [],
+          review: localMeeting.review || calendarMeeting.review || null,
+          checkInAt: localMeeting.checkInAt || calendarMeeting.checkInAt || null,
+          checkedInBy: localMeeting.checkedInBy || calendarMeeting.checkedInBy || null,
+          checkOutAt: localMeeting.checkOutAt || calendarMeeting.checkOutAt || null,
+          checkedOutBy: localMeeting.checkedOutBy || calendarMeeting.checkedOutBy || null,
+          createdAt: localMeeting.createdAt || calendarMeeting.createdAt || null,
+        };
+      }
+      return calendarMeeting;
     });
     isGoogleConnected = true;
     statusMessage = `Berhasil terhubung ke Google Calendar (${calendarMeetings.length} jadwal disetujui)`;
@@ -304,7 +322,7 @@ async function getDashboardData() {
     });
 
     // Gabungkan jadwal (permohonan Menunggu Approval di urutan teratas, diikuti jadwal lokal aktif, lalu jadwal Google Calendar)
-    meetings = [...localPendingMeetings, ...localOtherMeetings, ...calendarMeetingsWithLocalReviews];
+    meetings = [...localPendingMeetings, ...localOtherMeetings, ...calendarMeetingsWithLocalMetadata];
   } else {
     isGoogleConnected = false;
     statusMessage = calendarResult.error;
@@ -399,10 +417,13 @@ async function saveMeeting(meeting) {
         `Ruang: ${room}`,
         `Agenda: ${title}`,
         `Bagian: ${meeting.requester || meeting.bagian || "Bagian Umum"}`,
-        `Pemesan: ${meeting.requester || meeting.bagian || "Bagian Umum"}`,
-        `Peserta: ${meeting.participants || 0}`,
-        `Status: ${meeting.status || "Akan Datang"}`,
+        `Pemesan: ${meeting.bookedBy || meeting.requester || meeting.bagian || "Bagian Umum"}`,
       ];
+      if (meeting.bookedByUsername) {
+        descLines.push(`Username: ${meeting.bookedByUsername}`);
+      }
+      descLines.push(`Peserta: ${meeting.participants || 0}`);
+      descLines.push(`Status: ${meeting.status || "Akan Datang"}`);
       if (meeting.desc) descLines.push(`Keterangan: ${meeting.desc}`);
       if (meeting.approvedBy) descLines.push(`Disetujui Oleh: ${meeting.approvedBy}`);
 
@@ -501,7 +522,12 @@ async function saveMeeting(meeting) {
   });
 
   if (idx !== -1) {
-    store.meetings[idx] = { ...store.meetings[idx], ...meeting };
+    store.meetings[idx] = {
+      ...store.meetings[idx],
+      ...meeting,
+      bookedBy: meeting.bookedBy || store.meetings[idx].bookedBy || "",
+      bookedByUsername: meeting.bookedByUsername || store.meetings[idx].bookedByUsername || "",
+    };
   } else {
     store.meetings.unshift(meeting);
   }

@@ -561,6 +561,15 @@ export default function BookingPage() {
             if (result?.meeting?.id) {
               newMeeting.id = result.meeting.id;
               newMeeting.googleId = result.meeting.googleId;
+              try {
+                const stored = JSON.parse(localStorage.getItem("app_meetings") || "[]");
+                const updated = stored.map((m) =>
+                  m.id === newMeeting.id || (m.date === newMeeting.date && m.start === newMeeting.start && m.room === newMeeting.room)
+                    ? { ...m, ...result.meeting }
+                    : m
+                );
+                localStorage.setItem("app_meetings", JSON.stringify(updated));
+              } catch (e) {}
             }
           }
         })
@@ -805,39 +814,62 @@ export default function BookingPage() {
       <div className="bk-datetime-scroll">
         <div className="bk-month-selector">
           <div className="bk-month-header-row">
-            <h4>{monthLabel}</h4>
-            <label className="bk-custom-date-picker-label" title="Pilih tanggal langsung dari kalender">
-              <FaRegCalendarAlt />
-              <input
-                type="date"
-                className="bk-hidden-date-input"
-                value={selectedDate}
-                onChange={(e) => {
-                  if (!e.target.value) return;
-                  const targetVal = e.target.value;
-                  setSelectedDate(targetVal);
-                  const target = new Date(`${targetVal}T00:00:00`);
-                  if (!Number.isNaN(target.getTime())) {
-                    const mondayOf = (date) => {
-                      const v = new Date(date);
-                      v.setHours(0, 0, 0, 0);
-                      v.setDate(v.getDate() - ((v.getDay() + 6) % 7));
-                      return v;
-                    };
-                    const weeks = Math.round((mondayOf(target) - mondayOf(new Date())) / (7 * 24 * 60 * 60 * 1000));
-                    setWeekOffset(weeks);
-                  }
-                }}
-              />
-            </label>
+            <button
+              type="button"
+              className="bk-month-nav-btn prev"
+              title="Minggu Sebelumnya"
+              aria-label="Minggu Sebelumnya"
+              onClick={() => setWeekOffset((prev) => prev - 1)}
+            >
+              <FaChevronLeft />
+            </button>
+            <div className="bk-month-title-wrap">
+              <h4>{monthLabel}</h4>
+              <label className="bk-custom-date-picker-label" title="Pilih tanggal langsung dari kalender">
+                <FaRegCalendarAlt />
+                <input
+                  type="date"
+                  className="bk-hidden-date-input"
+                  value={selectedDate}
+                  onChange={(e) => {
+                    if (!e.target.value) return;
+                    const targetVal = e.target.value;
+                    setSelectedDate(targetVal);
+                    const target = new Date(`${targetVal}T00:00:00`);
+                    if (!Number.isNaN(target.getTime())) {
+                      const mondayOf = (date) => {
+                        const v = new Date(date);
+                        v.setHours(0, 0, 0, 0);
+                        v.setDate(v.getDate() - ((v.getDay() + 6) % 7));
+                        return v;
+                      };
+                      const weeks = Math.round((mondayOf(target) - mondayOf(new Date())) / (7 * 24 * 60 * 60 * 1000));
+                      setWeekOffset(weeks);
+                    }
+                  }}
+                />
+              </label>
+            </div>
+            <button
+              type="button"
+              className="bk-month-nav-btn next"
+              title="Minggu Berikutnya"
+              aria-label="Minggu Berikutnya"
+              onClick={() => setWeekOffset((prev) => prev + 1)}
+            >
+              <FaChevronRight />
+            </button>
           </div>
           <div className="bk-days-row">
-            <FaChevronLeft
-              className="bk-nav-icon"
-              style={{ cursor: "pointer" }}
+            <button
+              type="button"
+              className="bk-day-nav-btn prev"
               title="Minggu Sebelumnya"
+              aria-label="Minggu Sebelumnya"
               onClick={() => setWeekOffset((prev) => prev - 1)}
-            />
+            >
+              <FaChevronLeft />
+            </button>
             {days.map((d) => (
               <div
                 key={d.full}
@@ -850,12 +882,15 @@ export default function BookingPage() {
                 <span className="bk-day-num">{d.date}</span>
               </div>
             ))}
-            <FaChevronRight
-              className="bk-nav-icon"
-              style={{ cursor: "pointer" }}
+            <button
+              type="button"
+              className="bk-day-nav-btn next"
               title="Minggu Berikutnya"
+              aria-label="Minggu Berikutnya"
               onClick={() => setWeekOffset((prev) => prev + 1)}
-            />
+            >
+              <FaChevronRight />
+            </button>
           </div>
         </div>
 

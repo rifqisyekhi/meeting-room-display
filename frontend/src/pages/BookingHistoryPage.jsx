@@ -126,13 +126,46 @@ export default function BookingHistoryPage() {
       const data = await response.json();
       if (Array.isArray(data.meetings)) {
         const local = readLocalMeetings();
-        const localById = new Map(local.map((meeting) => [String(meeting.id), meeting]));
-        const serverIds = new Set(data.meetings.map((meeting) => String(meeting.id)));
+
+        // Helper untuk mencocokkan meeting lokal dengan server
+        const findMatchingLocal = (serverMeeting) => {
+          return local.find((lm) => {
+            if (String(lm.id) === String(serverMeeting.id)) return true;
+            if (serverMeeting.googleId && (String(lm.googleId) === String(serverMeeting.googleId) || String(lm.id) === String(serverMeeting.googleId))) return true;
+            const sameDate = lm.date === serverMeeting.date;
+            const sameStart = lm.start === serverMeeting.start;
+            const normLmRoom = (lm.room || "").toLowerCase().replace(/\s+/g, "");
+            const normSmRoom = (serverMeeting.room || "").toLowerCase().replace(/\s+/g, "");
+            const sameRoom = normLmRoom && normSmRoom && (normLmRoom.includes(normSmRoom) || normSmRoom.includes(normLmRoom));
+            return sameDate && sameStart && sameRoom;
+          });
+        };
+
+        const matchedLocalIds = new Set();
         const merged = data.meetings.map((meeting) => {
-          const localMeeting = localById.get(String(meeting.id));
-          return !meeting.review && localMeeting?.review ? { ...meeting, review: localMeeting.review } : meeting;
-        }).concat(local.filter((meeting) => !serverIds.has(String(meeting.id))));
-        setMeetings(merged);
+          const localMeeting = findMatchingLocal(meeting);
+          if (localMeeting) {
+            matchedLocalIds.add(String(localMeeting.id));
+            if (localMeeting.googleId) matchedLocalIds.add(String(localMeeting.googleId));
+          }
+          return {
+            ...meeting,
+            bookedBy: meeting.bookedBy || localMeeting?.bookedBy || "",
+            bookedByUsername: meeting.bookedByUsername || localMeeting?.bookedByUsername || "",
+            review: meeting.review || localMeeting?.review || null,
+            attendees: meeting.attendees || localMeeting?.attendees || [],
+            createdAt: meeting.createdAt || localMeeting?.createdAt || null,
+          };
+        });
+
+        // Sertakan permohonan lokal yang belum ada di server
+        const unmergedLocals = local.filter((lm) => !matchedLocalIds.has(String(lm.id)));
+        const finalMeetings = [...merged, ...unmergedLocals];
+
+        setMeetings(finalMeetings);
+        try {
+          localStorage.setItem("app_meetings", JSON.stringify(finalMeetings));
+        } catch {}
       }
       if (Array.isArray(data.rooms) && data.rooms.length) {
         let localRooms = [];
@@ -168,12 +201,22 @@ export default function BookingHistoryPage() {
 
   const visibleMeetings = useMemo(() => {
     const query = search.trim().toLowerCase();
+    const userUname = (currentUser.username || "").toLowerCase().trim();
+    const userName = (currentUser.name || "").toLowerCase().trim();
+    const userDept = (currentUser.dept || "").toLowerCase().trim();
+
     return meetings.filter((meeting) => {
-      const belongsToUser = isAdmin ||
-        (currentUser.username && meeting.bookedByUsername &&
-          meeting.bookedByUsername.toLowerCase() === currentUser.username.toLowerCase()) ||
-        (currentUser.name && meeting.bookedBy &&
-          meeting.bookedBy.toLowerCase() === currentUser.name.toLowerCase());
+      const bookedUname = (meeting.bookedByUsername || "").toLowerCase().trim();
+      const bookedName = (meeting.bookedBy || "").toLowerCase().trim();
+      const reqDept = (meeting.requester || "").toLowerCase().trim();
+
+      const belongsToUser =
+        isAdmin ||
+        (userUname && bookedUname && bookedUname === userUname) ||
+        (userName && bookedName && bookedName === userName) ||
+        (userUname && bookedName && bookedName === userUname) ||
+        (userDept && reqDept && reqDept === userDept);
+
       if (!belongsToUser) return false;
       const key = effectiveStatusKey(meeting, clockNow);
       if (filterStatus !== "all" && key !== filterStatus) return false;

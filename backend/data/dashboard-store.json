@@ -127,6 +127,24 @@
   ],
   "meetings": [
     {
+      "id": "b8sk5sff8o2tk9c4upaivqdaqk",
+      "title": "bukber 2",
+      "requester": "TU",
+      "bookedBy": "sakeh",
+      "bookedByUsername": "sakeh",
+      "room": "Ruang Rapat Besar",
+      "date": "2026-10-11",
+      "start": "14:00",
+      "end": "16:00",
+      "status": "Akan Datang",
+      "participants": 1,
+      "desc": "bukber 2",
+      "createdAt": "2026-10-10T12:19:28.081Z",
+      "approvedBy": "Pimpinan - Pimpinan",
+      "approvedAt": "2026-10-10T12:25:13.644Z",
+      "googleId": "b8sk5sff8o2tk9c4upaivqdaqk"
+    },
+    {
       "id": "7vkv4uqtd4u289fgkatdujntmo",
       "title": "bukber",
       "requester": "TU",
