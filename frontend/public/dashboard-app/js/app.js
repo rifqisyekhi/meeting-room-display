@@ -5,13 +5,17 @@ function isAtasanRole(user) {
   if (!user) return false;
   const role = (user.role || "").toLowerCase();
   const uname = (user.username || "").toLowerCase();
-  if (role === "administrator" || role.includes("admin") || uname === "admin") {
+  const name = (user.name || "").toLowerCase();
+  if (role === "administrator" || uname === "admin" || (role.includes("admin") && !role.includes("approval"))) {
     return false;
   }
   return (
     role.includes("approval") ||
     role.includes("pimpinan") ||
-    role.includes("atasan")
+    role.includes("atasan") ||
+    uname.includes("approval") ||
+    uname.includes("pimpinan") ||
+    name.includes("pimpinan")
   );
 }
 
@@ -317,7 +321,7 @@ const state = {
         id: "admin",
         name: "Admin Utama",
         username: "admin",
-        password: "admin123",
+        password: "",
         email: "admin@kemnaker.go.id",
         dept: "Biro Keuangan dan BMN",
         role: "Administrator",
@@ -327,7 +331,7 @@ const state = {
         id: "approval1",
         name: "Pimpinan",
         username: "approval1",
-        password: "approval123",
+        password: "",
         email: "pimpinan@kemnaker.go.id",
         dept: "Biro Keuangan dan BMN",
         role: "Approval",
@@ -337,7 +341,7 @@ const state = {
         id: "approval2",
         name: "Wakil Pimpinan",
         username: "approval2",
-        password: "approval234",
+        password: "",
         email: "wakil.pimpinan@kemnaker.go.id",
         dept: "Biro Keuangan dan BMN",
         role: "Approval",
@@ -3926,6 +3930,32 @@ function approveMeeting(id) {
   }
 
   if (!targetMeeting) {
+    try {
+      const notifs = getNotifications();
+      const notif = notifs.find(
+        (n) =>
+          String(n.meetingId) === String(id) || String(n.id) === String(id),
+      );
+      if (notif) {
+        const timeParts = (notif.time || "").split("-").map((t) => t.trim());
+        targetMeeting = {
+          id: notif.meetingId || notif.id,
+          title: notif.agenda || notif.title || "Rapat",
+          requester: notif.requester || "Unit Kerja",
+          room: notif.room || "Ruang Rapat",
+          date: notif.date || getTodayIsoDate(),
+          start: timeParts[0] || "08:00",
+          end: timeParts[1] || "09:00",
+          status: notif.status || "Menunggu Approval",
+          participants: notif.participants || 10,
+          desc: notif.agenda || notif.message || "",
+        };
+        state.meetings.unshift(targetMeeting);
+      }
+    } catch (e) {}
+  }
+
+  if (!targetMeeting) {
     alert("Data rapat tidak ditemukan.");
     return;
   }
@@ -3971,7 +4001,9 @@ function approveMeeting(id) {
   // Update notification item status
   try {
     const notifs = getNotifications();
-    const notif = notifs.find((n) => String(n.meetingId) === String(id));
+    const notif = notifs.find(
+      (n) => String(n.meetingId) === String(id) || String(n.id) === String(id),
+    );
     if (notif) {
       notif.status = "Akan Datang";
       notif.approvedBy = approvedTag;
@@ -4143,7 +4175,9 @@ function confirmReject(id) {
   // Update notification item status
   try {
     const notifs = getNotifications();
-    const notif = notifs.find((n) => String(n.meetingId) === String(id));
+    const notif = notifs.find(
+      (n) => String(n.meetingId) === String(id) || String(n.id) === String(id),
+    );
     if (notif) {
       notif.status = "Dibatalkan";
       notif.rejectedBy = rejecterTag;
@@ -4172,7 +4206,41 @@ function editMeeting(id) {
 }
 
 function viewMeeting(id) {
-  const m = state.meetings.find((x) => String(x.id) === String(id));
+  let m = state.meetings.find((x) => String(x.id) === String(id));
+  if (!m) {
+    try {
+      const stored = JSON.parse(
+        getAppStorage().getItem("app_meetings") || "[]",
+      );
+      m = stored.find((x) => String(x.id) === String(id));
+      if (m) state.meetings.unshift(m);
+    } catch (e) {}
+  }
+  if (!m) {
+    try {
+      const notifs = getNotifications();
+      const notif = notifs.find(
+        (n) =>
+          String(n.meetingId) === String(id) || String(n.id) === String(id),
+      );
+      if (notif) {
+        const timeParts = (notif.time || "").split("-").map((t) => t.trim());
+        m = {
+          id: notif.meetingId || notif.id,
+          title: notif.agenda || notif.title || "Rapat",
+          requester: notif.requester || "Unit Kerja",
+          room: notif.room || "Ruang Rapat",
+          date: notif.date || getTodayIsoDate(),
+          start: timeParts[0] || "08:00",
+          end: timeParts[1] || "09:00",
+          status: notif.status || "Menunggu Approval",
+          participants: notif.participants || 10,
+          desc: notif.agenda || notif.message || "",
+        };
+        state.meetings.unshift(m);
+      }
+    } catch (e) {}
+  }
   if (!m) return;
   const user = getCurrentUser();
   const isAtasan = isAtasanRole(user);

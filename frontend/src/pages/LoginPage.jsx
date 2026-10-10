@@ -5,26 +5,26 @@ import logoKemnaker from "../assets/Logo Kemenaker White.png";
 
 const dummyDB = [
   {
-    username: "admin",
-    password: "admin123",
+    username: import.meta.env.VITE_ADMIN_USERNAME || "admin",
+    password: import.meta.env.VITE_ADMIN_PASSWORD || "",
     role: "Administrator",
     name: "Admin Utama",
   },
   {
-    username: "approval1",
-    password: "approval123",
+    username: import.meta.env.VITE_APPROVAL1_USERNAME || "approval1",
+    password: import.meta.env.VITE_APPROVAL1_PASSWORD || "",
     role: "Approval",
     name: "Pimpinan",
   },
   {
-    username: "approval2",
-    password: "approval234",
+    username: import.meta.env.VITE_APPROVAL2_USERNAME || "approval2",
+    password: import.meta.env.VITE_APPROVAL2_PASSWORD || "",
     role: "Approval",
     name: "Wakil Pimpinan",
   },
   {
-    username: "andipratama",
-    password: "user123",
+    username: import.meta.env.VITE_USER_USERNAME || "andipratama",
+    password: import.meta.env.VITE_USER_PASSWORD || "",
     role: "User",
     name: "Andi Pratama",
     email: "andi@kemnaker.go.id",
@@ -267,7 +267,12 @@ export default function LoginPage() {
               <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                 <button
                   type="button"
-                  onClick={() => { setUsername("approval1"); setPassword("approval123"); }}
+                  onClick={() => {
+                    const uname = import.meta.env.VITE_APPROVAL1_USERNAME || "approval1";
+                    const pwd = import.meta.env.VITE_APPROVAL1_PASSWORD || "";
+                    setUsername(uname);
+                    setPassword(pwd);
+                  }}
                   style={{
                     display: "flex",
                     alignItems: "center",
@@ -282,13 +287,18 @@ export default function LoginPage() {
                     fontSize: "12px",
                   }}
                 >
-                  <span><b>Atasan (Pimpinan)</b> - <code>approval1</code></span>
+                  <span><b>Atasan (Pimpinan)</b> - <code>{import.meta.env.VITE_APPROVAL1_USERNAME || "approval1"}</code></span>
                   <span style={{ fontWeight: 600, fontSize: "11px", background: "#dcfce7", padding: "2px 6px", borderRadius: "4px" }}>Bisa Approve</span>
                 </button>
 
                 <button
                   type="button"
-                  onClick={() => { setUsername("approval2"); setPassword("approval234"); }}
+                  onClick={() => {
+                    const uname = import.meta.env.VITE_APPROVAL2_USERNAME || "approval2";
+                    const pwd = import.meta.env.VITE_APPROVAL2_PASSWORD || "";
+                    setUsername(uname);
+                    setPassword(pwd);
+                  }}
                   style={{
                     display: "flex",
                     alignItems: "center",
@@ -303,13 +313,18 @@ export default function LoginPage() {
                     fontSize: "12px",
                   }}
                 >
-                  <span><b>Atasan (Wakil Pimpinan)</b> - <code>approval2</code></span>
+                  <span><b>Atasan (Wakil Pimpinan)</b> - <code>{import.meta.env.VITE_APPROVAL2_USERNAME || "approval2"}</code></span>
                   <span style={{ fontWeight: 600, fontSize: "11px", background: "#dcfce7", padding: "2px 6px", borderRadius: "4px" }}>Bisa Approve</span>
                 </button>
 
                 <button
                   type="button"
-                  onClick={() => { setUsername("admin"); setPassword("admin123"); }}
+                  onClick={() => {
+                    const uname = import.meta.env.VITE_ADMIN_USERNAME || "admin";
+                    const pwd = import.meta.env.VITE_ADMIN_PASSWORD || "";
+                    setUsername(uname);
+                    setPassword(pwd);
+                  }}
                   style={{
                     display: "flex",
                     alignItems: "center",
@@ -324,7 +339,7 @@ export default function LoginPage() {
                     fontSize: "12px",
                   }}
                 >
-                  <span><b>Admin Utama</b> - <code>admin</code></span>
+                  <span><b>Admin Utama</b> - <code>{import.meta.env.VITE_ADMIN_USERNAME || "admin"}</code></span>
                   <span style={{ fontWeight: 600, fontSize: "11px", background: "#dbeafe", padding: "2px 6px", borderRadius: "4px" }}>Monitoring & Check-In</span>
                 </button>
               </div>

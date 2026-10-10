@@ -428,10 +428,10 @@ async function saveMeeting(meeting) {
     store.meetings.unshift(meeting);
   }
 
-  // Hapus setiap duplikat lain yang mungkin tersisa di store.meetings
+  const targetIdx = idx !== -1 ? idx : 0;
   const primaryId = String(meeting.id);
   store.meetings = store.meetings.filter((m, i) => {
-    if (idx !== -1 && i === idx) return true;
+    if (i === targetIdx) return true;
     if (String(m.id) === primaryId) return false;
     if (originalId && String(m.id) === String(originalId)) return false;
     const sameDate = m.date === meeting.date;
