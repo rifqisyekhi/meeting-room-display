@@ -195,6 +195,18 @@ async function getDashboardData() {
 
   if (calendarResult.success) {
     const calendarMeetings = calendarResult.meetings || [];
+    const calendarMeetingsWithLocalReviews = calendarMeetings.map((calendarMeeting) => {
+      const localMeeting = (store.meetings || []).find((storedMeeting) => {
+        if (String(storedMeeting.id) === String(calendarMeeting.id)) return true;
+        if (storedMeeting.googleId && String(storedMeeting.googleId) === String(calendarMeeting.id)) return true;
+        const sameDate = storedMeeting.date === calendarMeeting.date;
+        const sameTime = storedMeeting.start === calendarMeeting.start;
+        const storedRoom = (storedMeeting.room || "").toLowerCase().replace(/\s+/g, "");
+        const calendarRoom = (calendarMeeting.room || "").toLowerCase().replace(/\s+/g, "");
+        return sameDate && sameTime && storedRoom && calendarRoom && (storedRoom.includes(calendarRoom) || calendarRoom.includes(storedRoom));
+      });
+      return localMeeting?.review ? { ...calendarMeeting, review: localMeeting.review } : calendarMeeting;
+    });
     isGoogleConnected = true;
     statusMessage = `Berhasil terhubung ke Google Calendar (${calendarMeetings.length} jadwal disetujui)`;
 
@@ -226,7 +238,7 @@ async function getDashboardData() {
     });
 
     // Gabungkan jadwal (permohonan Menunggu Approval di urutan teratas, diikuti jadwal lokal aktif, lalu jadwal Google Calendar)
-    meetings = [...localPendingMeetings, ...localOtherMeetings, ...calendarMeetings];
+    meetings = [...localPendingMeetings, ...localOtherMeetings, ...calendarMeetingsWithLocalReviews];
   } else {
     isGoogleConnected = false;
     statusMessage = calendarResult.error;
