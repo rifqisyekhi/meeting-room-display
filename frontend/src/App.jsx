@@ -4,6 +4,7 @@ import DashboardPage from "./pages/DashboardPage";
 import LoginPage from "./pages/LoginPage";
 import BookingPage from "./pages/BookingPage";
 import BookingHistoryPage from "./pages/BookingHistoryPage";
+import MeetingPassPage from "./pages/MeetingPassPage";
 
 // eslint-disable-next-line react/prop-types
 const ProtectedRoute = ({ children }) => {
@@ -12,6 +13,38 @@ const ProtectedRoute = ({ children }) => {
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
+  return children;
+};
+
+// eslint-disable-next-line react/prop-types
+const DashboardRoute = ({ children }) => {
+  const isAuthenticated = localStorage.getItem("isAuthenticated");
+  const location = useLocation();
+  if (!isAuthenticated) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  let currentUser = null;
+  try {
+    const stored = localStorage.getItem("currentUser");
+    if (stored) currentUser = JSON.parse(stored);
+  } catch (e) {}
+
+  const role = (currentUser?.role || "").toLowerCase();
+  const uname = (currentUser?.username || "").toLowerCase();
+  const isAdminOrPimpinan =
+    role.includes("admin") ||
+    role.includes("pimpinan") ||
+    role.includes("approval") ||
+    uname === "admin" ||
+    uname.includes("approval") ||
+    uname.includes("pimpinan");
+
+  // Jika akun adalah User biasa (bukan Admin dan bukan Pimpinan), dilarang masuk dashboard, alihkan ke /booking
+  if (currentUser && !isAdminOrPimpinan) {
+    return <Navigate to="/booking" replace />;
+  }
+
   return children;
 };
 
@@ -24,6 +57,10 @@ export default function App() {
         <Route path="/display" element={<DisplayPage />} />
         <Route path="/tv" element={<DisplayPage />} />
         <Route path="/TV" element={<DisplayPage />} />
+
+        {/* Halaman Khusus Pass Rapat & Presensi QR (Bisa diakses dari HP scan QR tanpa login) */}
+        <Route path="/meeting/:id" element={<MeetingPassPage />} />
+        <Route path="/m/:id" element={<MeetingPassPage />} />
 
         {/* Halaman Login */}
         <Route path="/login" element={<LoginPage />} />
@@ -46,13 +83,13 @@ export default function App() {
           }
         />
 
-        {/* Tampilan Dashboard Admin (Dilindungi) */}
+        {/* Tampilan Dashboard Admin / Pimpinan (Dilindungi ketat) */}
         <Route
           path="/dashboard/*"
           element={
-            <ProtectedRoute>
+            <DashboardRoute>
               <DashboardPage />
-            </ProtectedRoute>
+            </DashboardRoute>
           }
         />
         <Route path="/admin/*" element={<Navigate to="/dashboard" replace />} />

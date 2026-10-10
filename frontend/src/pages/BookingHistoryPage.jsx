@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { FaCalendarAlt, FaChevronRight, FaClock, FaMapMarkerAlt, FaPlus, FaStar, FaUsers } from "react-icons/fa";
+import { FaCalendarAlt, FaChevronRight, FaClock, FaMapMarkerAlt, FaPlus, FaQrcode, FaStar, FaUsers } from "react-icons/fa";
+import { QRCodeSVG } from "qrcode.react";
 import { useNavigate } from "react-router-dom";
 import BookingAccountBar from "../components/BookingAccountBar";
 import imgRuangRapatBesar from "../assets/Ruang Rapat Besar.jpeg";
@@ -112,6 +113,8 @@ export default function BookingHistoryPage() {
   const [selectedRecommendationSlots, setSelectedRecommendationSlots] = useState({});
   const [showAllRecommendations, setShowAllRecommendations] = useState(false);
   const [notice, setNotice] = useState("");
+  const [qrModalMeeting, setQrModalMeeting] = useState(null);
+  const [copiedPassUrl, setCopiedPassUrl] = useState(false);
 
   const isAdmin = (currentUser.role || "").toLowerCase().includes("admin") ||
     (currentUser.username || "").toLowerCase() === "admin";
@@ -440,10 +443,11 @@ export default function BookingHistoryPage() {
           const showExtensionButton = key === "approved" && isMeetingNotEnded(meeting, clockNow);
           const canRecommend = key === "rejected" || key === "cancelled";
           const canReview = key === "completed" && !meeting.review;
+          const canShowQr = (key === "approved" || key === "completed");
           const submittedAt = meeting.createdAt;
           const changedAt = key === "rejected" ? meeting.rejectedAt : meeting.approvedAt || meeting.updatedAt;
           const statusText = {
-            pending: "Menunggu Persetujuan Admin", approved: "Disetujui", rejected: "Ditolak",
+            pending: "Menunggu Persetujuan Pimpinan", approved: "Disetujui", rejected: "Ditolak",
             completed: "Selesai", cancelled: "Dibatalkan",
           }[key];
           return (
@@ -473,7 +477,7 @@ export default function BookingHistoryPage() {
                     <i className={`booking-history-line ${key === "pending" ? "pending" : "done"}`} />
                     <span className={`booking-history-step ${key === "pending" ? "current" : key === "rejected" || key === "cancelled" ? "rejected" : "done"}`}>
                       <i>{key === "rejected" || key === "cancelled" ? "×" : key === "pending" ? "" : "✓"}</i>
-                      <b>{key === "pending" ? "Menunggu Persetujuan" : key === "rejected" ? "Ditolak" : key === "cancelled" ? "Dibatalkan" : "Disetujui"}</b>
+                      <b>{key === "pending" ? "Menunggu Persetujuan Pimpinan" : key === "rejected" ? "Ditolak" : key === "cancelled" ? "Dibatalkan" : "Disetujui"}</b>
                       <small>{formatStamp(changedAt)}</small>
                     </span>
                     <i className={`booking-history-line ${key === "completed" ? "done" : ""}`} />
@@ -485,8 +489,15 @@ export default function BookingHistoryPage() {
                   <span className={`booking-history-status ${key}`}>{statusText}</span>
                   <FaChevronRight className="booking-history-chevron" />
                 </button>
-                {(showExtensionButton || canRecommend || canReview) && (
+                {(showExtensionButton || canRecommend || canReview || canShowQr) && (
                   <div className="booking-history-row-actions">
+                    {canShowQr && (
+                      <button type="button" className="booking-history-qr-button"
+                        title="Buka QR Pass Rapat & Presensi"
+                        onClick={() => { setCopiedPassUrl(false); setQrModalMeeting(meeting); }}>
+                        <FaQrcode /> QR Pass
+                      </button>
+                    )}
                     {canRecommend && (
                       <button type="button" className="booking-history-recommendation-button"
                         onClick={() => { setSelectedRecommendationSlots({}); setShowAllRecommendations(false); setRecommendationTarget(meeting); }}>
@@ -687,6 +698,49 @@ export default function BookingHistoryPage() {
             )}
             <button type="button" className="booking-recommendation-done" onClick={() => setRecommendationTarget(null)}>Tutup</button>
           </section>
+        </div>
+      )}
+
+      {qrModalMeeting && (
+        <div className="booking-history-modal-backdrop" onClick={() => setQrModalMeeting(null)}>
+          <div className="booking-history-modal booking-history-qr-modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+            <button type="button" className="booking-history-modal-close" onClick={() => setQrModalMeeting(null)} aria-label="Tutup">×</button>
+            <span className="booking-history-qr-modal-icon"><FaQrcode /></span>
+            <h2>QR Pass & Presensi Rapat</h2>
+            <p><strong>{qrModalMeeting.title || qrModalMeeting.agenda || "Rapat"}</strong> · {qrModalMeeting.room}</p>
+            <div className="booking-history-qr-modal-preview">
+              <QRCodeSVG
+                value={`${typeof window !== 'undefined' ? window.location.origin : ''}/meeting/${qrModalMeeting.id}`}
+                size={180}
+                level="H"
+                marginSize={2}
+              />
+            </div>
+            <p className="booking-history-qr-modal-hint">
+              Pindai dengan kamera smartphone untuk <strong>Check-In</strong>, mengisi <strong>Daftar Hadir</strong>, atau <strong>Check-Out</strong>.
+            </p>
+            <div className="booking-history-qr-modal-actions">
+              <button
+                type="button"
+                className="booking-history-qr-copy-btn"
+                onClick={() => {
+                  navigator.clipboard.writeText(`${window.location.origin}/meeting/${qrModalMeeting.id}`);
+                  setCopiedPassUrl(true);
+                  setTimeout(() => setCopiedPassUrl(false), 2000);
+                }}
+              >
+                {copiedPassUrl ? "✓ Link Tersalin!" : "Salin Link Pass"}
+              </button>
+              <a
+                href={`/meeting/${qrModalMeeting.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="booking-history-qr-open-btn"
+              >
+                Buka Halaman Pass ↗
+              </a>
+            </div>
+          </div>
         </div>
       )}
     </main>

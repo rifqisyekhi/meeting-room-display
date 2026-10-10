@@ -79,6 +79,60 @@ router.delete("/meetings/:id", async (req, res) => {
   }
 });
 
+// Ambil detail 1 rapat berdasarkan ID (untuk Halaman QR Pass / Presensi)
+router.get("/meetings/:id", (req, res) => {
+  try {
+    const meeting = dashboardService.getMeetingById(req.params.id);
+    if (!meeting) {
+      return res.status(404).json({ success: false, error: "Rapat tidak ditemukan" });
+    }
+    res.json({ success: true, meeting });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Check-in rapat via QR / Web
+router.post("/meetings/:id/checkin", async (req, res) => {
+  try {
+    const checkedInBy = req.body?.by || "Peserta via QR";
+    const updated = await dashboardService.checkInMeeting(req.params.id, checkedInBy);
+    if (!updated) {
+      return res.status(404).json({ success: false, error: "Rapat tidak ditemukan" });
+    }
+    res.json({ success: true, meeting: updated, message: "Berhasil Check-In" });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Check-out rapat via QR / Web
+router.post("/meetings/:id/checkout", async (req, res) => {
+  try {
+    const checkedOutBy = req.body?.by || "Peserta via QR";
+    const updated = await dashboardService.checkOutMeeting(req.params.id, checkedOutBy);
+    if (!updated) {
+      return res.status(404).json({ success: false, error: "Rapat tidak ditemukan" });
+    }
+    res.json({ success: true, meeting: updated, message: "Berhasil Check-Out" });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Tambah daftar hadir peserta (Attendance / Presensi Buku Tamu Rapat)
+router.post("/meetings/:id/attendees", (req, res) => {
+  try {
+    const result = dashboardService.addMeetingAttendee(req.params.id, req.body);
+    if (!result) {
+      return res.status(404).json({ success: false, error: "Rapat tidak ditemukan" });
+    }
+    res.json({ success: true, attendee: result.attendee, meeting: result.meeting });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // Simpan / update ruangan
 router.post("/rooms", (req, res) => {
   try {

@@ -1,15 +1,24 @@
 // ----------------------------------------------------------------------
-// HELPER ROLE & ACCESS CONTROL
+// HELPER ROLE & ACCESS CONTROL (Admin, Pimpinan, User)
 // ----------------------------------------------------------------------
+function getRoleLabel(role) {
+  if (!role) return "User";
+  const r = String(role).trim().toLowerCase();
+  if (r === "admin" || r === "administrator" || (r.includes("admin") && !r.includes("approval") && !r.includes("pimpinan"))) return "Admin";
+  if (r === "pimpinan" || r.includes("approval") || r === "atasan") return "Pimpinan";
+  return "User";
+}
+
 function isAtasanRole(user) {
   if (!user) return false;
   const role = (user.role || "").toLowerCase();
   const uname = (user.username || "").toLowerCase();
   const name = (user.name || "").toLowerCase();
-  if (role === "administrator" || uname === "admin" || (role.includes("admin") && !role.includes("approval"))) {
+  if (role === "admin" || role === "administrator" || uname === "admin" || (role.includes("admin") && !role.includes("approval") && !role.includes("pimpinan"))) {
     return false;
   }
   return (
+    role === "pimpinan" ||
     role.includes("approval") ||
     role.includes("pimpinan") ||
     role.includes("atasan") ||
@@ -24,8 +33,105 @@ function isAdminRole(user) {
   const role = (user.role || "").toLowerCase();
   const uname = (user.username || "").toLowerCase();
   return (
-    role === "administrator" || role.includes("admin") || uname === "admin"
+    role === "admin" || role === "administrator" || role.includes("admin") || uname === "admin"
   );
+}
+
+// ----------------------------------------------------------------------
+// MATRIKS HAK AKSES (satu-satunya sumber aturan role)
+//  - Pimpinan          : fokus Setujui/Tolak, sisanya hanya melihat.
+//  - Admin             : operasional & monitoring (rapat, ruangan, pengguna),
+//                        TIDAK menyetujui/menolak pengajuan.
+//  - User              : pemohon pengajuan & presensi mandiri.
+// ----------------------------------------------------------------------
+const PERMISSIONS = {
+  approve: ["pimpinan", "approval"],
+  manageMeeting: ["admin"], // tambah / edit rapat
+  checkInOut: ["admin"],
+  emergencyCancel: ["admin", "pimpinan", "approval"],
+  manageRoom: ["admin"],
+  manageUsers: ["admin"],
+  manageSettings: ["admin"],
+};
+
+function getRoleGroup(user) {
+  if (isAtasanRole(user)) return "pimpinan";
+  if (isAdminRole(user)) return "admin";
+  return "user";
+}
+
+function can(action, user) {
+  const u = user || (typeof getCurrentUser === "function" ? getCurrentUser() : null);
+  const allowed = PERMISSIONS[action] || [];
+  return allowed.includes(getRoleGroup(u));
+}
+
+function denyAccess(message) {
+  alert(message || "Hak akses dibatasi untuk role Anda.");
+  return false;
+}
+
+function isPageAllowed(page, user) {
+  if (page === "users") return can("manageUsers", user);
+  if (page === "settings") return can("manageSettings", user);
+  return true;
+}
+
+function isPendingApproval(m) {
+  const s = String((m && m.status) || "").toLowerCase();
+  return (s.includes("menunggu") || s === "pending") && !m.rejectedBy;
+}
+
+function getMeetingStatistics() {
+  const meetings = state.meetings || [];
+  const rooms = state.rooms || [];
+  const totalMeetings = meetings.length;
+
+  let totalMinutes = 0;
+  meetings.forEach((m) => {
+    if (m.start && m.end) {
+      const [sh, sm] = m.start.split(":").map(Number);
+      const [eh, em] = m.end.split(":").map(Number);
+      if (!isNaN(sh) && !isNaN(eh)) {
+        const diff = (eh * 60 + (em || 0)) - (sh * 60 + (sm || 0));
+        if (diff > 0) totalMinutes += diff;
+      }
+    }
+  });
+  const totalHours = Math.round(totalMinutes / 60);
+
+  const requesters = new Set();
+  meetings.forEach((m) => {
+    if (m.bookedBy) requesters.add(m.bookedBy);
+    else if (m.requester) requesters.add(m.requester);
+  });
+  const totalUsers = Math.max(state.users ? state.users.length : 0, requesters.size, 1);
+
+  const runningCount = meetings.filter((m) => (m.status || "").toLowerCase() === "berjalan").length;
+  const pendingCount = meetings.filter(isPendingApproval).length;
+  const soonCount = meetings.filter((m) => {
+    const s = (m.status || "").toLowerCase();
+    return s === "akan datang" || s === "segera";
+  }).length;
+  const doneCount = meetings.filter((m) => (m.status || "").toLowerCase() === "selesai").length;
+
+  const totalRooms = rooms.length || 1;
+  const occupiedRooms = rooms.filter((r) => {
+    const s = (r.status || "").toLowerCase();
+    return s.includes("guna") || s.includes("pakai");
+  }).length;
+  const roomUtilization = Math.round(((occupiedRooms || (runningCount > 0 ? 1 : 0)) / totalRooms) * 100);
+
+  return {
+    totalMeetings,
+    totalHours,
+    totalUsers,
+    runningCount,
+    pendingCount,
+    soonCount,
+    doneCount,
+    roomUtilization: Math.min(100, Math.max(0, roomUtilization || (totalMeetings > 0 ? 50 : 0))),
+  };
 }
 
 function getTodayIsoDate() {
@@ -170,6 +276,14 @@ function purgeAllDummyData() {
     }
     storages.forEach((s) => {
       if (!s) return;
+      const testResetFlag = s.getItem("app_clean_reset_test_20261010");
+      if (!testResetFlag) {
+        s.removeItem("app_meetings");
+        s.removeItem("app_notifications");
+        s.removeItem("app_users");
+        s.removeItem("app_login_users");
+        s.setItem("app_clean_reset_test_20261010", "true");
+      }
       const stored = s.getItem("app_meetings");
       if (stored) {
         try {
@@ -342,7 +456,7 @@ const state = {
         password: "",
         email: "admin@kemnaker.go.id",
         dept: "Biro Keuangan dan BMN",
-        role: "Administrator",
+        role: "Admin",
         status: "Aktif",
       },
       {
@@ -352,7 +466,7 @@ const state = {
         password: "",
         email: "pimpinan@kemnaker.go.id",
         dept: "Biro Keuangan dan BMN",
-        role: "Approval",
+        role: "Pimpinan",
         status: "Aktif",
       },
       {
@@ -362,7 +476,7 @@ const state = {
         password: "",
         email: "wakil.pimpinan@kemnaker.go.id",
         dept: "Biro Keuangan dan BMN",
-        role: "Approval",
+        role: "Pimpinan",
         status: "Aktif",
       },
     ];
@@ -384,7 +498,7 @@ const state = {
           list.push(lu);
         }
       });
-      // Filter out Andi Pratama and normalize Approval roles
+      // Filter out Andi Pratama and normalize roles to Admin, Pimpinan, User
       list = list
         .filter(
           (u) =>
@@ -392,10 +506,7 @@ const state = {
             (u.username || "").toLowerCase() !== "andipratama",
         )
         .map((u) => {
-          if (u.role === "Approval 1" || u.role === "Approval 2") {
-            return { ...u, role: "Approval" };
-          }
-          return u;
+          return { ...u, role: getRoleLabel(u.role) };
         });
       return list;
     } catch (e) {}
@@ -481,9 +592,9 @@ function statusClass(s) {
   if (s === "Menunggu Approval") return "orange";
   if (s === "Selesai") return "blue";
   if (
+    s === "Admin" ||
     s === "Administrator" ||
-    s === "Admin Ruangan" ||
-    s === "Admin Sistem" ||
+    s === "Pimpinan" ||
     s.startsWith("Approval")
   )
     return "purple";
@@ -502,7 +613,7 @@ function rapatHariIni() {
 }
 
 function layout(content) {
-  let currentUser = { role: "Administrator" };
+  let currentUser = { role: "Admin" };
   try {
     const stored = window.parent.localStorage.getItem("currentUser");
     if (stored) currentUser = JSON.parse(stored);
@@ -511,9 +622,7 @@ function layout(content) {
   return `<div class="app-shell"><aside class="sidebar">
     <div class="brand"><img src="/dashboard-app/assets/kemenaker-white.png" alt="Logo Kemenaker" class="brand-logo"><div><b>MEETING DISPLAY ROOM</b><small>BIRO KEUANGAN DAN BMN</small></div></div>
     <nav class="nav">${nav
-      .filter(
-        ([id]) => id !== "settings" || currentUser.role === "Administrator",
-      )
+      .filter(([id]) => isPageAllowed(id, currentUser))
       .map(
         ([id, icon, label]) =>
           `<a href="#${id}" class="nav-item ${state.page === id ? "active" : ""}">${icon}${label}</a>`,
@@ -562,9 +671,17 @@ function getNotifications() {
   } catch (e) {}
   if (!Array.isArray(notifs)) notifs = [];
 
+  let changed = false;
+  // Bersihkan notifikasi yang rapatnya sudah dihapus dari state.meetings
+  if (Array.isArray(state.meetings)) {
+    const validMeetingIds = new Set(state.meetings.map((m) => String(m.id)));
+    const beforeCount = notifs.length;
+    notifs = notifs.filter((n) => !n.meetingId || validMeetingIds.has(String(n.meetingId)));
+    if (notifs.length !== beforeCount) changed = true;
+  }
+
   // Sinkronisasi otomatis dengan state.meetings:
   // Setiap meeting dengan status "Menunggu Approval" yang belum ada di notifikasi otomatis didaftarkan
-  let changed = false;
   if (Array.isArray(state.meetings)) {
     state.meetings.forEach((m) => {
       const existing = notifs.find((n) => n.meetingId === m.id && n.type !== "MEETING_REVIEW");
@@ -811,7 +928,7 @@ function openNotifFromToast(id, btn) {
 }
 
 function getDashboardNotifPanelHTML(currentUser) {
-  const notifs = getNotifications().filter((n) => {
+  let notifs = getNotifications().filter((n) => {
     if (!Array.isArray(n.targetRoles)) return true;
     const r = (currentUser?.role || "").toLowerCase();
     return n.targetRoles.some(
@@ -820,7 +937,16 @@ function getDashboardNotifPanelHTML(currentUser) {
         (r.includes("approval") && tr.toLowerCase().includes("approval")),
     );
   });
-  const canApprove = isAtasanRole(currentUser) || isAdminRole(currentUser);
+  const canApprove = can("approve", currentUser);
+
+  // Prioritaskan yang Menunggu Persetujuan di urutan teratas, lalu urutkan waktu terbaru
+  notifs.sort((a, b) => {
+    const aPending = (a.status || "").toLowerCase().includes("menunggu") ? 1 : 0;
+    const bPending = (b.status || "").toLowerCase().includes("menunggu") ? 1 : 0;
+    if (aPending !== bPending) return bPending - aPending;
+    return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+  });
+
   const pendingCount = notifs.filter((n) =>
     (n.status || "").toLowerCase().includes("menunggu"),
   ).length;
@@ -828,14 +954,16 @@ function getDashboardNotifPanelHTML(currentUser) {
   let itemsHTML = "";
   if (notifs.length === 0) {
     itemsHTML = `
-      <div class="notif-empty-state" style="padding:40px 20px;text-align:center;width:100%;">
-        <div style="font-size:32px;margin-bottom:8px;">🔔</div>
-        <div style="font-size:14px;font-weight:700;color:#0c2d5e;">Tidak Ada Notifikasi</div>
-        <div style="font-size:12px;color:#94a3b8;margin-top:2px;">Belum ada request peminjaman ruangan saat ini.</div>
+      <div class="notif-empty-state" style="padding:32px 16px;text-align:center;width:100%;">
+        <div style="font-size:28px;margin-bottom:6px;">🔔</div>
+        <div style="font-size:13.5px;font-weight:700;color:#0c2d5e;">Tidak Ada Notifikasi</div>
+        <div style="font-size:12px;color:#94a3b8;margin-top:2px;">Semua permintaan telah diproses.</div>
       </div>
     `;
   } else {
-    itemsHTML = notifs
+    // Tampilkan 5 notifikasi terbaru agar tidak memanjang dan tidak menimbulkan dual scrollbar
+    const displayNotifs = notifs.slice(0, 5);
+    itemsHTML = displayNotifs
       .map((n) => {
         const m =
           state.meetings.find((x) => String(x.id) === String(n.meetingId)) || n;
@@ -845,120 +973,61 @@ function getDashboardNotifPanelHTML(currentUser) {
           m.status === "Akan Datang" ||
           (!isPending && m.status !== "Dibatalkan" && m.approvedBy);
         const isRejected = m.status === "Dibatalkan";
-        const isPriorityCancel =
-          n.type === "CANCELED_PRIORITY" ||
-          (m.cancellationReason &&
-            m.cancellationReason.includes("Kepala Biro")) ||
-          (n.cancellationReason &&
-            n.cancellationReason.includes("Kepala Biro"));
 
         let statusBadge = "";
         if (isReview) {
-          statusBadge = `<span class="notif-status-badge approved" style="background:#ecfdf5;color:#0f766e;border:1px solid #99f6e4;font-size:10.5px;padding:3px 8px;border-radius:10px;font-weight:600;display:inline-block;white-space:nowrap;">Rating ${esc(n.rating || 0)}/5</span>`;
-        } else if (isPriorityCancel) {
-          statusBadge = `<span class="notif-status-badge rejected" style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;font-size:10.5px;padding:3px 8px;border-radius:10px;font-weight:600;display:inline-block;white-space:nowrap;">✕ Dibatalkan (Prioritas)</span>`;
+          statusBadge = `<span style="background:#ecfdf5;color:#0f766e;border:1px solid #99f6e4;font-size:10.5px;padding:2px 7px;border-radius:10px;font-weight:600;white-space:nowrap;">Rating ${esc(n.rating || 0)}/5</span>`;
         } else if (isPending) {
-          statusBadge = `<span class="notif-status-badge pending" style="background:#fff7ed;color:#ea580c;border:1px solid #fed7aa;font-size:10.5px;padding:3px 8px;border-radius:10px;font-weight:600;display:inline-block;white-space:nowrap;">⏳ Menunggu Persetujuan</span>`;
+          statusBadge = `<span style="background:#fff7ed;color:#ea580c;border:1px solid #fed7aa;font-size:10.5px;padding:2px 7px;border-radius:10px;font-weight:700;white-space:nowrap;">⏳ Perlu Persetujuan</span>`;
         } else if (isApproved) {
-          statusBadge = `<span class="notif-status-badge approved" style="background:#ecfdf5;color:#15803d;border:1px solid #bbf7d0;font-size:10.5px;padding:3px 8px;border-radius:10px;font-weight:600;display:inline-block;white-space:nowrap;">✓ Disetujui (${esc(m.approvedBy || "Pimpinan")})</span>`;
+          statusBadge = `<span style="background:#ecfdf5;color:#15803d;border:1px solid #bbf7d0;font-size:10.5px;padding:2px 7px;border-radius:10px;font-weight:600;white-space:nowrap;">✓ Disetujui</span>`;
         } else if (isRejected) {
-          statusBadge = `<span class="notif-status-badge rejected" style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;font-size:10.5px;padding:3px 8px;border-radius:10px;font-weight:600;display:inline-block;white-space:nowrap;">✕ Dibatalkan</span>`;
+          statusBadge = `<span style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;font-size:10.5px;padding:2px 7px;border-radius:10px;font-weight:600;white-space:nowrap;">✕ Dibatalkan</span>`;
         } else {
-          statusBadge = `<span class="notif-status-badge default" style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;font-size:10.5px;padding:3px 8px;border-radius:10px;font-weight:600;display:inline-block;white-space:nowrap;">${esc(m.status)}</span>`;
+          statusBadge = `<span style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;font-size:10.5px;padding:2px 7px;border-radius:10px;font-weight:600;white-space:nowrap;">${esc(m.status)}</span>`;
         }
 
-        let actionsHTML = "";
-        if (isReview) {
-          actionsHTML = `<div class="notif-action-row"><button class="notif-btn-view" onclick="viewMeetingFromNotif(event, '${esc(m.id)}')">Detail Rapat</button></div>`;
-        } else if (isPending) {
-          if (canApprove) {
-            actionsHTML = `
-              <div class="notif-action-row" style="display:flex;gap:6px;">
-                <button class="notif-btn-approve" onclick="approveMeetingFromNotif(event, '${esc(m.id)}')" style="background:#16a34a;color:#fff;border:none;padding:5px 10px;border-radius:6px;font-size:11.5px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:3px;transition:background 0.15s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">✓ Setujui</button>
-                <button class="notif-btn-reject" onclick="rejectMeetingFromNotif(event, '${esc(m.id)}')" style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;padding:5px 10px;border-radius:6px;font-size:11.5px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:3px;transition:background 0.15s;" onmouseover="this.style.background='#fecaca'" onmouseout="this.style.background='#fee2e2'">✕ Tolak</button>
-              </div>
-            `;
-          } else {
-            actionsHTML = `
-              <div class="notif-action-row">
-                <button class="notif-btn-view" onclick="viewMeeting('${esc(m.id)}')" style="background:#1d4ed8;color:#fff;border:none;padding:5px 12px;border-radius:6px;font-size:11.5px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;transition:background 0.15s;" onmouseover="this.style.background='#1e40af'" onmouseout="this.style.background='#1d4ed8'">Lihat Detail</button>
-              </div>
-            `;
-          }
-        } else {
-          actionsHTML = `
-            <div class="notif-action-row">
-              <button class="notif-btn-view" onclick="viewMeeting('${esc(m.id)}')" style="background:#1d4ed8;color:#fff;border:none;padding:5px 12px;border-radius:6px;font-size:11.5px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;transition:background 0.15s;" onmouseover="this.style.background='#1e40af'" onmouseout="this.style.background='#1d4ed8'">Detail Rapat</button>
-            </div>
-          `;
-        }
-
-        const iconBg = isReview
-          ? "#ccfbf1"
-          : isPriorityCancel
-          ? "#fee2e2"
-          : isPending
-            ? "#fff7ed"
-            : isApproved
-              ? "#ecfdf5"
-              : "#fef2f2";
-        const iconColor = isReview
-          ? "#0f766e"
-          : isPriorityCancel
-          ? "#b91c1c"
-          : isPending
-            ? "#ea580c"
-            : isApproved
-              ? "#16a34a"
-              : "#dc2626";
+        const title = esc(n.title || m.title || "Booking Ruang Rapat");
+        const requester = esc(isReview ? n.requester || "User" : m.requester || m.bookedBy || "TU");
+        const roomName = esc(m.room || "Ruang Rapat");
+        const dateStr = formatDate(m.date);
+        const timeStr = `${m.start || "09:00"}–${m.end || "10:00"}`;
 
         return `
-          <div class="dash-notif-item ${isPending ? "highlight-pending" : ""}" style="${isPriorityCancel ? "border-left: 4px solid #ef4444;" : isApproved ? "border-left: 4px solid #16a34a;" : ""}">
-            <!-- Top: Icon, Judul, Waktu -->
-            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
-              <div style="display:flex;align-items:flex-start;gap:8px;min-width:0;flex:1;">
-                <div style="width:28px;height:28px;border-radius:8px;background:${iconBg};color:${iconColor};display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;margin-top:1px;">
-                  ${isPriorityCancel ? "⚠️" : isPending ? "⏳" : isApproved ? "✓" : "✕"}
-                </div>
-                <div style="min-width:0;flex:1;">
-                  <div class="notif-item-title" style="font-size:13px;font-weight:700;${isPriorityCancel ? "color:#b91c1c;" : "color:#0c2d5e;"}white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3;" title="${esc(n.title || m.title || "Permintaan Booking")}">
-                    ${esc(n.title || m.title || "Permintaan Booking")}
-                  </div>
-                  <div class="notif-item-requester" style="font-size:11.5px;color:#4b6a90;margin-top:2px;">
-                    ${isReview ? "Pemberi ulasan" : "Pemohon"}: <b style="color:#0c2d5e;">${esc(isReview ? n.requester || "User" : m.requester || "Bagian")}</b>
-                  </div>
-                </div>
-              </div>
-              <span class="notif-item-time" style="font-size:10.5px;color:#94a3b8;white-space:nowrap;flex-shrink:0;margin-top:2px;">
+          <div class="dash-notif-item ${isPending ? "highlight-pending" : ""}" style="padding:10px 12px;border-radius:10px;background:#fff;border:1px solid ${isPending ? "#fed7aa" : "#e2e8f0"};${isPending ? "border-left:4px solid #ea580c;background:#fffaf5;" : ""}">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:4px;">
+              <strong style="font-size:12.5px;font-weight:700;color:#0c2d5e;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;" title="${title}">
+                ${title}
+              </strong>
+              <span style="font-size:10.5px;color:#94a3b8;white-space:nowrap;flex-shrink:0;">
                 ${getTimeAgo(n.createdAt)}
               </span>
             </div>
 
-            <!-- Detail Ruang & Jadwal -->
-            <div class="notif-item-meta-box" style="background:#f8fafc;border:1px solid #eef2f6;border-radius:8px;padding:7px 10px;font-size:11.5px;color:#334155;display:flex;flex-direction:column;gap:3px;margin:2px 0;">
-              <div>🏛️ <b>Ruang:</b> <span style="font-weight:600;color:#0c2d5e;">${esc(m.room)}</span></div>
-              <div style="color:#64748b;">📅 <b>Jadwal:</b> ${formatDate(m.date)} (${m.start || ""}-${m.end || ""})</div>
+            <div style="font-size:11.5px;color:#475569;margin-bottom:3px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+              <span>Pemesan: <b>${requester}</b></span>
+              <span style="color:#cbd5e1;">·</span>
+              <span style="color:#0c2d5e;font-weight:600;">🏛️ ${roomName}</span>
             </div>
 
-            ${isReview && n.review ? `<div style="margin-top:8px;padding:8px 10px;border-radius:8px;background:#f0fdfa;color:#334155;font-size:11.5px;line-height:1.45;"><b>Ulasan:</b> ${esc(n.review)}</div>` : ""}
+            <div style="font-size:11px;color:#64748b;margin-bottom:8px;">
+              📅 ${dateStr} · ${timeStr} WIB
+            </div>
 
-            ${
-              isPriorityCancel
-                ? `
-              <div style="font-size:11px;color:#991b1b;background:#fef2f2;border:1px solid #fecaca;padding:5px 8px;border-radius:6px;line-height:1.35;">
-                ⚠️ Dialihkan untuk <b>Ka. Biro Keuangan</b>.
-              </div>
-            `
-                : ""
-            }
-
-            <!-- Bottom: Status Badge & Aksi -->
-            <div class="notif-item-bottom" style="display:flex;align-items:center;justify-content:space-between;margin-top:3px;flex-wrap:wrap;gap:8px;">
-              <div>
-                ${statusBadge}
-              </div>
-              <div>
-                ${actionsHTML}
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;padding-top:4px;border-top:1px dashed #f1f5f9;">
+              <div>${statusBadge}</div>
+              <div style="display:flex;align-items:center;gap:6px;">
+                ${
+                  isPending && canApprove
+                    ? `
+                  <button type="button" onclick="approveMeetingFromNotif(event, '${esc(m.id)}')" style="background:#16a34a;color:#fff;border:none;padding:4px 9px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:3px;transition:background 0.15s;" title="Setujui permohonan">✓ Setujui</button>
+                  <button type="button" onclick="rejectMeetingFromNotif(event, '${esc(m.id)}')" style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;padding:4px 9px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:3px;transition:background 0.15s;" title="Tolak permohonan">✕ Tolak</button>
+                `
+                    : ""
+                }
+                <button type="button" onclick="viewMeeting('${esc(m.id)}')" style="background:none;border:none;color:#1769aa;font-size:11.5px;font-weight:700;cursor:pointer;padding:0;text-decoration:none;display:inline-flex;align-items:center;gap:3px;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">
+                  Lihat detail →
+                </button>
               </div>
             </div>
           </div>
@@ -968,32 +1037,35 @@ function getDashboardNotifPanelHTML(currentUser) {
   }
 
   return `
-    <div class="dash-section-header dash-notif-header">
+    <div class="dash-section-header dash-notif-header" style="margin-bottom:12px;padding-bottom:10px;">
       <div class="dash-notif-header-title">
-        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0c2d5e" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
-        <h2>Notifikasi & Permintaan</h2>
+        <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#0c2d5e" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+        <div>
+          <h2 style="font-size:15px;margin:0;line-height:1.2;">Notifikasi</h2>
+          <small style="font-size:11px;color:#64748b;font-weight:500;display:block;">Permintaan terbaru</small>
+        </div>
       </div>
       <div class="dash-notif-header-actions">
         ${pendingCount > 0 ? `
-          <span class="notif-pending-pill" title="${pendingCount} Permintaan Menunggu Persetujuan">
+          <span class="notif-pending-pill" title="${pendingCount} Permintaan Perlu Persetujuan">
             <span class="notif-pending-dot"></span>
             <span>${pendingCount} Menunggu</span>
           </span>
         ` : ""}
         ${notifs.length > 0 ? `
           <button type="button" class="notif-mark-read-btn" title="Tandai semua notifikasi telah dibaca" onclick="markAllNotifsRead(event)">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-            <span>Tandai Dibaca</span>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            <span>Tandai Semua Dibaca</span>
           </button>
         ` : ""}
       </div>
     </div>
-    <div id="dashNotifBody" class="dash-notif-body">
+    <div id="dashNotifBody" class="dash-notif-body" style="display:flex;flex-direction:column;gap:10px;max-height:400px;overflow-y:auto;">
       ${itemsHTML}
     </div>
     <div style="padding-top:12px;margin-top:auto;border-top:1px solid #eef3f9;display:flex;align-items:center;justify-content:flex-end;">
-      <a href="#meetings" style="font-size:12px;font-weight:600;color:#1769aa;text-decoration:none;display:flex;align-items:center;gap:4px;transition:opacity 0.15s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">
-        Buka Semua di Manajemen Rapat <span>→</span>
+      <a href="#meetings" style="font-size:12px;font-weight:700;color:#1769aa;text-decoration:none;display:inline-flex;align-items:center;gap:4px;transition:opacity 0.15s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">
+        <span>Lihat semua notifikasi</span> <span>→</span>
       </a>
     </div>
   `;
@@ -1003,16 +1075,14 @@ function getProfileHTML() {
   let currentUser = {
     username: "admin",
     name: "Admin Utama",
-    role: "Administrator",
+    role: "Admin",
   };
   try {
     const stored = getAppStorage().getItem("currentUser");
     if (stored) currentUser = JSON.parse(stored);
   } catch (e) {}
 
-  if (currentUser.role === "Approval 1" || currentUser.role === "Approval 2") {
-    currentUser.role = "Approval";
-  }
+  currentUser.role = getRoleLabel(currentUser.role);
 
   let savedAccounts = [];
   try {
@@ -1032,10 +1102,7 @@ function getProfileHTML() {
         (u.username || "").toLowerCase() !== "andipratama",
     )
     .map((u) => {
-      if (u.role === "Approval 1" || u.role === "Approval 2") {
-        return { ...u, role: "Approval" };
-      }
-      return u;
+      return { ...u, role: getRoleLabel(u.role) };
     });
 
   const initial = currentUser.name
@@ -1052,13 +1119,12 @@ function getProfileHTML() {
     otherAccounts.length > 0
       ? otherAccounts
           .map((u) => {
-            const isAtasan =
-              (u.role || "").toLowerCase().includes("approval") ||
-              (u.role || "").toLowerCase().includes("pimpinan");
+            const isAtasan = isAtasanRole(u);
+            const roleName = getRoleLabel(u.role);
             return `
       <div onclick="switchToAccount(event, '${esc(u.username)}')" style="padding:10px 14px;cursor:pointer;font-size:12px;font-weight:500;border-bottom:1px solid #e2e8f0;color:#333;display:flex;flex-direction:column;gap:2px;transition:background 0.15s;" onmouseover="this.style.background='${isAtasan ? "#f0fdf4" : "#eff6ff"}'" onmouseout="this.style.background='white'">
         <div style="font-weight:600;color:#0f172a;">${esc(u.name)}</div>
-        <small style="color:${isAtasan ? "#16a34a" : "#2563eb"};font-weight:600;">Role: ${esc(u.role)} ${isAtasan ? "(Hak Akses Approve)" : "(Monitoring & Check In)"}</small>
+        <small style="color:${isAtasan ? "#16a34a" : "#2563eb"};font-weight:600;">Role: ${esc(roleName)}</small>
       </div>
     `;
           })
@@ -1072,7 +1138,7 @@ function getProfileHTML() {
         <div class="avatar" style="width:40px;height:40px;border-radius:50%;background:#fff;color:#0c2d5e;font-weight:700;font-size:16px;display:flex;align-items:center;justify-content:center;border:2px solid #d4e6f6;flex-shrink:0;">${initial}</div>
         <div>
           <div style="font-weight:700;font-size:14px;color:#0c2d5e;line-height:1.2;">${esc(currentUser.name)}</div>
-          <div style="font-size:12px;color:#4b6a90;font-weight:600;">${esc(currentUser.role)}</div>
+          <div style="font-size:12px;color:#4b6a90;font-weight:600;">${esc(getRoleLabel(currentUser.role))}</div>
         </div>
         <div id="profileDropdown" style="display:none;position:absolute;top:120%;right:0;background:white;border-radius:8px;box-shadow:0 10px 25px rgba(0,0,0,0.15);width:260px;z-index:100;overflow:hidden;border:1px solid #e2e8f0;text-align:left;">
           <div style="padding:10px 14px;font-size:11px;font-weight:700;color:#64748b;background:#f8fafc;border-bottom:1px solid #e2e8f0;text-transform:uppercase;letter-spacing:0.5px;">Ganti Akun Cepat</div>
@@ -1099,9 +1165,7 @@ function switchToAccount(e, username) {
     (u) => (u.username || "").toLowerCase() === (username || "").toLowerCase(),
   );
   if (user) {
-    if (user.role === "Approval 1" || user.role === "Approval 2") {
-      user.role = "Approval";
-    }
+    user.role = getRoleLabel(user.role);
     getAppStorage().setItem("currentUser", JSON.stringify(user));
     getAppStorage().setItem("isAuthenticated", "true");
     try {
@@ -1235,69 +1299,123 @@ function dashboard() {
       .dash-charts-subgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; min-width: 0; }
       @media (max-width: 768px) { .dash-charts-subgrid { grid-template-columns: 1fr; } }
       /* Bottom Grid: Meetings Table & Notifications side-by-side */
-      .dash-bottom-grid { display: grid; grid-template-columns: 1.65fr 1fr; gap: 20px; padding: 0 40px 40px; align-items: stretch; }
-      @media (max-width: 1200px) { .dash-bottom-grid { grid-template-columns: 1fr; } }
+      .dash-bottom-grid { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 20px; padding: 0 40px 40px; align-items: stretch; }
+      @media (max-width: 1100px) { .dash-bottom-grid { grid-template-columns: 1fr; } }
       .dash-table-col { min-width: 0; display: flex; flex-direction: column; }
       .dash-table-col .dash-table-card { width: 100%; flex: 1; display: flex; flex-direction: column; box-sizing: border-box; }
       .dash-table-col .dash-table-wrapper { flex: 1; }
-      .dash-notif-col { min-width: 0; display: flex; flex-direction: column; }
+      .dash-notif-col { min-width: 0; width: 330px; display: flex; flex-direction: column; }
+      @media (max-width: 1100px) { .dash-notif-col { width: 100%; } }
       .dash-notif-col .dash-notif-card { width: 100%; height: 100%; flex: 1; display: flex; flex-direction: column; box-sizing: border-box; }
       .dash-notif-col .dash-notif-body { flex: 1; min-height: 250px; max-height: 560px; overflow-y: auto; }
 
       /* Layout Template Khusus Approval & Non-Admin (Sesuai Sketsa) */
       .dash-approval-layout {
         display: grid;
-        grid-template-columns: 1.38fr 1fr;
-        gap: 20px;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 16px;
         padding: 0 40px 40px;
-        align-items: stretch;
+        align-items: start;
       }
-      @media (max-width: 1200px) {
+      @media (max-width: 1100px) {
         .dash-approval-layout {
           grid-template-columns: 1fr;
         }
       }
       .dash-approval-left {
+        grid-column: span 3;
         display: flex;
         flex-direction: column;
         gap: 20px;
         min-width: 0;
       }
+      @media (max-width: 1100px) {
+        .dash-approval-left {
+          grid-column: span 1;
+        }
+      }
       .dash-approval-left .dash-table-card {
-        flex: 1;
+        width: 100%;
         display: flex;
         flex-direction: column;
         margin: 0;
         box-sizing: border-box;
       }
       .dash-approval-left .dash-table-wrapper {
-        flex: 1;
+        width: 100%;
+        overflow-x: auto;
       }
       .dash-approval-right {
+        grid-column: span 1;
         min-width: 0;
         display: flex;
         flex-direction: column;
       }
+      @media (max-width: 1100px) {
+        .dash-approval-right {
+          grid-column: span 1;
+        }
+      }
       .dash-approval-right .dash-notif-card {
         width: 100%;
-        height: 100%;
-        flex: 1;
         display: flex;
         flex-direction: column;
         box-sizing: border-box;
       }
       .dash-approval-right .dash-notif-body {
-        flex: 1;
-        min-height: 250px;
-        max-height: 560px;
+        max-height: 480px;
         overflow-y: auto;
+      }
+
+      /* Admin Charts Section (Balanced 2-Card Layout) */
+      .rep-charts-admin {
+        display: grid;
+        grid-template-columns: 1.55fr 1fr;
+        gap: 16px;
+        padding: 0 40px 20px;
+        align-items: stretch;
+      }
+      @media (max-width: 1100px) {
+        .rep-charts-admin {
+          grid-template-columns: 1fr;
+        }
+      }
+      .admin-chart-card {
+        background: #ffffff;
+        border-radius: 12px;
+        padding: 20px 22px;
+        box-shadow: 0 4px 20px rgba(12, 45, 94, 0.04);
+        border: 1px solid #eef3f9;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+      }
+      .admin-chart-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 16px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid #eef3f9;
+      }
+      .admin-chart-header h2 {
+        font-size: 15px;
+        font-weight: 700;
+        color: #0c2d5e;
+        margin: 0 0 2px;
+        letter-spacing: -0.2px;
+      }
+      .admin-chart-header small {
+        font-size: 11.5px;
+        color: #64748b;
+        font-weight: 500;
       }
 
       /* Compact Stat Cards (Sejajar dengan Tabel Rapat) */
       .rep-cards-compact {
         display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 12px;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 16px;
       }
       @media (max-width: 900px) {
         .rep-cards-compact {
@@ -1307,18 +1425,23 @@ function dashboard() {
       .rep-card-compact {
         background: #ffffff;
         border-radius: 12px;
-        padding: 12px 14px;
+        padding: 14px 18px;
         display: flex;
         align-items: center;
-        gap: 12px;
+        gap: 14px;
         box-shadow: 0 4px 18px rgba(12, 45, 94, 0.04);
         border: 1px solid #eef3f9;
         min-width: 0;
+        transition: transform 0.15s, box-shadow 0.15s;
+      }
+      .rep-card-compact:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(12, 45, 94, 0.07);
       }
       .rc-icon-compact {
-        width: 40px;
-        height: 40px;
-        border-radius: 10px;
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
         display: grid;
         place-items: center;
         flex-shrink: 0;
@@ -1326,34 +1449,29 @@ function dashboard() {
         color: #1769aa;
       }
       .rc-icon-compact svg {
-        width: 20px !important;
-        height: 20px !important;
+        width: 22px !important;
+        height: 22px !important;
       }
       .rc-text-compact {
         min-width: 0;
       }
       .rc-text-compact strong {
         display: block;
-        font-size: 18px;
+        font-size: 22px;
         font-weight: 700;
         color: #0c2d5e;
         line-height: 1.15;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
       }
       .rc-text-compact span {
         display: block;
-        font-size: 11px;
-        font-weight: 500;
+        font-size: 12px;
+        font-weight: 600;
         color: #4b6a90;
-        margin-top: 2px;
+        margin-top: 3px;
         white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
       }
 
-      .dash-notif-card { background: #fff; border-radius: 12px; padding: 22px 24px; box-shadow: 0 4px 20px rgba(12, 45, 94, 0.04); display: flex; flex-direction: column; min-width: 0; }
+      .dash-notif-card { background: #fff; border-radius: 12px; padding: 18px 20px; box-shadow: 0 4px 20px rgba(12, 45, 94, 0.04); display: flex; flex-direction: column; min-width: 0; box-sizing: border-box; }
       .dash-section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 14px; border-bottom: 1px solid #eef3f9; }
       .dash-notif-header {
         display: flex;
@@ -1475,11 +1593,11 @@ function dashboard() {
       }
       
       /* Bottom Meeting Table Card */
-      .dash-table-card { background: #fff; margin: 0; border-radius: 12px; padding: 24px; box-shadow: 0 4px 20px rgba(12, 45, 94, 0.04); display: flex; flex-direction: column; }
-      .dash-table-wrapper { overflow-x: auto; width: 100%; -webkit-overflow-scrolling: touch; }
-      .dash-table-wrapper table { width: 100%; border-collapse: collapse; }
-      .dash-table-wrapper th { text-align: left; padding: 12px 14px; color: #4b6a90; font-weight: 600; font-size: 13px; border-bottom: 1px solid #eef3f9; white-space: nowrap; }
-      .dash-table-wrapper td { padding: 14px; color: #0c2d5e; font-size: 13px; font-weight: 500; border-bottom: 1px solid #f4f8fc; }
+      .dash-table-card { background: #fff; margin: 0; border-radius: 12px; padding: 20px; box-shadow: 0 4px 20px rgba(12, 45, 94, 0.04); display: flex; flex-direction: column; overflow: hidden; }
+      .dash-table-wrapper { overflow-x: hidden; width: 100%; }
+      .dash-table-wrapper table { width: 100%; border-collapse: collapse; table-layout: auto; }
+      .dash-table-wrapper th { text-align: left; padding: 10px 6px; color: #4b6a90; font-weight: 600; font-size: 12px; border-bottom: 1px solid #eef3f9; white-space: nowrap; }
+      .dash-table-wrapper td { padding: 10px 6px; color: #0c2d5e; font-size: 12.5px; font-weight: 500; border-bottom: 1px solid #f4f8fc; }
       
       /* Chart Mocks */
       .mock-bar-chart { display: flex; align-items: flex-end; gap: 12px; height: 200px; padding-top: 20px; }
@@ -1497,91 +1615,291 @@ function dashboard() {
 
   const currentUser = getCurrentUser();
   const isAdmin = isAdminRole(currentUser);
+  const stats = getMeetingStatistics();
+
+  const selectedRoom = state.dashboardRoomFilter || "semua";
+  const f = state.reportFilter;
+  let meetingsToDisplay = [...(state.meetings || [])];
+
+  // 1. Filter Ruangan jika dipilih
+  if (selectedRoom && selectedRoom !== "semua") {
+    meetingsToDisplay = meetingsToDisplay.filter((m) => m.room === selectedRoom);
+  }
+
+  // 2. Filter Periode Rapat
+  if (f) {
+    if (f.mode === "harian") {
+      const today = getTodayIsoDate();
+      meetingsToDisplay = meetingsToDisplay.filter((m) => m.date === today);
+    } else if (f.mode === "date" && f.startDate && f.endDate) {
+      meetingsToDisplay = meetingsToDisplay.filter((m) => m.date >= f.startDate && m.date <= f.endDate);
+    } else if (f.mode === "bulanan" && f.startDate && f.endDate) {
+      meetingsToDisplay = meetingsToDisplay.filter((m) => m.date >= f.startDate && m.date <= f.endDate);
+    }
+  }
+
+  // Urutkan jadwal: kronologis tanggal & jam
+  meetingsToDisplay.sort((a, b) => {
+    if (a.date !== b.date) return (b.date || "").localeCompare(a.date || "");
+    return (a.start || "").localeCompare(b.start || "");
+  });
+
+  // Hitung tren aktivitas mingguan (Bulan Ini) & live monitoring ruangan untuk Admin
+  const todayIso = getTodayIsoDate();
+  const ym = todayIso.slice(0, 7);
+  const monthMeetings = (state.meetings || []).filter((m) => (m.date || "").startsWith(ym));
+  const targetMeetings = monthMeetings.length > 0 ? monthMeetings : (state.meetings || []);
+
+  const weekRanges = [
+    { label: "Mgg 1", sub: "1–7 Okt", minDay: 1, maxDay: 7 },
+    { label: "Mgg 2", sub: "8–14 Okt", minDay: 8, maxDay: 14 },
+    { label: "Mgg 3", sub: "15–21 Okt", minDay: 15, maxDay: 21 },
+    { label: "Mgg 4", sub: "22–28 Okt", minDay: 22, maxDay: 28 },
+    { label: "Mgg 5", sub: "29–31 Okt", minDay: 29, maxDay: 31 },
+  ];
+
+  const weekCounts = weekRanges.map((w) => {
+    const count = targetMeetings.filter((m) => {
+      const parts = (m.date || "").split("-");
+      const d = parseInt(parts[2], 10);
+      return !isNaN(d) && d >= w.minDay && d <= w.maxDay;
+    }).length;
+    return { ...w, count };
+  });
+
+  const maxWeekCount = Math.max(...weekCounts.map((w) => w.count), 3);
+
+  const weekBarsHTML = weekCounts
+    .map((w) => {
+      const heightPct = w.count > 0 ? Math.min(100, Math.max(22, Math.round((w.count / maxWeekCount) * 85))) : 10;
+      const barColor = w.count > 0 ? "#1769aa" : "#cbd5e1";
+      return `
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;height:100%;justify-content:flex-end;">
+          <span style="font-size:12px;font-weight:700;color:${w.count > 0 ? "#0c2d5e" : "#94a3b8"};margin-bottom:6px;">${w.count}</span>
+          <div style="width:100%;max-width:44px;background:#f8fafc;border-radius:6px 6px 0 0;height:110px;display:flex;align-items:flex-end;overflow:hidden;border:1px solid #eef2f6;" title="${w.label} (${w.sub}): ${w.count} Rapat">
+            <div style="width:100%;height:${heightPct}%;background:${barColor};border-radius:5px 5px 0 0;transition:height 0.3s ease;"></div>
+          </div>
+          <span style="font-size:11.5px;font-weight:700;color:#0c2d5e;margin-top:8px;">${w.label}</span>
+          <span style="font-size:10px;color:#64748b;font-weight:500;">${w.sub}</span>
+        </div>
+      `;
+    })
+    .join("");
+
+  const roomsMonitoringHTML = (state.rooms || []).map((room) => {
+    const activeMeeting = (state.meetings || []).find((m) =>
+      m.room === room.name && (m.status || "").toLowerCase() === "berjalan"
+    );
+    const nextMeetingToday = !activeMeeting ? (state.meetings || []).find((m) =>
+      m.room === room.name &&
+      m.date === todayIso &&
+      ((m.status || "").toLowerCase() === "akan datang" || (m.status || "").toLowerCase() === "segera")
+    ) : null;
+
+    const isOccupied = !!activeMeeting;
+    const roomMeetings = (state.meetings || []).filter((m) => m.room === room.name).length;
+    const roomPct = stats.totalMeetings > 0 ? Math.round((roomMeetings / stats.totalMeetings) * 100) : (room.id === 1 ? 65 : 35);
+
+    return `
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:8px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+          <div style="min-width:0;">
+            <strong style="font-size:13px;color:#0c2d5e;display:block;">${esc(room.name)}</strong>
+            <small style="font-size:11px;color:#64748b;">${esc(room.location || 'Lt. 3')} · Kapasitas ${room.capacity || 20} org</small>
+          </div>
+          <div>
+            ${
+              isOccupied
+                ? `<span style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;padding:3px 9px;border-radius:12px;font-size:11px;font-weight:700;display:inline-flex;align-items:center;gap:4px;">
+                    <span style="width:6px;height:6px;border-radius:50%;background:#dc2626;"></span>
+                    <span>Sedang Digunakan</span>
+                  </span>`
+                : `<span style="background:#dcfce7;color:#15803d;border:1px solid #bbf7d0;padding:3px 9px;border-radius:12px;font-size:11px;font-weight:700;display:inline-flex;align-items:center;gap:4px;">
+                    <span style="width:6px;height:6px;border-radius:50%;background:#16a34a;"></span>
+                    <span>Tersedia Saat Ini</span>
+                  </span>`
+            }
+          </div>
+        </div>
+
+        <div style="font-size:11px;color:#475569;display:flex;align-items:center;gap:6px;">
+          ${
+            isOccupied
+              ? `<span>📋 Rapat: <b>${esc(activeMeeting.title)}</b> (${activeMeeting.start}–${activeMeeting.end})</span>`
+              : nextMeetingToday
+              ? `<span>🕒 Jadwal Berikutnya: <b>${esc(nextMeetingToday.title)}</b> (${nextMeetingToday.start})</span>`
+              : `<span style="color:#94a3b8;">Tidak ada rapat berikutnya hari ini</span>`
+          }
+        </div>
+
+        <div>
+          <div style="display:flex;justify-content:space-between;font-size:10.5px;color:#64748b;margin-bottom:3px;font-weight:600;">
+            <span>Pemanfaatan Ruangan</span>
+            <span>${roomPct}% (${roomMeetings} rapat)</span>
+          </div>
+          <div style="height:6px;background:#e2e8f0;border-radius:3px;overflow:hidden;">
+            <div style="height:100%;width:${roomPct}%;background:${isOccupied ? '#dc2626' : '#1769aa'};border-radius:3px;transition:width 0.3s ease;"></div>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join("");
 
   let customTableHTML = `
     <div class="dash-table-card" style="margin:0;">
-      <div class="dash-section-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid #eef3f9;">
+      <div class="dash-section-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid #eef3f9;">
         <div style="display:flex;align-items:center;gap:10px;">
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0c2d5e" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-          <h2 style="font-size:16px;font-weight:700;color:#0c2d5e;margin:0;">Jadwal Rapat Hari Ini</h2>
+          <div>
+            <h2 style="font-size:16px;font-weight:700;color:#0c2d5e;margin:0;line-height:1.2;">${isAdmin ? "Jadwal Rapat & Operasional" : "Jadwal Rapat"}</h2>
+            <small style="font-size:11px;color:#64748b;font-weight:500;">${isAdmin ? "Pantau pelaksanaan rapat, quick check-in, dan check-out." : "Daftar jadwal seluruh permohonan rapat."}</small>
+          </div>
         </div>
-        <button type="button" class="btn btn-primary" onclick="openMeetingModal()" style="background:#0c2d5e;color:#fff;border:none;padding:9px 18px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:background 0.15s;box-shadow:0 2px 6px rgba(12,45,94,0.15);" onmouseover="this.style.background='#133b75'" onmouseout="this.style.background='#0c2d5e'">
-          <span style="font-size:16px;font-weight:700;line-height:1;">+</span>
-          <span>Tambah Rapat</span>
-        </button>
+        <div style="display:flex;align-items:center;gap:8px;">
+        ${
+          isAdmin
+            ? `
+            <div class="rep-export-wrapper" style="position: relative; display: inline-block;">
+              <button class="rep-export-btn" id="exportBtn" type="button" onclick="toggleExportMenu(event)" style="height:32px;padding:0 12px;border-radius:7px;border:1px solid #cbd5e1;background:#fff;color:#0c2d5e;font-size:11.5px;font-weight:600;display:inline-flex;align-items:center;gap:5px;cursor:pointer;">
+                ${tiExport}
+                <span>Export</span>
+                <svg width="10" height="6" viewBox="0 0 10 6" fill="none" style="margin-left: 2px;">
+                  <path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+              <div id="exportMenuDropdown" class="rep-export-menu" style="display: none; position: absolute; top: calc(100% + 6px); right: 0; background: #ffffff; border-radius: 8px; box-shadow: 0 10px 25px rgba(12, 45, 94, 0.12); border: 1px solid #e2e8f0; min-width: 140px; z-index: 1000; overflow: hidden;">
+                <button type="button" onclick="exportExcel(); closeExportMenu();" style="width: 100%; display: flex; align-items: center; gap: 8px; padding: 10px 16px; border: none; background: transparent; font-size: 13px; font-weight: 600; color: #0c2d5e; cursor: pointer; text-align: left; transition: background 0.15s;" onmouseover="this.style.background='#f0f4fa'" onmouseout="this.style.background='transparent'">
+                  <span>📊</span> Export Excel
+                </button>
+                <button type="button" onclick="exportPDF(); closeExportMenu();" style="width: 100%; display: flex; align-items: center; gap: 8px; padding: 10px 16px; border: none; background: transparent; font-size: 13px; font-weight: 600; color: #0c2d5e; cursor: pointer; text-align: left; border-top: 1px solid #f1f5f9; transition: background 0.15s;" onmouseover="this.style.background='#f0f4fa'" onmouseout="this.style.background='transparent'">
+                  <span>📄</span> Export PDF
+                </button>
+              </div>
+            </div>
+            <button type="button" class="btn btn-primary" onclick="openMeetingModal()" style="background:#0c2d5e;color:#fff;border:none;padding:7px 14px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:5px;transition:background 0.15s;box-shadow:0 2px 6px rgba(12,45,94,0.15);" onmouseover="this.style.background='#133b75'" onmouseout="this.style.background='#0c2d5e'">
+              <span style="font-size:14px;font-weight:700;line-height:1;">+</span>
+              <span>Tambah Rapat</span>
+            </button>
+            `
+            : `<span style="font-size:11.5px;font-weight:700;color:#475569;background:#f1f5f9;border:1px solid #e2e8f0;padding:5px 11px;border-radius:8px;display:inline-flex;align-items:center;gap:4px;">👁 Mode Pemantauan</span>`
+        }
+        </div>
       </div>
-      <div class="dash-table-wrapper">
-        <table>
+
+      <!-- Filter Bar Terpadu (Filter Ruangan · Periode Rapat · Terapkan Filter) -->
+      <div class="dash-inline-filters" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px;padding:9px 12px;background:#f8fafc;border:1px solid #eef2f6;border-radius:10px;">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <select id="trafficRoom" onchange="state.dashboardRoomFilter=this.value;render();" style="padding:7px 11px;border-radius:7px;font-size:12px;font-weight:600;color:#0c2d5e;border:1px solid #cbd5e1;background:#fff;cursor:pointer;outline:none;">
+            <option value="semua">Semua Ruangan</option>
+            ${state.rooms.map((r) => `<option value="${r.name}" ${selectedRoom === r.name ? "selected" : ""}>${esc(r.name)}</option>`).join("")}
+          </select>
+
+          <button type="button" onclick="openFilterModal()" style="display:inline-flex;align-items:center;gap:5px;font-weight:600;font-size:12px;padding:7px 12px;background:#fff;border:1px solid #cbd5e1;border-radius:7px;color:#0c2d5e;cursor:pointer;" title="Klik untuk mengubah periode jadwal yang ditampilkan">
+            <span>📅 Periode:</span> <strong>${getActivePeriodLabel()}</strong>
+          </button>
+
+          <button type="button" onclick="applyDashboardFilter()" style="padding:7px 14px;background:#1769aa;color:#fff;border:none;border-radius:7px;font-weight:600;font-size:12px;cursor:pointer;transition:background 0.15s;" onmouseover="this.style.background='#0c2d5e'" onmouseout="this.style.background='#1769aa'">
+            Terapkan Filter
+          </button>
+        </div>
+
+        ${
+          selectedRoom !== "semua" || (f && f.mode !== "bulanan" && f.mode !== "semua")
+            ? `<button type="button" onclick="resetDashboardFilter()" style="background:none;border:none;color:#64748b;font-size:11.5px;font-weight:600;cursor:pointer;text-decoration:underline;">Reset Filter</button>`
+            : ""
+        }
+      </div>
+
+      <div class="dash-table-wrapper" style="overflow-x:auto;width:100%;">
+        <table style="width:100%;border-collapse:collapse;table-layout:auto;">
           <thead>
             <tr>
-              <th style="width:36px;text-align:center;">No</th>
-              <th>Judul Rapat</th>
-              <th>Pemesan</th>
-              <th>Ruangan</th>
-              <th>Tanggal</th>
-              <th>Waktu</th>
-              <th>Status</th>
-              <th style="text-align:center;">Aksi</th>
+              <th style="width:32px;text-align:center;padding:10px 4px;">No</th>
+              <th style="padding:10px 8px;">Judul Rapat</th>
+              <th style="padding:10px 8px;">Pemesan</th>
+              <th style="padding:10px 8px;">Ruangan</th>
+              <th style="padding:10px 8px;">Waktu</th>
+              <th style="padding:10px 8px;">Status</th>
+              <th style="text-align:center;padding:10px 8px;min-width:${isAdmin ? '170px' : '115px'};width:${isAdmin ? '170px' : '115px'};">Aksi</th>
             </tr>
           </thead>
           <tbody>
   `;
 
-  if (!state.meetings || state.meetings.length === 0) {
-    customTableHTML += `<tr><td colspan="8" style="text-align:center;padding:36px;color:#8c9ba5;font-weight:500;">Belum ada jadwal rapat</td></tr>`;
+  if (!meetingsToDisplay || meetingsToDisplay.length === 0) {
+    customTableHTML += `<tr><td colspan="7" style="text-align:center;padding:36px;color:#8c9ba5;font-weight:500;">Belum ada jadwal rapat pada periode ini</td></tr>`;
   } else {
-    state.meetings.forEach((m, i) => {
+    meetingsToDisplay.forEach((m, i) => {
       let statusColor = "#e0f2fe";
       let statusText = "#0284c7";
-      if (m.status === "Berjalan") {
+      const sLower = (m.status || "").toLowerCase();
+      if (sLower === "berjalan") {
         statusColor = "#dcfce7";
         statusText = "#15803d";
-      } else if (m.status === "Selesai") {
+      } else if (sLower === "selesai") {
         statusColor = "#e0f2fe";
         statusText = "#0284c7";
-      } else if (m.status === "Akan Datang") {
+      } else if (sLower === "akan datang" || sLower === "segera") {
         statusColor = "#fef3c7";
         statusText = "#b45309";
-      } else if (m.status === "Dibatalkan") {
+      } else if (sLower === "dibatalkan") {
         statusColor = "#fee2e2";
         statusText = "#dc2626";
-      } else if (m.status === "Segera") {
-        statusColor = "#ffedd5";
-        statusText = "#c2410c";
-      } else {
+      } else if (sLower.includes("menunggu")) {
         statusColor = "#fff7ed";
         statusText = "#ea580c";
       }
 
-      const isCompleted = (m.status || "").toLowerCase() === "selesai";
+      const isCompleted = sLower === "selesai";
       const rev = typeof getMeetingReview === "function" ? getMeetingReview(m) : m.review;
-      const starSvg = `<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
-      const revBtn = isCompleted && rev
-        ? `<button style="background-color:#fff8e6;color:#d97706;border:1px solid #fde68a;border-radius:10px;padding:0 8px;height:34px;display:inline-flex;align-items:center;gap:4px;cursor:pointer;font-size:11.5px;font-weight:700;margin-left:6px;box-shadow:0 2px 4px rgba(217,119,6,0.08);" title="Lihat Rating & Review Pengguna" onclick="openMeetingReviewModal('${m.id}')">${starSvg}<span>${rev.rating ? Number(rev.rating).toFixed(1) : "5.0"}</span></button>`
-        : `<button style="background-color:#f8fafc;color:#94a3b8;border:1px solid #e2e8f0;border-radius:10px;padding:0 8px;height:34px;display:inline-flex;align-items:center;gap:4px;cursor:pointer;font-size:11.5px;font-weight:600;margin-left:6px;" title="Rating & Review Ruangan" onclick="openMeetingReviewModal('${m.id}')">${starSvg}<span>Review</span></button>`;
+      const isPendingStatus = sLower.includes("menunggu") || sLower === "pending";
+      const isCanceledOrRejected = sLower === "ditolak" || sLower === "dibatalkan" || sLower === "rejected" || sLower === "cancelled";
+      const canShowQr = !isPendingStatus && !isCanceledOrRejected;
 
-      let actionBtn = `<div style="display:inline-flex;align-items:center;"><button style="background-color:#f1f5f9;color:#0c2d5e;border:none;border-radius:50%;width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:background 0.15s;" title="Lihat Detail" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'" onclick="viewMeeting('${m.id}')">${faEye}</button>${revBtn}</div>`;
+      const viewBtn = `<button type="button" style="background-color:#f1f5f9;color:#0c2d5e;border:1px solid #e2e8f0;border-radius:6px;width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:background 0.15s;" title="Lihat Detail Rapat" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'" onclick="viewMeeting('${m.id}')">${faEye}</button>`;
+      const qrBtn = canShowQr
+        ? `<button type="button" style="background-color:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:6px;padding:0 7px;height:28px;display:inline-flex;align-items:center;gap:3px;cursor:pointer;font-size:11px;font-weight:700;transition:background 0.15s;" title="Buka QR Pass & Presensi Rapat" onclick="openMeetingQRModal('${m.id}')">${qrSvg}<span>QR</span></button>`
+        : "";
+      const revBtn = isCompleted && rev
+        ? `<button type="button" style="background-color:#fff8e6;color:#d97706;border:1px solid #fde68a;border-radius:6px;padding:0 6px;height:28px;display:inline-flex;align-items:center;gap:3px;cursor:pointer;font-size:11px;font-weight:700;" title="Lihat Rating & Review Pengguna" onclick="openMeetingReviewModal('${m.id}')">${starSvg}<span>${rev.rating ? Number(rev.rating).toFixed(1) : "5.0"}</span></button>`
+        : "";
+
+      let actionButtons = "";
+      if (isAdmin) {
+        if (sLower === "berjalan") {
+          actionButtons += `<button type="button" onclick="checkOutMeeting('${m.id}')" style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;border-radius:6px;padding:0 8px;height:28px;font-size:11px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:3px;transition:all 0.15s;" title="Selesaikan rapat sekarang (Check-Out)"><span>Check Out</span></button>`;
+        } else if (sLower === "akan datang" || sLower === "segera" || sLower === "disetujui") {
+          actionButtons += `<button type="button" onclick="checkInMeeting('${m.id}')" style="background:#dcfce7;color:#15803d;border:1px solid #bbf7d0;border-radius:6px;padding:0 8px;height:28px;font-size:11px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:3px;transition:all 0.15s;" title="Mulai rapat sekarang (Check-In)"><span>✓ Check In</span></button>`;
+        }
+        actionButtons += qrBtn;
+        actionButtons += viewBtn;
+        if (revBtn) actionButtons += revBtn;
+      } else {
+        actionButtons = `${viewBtn}${qrBtn}${revBtn}`;
+      }
+
+      const actionBtn = `<div style="display:inline-flex;align-items:center;gap:5px;white-space:nowrap;justify-content:center;">${actionButtons}</div>`;
 
       customTableHTML += `<tr>
-        <td style="text-align:center;">${i + 1}</td>
-        <td style="font-weight:700;white-space:nowrap;max-width:200px;overflow:hidden;text-overflow:ellipsis;" title="${esc(m.title)}">${esc(m.title)}</td>
-        <td style="white-space:nowrap;">${esc(m.requester)}</td>
-        <td style="white-space:nowrap;">${esc(m.room)}</td>
-        <td style="white-space:nowrap;">${formatDate(m.date)}</td>
-        <td style="white-space:nowrap;">${m.start}-${m.end}</td>
-        <td><span style="background:${statusColor};color:${statusText};padding:5px 12px;border-radius:14px;font-size:11.5px;font-weight:700;white-space:nowrap;">${esc(m.status)}</span></td>
-        <td style="text-align:center;">${actionBtn}</td>
+        <td style="text-align:center;padding:10px 4px;font-size:12px;color:#64748b;">${i + 1}</td>
+        <td style="font-weight:700;white-space:nowrap;max-width:180px;overflow:hidden;text-overflow:ellipsis;padding:10px 8px;" title="${esc(m.title)}">${esc(m.title)}</td>
+        <td style="white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis;padding:10px 8px;" title="${esc(m.requester || m.bookedBy || 'TU')}">${esc(m.requester || m.bookedBy || 'TU')}</td>
+        <td style="white-space:nowrap;max-width:140px;overflow:hidden;text-overflow:ellipsis;padding:10px 8px;" title="${esc(m.room)}">${esc(m.room)}</td>
+        <td style="white-space:nowrap;font-size:12px;padding:10px 8px;">${formatDate(m.date)} · ${m.start}-${m.end}</td>
+        <td style="padding:10px 8px;"><span style="background:${statusColor};color:${statusText};padding:3px 8px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;display:inline-block;">${esc(m.status)}</span></td>
+        <td style="text-align:center;padding:10px 6px;white-space:nowrap;">${actionBtn}</td>
       </tr>`;
     });
   }
+
   customTableHTML += `
           </tbody>
         </table>
       </div>
-      <div style="display:flex;justify-content:flex-end;margin-top:auto;padding-top:14px;">
-        <a href="#meetings" style="font-size:13px;font-weight:700;color:#1769aa;text-decoration:none;display:inline-flex;align-items:center;gap:6px;transition:opacity 0.15s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">
-          <span>Lihat Semua</span>
-          <span style="font-size:15px;line-height:1;">→</span>
+      <div style="display:flex;justify-content:flex-end;margin-top:auto;padding-top:14px;border-top:1px solid #f1f5f9;">
+        <a href="#meetings" style="font-size:12.5px;font-weight:700;color:#1769aa;text-decoration:none;display:inline-flex;align-items:center;gap:6px;transition:opacity 0.15s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">
+          <span>Lihat Semua di Manajemen Rapat</span>
+          <span style="font-size:14px;line-height:1;">→</span>
         </a>
       </div>
     </div>
@@ -1593,150 +1911,139 @@ function dashboard() {
     <div class="rep-page-wrapper">
       <div class="rep-header">
         <div>
-          <div class="rep-breadcrumb">Dashboard</div>
-          <h1>Dashboard</h1>
-          <p>Ringkasan statistik penggunaan rapat.</p>
+          <div class="rep-breadcrumb">${isAdmin ? "Dashboard · Administrator" : "Dashboard · Pimpinan"}</div>
+          <h1>${isAdmin ? "Dashboard Operasional" : "Dashboard"}</h1>
+          <p>${isAdmin ? "Pusat komando operasional dan pemantauan ruang rapat real-time." : "Ringkasan statistik penggunaan rapat."}</p>
         </div>
         <div class="dash-actions">
           ${getProfileHTML()}
         </div>
       </div>
       
-      <div class="rep-filters-row">
-        <div class="rep-filters-left">
-          <select id="trafficRoom">
-            <option value="semua">Semua Ruangan</option>
-            ${state.rooms.map((r) => `<option value="${r.name}">${esc(r.name)}</option>`).join("")}
-          </select>
-          <button class="btn-white" onclick="openFilterModal()">Filter Waktu</button>
-          <button class="btn-blue" onclick="generateTrafficReport()">Tampilkan</button>
-        </div>
-        <div style="display:flex;align-items:center;gap:12px;">
-          <div class="rep-export-wrapper" style="position: relative; display: inline-block;">
-            <button class="rep-export-btn" id="exportBtn" type="button" onclick="toggleExportMenu(event)">
-              ${tiExport}
-              <span>Export</span>
-              <svg width="10" height="6" viewBox="0 0 10 6" fill="none" style="margin-left: 2px;">
-                <path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </button>
-            <div id="exportMenuDropdown" class="rep-export-menu" style="display: none; position: absolute; top: calc(100% + 6px); right: 0; background: #ffffff; border-radius: 8px; box-shadow: 0 10px 25px rgba(12, 45, 94, 0.12); border: 1px solid #e2e8f0; min-width: 140px; z-index: 1000; overflow: hidden;">
-              <button type="button" onclick="exportExcel(); closeExportMenu();" style="width: 100%; display: flex; align-items: center; gap: 8px; padding: 10px 16px; border: none; background: transparent; font-size: 13px; font-weight: 600; color: #0c2d5e; cursor: pointer; text-align: left; transition: background 0.15s;" onmouseover="this.style.background='#f0f4fa'" onmouseout="this.style.background='transparent'">
-                <span>📊</span> Export Excel
-              </button>
-              <button type="button" onclick="exportPDF(); closeExportMenu();" style="width: 100%; display: flex; align-items: center; gap: 8px; padding: 10px 16px; border: none; background: transparent; font-size: 13px; font-weight: 600; color: #0c2d5e; cursor: pointer; text-align: left; border-top: 1px solid #f1f5f9; transition: background 0.15s;" onmouseover="this.style.background='#f0f4fa'" onmouseout="this.style.background='transparent'">
-                <span>📄</span> Export PDF
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-      
       ${
         isAdmin
           ? `
-          <div class="rep-cards">
-            <div class="rep-card">
-              <div class="rc-icon blue1">${liaUsersSolid}</div>
-              <div class="rc-text"><strong>128</strong><span>Total Rapat</span></div>
-            </div>
-            <div class="rep-card">
-              <div class="rc-icon blue1">${faClock}</div>
-              <div class="rc-text"><strong>256 Jam</strong><span>Total Durasi Rapat</span></div>
-            </div>
-            <div class="rep-card">
-              <div class="rc-icon blue1">${faUsers}</div>
-              <div class="rc-text"><strong>1.240</strong><span>Total Pengguna</span></div>
-            </div>
-            <div class="rep-card">
-              <div class="rc-icon blue1">${bsBuilding}</div>
-              <div class="rc-text"><strong>78%</strong><span>Tingkat Pemanfaatan Ruangan</span></div>
-            </div>
-          </div>
-          `
-          : ""
-      }
-      
-      <!-- Charts: Khusus Akun Admin -->
-      ${
-        isAdmin
-          ? `
-          <div class="rep-charts" style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 20px; padding: 0 40px 24px;">
-              <div class="rep-chart-card" style="margin:0;">
-                <div style="display:flex;justify-content:space-between;">
-                  <h2>Tren Jumlah Rapat</h2>
-                  <span id="chartLabel" style="font-size:12px;color:#4b6a90;">Bulan Ini</span>
-                </div>
-                <div class="mock-bar-chart">
-                  ${[20, 35, 45, 50, 60, 65, 75, 80, 85, 95, 100].map((h, i) => `<div class="mock-bar ${i % 2 === 0 ? "dark" : ""}" style="height:${h}%"><span>${i + 2}</span></div>`).join("")}
-                </div>
+          <!-- 4 Kartu Statistik Ringkas Admin (Full Width di Bawah Header) -->
+          <div class="rep-cards-compact" style="padding: 0 40px 20px;">
+            <div class="rep-card-compact" style="cursor:pointer;" onclick="location.hash='#meetings';" title="Buka Manajemen Rapat">
+              <div class="rc-icon-compact" style="background:#e0f2fe;color:#0284c7;">${liaUsersSolid}</div>
+              <div class="rc-text-compact">
+                <strong>${stats.totalMeetings}</strong>
+                <span>Total Rapat <small style="font-weight:500;color:#64748b;font-size:11px;">(Bulan ini)</small></span>
               </div>
-                <div class="rep-chart-card" style="margin:0;">
-                  <h2>Status Rapat</h2>
-                  <div class="mock-donut">
-                     <div style="position:absolute; top:-10px; left:-5px; font-size:9px;">Selesai<br>15.8%</div>
-                     <div style="position:absolute; bottom:10px; left:-10px; font-size:9px;">Segera<br>26.3%</div>
-                     <div style="position:absolute; bottom:10px; right:-10px; font-size:9px;">Berjalan<br>57.9%</div>
-                  </div>
-                </div>
-                <div class="rep-chart-card" style="margin:0;">
-                  <h2>Penggunaan Ruangan</h2>
-                  <div style="font-size:11px; margin-bottom:4px; display:flex; gap:10px; justify-content:center; color:#4b6a90;">
-                    <span style="display:flex;align-items:center;gap:4px;"><div style="width:6px;height:6px;background:#4285f4;border-radius:50%;"></div> Penggunaan</span>
-                    <span style="display:flex;align-items:center;gap:4px;"><div style="width:6px;height:6px;background:#4a4a4a;border-radius:50%;"></div> Kosong</span>
-                  </div>
-                  <div style="font-size:10px;margin-bottom:2px;">Ruang Rapat Besar</div>
-                  <div class="mock-stacked-bar"><div class="mock-stacked-bar-fill" style="width:85%"></div></div>
-                  <div style="font-size:10px;margin-bottom:2px;">Ruang Konsultasi</div>
-                  <div class="mock-stacked-bar"><div class="mock-stacked-bar-fill" style="width:75%"></div></div>
-                </div>
+            </div>
+            <div class="rep-card-compact" style="cursor:pointer;" onclick="location.hash='#calendar';" title="Buka Kalender Jadwal Rapat">
+              <div class="rc-icon-compact" style="background:#fef3c7;color:#b45309;">${faClock}</div>
+              <div class="rc-text-compact">
+                <strong>${stats.totalHours} Jam</strong>
+                <span>Total Durasi <small style="font-weight:500;color:#64748b;font-size:11px;">(Bulan ini)</small></span>
+              </div>
+            </div>
+            <div class="rep-card-compact" style="cursor:pointer;" onclick="location.hash='#users';" title="Buka Manajemen Pengguna">
+              <div class="rc-icon-compact" style="background:#f3e8ff;color:#7e22ce;">${faUsers}</div>
+              <div class="rc-text-compact">
+                <strong>${stats.totalUsers}</strong>
+                <span>Total Pengguna <small style="font-weight:500;color:#64748b;font-size:11px;">(Terdaftar)</small></span>
+              </div>
+            </div>
+            <div class="rep-card-compact" style="cursor:pointer;" onclick="location.hash='#rooms';" title="Buka Manajemen Ruangan">
+              <div class="rc-icon-compact" style="background:#dcfce7;color:#15803d;">${bsBuilding}</div>
+              <div class="rc-text-compact">
+                <strong>${stats.roomUtilization}%</strong>
+                <span>Pemanfaatan <small style="font-weight:500;color:#64748b;font-size:11px;">(${stats.runningCount > 0 ? stats.runningCount + ' ruang aktif' : 'Siap digunakan'})</small></span>
+              </div>
+            </div>
           </div>
-          `
-          : ""
-      }
-      
-      ${
-        isAdmin
-          ? `
-          <!-- Bottom Grid Admin: Jadwal Rapat Hari Ini & Notifikasi & Permintaan (Berdampingan) -->
-          <div class="dash-bottom-grid">
-            <div class="dash-table-col">
+
+          <!-- Middle Section: 2 Balanced Monitoring Charts -->
+          <div class="rep-charts-admin">
+            <!-- Chart 1: Tren Aktivitas Rapat (Mingguan Bulan Ini) -->
+            <div class="admin-chart-card">
+              <div class="admin-chart-header">
+                <div>
+                  <h2>Tren Aktivitas Rapat</h2>
+                  <small>Distribusi pelaksanaan rapat per minggu (Bulan Ini)</small>
+                </div>
+                <span style="font-size:11.5px;font-weight:700;color:#1769aa;background:#e6f0fa;border:1px solid #cce3f8;padding:4px 10px;border-radius:12px;">
+                  📅 ${stats.totalMeetings} Rapat Bulan Ini
+                </span>
+              </div>
+              <div style="display:flex;align-items:flex-end;gap:12px;height:140px;padding-top:10px;">
+                ${weekBarsHTML}
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;padding-top:12px;margin-top:14px;border-top:1px solid #f1f5f9;font-size:11.5px;color:#64748b;flex-wrap:wrap;gap:8px;">
+                <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                  <span style="display:inline-flex;align-items:center;gap:5px;"><span style="width:8px;height:8px;border-radius:50%;background:#16a34a;"></span> <b>${stats.runningCount}</b> Sedang Berjalan</span>
+                  <span style="display:inline-flex;align-items:center;gap:5px;"><span style="width:8px;height:8px;border-radius:50%;background:#b45309;"></span> <b>${stats.soonCount}</b> Mendatang</span>
+                  <span style="display:inline-flex;align-items:center;gap:5px;"><span style="width:8px;height:8px;border-radius:50%;background:#0284c7;"></span> <b>${stats.doneCount}</b> Selesai</span>
+                </div>
+                <span style="font-weight:600;color:#0c2d5e;">Durasi Total: <b>${stats.totalHours} Jam</b></span>
+              </div>
+            </div>
+
+            <!-- Chart 2: Status & Okupansi Ruangan Real-Time -->
+            <div class="admin-chart-card">
+              <div class="admin-chart-header">
+                <div>
+                  <h2>Status & Okupansi Ruangan</h2>
+                  <small>Pemantauan ketersediaan ruangan real-time</small>
+                </div>
+                <span style="font-size:11px;font-weight:700;color:#15803d;background:#dcfce7;border:1px solid #bbf7d0;padding:4px 9px;border-radius:12px;display:inline-flex;align-items:center;gap:4px;">
+                  <span style="width:6px;height:6px;border-radius:50%;background:#16a34a;"></span>
+                  <span>Real-Time</span>
+                </span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:10px;">
+                ${roomsMonitoringHTML}
+              </div>
+              <div style="padding-top:12px;margin-top:auto;border-top:1px solid #f1f5f9;display:flex;align-items:center;justify-content:flex-end;">
+                <a href="#rooms" style="font-size:12px;font-weight:700;color:#1769aa;text-decoration:none;display:inline-flex;align-items:center;gap:4px;transition:opacity 0.15s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">
+                  <span>Kelola Fasilitas di Manajemen Ruangan</span> <span>→</span>
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bottom Area 2 Kolom: Jadwal Rapat Operasional (Kiri Span 3) & Notifikasi (Kanan Span 1) -->
+          <div class="dash-approval-layout" style="padding-top:0;">
+            <div class="dash-approval-left">
               ${customTableHTML}
             </div>
-            <div class="dash-notif-col">
-              <div class="dash-notif-card" style="margin:0;">
+            <div class="dash-approval-right">
+              <div class="dash-notif-card" style="margin:0; width:100%; box-sizing:border-box;">
                 ${getDashboardNotifPanelHTML(currentUser)}
               </div>
             </div>
           </div>
           `
           : `
-          <!-- Layout Template Khusus Approval & Akun Lain Sesuai Sketsa Template -->
+          <!-- 4 Kartu Statistik Ringkas Pimpinan (Full Width di Bawah Header) -->
+          <div class="rep-cards-compact" style="padding: 0 40px 24px;">
+            <div class="rep-card-compact" style="cursor:pointer;${stats.pendingCount > 0 ? "border:1.5px solid #fed7aa;background:#fffaf3;" : ""}" onclick="location.hash='#meetings';" title="Klik untuk meninjau permohonan rapat">
+              <div class="rc-icon-compact" style="${stats.pendingCount > 0 ? "background:#ffedd5;color:#ea580c;" : ""}">${faClock}</div>
+              <div class="rc-text-compact"><strong style="${stats.pendingCount > 0 ? "color:#ea580c;" : ""}">${stats.pendingCount}</strong><span>Perlu Persetujuan</span></div>
+            </div>
+            <div class="rep-card-compact">
+              <div class="rc-icon-compact" style="background:#dcfce7;color:#15803d;">${liaUsersSolid}</div>
+              <div class="rc-text-compact"><strong style="color:#15803d;">${stats.runningCount}</strong><span>Sedang Berlangsung</span></div>
+            </div>
+            <div class="rep-card-compact">
+              <div class="rc-icon-compact" style="background:#fef3c7;color:#b45309;">${faClock}</div>
+              <div class="rc-text-compact"><strong style="color:#b45309;">${stats.soonCount}</strong><span>Rapat Mendatang</span></div>
+            </div>
+            <div class="rep-card-compact">
+              <div class="rc-icon-compact" style="background:#e0f2fe;color:#0284c7;">${bsBuilding}</div>
+              <div class="rc-text-compact"><strong style="color:#0284c7;">${stats.doneCount}</strong><span>Rapat Selesai</span></div>
+            </div>
+          </div>
+
+          <!-- Main Area 2 Kolom: Jadwal Rapat (Kiri) & Notifikasi Ringkas (Kanan) -->
           <div class="dash-approval-layout">
             <div class="dash-approval-left">
-              <div class="rep-cards-compact">
-                <div class="rep-card-compact">
-                  <div class="rc-icon-compact">${liaUsersSolid}</div>
-                  <div class="rc-text-compact"><strong>128</strong><span>Total Rapat</span></div>
-                </div>
-                <div class="rep-card-compact">
-                  <div class="rc-icon-compact">${faClock}</div>
-                  <div class="rc-text-compact"><strong>256 Jam</strong><span>Total Durasi</span></div>
-                </div>
-                <div class="rep-card-compact">
-                  <div class="rc-icon-compact">${faUsers}</div>
-                  <div class="rc-text-compact"><strong>1.240</strong><span>Total Pengguna</span></div>
-                </div>
-                <div class="rep-card-compact">
-                  <div class="rc-icon-compact">${bsBuilding}</div>
-                  <div class="rc-text-compact"><strong>78%</strong><span>Pemanfaatan</span></div>
-                </div>
-              </div>
-
               ${customTableHTML}
             </div>
             <div class="dash-approval-right">
-              <div class="dash-notif-card" style="margin:0; width:100%; height:100%; display:flex; flex-direction:column;">
+              <div class="dash-notif-card" style="margin:0; width:100%; box-sizing:border-box;">
                 ${getDashboardNotifPanelHTML(currentUser)}
               </div>
             </div>
@@ -1768,7 +2075,9 @@ function meetingTable(data, actions = true, allowDelete = true) {
               'width="16" height="16"',
             );
 
-            const isCompleted = (m.status || "").toLowerCase() === "selesai";
+            const isCompleted =
+              (m.status || "").toLowerCase() === "selesai" ||
+              (m.status || "").toLowerCase() === "completed";
             const rev = typeof getMeetingReview === "function" ? getMeetingReview(m) : m.review;
             const hasRev = isCompleted && !!rev;
             const starSvg = `<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
@@ -1777,49 +2086,53 @@ function meetingTable(data, actions = true, allowDelete = true) {
               ? `<button style="background-color:#fff8e6;color:#d97706;border:1px solid #fde68a;border-radius:10px;padding:0 10px;height:34px;display:inline-flex;align-items:center;gap:5px;cursor:pointer;margin-right:8px;font-size:12px;font-weight:700;box-shadow:0 2px 4px rgba(217,119,6,0.08);transition:all 0.15s ease;" title="Lihat Rating & Review Pengguna" onclick="openMeetingReviewModal('${m.id}')">${starSvg}<span>${rev.rating ? Number(rev.rating).toFixed(1) : "5.0"}</span></button>`
               : `<button style="background-color:#f8fafc;color:#94a3b8;border:1px solid #e2e8f0;border-radius:10px;padding:0 9px;height:34px;display:inline-flex;align-items:center;gap:4px;cursor:pointer;margin-right:8px;font-size:11.5px;font-weight:600;transition:all 0.15s ease;" title="Rating & Review Ruangan (Tersedia setelah rapat selesai)" onclick="openMeetingReviewModal('${m.id}')">${starSvg}<span>Review</span></button>`;
 
-            let actionButtons = `<button style="background-color:#f4f6f9;color:#0c2d5e;border:none;border-radius:10px;width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;margin-right:8px;box-shadow:0 2px 5px rgba(0,0,0,0.03);" title="Lihat Detail Rapat" onclick="viewMeeting('${m.id}')">${faEye}</button>${reviewBtn}`;
+            const statusStr = (m.status || "").trim();
+            const statusLower = statusStr.toLowerCase();
+            const isPending =
+              statusLower.includes("menunggu") || statusLower === "pending";
+            const isUpcoming =
+              statusLower === "akan datang" ||
+              statusLower === "disetujui" ||
+              statusLower === "approved";
+            const isRunning =
+              statusLower === "berjalan" ||
+              statusLower === "ongoing" ||
+              statusLower === "running";
+            const isCanceled =
+              statusLower === "dibatalkan" ||
+              statusLower === "canceled" ||
+              statusLower === "cancelled";
+            const isRejected =
+              statusLower === "ditolak" || statusLower === "rejected";
+            const canShowQr = !isPending && !isCanceled && !isRejected;
+
+            const qrSvg = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>`;
+            const qrBtn = canShowQr
+              ? `<button style="background-color:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:10px;padding:0 9px;height:34px;display:inline-flex;align-items:center;gap:4px;cursor:pointer;margin-right:8px;font-size:11.5px;font-weight:700;transition:all 0.15s ease;" title="Tampilkan QR Code Rapat" onclick="openMeetingQRModal('${m.id}')">${qrSvg}<span>QR</span></button>`
+              : "";
+
+            let actionButtons = `<button style="background-color:#f4f6f9;color:#0c2d5e;border:none;border-radius:10px;width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;margin-right:8px;box-shadow:0 2px 5px rgba(0,0,0,0.03);" title="Lihat Detail Rapat" onclick="viewMeeting('${m.id}')">${faEye}</button>${qrBtn}${reviewBtn}`;
 
             if (actions) {
-              const statusStr = (m.status || "").trim();
-              const statusLower = statusStr.toLowerCase();
-              const isPending =
-                statusLower.includes("menunggu") || statusLower === "pending";
-              const isUpcoming =
-                statusLower === "akan datang" ||
-                statusLower === "disetujui" ||
-                statusLower === "approved";
-              const isRunning =
-                statusLower === "berjalan" ||
-                statusLower === "ongoing" ||
-                statusLower === "running";
-              const isCompleted =
-                statusLower === "selesai" || statusLower === "completed";
-              const isCanceled =
-                statusLower === "dibatalkan" ||
-                statusLower === "canceled" ||
-                statusLower === "cancelled";
 
               if (isPending) {
                 if (m.rejectedBy) {
                   actionButtons += `<span style="font-size:11px;color:#ff4d4f;margin-right:8px;font-weight:700;background:#ffebee;padding:6px 12px;border-radius:12px;">Ditolak (${esc(m.rejectedBy)})</span>`;
-                } else if (isAtasan || isAdmin) {
-                  // ROLE ATASAN ATAU ADMIN DAPAT MENYETUJUI & MENOLAK
+                } else if (can("approve", user)) {
+                  // HANYA PIMPINAN YANG MENYETUJUI & MENOLAK
                   actionButtons += `<button style="background-color:#219653;color:#fff;border:none;border-radius:24px;padding:8px 16px;font-weight:700;font-size:12px;cursor:pointer;margin-right:6px;" title="Setujui" onclick="approveMeeting('${m.id}')">✓ Setujui</button>`;
                   actionButtons += `<button style="background-color:#ff4d4f;color:#fff;border:none;border-radius:24px;padding:8px 16px;font-weight:700;font-size:12px;cursor:pointer;" title="Tolak" onclick="rejectMeeting('${m.id}')">✕ Tolak</button>`;
                 } else {
-                  actionButtons += `<span style="font-size:11px;color:#d97706;background:#fef3c7;padding:5px 10px;border-radius:12px;font-weight:600;">⏳ Menunggu Approval</span>`;
+                  actionButtons += `<span style="font-size:11px;color:#d97706;background:#fef3c7;padding:5px 10px;border-radius:12px;font-weight:600;">⏳ Menunggu Persetujuan Pimpinan</span>`;
                 }
-              } else if (isUpcoming) {
-                // TOMBOL CHECK IN HARUS SELALU MUNCUL KETIKA RAPAT SUDAH DISETUJUI
+              } else if (isUpcoming && can("checkInOut", user)) {
                 actionButtons += `<button style="background-color:#219653;color:#fff;border:none;border-radius:24px;padding:8px 16px;font-weight:700;font-size:13px;cursor:pointer;box-shadow:0 4px 10px rgba(33,150,83,0.2);display:inline-flex;align-items:center;gap:4px;" title="Check In Rapat" onclick="checkInMeeting('${m.id}')"><span>✓ Check In</span></button>`;
-              } else if (isRunning) {
-                // TOMBOL CHECK OUT HARUS SELALU MUNCUL KETIKA RAPAT BERJALAN
+              } else if (isRunning && can("checkInOut", user)) {
                 actionButtons += `<button style="background-color:#ff4d4f;color:#fff;border:none;border-radius:24px;padding:8px 16px;font-weight:700;font-size:13px;cursor:pointer;box-shadow:0 4px 10px rgba(255,77,79,0.2);display:inline-flex;align-items:center;gap:4px;" title="Check Out Rapat" onclick="checkOutMeeting('${m.id}')"><span>Check Out</span></button>`;
               }
 
               // Tombol Canceling System Darurat (Emergency Cancellation)
-              // Hanya aktif jika ditekan / jika diperlukan (opsi darurat mendampingi alur normal)
-              if (!isCompleted && !isCanceled) {
+              if (!isCompleted && !isCanceled && can("emergencyCancel", user)) {
                 const emgCancelBtn = `<button style="background-color:#fee2e2;color:#dc2626;border:1px solid #fca5a5;border-radius:20px;padding:6px 12px;font-weight:700;font-size:11.5px;cursor:pointer;margin-left:6px;display:inline-flex;align-items:center;gap:4px;box-shadow:0 2px 5px rgba(220,38,38,0.08);transition:all 0.15s ease;" title="Batalkan Rapat Darurat (Hanya jika diperlukan)" onclick="openEmergencyCancelModal('${m.id}')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg><span>Batal Darurat</span></button>`;
                 actionButtons += emgCancelBtn;
               } else if (isCanceled) {
@@ -1827,7 +2140,6 @@ function meetingTable(data, actions = true, allowDelete = true) {
               }
             }
 
-            const isCompleted = String(m.status || "").toLowerCase() === "selesai";
             const rating = Math.max(0, Math.min(5, Number(m.review?.rating) || 0));
             const reviewCell = isCompleted
               ? m.review
@@ -1843,9 +2155,13 @@ function meetingTable(data, actions = true, allowDelete = true) {
 }
 
 function meetings() {
-  const running = state.meetings.filter((x) => x.status === "Berjalan").length;
-  const soon = state.meetings.filter((x) => x.status === "Akan Datang").length;
-  const done = state.meetings.filter((x) => x.status === "Selesai").length;
+  const currentUser = getCurrentUser();
+  const isApproval = can("approve", currentUser);
+  const stats = getMeetingStatistics();
+  const running = stats.runningCount;
+  const soon = stats.soonCount;
+  const done = stats.doneCount;
+  const pending = stats.pendingCount;
 
   const faCheck = svgIcon(
     '<path d="M173.898 439.404l-166.4-166.4c-9.997-9.997-9.997-26.206 0-36.204l36.203-36.204c9.997-9.998 26.207-9.998 36.204 0L192 312.69 432.095 72.596c9.997-9.997 26.207-9.997 36.204 0l36.203 36.204c9.997 9.997 9.997 26.206 0 36.204l-294.4 294.401c-9.998 9.997-26.207 9.997-36.204-.001z"/>',
@@ -2100,7 +2416,11 @@ function meetings() {
         <div class="dash-title">
           <div class="dash-breadcrumb">Dashboard > Manajemen Rapat</div>
           <h1>Manajemen Rapat</h1>
-          <p>Kelola data rapat, pantau jadwal, dan pastikan setiap rapat berjalan dengan lancar.</p>
+          <p>${
+            isApproval
+              ? "Pantau seluruh jadwal rapat dan setujui atau tolak permohonan yang menunggu persetujuan Anda."
+              : "Kelola data rapat, pantau jadwal, lakukan check-in/out, dan pastikan setiap rapat berjalan dengan lancar."
+          }</p>
         </div>
         <div class="dash-actions">
           ${getProfileHTML()}
@@ -2108,12 +2428,49 @@ function meetings() {
       </div>
       
       <div class="dash-cards">
+        ${
+          isApproval
+            ? `
+        <div class="d-card" style="${pending > 0 ? "border:1.5px solid #fed7aa;background:#fffaf3;" : ""}">
+          <div class="dc-icon yellow" style="${pending > 0 ? "background:#ffedd5;color:#ea580c;" : ""}">${faClock}</div>
+          <div class="dc-text">
+            <strong style="${pending > 0 ? "color:#ea580c;" : ""}">${pending}</strong>
+            <span>Perlu Persetujuan</span>
+            <small>Menunggu approval Anda</small>
+          </div>
+        </div>
+        <div class="d-card">
+          <div class="dc-icon green">${faPlay}</div>
+          <div class="dc-text">
+            <strong>${running}</strong>
+            <span>Rapat Berjalan</span>
+            <small>Sedang berlangsung</small>
+          </div>
+        </div>
+        <div class="d-card">
+          <div class="dc-icon blue">${faClock}</div>
+          <div class="dc-text">
+            <strong>${soon}</strong>
+            <span>Akan Datang</span>
+            <small>Jadwal mendatang</small>
+          </div>
+        </div>
+        <div class="d-card">
+          <div class="dc-icon purple">${faCheck}</div>
+          <div class="dc-text">
+            <strong>${done}</strong>
+            <span>Rapat Selesai</span>
+            <small>Telah selesai</small>
+          </div>
+        </div>
+            `
+            : `
         <div class="d-card">
           <div class="dc-icon blue">${faCalendarAlt}</div>
           <div class="dc-text">
-            <strong>${state.meetings.length}</strong>
+            <strong>${stats.totalMeetings}</strong>
             <span>Total Rapat</span>
-            <small>4 x dari minggu lalu</small>
+            <small>Semua jadwal terdaftar</small>
           </div>
         </div>
         <div class="d-card">
@@ -2129,7 +2486,7 @@ function meetings() {
           <div class="dc-text">
             <strong>${soon}</strong>
             <span>Rapat Segera</span>
-            <small>Dalam 2 jam ke depan</small>
+            <small>Akan datang</small>
           </div>
         </div>
         <div class="d-card">
@@ -2137,17 +2494,29 @@ function meetings() {
           <div class="dc-text">
             <strong>${done}</strong>
             <span>Rapat Selesai</span>
-            <small>Hari ini</small>
+            <small>Telah selesai</small>
           </div>
         </div>
+            `
+        }
       </div>
       
       <div class="dash-table-container">
         <div class="dash-tabs">
-          <button class="tab active" onclick="filterMeetings('Semua',this)">Semua Rapat (${state.meetings.length})</button>
-          <button class="tab" onclick="filterMeetings('Berjalan',this)">Rapat Berjalan</button>
-          <button class="tab" onclick="filterMeetings('Akan Datang',this)">Akan Datang</button>
-          <button class="tab" onclick="filterMeetings('Selesai',this)">Rapat Selesai</button>
+          ${
+            isApproval
+              ? `<button class="tab ${pending > 0 ? "active" : ""}" onclick="filterMeetings('Menunggu Approval',this)" style="color:#ea580c;font-weight:700;">⏳ Perlu Persetujuan (${pending})</button>`
+              : ""
+          }
+          <button class="tab ${isApproval && pending > 0 ? "" : "active"}" onclick="filterMeetings('Semua',this)">Semua Rapat (${state.meetings.length})</button>
+          <button class="tab" onclick="filterMeetings('Berjalan',this)">Rapat Berjalan (${running})</button>
+          <button class="tab" onclick="filterMeetings('Akan Datang',this)">Akan Datang (${soon})</button>
+          <button class="tab" onclick="filterMeetings('Selesai',this)">Rapat Selesai (${done})</button>
+          ${
+            !isApproval
+              ? `<button class="tab" onclick="filterMeetings('Menunggu Approval',this)">Menunggu Approval (${pending})</button>`
+              : ""
+          }
         </div>
         
         <div class="dash-filters">
@@ -2892,10 +3261,14 @@ function rooms() {
               <option value="Dalam Perbaikan">Dalam Perbaikan</option>
             </select>
           </div>
-          <button class="btn-add-room" onclick="openRoomModal()">
+          ${
+            can("manageRoom")
+              ? `<button class="btn-add-room" onclick="openRoomModal()">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
             Tambah Ruangan
-          </button>
+          </button>`
+              : `<span style="font-size:12px;font-weight:600;color:#475569;background:#f1f5f9;padding:8px 14px;border-radius:8px;">👁 Mode lihat saja</span>`
+          }
         </div>
 
         <div id="roomGrid" class="room-grid-custom">
@@ -3146,10 +3519,8 @@ function users() {
             <select id="userRole" onchange="filterUsers()">
               <option value="">Semua Role</option>
               <option value="User">User</option>
-              <option value="Administrator">Administrator</option>
-              <option value="Approval">Approval</option>
-              <option value="Admin Ruangan">Admin Ruangan</option>
-              <option value="Admin Sistem">Admin Sistem</option>
+              <option value="Admin">Admin</option>
+              <option value="Pimpinan">Pimpinan</option>
             </select>
           </div>
           ${
@@ -3187,10 +3558,11 @@ function userTable(data) {
 
   return `<div class="table-wrap"><table class="table"><thead><tr><th>No</th><th>Nama & Akun</th><th>Email</th><th>Jabatan/Unit</th><th>Role</th><th>Status</th><th>Aksi</th></tr></thead><tbody>${data
     .map((u, i) => {
+      const roleName = getRoleLabel(u.role);
       let roleColor = "#f1f5f9";
-      if (u.role === "User") roleColor = "#e6f0fa";
-      else if (u.role === "Administrator") roleColor = "#e0f5ec";
-      else if ((u.role || "").includes("Approval")) roleColor = "#fef3c7";
+      if (roleName === "User") roleColor = "#e6f0fa";
+      else if (roleName === "Admin") roleColor = "#e0f5ec";
+      else if (roleName === "Pimpinan") roleColor = "#fef3c7";
       const badgeStyle = `background:${roleColor};color:#0c2d5e;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:700;`;
       const statusStyle =
         (u.status || "Aktif") === "Aktif"
@@ -3205,7 +3577,7 @@ function userTable(data) {
         </td>
         <td>${esc(u.email || "-")}</td>
         <td>${esc(u.dept || "-")}</td>
-        <td><span style="${badgeStyle}">${esc(u.role)}</span></td>
+        <td><span style="${badgeStyle}">${esc(roleName)}</span></td>
         <td><span style="${statusStyle}">${esc(u.status || "Aktif")}</span></td>
         <td>
           ${
@@ -3409,104 +3781,137 @@ function reports() {
   return dashboard();
 }
 
-function openFilterModal() {
+function getActivePeriodLabel() {
   const f = state.reportFilter;
-  const body = `
-    <div style="display:flex; flex-direction:column; gap:10px; padding-top: 10px;">
-      <h3 style="font-size: 14px; color: #718096; margin-bottom: 5px;">Rentang waktu</h3>
+  if (!f) return "Semua Jadwal";
+  if (f.mode === "harian") {
+    return `Hari Ini (${formatDate(getTodayIsoDate())})`;
+  }
+  if (f.mode === "date" && f.startDate && f.endDate) {
+    return `${formatDate(f.startDate)} – ${formatDate(f.endDate)}`;
+  }
+  if (f.mode === "bulanan") {
+    const d = new Date();
+    const monthName = d.toLocaleDateString("id-ID", { month: "short", year: "numeric" });
+    return `Bulan Ini (${monthName})`;
+  }
+  if (f.mode === "semua") {
+    return "Semua Jadwal";
+  }
+  return "Periode Rapat";
+}
+window.getActivePeriodLabel = getActivePeriodLabel;
 
-      <label style="display:flex; align-items:center; justify-content:space-between; cursor:pointer; padding: 12px 0; border-bottom: 1px solid var(--border);">
-        <span>Laporan Traffic Harian</span>
+function openFilterModal() {
+  const f = state.reportFilter || { mode: "bulanan", startDate: awalBulan(), endDate: akhirBulan() };
+  const body = `
+    <div style="display:flex; flex-direction:column; gap:12px; padding-top: 6px; font-family:'Poppins',sans-serif;">
+      <h3 style="font-size: 13.5px; font-weight:700; color: #0c2d5e; margin: 0 0 4px;">Pilih Periode Rapat</h3>
+
+      <label style="display:flex; align-items:center; justify-content:space-between; cursor:pointer; padding: 10px 12px; border-radius:8px; border: 1px solid #e2e8f0; background: #fff;">
+        <span style="font-size:13px; font-weight:600; color:#1e293b;">📅 Hari Ini saja (${formatDate(getTodayIsoDate())})</span>
         <input type="radio" name="modalFilterMode" value="harian" onchange="toggleModalFilter()" ${f.mode === "harian" ? "checked" : ""}>
       </label>
 
-      <label style="display:flex; align-items:center; justify-content:space-between; cursor:pointer; padding: 12px 0; border-bottom: 1px solid var(--border);">
-        <span>Laporan Traffic Bulanan</span>
+      <label style="display:flex; align-items:center; justify-content:space-between; cursor:pointer; padding: 10px 12px; border-radius:8px; border: 1px solid #e2e8f0; background: #fff;">
+        <span style="font-size:13px; font-weight:600; color:#1e293b;">🗓️ Bulan Ini</span>
         <input type="radio" name="modalFilterMode" value="bulanan" onchange="toggleModalFilter()" ${f.mode === "bulanan" ? "checked" : ""}>
       </label>
 
-      <label style="display:flex; align-items:center; justify-content:space-between; cursor:pointer; padding: 12px 0; border-bottom: 1px solid var(--border);">
-        <span>Laporan Traffic Tahunan</span>
-        <input type="radio" name="modalFilterMode" value="tahunan" onchange="toggleModalFilter()" ${f.mode === "tahunan" ? "checked" : ""}>
+      <label style="display:flex; align-items:center; justify-content:space-between; cursor:pointer; padding: 10px 12px; border-radius:8px; border: 1px solid #e2e8f0; background: #fff;">
+        <span style="font-size:13px; font-weight:600; color:#1e293b;">🌐 Semua Jadwal Rapat</span>
+        <input type="radio" name="modalFilterMode" value="semua" onchange="toggleModalFilter()" ${f.mode === "semua" ? "checked" : ""}>
       </label>
 
-      <label style="display:flex; align-items:center; justify-content:space-between; cursor:pointer; padding: 12px 0;">
-        <span>Atur rentang tanggal</span>
+      <label style="display:flex; align-items:center; justify-content:space-between; cursor:pointer; padding: 10px 12px; border-radius:8px; border: 1px solid #e2e8f0; background: #fff;">
+        <span style="font-size:13px; font-weight:600; color:#1e293b;">⚙️ Rentang Tanggal Tertentu</span>
         <input type="radio" name="modalFilterMode" value="date" onchange="toggleModalFilter()" ${f.mode === "date" ? "checked" : ""}>
       </label>
 
-      <div id="modalDateInputs" style="display:flex; gap:10px; margin-top: 10px; opacity: ${f.mode === "date" ? "1" : "0.5"}; pointer-events: ${f.mode === "date" ? "auto" : "none"};">
-        <div style="flex:1; background: #f7fafc; padding: 12px; border-radius: 8px;">
-          <label style="display:block; font-size:12px; color:#718096; margin-bottom:4px;">Dari</label>
-          <input type="date" id="mStartDate" value="${f.startDate}" style="width:100%; border:none; background:transparent; outline:none; font-weight:600;" ${f.mode !== "date" ? "disabled" : ""}>
+      <div id="modalDateInputs" style="display:flex; gap:10px; margin-top: 4px; opacity: ${f.mode === "date" ? "1" : "0.5"}; pointer-events: ${f.mode === "date" ? "auto" : "none"};">
+        <div style="flex:1; background: #f8fafc; padding: 10px 12px; border:1px solid #e2e8f0; border-radius: 8px;">
+          <label style="display:block; font-size:11px; font-weight:600; color:#64748b; margin-bottom:4px;">Dari Tanggal</label>
+          <input type="date" id="mStartDate" value="${f.startDate || awalBulan()}" style="width:100%; border:none; background:transparent; outline:none; font-weight:600; font-size:12.5px; color:#0c2d5e;" ${f.mode !== "date" ? "disabled" : ""}>
         </div>
-        <div style="flex:1; background: #f7fafc; padding: 12px; border-radius: 8px;">
-          <label style="display:block; font-size:12px; color:#718096; margin-bottom:4px;">Ke</label>
-          <input type="date" id="mEndDate" value="${f.endDate}" style="width:100%; border:none; background:transparent; outline:none; font-weight:600;" ${f.mode !== "date" ? "disabled" : ""}>
+        <div style="flex:1; background: #f8fafc; padding: 10px 12px; border:1px solid #e2e8f0; border-radius: 8px;">
+          <label style="display:block; font-size:11px; font-weight:600; color:#64748b; margin-bottom:4px;">Sampai Tanggal</label>
+          <input type="date" id="mEndDate" value="${f.endDate || akhirBulan()}" style="width:100%; border:none; background:transparent; outline:none; font-weight:600; font-size:12.5px; color:#0c2d5e;" ${f.mode !== "date" ? "disabled" : ""}>
         </div>
       </div>
 
-      <div style="margin-top: 25px;">
-        <button class="btn btn-primary" style="width: 100%; padding: 14px; font-size: 15px; border-radius: 8px;" onclick="applyFilter()">Terapkan Filter</button>
+      <div style="margin-top: 14px; display:flex; gap:10px;">
+        <button type="button" class="btn btn-light" style="flex:1; padding: 11px; font-size: 13px; border-radius: 8px; font-weight:600;" onclick="closeModal()">Batal</button>
+        <button type="button" class="btn btn-primary" style="flex:2; padding: 11px; font-size: 13px; border-radius: 8px; font-weight:700; background:#0c2d5e;" onclick="applyFilter()">Terapkan Filter</button>
       </div>
     </div>
   `;
-  openModal("Filter Laporan", body);
+  openModal("Periode Rapat", body);
 }
 
 function toggleModalFilter() {
-  const mode = document.querySelector(
-    'input[name="modalFilterMode"]:checked',
-  ).value;
+  const checked = document.querySelector('input[name="modalFilterMode"]:checked');
+  if (!checked) return;
+  const mode = checked.value;
   const container = document.getElementById("modalDateInputs");
   const sd = document.getElementById("mStartDate");
   const ed = document.getElementById("mEndDate");
 
   if (mode === "date") {
-    container.style.opacity = "1";
-    container.style.pointerEvents = "auto";
-    sd.disabled = false;
-    ed.disabled = false;
+    if (container) {
+      container.style.opacity = "1";
+      container.style.pointerEvents = "auto";
+    }
+    if (sd) sd.disabled = false;
+    if (ed) ed.disabled = false;
   } else {
-    container.style.opacity = "0.5";
-    container.style.pointerEvents = "none";
-    sd.disabled = true;
-    ed.disabled = true;
+    if (container) {
+      container.style.opacity = "0.5";
+      container.style.pointerEvents = "none";
+    }
+    if (sd) sd.disabled = true;
+    if (ed) ed.disabled = true;
   }
 }
 
 function applyFilter() {
-  const mode = document.querySelector(
-    'input[name="modalFilterMode"]:checked',
-  ).value;
+  const checked = document.querySelector('input[name="modalFilterMode"]:checked');
+  const mode = checked ? checked.value : "bulanan";
+  const sd = document.getElementById("mStartDate")?.value || awalBulan();
+  const ed = document.getElementById("mEndDate")?.value || akhirBulan();
   state.reportFilter = {
     mode: mode,
-    startDate: document.getElementById("mStartDate").value,
-    endDate: document.getElementById("mEndDate").value,
+    startDate: sd,
+    endDate: ed,
   };
   closeModal();
-  generateTrafficReport();
+  render();
+  toast(`✓ Periode rapat diterapkan: ${getActivePeriodLabel()}`);
 }
 
-function generateTrafficReport() {
-  const f = state.reportFilter;
-  const label = document.getElementById("chartLabel");
-
-  if (f.mode === "date") {
-    if (label)
-      label.innerText = `${formatDate(f.startDate)} - ${formatDate(f.endDate)}`;
-    toast(`Menampilkan data tanggal ${f.startDate} s/d ${f.endDate}`);
-  } else {
-    let text = "";
-    if (f.mode === "harian") text = "Hari Ini";
-    else if (f.mode === "bulanan") text = "Bulan Ini";
-    else if (f.mode === "tahunan") text = "Tahun Ini";
-
-    if (label) label.innerText = text;
-    toast(
-      `Menampilkan Laporan Traffic ${f.mode.charAt(0).toUpperCase() + f.mode.slice(1)}`,
-    );
+function applyDashboardFilter() {
+  const r = document.getElementById("trafficRoom");
+  if (r) {
+    state.dashboardRoomFilter = r.value;
   }
+  render();
+  toast("✓ Filter jadwal diterapkan.");
+}
+window.applyDashboardFilter = applyDashboardFilter;
+
+function resetDashboardFilter() {
+  state.dashboardRoomFilter = "semua";
+  state.reportFilter = {
+    mode: "bulanan",
+    startDate: awalBulan(),
+    endDate: akhirBulan(),
+  };
+  render();
+  toast("✓ Filter jadwal telah direset ke default.");
+}
+window.resetDashboardFilter = resetDashboardFilter;
+
+function generateTrafficReport() {
+  applyDashboardFilter();
 }
 
 function toggleExportMenu(e) {
@@ -3585,43 +3990,31 @@ function settings() {
     </svg>
   `;
 
-  const faPencilAlt = svgIcon(
-    '<path d="M497.9 142.1l-46.1 46.1c-4.7 4.7-12.3 4.7-17 0l-111-111c-4.7-4.7-4.7-12.3 0-17l46.1-46.1c18.7-18.7 49.1-18.7 67.9 0l60.1 60.1c18.8 18.7 18.8 49.1 0 67.9zM284.2 99.8L21.6 362.4.4 483.9c-2.9 16.4 11.4 30.6 27.8 27.8l121.5-21.3 262.6-262.6c4.7-4.7 4.7-12.3 0-17l-111-111c-4.8-4.7-12.4-4.7-17.1 0zM124.1 339.9c-5.5-5.5-5.5-14.3 0-19.8l154-154c5.5-5.5 14.3-5.5 19.8 0s5.5 14.3 0 19.8l-154 154c-5.5 5.5-14.3 5.5-19.8 0zM88 424h48v36.3l-64.5 11.3-31.1-31.1L51.7 376H88v48z"/>',
-    "0 0 512 512",
-    'width="15" height="15" fill="#0c2d5e"',
-  );
-
-  const totalRoles = 4;
-  const totalUsers = state.users ? state.users.length : 10;
-  const adminAktif = state.users
-    ? state.users.filter((u) => u.role === "Administrator").length
-    : 1;
+  const adminAktif = (state.users || []).filter((u) => isAdminRole(u)).length;
+  const pimpinanAktif = (state.users || []).filter((u) => isAtasanRole(u)).length;
+  const userAktif = (state.users || []).filter((u) => !isAdminRole(u) && !isAtasanRole(u)).length;
+  const totalRoles = 3;
+  const totalUsers = (state.users || []).length;
   const aksesBermasalah = 0;
 
   const rolesData = [
     {
       no: 1,
-      name: "Administrator",
-      access: "Akses Penuh, Pengaturan, Manajemen Pengguna",
-      usersCount: 1,
+      name: "Admin",
+      access: "Operasional Rapat, Kelola Fasilitas Ruangan, Quick Check-In/Out, Manajemen Pengguna",
+      usersCount: adminAktif,
     },
     {
       no: 2,
-      name: "Admin Sistem",
-      access: "Konfigurasi Kalender, Laporan, Manajemen Ruangan",
-      usersCount: 1,
+      name: "Pimpinan",
+      access: "Otorisasi Persetujuan/Penolakan Booking Rapat, Mode Pemantauan, Pembatalan Darurat",
+      usersCount: pimpinanAktif,
     },
     {
       no: 3,
-      name: "Admin Ruangan",
-      access: "Kelola Jadwal Rapat, Status Ruangan",
-      usersCount: 1,
-    },
-    {
-      no: 4,
       name: "User",
-      access: "Melihat Jadwal, Tambah Pemesanan",
-      usersCount: 1,
+      access: "Pengajuan Booking Ruang Rapat, Presensi Daftar Hadir Digital, Review Kepuasan",
+      usersCount: userAktif,
     },
   ];
 
@@ -3791,23 +4184,14 @@ function settings() {
         width: 160px;
         text-align: center;
       }
-      .td-action {
-        width: 80px;
-      }
-      .btn-role-action {
-        width: 36px;
-        height: 36px;
-        border-radius: 8px;
-        background: #bce0fd;
-        border: none;
-        display: grid;
-        place-items: center;
-        cursor: pointer;
-        transition: all 0.2s;
-      }
-      .btn-role-action:hover {
-        background: #9bd0fa;
-        transform: translateY(-1px);
+      .role-pill {
+        display: inline-block;
+        background: #e0f2fe;
+        color: #0369a1;
+        font-weight: 700;
+        font-size: 13px;
+        padding: 4px 14px;
+        border-radius: 999px;
       }
     </style>
   `;
@@ -3877,10 +4261,9 @@ function settings() {
             <thead>
               <tr>
                 <th class="td-no">No</th>
-                <th class="td-role">Judul Rapat</th>
+                <th class="td-role">Nama Role</th>
                 <th class="td-access">Hak Akses Utama</th>
                 <th class="td-count" style="text-align: center;">Jumlah Pengguna</th>
-                <th class="td-action">Aksi</th>
               </tr>
             </thead>
             <tbody>
@@ -3891,11 +4274,8 @@ function settings() {
                   <td class="td-no">${r.no}</td>
                   <td class="td-role">${r.name}</td>
                   <td class="td-access">${r.access}</td>
-                  <td class="td-count" style="text-align: center;">${r.usersCount}</td>
-                  <td class="td-action">
-                    <button class="btn-role-action" title="Edit Akses ${r.name}" onclick="alert('Pengaturan akses untuk role ${r.name}')">
-                      ${faPencilAlt}
-                    </button>
+                  <td class="td-count" style="text-align: center;">
+                    <span class="role-pill">${r.usersCount} Pengguna</span>
                   </td>
                 </tr>
               `,
@@ -3920,6 +4300,18 @@ function render() {
     settings,
   };
 
+  const curUser = getCurrentUser();
+  if (curUser && !isAdminRole(curUser) && !isAtasanRole(curUser)) {
+    if (window.parent && window.parent.location && window.parent.location.pathname.startsWith("/dashboard")) {
+      window.parent.location.href = "/booking";
+      return;
+    }
+  }
+
+  if (!isPageAllowed(state.page, curUser)) {
+    state.page = "dashboard";
+    if (location.hash !== "#dashboard") location.hash = "#dashboard";
+  }
   const page = pages[state.page] || dashboard;
   document.getElementById("app").innerHTML = layout(page());
 }
@@ -3974,6 +4366,7 @@ function onToggleKepalaBiro(checkbox) {
 window.onToggleKepalaBiro = onToggleKepalaBiro;
 
 function openMeetingModal(id = null) {
+  if (!can("manageMeeting")) return denyAccess("Tambah / edit rapat dilakukan oleh Admin.");
   const defaultHours = getDefaultMeetingHours();
   const m = id
     ? state.meetings.find((x) => String(x.id) === String(id))
@@ -4234,9 +4627,9 @@ async function saveMeeting(id) {
 
 function approveMeeting(id) {
   const user = getCurrentUser();
-  if (!isAtasanRole(user) && !isAdminRole(user)) {
+  if (!can("approve", user)) {
     alert(
-      "Hak Akses Dibatasi:\nHanya akun role Atasan / Administrator yang dapat menyetujui permohonan rapat.",
+      "Hak Akses Dibatasi:\nHanya akun Pimpinan yang dapat menyetujui permohonan rapat.",
     );
     return;
   }
@@ -4300,7 +4693,7 @@ function approveMeeting(id) {
   }
 
   const approverName = user.name || "Pimpinan";
-  const approverRole = user.role || "Approval";
+  const approverRole = getRoleLabel(user.role);
   const approvedTag = `${approverName} - ${approverRole}`;
 
   targetMeeting.status = "Akan Datang";
@@ -4364,6 +4757,7 @@ function approveMeeting(id) {
 }
 
 function checkInMeeting(id) {
+  if (!can("checkInOut")) return denyAccess("Check-In rapat dilakukan oleh Admin.");
   state.meetings = state.meetings.map((m) => {
     if (String(m.id) === String(id)) return { ...m, status: "Berjalan" };
     return m;
@@ -4388,6 +4782,7 @@ function checkInMeeting(id) {
 }
 
 function checkOutMeeting(id) {
+  if (!can("checkInOut")) return denyAccess("Check-Out rapat dilakukan oleh Admin.");
   if (confirm("Tandai rapat ini sebagai selesai?")) {
     state.meetings = state.meetings.map((m) => {
       if (String(m.id) === String(id)) return { ...m, status: "Selesai" };
@@ -4417,9 +4812,9 @@ function checkOutMeeting(id) {
 
 function rejectMeeting(id) {
   const user = getCurrentUser();
-  if (!isAtasanRole(user) && !isAdminRole(user)) {
+  if (!can("approve", user)) {
     alert(
-      "Hak Akses Dibatasi:\nHanya akun role Atasan / Administrator yang dapat menolak permohonan rapat.",
+      "Hak Akses Dibatasi:\nHanya akun Pimpinan yang dapat menolak permohonan rapat.",
     );
     return;
   }
@@ -4465,15 +4860,15 @@ function rejectMeeting(id) {
 
 function confirmReject(id) {
   const user = getCurrentUser();
-  if (!isAtasanRole(user) && !isAdminRole(user)) {
-    alert("Hanya role Atasan / Administrator yang berhak menolak permohonan rapat.");
+  if (!can("approve", user)) {
+    alert("Hanya role Pimpinan yang berhak menolak permohonan rapat.");
     return;
   }
   const reason =
     document.getElementById("fRejectReason")?.value.trim() ||
     "Tidak ada alasan yang diberikan";
   const rejecterName = user.name || "Pimpinan";
-  const rejecterRole = user.role || "Approval";
+  const rejecterRole = getRoleLabel(user.role);
   const rejecterTag = `${rejecterName} - ${rejecterRole}`;
 
   state.meetings = state.meetings.map((m) => {
@@ -4596,8 +4991,6 @@ function viewMeeting(id) {
       ? `<div style="margin:14px 0;padding:11px 14px;border-radius:9px;color:#75869b;background:#f3f6fa;font-size:12px;">Belum ada rating dan review untuk rapat ini.</div>`
       : "";
 
-  let actionBtns = `<button class="btn btn-light" style="display:inline-flex;align-items:center;gap:6px;" onclick="exportNotulensiPDF('${m.id}')">${ICONS.export} <span>Notulensi</span></button>`;
-
   const statusStr = (m.status || "").trim();
   const statusLower = statusStr.toLowerCase();
   const isPending =
@@ -4612,27 +5005,33 @@ function viewMeeting(id) {
     statusLower === "running";
   const isCompleted =
     statusLower === "selesai" || statusLower === "completed";
+  const isRejected =
+    statusLower === "ditolak" || statusLower === "rejected";
+  const canShowQr = !isPending && !isCanceled && !isRejected;
+
+  let actionBtns = `<button class="btn btn-light" style="display:inline-flex;align-items:center;gap:6px;" onclick="exportNotulensiPDF('${m.id}')">${ICONS.export} <span>Notulensi</span></button>`;
+  if (canShowQr) {
+    actionBtns += `<button class="btn btn-light" style="display:inline-flex;align-items:center;gap:6px;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;font-weight:700;" onclick="closeModal(); openMeetingQRModal('${m.id}')"><span>📱 QR Pass &amp; Presensi</span></button>`;
+  }
 
   if (isPending) {
-    if (isAtasan || isAdmin) {
+    if (can("approve")) {
       actionBtns += `<button class="btn btn-primary" style="background:#219653;border-color:#219653;font-weight:700;" onclick="closeModal(); approveMeeting('${m.id}')">✓ Setujui Rapat</button>`;
       actionBtns += `<button class="btn btn-primary" style="background:#ff4d4f;border-color:#ff4d4f;font-weight:700;" onclick="closeModal(); rejectMeeting('${m.id}')">✕ Tolak Rapat</button>`;
     } else {
-      actionBtns += `<div style="font-size:12px;color:#d97706;background:#fef3c7;padding:7px 12px;border-radius:8px;font-weight:600;display:inline-flex;align-items:center;">⏳ Menunggu Persetujuan Atasan</div>`;
+      actionBtns += `<div style="font-size:12px;color:#d97706;background:#fef3c7;padding:7px 12px;border-radius:8px;font-weight:600;display:inline-flex;align-items:center;">⏳ Menunggu Persetujuan Pimpinan</div>`;
     }
-  } else if (isUpcoming) {
-    // CHECK IN
+  } else if (isUpcoming && can("checkInOut")) {
     actionBtns += `<button class="btn btn-primary" style="background:#219653;border-color:#219653;font-weight:700;" onclick="closeModal(); checkInMeeting('${m.id}')">✓ Check In</button>`;
-  } else if (isRunning) {
-    // CHECK OUT
+  } else if (isRunning && can("checkInOut")) {
     actionBtns += `<button class="btn btn-primary" style="background:#ff4d4f;border-color:#ff4d4f;font-weight:700;" onclick="closeModal(); checkOutMeeting('${m.id}')">Check Out</button>`;
   }
 
-  if (isAdmin || isAtasan) {
+  if (can("manageMeeting")) {
     actionBtns += `<button class="btn btn-primary" onclick="closeModal(); editMeeting('${m.id}')">Edit Rapat</button>`;
   }
 
-  if (!isCompleted && !isCanceled) {
+  if (!isCompleted && !isCanceled && can("emergencyCancel")) {
     actionBtns += `<button class="btn btn-primary" style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;font-weight:700;display:inline-flex;align-items:center;gap:4px;" title="Batalkan Rapat Darurat (Hanya jika diperlukan)" onclick="closeModal(); openEmergencyCancelModal('${m.id}')">🚨 Batal Darurat</button>`;
   }
 
@@ -4992,6 +5391,81 @@ async function submitReviewReply(id) {
 window.submitReviewReply = submitReviewReply;
 
 // ----------------------------------------------------------------------
+// MODAL QR CODE DINAMIS PER ORDER RAPAT (CHECK-IN, DAFTAR HADIR, CHECK-OUT)
+// ----------------------------------------------------------------------
+function openMeetingQRModal(id) {
+  let m = state.meetings.find((x) => String(x.id) === String(id));
+  if (!m) {
+    try {
+      const stored = JSON.parse(
+        getAppStorage().getItem("app_meetings") || "[]",
+      );
+      m = stored.find((x) => String(x.id) === String(id));
+    } catch (e) {}
+  }
+  if (!m) {
+    toast("Data rapat tidak ditemukan");
+    return;
+  }
+
+  const meetingUrl = `${window.location.origin}/meeting/${m.id}`;
+  const qrImgUrl = `https://api.qrserver.com/v1/create-qr-code/?size=260x260&margin=10&data=${encodeURIComponent(meetingUrl)}`;
+
+  const modalBackdrop = document.getElementById("modal");
+  if (!modalBackdrop) return;
+
+  modalBackdrop.innerHTML = `
+    <div class="modal-content" style="max-width:440px;text-align:center;padding:26px 22px;border-radius:20px;font-family:'Poppins',sans-serif;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <span style="font-size:12px;font-weight:700;color:#0284c7;background:#e0f2fe;padding:4px 12px;border-radius:12px;display:inline-flex;align-items:center;gap:4px;">
+          <span>📱</span> QR Pass &amp; Presensi Digital
+        </span>
+        <button type="button" onclick="closeModal()" style="background:none;border:none;font-size:24px;color:#94a3b8;cursor:pointer;line-height:1;" title="Tutup">&times;</button>
+      </div>
+
+      <h3 style="margin:0 0 4px;font-size:17px;font-weight:800;color:#0c2d5e;">${esc(m.title)}</h3>
+      <p style="margin:0 0 16px;font-size:12px;color:#64748b;">
+        📍 ${esc(m.room)} · 📅 ${formatDate(m.date)} (${m.start} - ${m.end} WIB)
+      </p>
+
+      <div style="background:#f8fafc;border:1.5px dashed #cbd5e1;border-radius:18px;padding:18px;display:flex;flex-direction:column;align-items:center;margin-bottom:14px;">
+        <div style="background:#ffffff;padding:12px;border-radius:14px;box-shadow:0 4px 16px rgba(12,45,94,0.06);margin-bottom:10px;">
+          <img src="${qrImgUrl}" alt="QR Code Rapat" style="width:200px;height:200px;display:block;" />
+        </div>
+        <div style="font-size:11.5px;color:#334155;font-weight:600;display:flex;align-items:center;gap:5px;">
+          <span>🎯</span> Scan dengan Kamera HP untuk Akses:
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-top:6px;">
+          <span style="background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:8px;font-size:10.5px;font-weight:700;">✓ Check-In</span>
+          <span style="background:#e0f2fe;color:#0369a1;padding:2px 8px;border-radius:8px;font-size:10.5px;font-weight:700;">✍️ Daftar Hadir</span>
+          <span style="background:#fee2e2;color:#b91c1c;padding:2px 8px;border-radius:8px;font-size:10.5px;font-weight:700;">Check-Out</span>
+          <span style="background:#f1f5f9;color:#475569;padding:2px 8px;border-radius:8px;font-size:10.5px;font-weight:700;">📋 Daftar Isi</span>
+        </div>
+      </div>
+
+      <div style="background:#f1f5f9;border-radius:10px;padding:8px 12px;font-size:11px;color:#334155;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:8px;">
+        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:monospace;flex:1;text-align:left;">${meetingUrl}</span>
+        <button type="button" onclick="navigator.clipboard.writeText('${meetingUrl}'); toast('✓ Link QR Pass berhasil disalin!');" style="background:#0c2d5e;color:#fff;border:none;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:600;cursor:pointer;flex-shrink:0;">Salin</button>
+      </div>
+
+      <div style="display:flex;gap:10px;">
+        <a href="${meetingUrl}" target="_blank" style="flex:1;background:#16a34a;color:#fff;border:none;border-radius:10px;padding:11px 14px;font-size:13px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:6px;transition:background 0.15s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
+          <span>Buka Halaman Rapat</span>
+          <span>↗</span>
+        </a>
+        <button type="button" onclick="closeModal()" style="flex:1;background:#e2e8f0;color:#334155;border:none;border-radius:10px;padding:11px 14px;font-size:13px;font-weight:600;cursor:pointer;">Tutup</button>
+      </div>
+    </div>
+  `;
+
+  modalBackdrop.onclick = function (e) {
+    if (e.target === modalBackdrop) closeModal();
+  };
+  modalBackdrop.classList.add("show");
+}
+window.openMeetingQRModal = openMeetingQRModal;
+
+// ----------------------------------------------------------------------
 // SISTEM PEMBATALAN RAPAT DARURAT (EMERGENCY CANCELLATION SYSTEM)
 // ----------------------------------------------------------------------
 function openEmergencyCancelModal(id) {
@@ -5291,6 +5765,7 @@ async function submitMeetingReview(id) {
 window.submitMeetingReview = submitMeetingReview;
 
 async function deleteMeeting(id) {
+  if (!can("manageMeeting")) return denyAccess("Penghapusan rapat dilakukan oleh Admin.");
   if (confirm("Hapus rapat ini?")) {
     state.meetings = state.meetings.filter((x) => x.id !== id);
     render();
@@ -5609,6 +6084,7 @@ window.updateFacilityRowIcon = function (input) {
 };
 
 function openRoomModal(id = null) {
+  if (!can("manageRoom")) return denyAccess("Pengelolaan ruangan dilakukan oleh Admin.");
   const isEdit = id !== null && id !== undefined;
   const r = isEdit
     ? state.rooms.find((x) => x.id === id)
@@ -5917,7 +6393,46 @@ async function saveRoom(id) {
 }
 
 function editRoom(id) {
+  if (!can("manageRoom")) {
+    viewRoomDetail(id);
+    return;
+  }
   openRoomModal(id);
+}
+
+// Detail ruangan read-only (untuk Pimpinan / role tanpa hak kelola ruangan)
+function viewRoomDetail(id) {
+  const r = state.rooms.find((x) => String(x.id) === String(id));
+  if (!r) return;
+  const facilities = Array.isArray(r.facilities) ? r.facilities : [];
+  const today = getTodayIsoDate();
+  const todays = state.meetings
+    .filter((m) => m.room === r.name && m.date === today)
+    .sort((a, b) => (a.start || "").localeCompare(b.start || ""));
+
+  openModal(
+    "Detail Ruangan",
+    `<img src="${getRoomImage(r)}" alt="${esc(r.name)}" style="width:100%;height:190px;object-fit:cover;border-radius:10px;margin-bottom:14px;">
+    <p style="font-size:17px;font-weight:700;color:#0c2d5e;margin:0 0 4px;">${esc(r.name)}</p>
+    <p class="muted" style="margin:0 0 12px;">📍 ${esc(r.location || "-")} · 👥 Kapasitas ${esc(r.capacity || "-")} orang · ${badge(r.status || "Tersedia")}</p>
+    ${
+      facilities.length
+        ? `<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 14px;margin-bottom:14px;font-size:12.5px;">${facilities
+            .map((f) => `<div><b style="color:#0c2d5e;">${esc(f.label)}:</b> <span style="color:#4b6a90;">${esc(f.value)}</span></div>`)
+            .join("")}</div>`
+        : ""
+    }
+    <p style="font-weight:700;color:#0c2d5e;margin:6px 0;">Jadwal Hari Ini</p>
+    ${
+      todays.length
+        ? todays
+            .map((m) => `<div style="display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid #eef3f9;font-size:12.5px;"><span><b>${m.start}-${m.end}</b> · ${esc(m.title)}</span>${badge(m.status)}</div>`)
+            .join("")
+        : `<p class="muted" style="font-size:12.5px;">Tidak ada jadwal hari ini.</p>`
+    }
+    <div style="margin-top:14px;padding:8px 12px;border-radius:8px;background:#f1f5f9;color:#475569;font-size:11.5px;">👁 Mode lihat saja — pengelolaan ruangan dilakukan oleh Admin.</div>
+    <div class="modal-actions" style="margin-top:14px;display:flex;justify-content:flex-end;"><button class="btn btn-light" onclick="closeModal()">Tutup</button></div>`,
+  );
 }
 
 function openUserModal(id = null) {
@@ -6010,15 +6525,13 @@ function openUserModal(id = null) {
           <label>Role Akun</label>
           <select id="uRole" ${isEditingAdmin ? "disabled style='background:#e2e8f0; cursor:not-allowed;'" : ""}>
             ${[
-              "User",
-              "Administrator",
-              "Approval",
-              "Admin Ruangan",
-              "Admin Sistem",
+              { value: "User", label: "User" },
+              { value: "Admin", label: "Admin" },
+              { value: "Pimpinan", label: "Pimpinan" },
             ]
               .map(
                 (r) =>
-                  `<option value="${r}" ${r === u.role ? "selected" : ""}>${r}</option>`,
+                  `<option value="${r.value}" ${getRoleLabel(u.role) === r.value ? "selected" : ""}>${r.label}</option>`,
               )
               .join("")}
           </select>
@@ -6283,7 +6796,10 @@ function filterMeetingTable() {
     (m) =>
       (m.title + " " + m.requester).toLowerCase().includes(q) &&
       (!room || m.room === room) &&
-      (!status || m.status === status),
+      (!status ||
+        (status === "Menunggu Approval"
+          ? isPendingApproval(m)
+          : m.status === status)),
   );
   document.getElementById("meetingTable").innerHTML = meetingTable(data);
 }
@@ -6332,21 +6848,22 @@ function filterUsers() {
   const tableEl = document.getElementById("userTable");
   if (!tableEl) return;
   tableEl.innerHTML = userTable(
-    state.users.filter(
-      (u) =>
-        (
-          (u.name || "") +
-          " " +
-          (u.username || "") +
-          " " +
-          (u.email || "") +
-          " " +
-          (u.dept || "")
-        )
-          .toLowerCase()
-          .includes(q) &&
-        (!r || u.role === r),
-    ),
+    state.users.filter((u) => {
+      const matchText = (
+        (u.name || "") +
+        " " +
+        (u.username || "") +
+        " " +
+        (u.email || "") +
+        " " +
+        (u.dept || "")
+      )
+        .toLowerCase()
+        .includes(q);
+      if (!matchText) return false;
+      if (!r) return true;
+      return getRoleLabel(u.role) === r;
+    }),
   );
 }
 
@@ -6824,10 +7341,13 @@ function logout(e) {
 }
 
 function getCurrentUser() {
-  let u = { username: "admin", role: "Administrator", name: "Admin Utama" };
+  let u = { username: "admin", role: "Admin", name: "Admin Utama" };
   try {
     const s = getAppStorage().getItem("currentUser");
-    if (s) u = JSON.parse(s);
+    if (s) {
+      const parsed = JSON.parse(s);
+      if (parsed) u = parsed;
+    }
   } catch (e) {}
   return u;
 }
@@ -6838,6 +7358,6 @@ function isMainAdmin() {
   return (
     u.username === "admin" ||
     u.name === "Admin Utama" ||
-    (u.role === "Administrator" && (!u.username || u.username === "admin"))
+    ((u.role === "Admin" || u.role === "Administrator") && (!u.username || u.username === "admin"))
   );
 }

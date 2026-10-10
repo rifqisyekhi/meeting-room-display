@@ -213,6 +213,104 @@
 .booking-history-recommendation-button:hover { border-color: #6aa0dc; background: #e8f2ff; }
 .booking-history-recommendation-button svg { font-size: 10px; }
 
+.booking-history-qr-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border: 1px solid #c3d9f3;
+  border-radius: 18px;
+  color: #0b3e77;
+  background: #edf4fe;
+  font: 600 11px "Poppins", sans-serif;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.booking-history-qr-button:hover {
+  background: #dbe9fc;
+  border-color: #8bb8eb;
+  color: #072b54;
+}
+.booking-history-qr-button svg {
+  color: #0d5cab;
+  font-size: 12px;
+}
+
+.booking-history-qr-modal {
+  max-width: 380px;
+}
+.booking-history-qr-modal-icon {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  margin: 0 auto 10px;
+  border-radius: 50%;
+  color: #0f4c8a;
+  background: #e1edf9;
+  font-size: 22px;
+}
+.booking-history-qr-modal-preview {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 14px;
+  background: #f7f9fc;
+  border: 1px solid #e1e7f0;
+  border-radius: 14px;
+  margin: 14px 0 12px;
+}
+.booking-history-qr-modal-preview svg {
+  border-radius: 8px;
+  background: #fff;
+  padding: 6px;
+  box-shadow: 0 4px 12px rgba(11, 40, 76, 0.08);
+}
+.booking-history-qr-modal-hint {
+  font-size: 11px;
+  color: #556b82;
+  line-height: 1.5;
+  margin: 0 0 16px;
+}
+.booking-history-qr-modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+.booking-history-qr-copy-btn,
+.booking-history-qr-open-btn {
+  flex: 1;
+  padding: 9px 12px;
+  border-radius: 8px;
+  font: 600 11px "Poppins", sans-serif;
+  text-decoration: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+.booking-history-qr-copy-btn {
+  background: #f0f4f9;
+  border: 1px solid #d2dbe5;
+  color: #173b67;
+}
+.booking-history-qr-copy-btn:hover {
+  background: #e2ecf7;
+  border-color: #a9c3de;
+}
+.booking-history-qr-open-btn {
+  background: #0d4b8e;
+  border: 1px solid #0d4b8e;
+  color: #ffffff;
+}
+.booking-history-qr-open-btn:hover {
+  background: #093769;
+  border-color: #093769;
+}
+
 .booking-history-details { display: flex; flex-wrap: wrap; gap: 8px 24px; padding: 14px 18px; border-top: 1px solid #e8edf3; color: #526a85; background: #fbfdff; font-size: 12px; }
 .booking-history-details strong { color: #173b67; }
 .booking-history-empty { padding: 36px; border: 1px dashed #c5d2e1; border-radius: 12px; color: #647992; background: #fff; text-align: center; font-size: 13px; }

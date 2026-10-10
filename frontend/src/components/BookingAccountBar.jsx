@@ -7,19 +7,21 @@ import "./BookingAccountBar.css";
 export default function BookingAccountBar({ currentUser, historyPage = false, showHelp = false }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const navigate = useNavigate();
-  const name = currentUser?.name || "Admin Utama";
-  const role = currentUser?.role || "Administrator";
+  const name = currentUser?.name || "Pengguna";
+  const role = currentUser?.role || "User";
 
   const logout = () => {
     localStorage.removeItem("isAuthenticated");
     localStorage.removeItem("currentUser");
-    navigate("/login", { state: { from: { pathname: historyPage ? "/booking/history" : "/booking" } } });
+    sessionStorage.removeItem("isAddingAccount");
+    navigate("/login");
   };
 
   const switchAccount = () => {
     setMenuOpen(false);
+    sessionStorage.setItem("isAddingAccount", "true");
     localStorage.removeItem("isAuthenticated");
-    navigate("/login", { state: { from: { pathname: historyPage ? "/booking/history" : "/booking" } } });
+    navigate("/login");
   };
 
   return (

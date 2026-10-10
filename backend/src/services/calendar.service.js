@@ -150,6 +150,7 @@ function toDashboardEvent(event, now, timeZone) {
   return {
     roomKey,
     event: {
+      id: event.id,
       agenda: fields.agenda || cleanSummary || rawSummary,
       bagian: fields.bagian || fields.pemesan || fields.nama || "-",
       tanggal: formatDate(start, timeZone),

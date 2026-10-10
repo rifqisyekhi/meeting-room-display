@@ -1,0 +1,981 @@
+/* MeetingPassPage.css - Layout Detil Rapat & Presensi Kemnaker */
+
+.mp-wrapper {
+  min-height: 100vh;
+  background-color: #f8fafc;
+  background-image: radial-gradient(#cbd5e1 0.75px, transparent 0.75px);
+  background-size: 20px 20px;
+  color: #1e293b;
+  font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  padding: 20px 16px 56px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.mp-container {
+  width: 100%;
+  max-width: 860px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ------------------------------------------------------------- Topbar */
+.mp-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 22px;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(12, 45, 94, 0.04);
+  border: 1px solid #e2e8f0;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.mp-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.mp-logo {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+}
+
+.mp-brand-info h1 {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: #0c2d5e;
+  margin: 0;
+  line-height: 1.25;
+}
+
+.mp-brand-info p {
+  font-size: 11.5px;
+  color: #64748b;
+  margin: 2px 0 0;
+}
+
+.mp-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.mp-qr-toggle-btn,
+.mp-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.15s ease;
+}
+
+.mp-qr-toggle-btn {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+
+.mp-qr-toggle-btn:hover {
+  background: #dbeafe;
+}
+
+.mp-back-btn {
+  background: #f8fafc;
+  color: #0c2d5e;
+  border: 1px solid #cbd5e1;
+}
+
+.mp-back-btn:hover {
+  background: #0c2d5e;
+  color: #ffffff;
+}
+
+/* ------------------------------------------------------------- Card Base */
+.mp-card {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 28px 32px;
+  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.04);
+  border: 1px solid #e2e8f0;
+  box-sizing: border-box;
+}
+
+.mp-card-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+
+.mp-detil-heading {
+  font-size: 21px;
+  font-weight: 700;
+  color: #0c2d5e;
+  margin: 0;
+}
+
+.mp-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
+.mp-status-pill.live {
+  background: #dcfce7;
+  color: #15803d;
+  border: 1px solid #86efac;
+}
+
+.mp-status-pill.upcoming {
+  background: #fef3c7;
+  color: #b45309;
+  border: 1px solid #fde68a;
+}
+
+.mp-status-pill.done {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+}
+
+.mp-status-pill.pending {
+  background: #fff7ed;
+  color: #c2410c;
+  border: 1px solid #fed7aa;
+}
+
+.pulse-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #16a34a;
+  box-shadow: 0 0 0 rgba(22, 163, 74, 0.4);
+  animation: mp-pulse 1.8s infinite;
+}
+
+@keyframes mp-pulse {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.7); }
+  70% { transform: scale(1.1); box-shadow: 0 0 0 6px rgba(22, 163, 74, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(22, 163, 74, 0); }
+}
+
+/* ------------------------------------------------------------- Banner Kuning */
+.mp-presensi-banner {
+  background-color: #fef9c3;
+  border-left: 5px solid #eab308;
+  color: #854d0e;
+  padding: 13px 20px;
+  border-radius: 4px;
+  font-size: 13.5px;
+  font-weight: 600;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.mp-presensi-banner strong {
+  color: #854d0e;
+  letter-spacing: 0.1px;
+}
+
+/* ------------------------------------------------------------- Detil Rapat Table */
+.mp-detil-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.mp-detil-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.mp-detil-table tr {
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.mp-detil-table tr:last-child {
+  border-bottom: none;
+}
+
+.mp-detil-table td {
+  padding: 13px 8px;
+  vertical-align: top;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+.mp-field-label {
+  width: 190px;
+  font-weight: 700;
+  color: #1e293b;
+  white-space: nowrap;
+}
+
+.mp-field-label-top,
+.mp-field-colon-top {
+  padding-top: 16px !important;
+}
+
+.mp-field-colon {
+  width: 18px;
+  font-weight: 700;
+  color: #1e293b;
+  text-align: center;
+}
+
+.mp-field-value {
+  color: #1e293b;
+}
+
+.mp-field-title {
+  font-weight: 700;
+  color: #0c2d5e;
+  letter-spacing: 0.2px;
+}
+
+.mp-field-date {
+  font-weight: 600;
+  color: #0c2d5e;
+}
+
+.mp-field-desc {
+  color: #475569;
+  white-space: pre-line;
+}
+
+.mp-badge-nature {
+  display: inline-block;
+  background: #e0f2fe;
+  color: #0369a1;
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-weight: 700;
+  font-size: 11.5px;
+  letter-spacing: 0.3px;
+}
+
+/* Mini Table: Tanggal | Waktu | Tempat */
+.mp-schedule-table-container {
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #f8fafc;
+  margin-top: 4px;
+}
+
+.mp-schedule-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.mp-schedule-table th {
+  background: #f1f5f9;
+  padding: 10px 14px;
+  text-align: left;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #475569;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.mp-schedule-table td {
+  padding: 12px 14px;
+  font-size: 13px;
+  color: #1e293b;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+}
+
+.mp-schedule-table td.nowrap {
+  white-space: nowrap;
+}
+
+.mp-schedule-table tr:last-child td {
+  border-bottom: none;
+}
+
+/* ------------------------------------------------------------- Section Headings */
+.mp-section-head {
+  margin-bottom: 20px;
+}
+
+.mp-section-badge-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+
+.mp-role-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+.mp-role-tag.perwakilan {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fca5a5;
+}
+
+.mp-role-tag.peserta {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+
+.mp-section-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #0c2d5e;
+  margin: 0;
+}
+
+.mp-section-subtitle {
+  font-size: 12.5px;
+  color: #64748b;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* ------------------------------------------------------------- CARD 2: KONTROL PERWAKILAN */
+.mp-control-card {
+  border-top: 4px solid #b91c1c;
+  background: #ffffff;
+}
+
+.mp-rep-control-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.mp-rep-input-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mp-rep-input-row label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.mp-rep-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 13.5px;
+  font-family: inherit;
+  color: #0c2d5e;
+  background: #f8fafc;
+  outline: none;
+  transition: all 0.15s ease;
+}
+
+.mp-rep-input:focus {
+  border-color: #0c2d5e;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(12, 45, 94, 0.1);
+}
+
+.mp-session-status-banner {
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.mp-status-box {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.mp-status-box .icon {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.mp-status-box div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.mp-status-box strong {
+  font-size: 13.5px;
+}
+
+.mp-status-box span {
+  font-size: 12px;
+  opacity: 0.9;
+}
+
+.mp-status-box.ongoing {
+  background: #ecfdf5;
+  color: #15803d;
+  border: 1px solid #a7f3d0;
+}
+
+.mp-status-box.waiting {
+  background: #fffbeb;
+  color: #b45309;
+  border: 1px solid #fde68a;
+}
+
+.mp-status-box.completed {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+}
+
+.mp-control-btn-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-top: 4px;
+}
+
+.mp-btn-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 20px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+  font-family: inherit;
+  transition: all 0.15s ease;
+}
+
+.mp-btn-action.checkin-btn {
+  background: #16a34a;
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(22, 163, 74, 0.25);
+}
+
+.mp-btn-action.checkin-btn:hover:not(:disabled) {
+  background: #15803d;
+  transform: translateY(-1px);
+}
+
+.mp-btn-action.checkout-btn {
+  background: #dc2626;
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.25);
+}
+
+.mp-btn-action.checkout-btn:hover:not(:disabled) {
+  background: #b91c1c;
+  transform: translateY(-1px);
+}
+
+.mp-btn-action:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* ------------------------------------------------------------- CARD 3: DAFTAR HADIR PESERTA */
+.mp-attendance-card {
+  border-top: 4px solid #1d4ed8;
+  background: #ffffff;
+}
+
+.mp-attendance-form {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 20px 22px;
+  margin-bottom: 26px;
+}
+
+.mp-form-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  color: #0c2d5e;
+  font-size: 14px;
+}
+
+.mp-form-header .form-icon {
+  color: #1d4ed8;
+  font-size: 16px;
+}
+
+.mp-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px 16px;
+}
+
+.mp-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mp-input-group label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.mp-input-group label .req {
+  color: #dc2626;
+}
+
+.mp-text-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 13px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 13.5px;
+  font-family: inherit;
+  color: #0c2d5e;
+  background: #ffffff;
+  outline: none;
+  transition: all 0.15s ease;
+}
+
+.mp-text-input:focus {
+  border-color: #1d4ed8;
+  box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.12);
+}
+
+.mp-form-submit-row {
+  margin-top: 18px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.mp-submit-att-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #0c2d5e;
+  color: #ffffff;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 13.5px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(12, 45, 94, 0.2);
+  transition: all 0.15s ease;
+}
+
+.mp-submit-att-btn:hover:not(:disabled) {
+  background: #123d7a;
+  transform: translateY(-1px);
+}
+
+.mp-submit-att-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Attendance Table */
+.mp-att-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.mp-att-list-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0c2d5e;
+  margin: 0;
+}
+
+.mp-att-counter-badge {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.mp-att-empty-box {
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 10px;
+  padding: 36px 20px;
+  text-align: center;
+  color: #64748b;
+}
+
+.mp-att-empty-box .empty-icon {
+  color: #94a3b8;
+  margin-bottom: 10px;
+}
+
+.mp-att-empty-box p {
+  font-size: 14px;
+  font-weight: 600;
+  color: #334155;
+  margin: 0 0 4px;
+}
+
+.mp-att-empty-box small {
+  font-size: 12px;
+}
+
+.mp-att-table-wrapper {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  overflow-x: auto;
+  background: #ffffff;
+}
+
+.mp-att-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.mp-att-table th {
+  background: #f1f5f9;
+  padding: 10px 12px;
+  text-align: left;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #475569;
+  border-bottom: 1px solid #e2e8f0;
+  white-space: nowrap;
+}
+
+.mp-att-table td {
+  padding: 11px 12px;
+  font-size: 13px;
+  color: #1e293b;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+}
+
+.mp-att-table tr:last-child td {
+  border-bottom: none;
+}
+
+.mp-att-table tr:hover td {
+  background: #f8fafc;
+}
+
+.att-name {
+  color: #0c2d5e;
+  font-weight: 700;
+  display: block;
+}
+
+.att-notes {
+  font-size: 11.5px;
+  color: #64748b;
+  margin-top: 2px;
+  font-style: italic;
+}
+
+.att-dept {
+  color: #334155;
+  font-weight: 500;
+}
+
+.att-nip {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.att-badge-done {
+  display: inline-block;
+  background: #ecfdf5;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------- Footer */
+.mp-footer-bar {
+  text-align: center;
+  padding: 16px 0 24px;
+}
+
+.mp-footer-links {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.mp-footer-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.mp-footer-btn:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+  color: #0c2d5e;
+}
+
+.mp-footer-credit {
+  font-size: 12px;
+  color: #64748b;
+  margin: 0;
+}
+
+/* ------------------------------------------------------------- Toast */
+.mp-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #0c2d5e;
+  color: #ffffff;
+  padding: 12px 24px;
+  border-radius: 30px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  font-size: 13.5px;
+  font-weight: 600;
+  z-index: 9999;
+  animation: mp-toast-in 0.25s ease-out;
+}
+
+.mp-toast.error {
+  background: #dc2626;
+}
+
+@keyframes mp-toast-in {
+  from { opacity: 0; transform: translate(-50%, 15px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+/* ------------------------------------------------------------- Modal QR Code */
+.mp-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(4px);
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  z-index: 10000;
+  animation: mp-fade-in 0.2s ease-out;
+}
+
+.mp-modal-box {
+  background: #ffffff;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 400px;
+  padding: 28px 24px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+  text-align: center;
+  position: relative;
+  box-sizing: border-box;
+}
+
+.mp-modal-close-btn {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 20px;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+
+.mp-modal-close-btn:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.mp-modal-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #0c2d5e;
+  margin: 0 0 6px;
+}
+
+.mp-modal-subtitle {
+  font-size: 12px;
+  color: #64748b;
+  margin: 0 0 18px;
+  line-height: 1.45;
+}
+
+.mp-modal-qr-wrap {
+  display: inline-flex;
+  padding: 14px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  margin-bottom: 14px;
+}
+
+.mp-modal-meeting-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-bottom: 20px;
+}
+
+.mp-modal-meeting-info strong {
+  font-size: 14px;
+  color: #0c2d5e;
+}
+
+.mp-modal-meeting-info span {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.mp-modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.mp-modal-actions .mp-btn-action {
+  flex: 1;
+  padding: 11px 16px;
+  font-size: 13px;
+}
+
+.mp-btn-action.primary {
+  background: #0c2d5e;
+  color: #ffffff;
+}
+
+.mp-btn-action.primary:hover {
+  background: #123d7a;
+}
+
+.mp-btn-action.light {
+  background: #f1f5f9;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+}
+
+.mp-btn-action.light:hover {
+  background: #e2e8f0;
+}
+
+@keyframes mp-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.mp-spinner {
+  width: 36px;
+  height: 36px;
+  border: 3.5px solid #e2e8f0;
+  border-top-color: #0c2d5e;
+  border-radius: 50%;
+  animation: mp-spin 0.8s linear infinite;
+  margin: 0 auto;
+}
+
+@keyframes mp-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ------------------------------------------------------------- Responsiveness */
+@media (max-width: 640px) {
+  .mp-card {
+    padding: 18px 16px;
+  }
+
+  .mp-detil-table td {
+    padding: 10px 4px;
+    font-size: 13px;
+  }
+
+  .mp-field-label {
+    width: 120px;
+    white-space: normal;
+  }
+
+  .mp-control-btn-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .mp-form-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .mp-topbar {
+    padding: 12px 14px;
+  }
+
+  .mp-brand-info h1 {
+    font-size: 13px;
+  }
+}

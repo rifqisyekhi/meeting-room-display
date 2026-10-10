@@ -45,11 +45,11 @@ const defaultRooms = [
     facilities: [
       { label: "Kapasitas", value: "46", status: "Tersedia" },
       { label: "TV", value: "Smart TV 85 inch", status: "Tersedia" },
-      { label: "AC", value: "", status: "Tersedia" },
+      { label: "AC", value: "Tersedia", status: "Tersedia" },
       { label: "Microphone", value: "Tersedia 6 mic", status: "Tersedia" },
-      { label: "Speaker", value: "", status: "Tersedia" },
-      { label: "Dispenser", value: "", status: "Tersedia" },
-      { label: "Stopkontak", value: "", status: "Tersedia" },
+      { label: "Speaker", value: "Tersedia", status: "Tersedia" },
+      { label: "Dispenser", value: "Tersedia", status: "Tersedia" },
+      { label: "Stopkontak", value: "Tersedia", status: "Tersedia" },
       { label: "Kabel", value: "HDMI", status: "Tersedia" },
     ],
   },
@@ -65,11 +65,11 @@ const defaultRooms = [
     facilities: [
       { label: "Kapasitas", value: "7", status: "Tersedia" },
       { label: "TV", value: "Smart TV 60 inch", status: "Tersedia" },
-      { label: "AC", value: "", status: "Tersedia" },
-      { label: "Microphone", value: "", status: "Tidak Tersedia" },
-      { label: "Speaker", value: "", status: "Tidak Tersedia" },
-      { label: "Dispenser", value: "", status: "Tidak Tersedia" },
-      { label: "Stopkontak", value: "", status: "Tersedia" },
+      { label: "AC", value: "Tersedia", status: "Tersedia" },
+      { label: "Microphone", value: "Tidak Tersedia", status: "Tidak Tersedia" },
+      { label: "Speaker", value: "Tidak Tersedia", status: "Tidak Tersedia" },
+      { label: "Dispenser", value: "Tidak Tersedia", status: "Tidak Tersedia" },
+      { label: "Stopkontak", value: "Tersedia", status: "Tersedia" },
       { label: "Kabel", value: "HDMI", status: "Tersedia" },
     ],
   },
@@ -144,7 +144,7 @@ export default function BookingPage() {
     const monday = new Date(now);
     monday.setDate(now.getDate() + distanceToMonday + offset * 7);
 
-    const dayNames = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat"];
+    const dayNames = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"];
     const monthNames = [
       "Januari", "Februari", "Maret", "April", "Mei", "Juni",
       "Juli", "Agustus", "September", "Oktober", "November", "Desember"
@@ -167,6 +167,13 @@ export default function BookingPage() {
   };
 
   const days = getWeekDays(weekOffset);
+  const monthLabel = days.length > 0
+    ? days[0].monthName === days[days.length - 1].monthName
+      ? `${days[0].monthName} ${days[0].year}`
+      : days[0].year === days[days.length - 1].year
+      ? `${days[0].monthName} - ${days[days.length - 1].monthName} ${days[0].year}`
+      : `${days[0].monthName} ${days[0].year} - ${days[days.length - 1].monthName} ${days[days.length - 1].year}`
+    : "";
   const [selectedDate, setSelectedDate] = useState(() => {
     if (suggestedBooking?.date) return suggestedBooking.date;
     const today = new Date();
@@ -441,9 +448,24 @@ export default function BookingPage() {
   };
 
   const selectedDayObj = days.find((d) => d.full === selectedDate);
-  const formattedDateString = selectedDayObj
-    ? `${selectedDayObj.day}, ${selectedDayObj.date} ${selectedDayObj.monthName || ""} ${selectedDayObj.year || ""}`.trim()
-    : selectedDate;
+  const formattedDateString = useMemo(() => {
+    if (selectedDayObj) {
+      return `${selectedDayObj.day}, ${selectedDayObj.date} ${selectedDayObj.monthName || ""} ${selectedDayObj.year || ""}`.trim();
+    }
+    if (!selectedDate) return "-";
+    try {
+      const parsed = new Date(`${selectedDate}T00:00:00`);
+      if (!Number.isNaN(parsed.getTime())) {
+        return new Intl.DateTimeFormat("id-ID", {
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        }).format(parsed);
+      }
+    } catch {}
+    return selectedDate;
+  }, [selectedDayObj, selectedDate]);
 
   const handleBooking = () => {
     const finalBagian = bagian === "Other" ? customBagian.trim() : bagian;
@@ -782,7 +804,33 @@ export default function BookingPage() {
       <h2 className="bk-col-title">PILIH TANGGAL &amp; WAKTU</h2>
       <div className="bk-datetime-scroll">
         <div className="bk-month-selector">
-          <h4>{days[0]?.monthName} {days[0]?.year}</h4>
+          <div className="bk-month-header-row">
+            <h4>{monthLabel}</h4>
+            <label className="bk-custom-date-picker-label" title="Pilih tanggal langsung dari kalender">
+              <FaRegCalendarAlt />
+              <input
+                type="date"
+                className="bk-hidden-date-input"
+                value={selectedDate}
+                onChange={(e) => {
+                  if (!e.target.value) return;
+                  const targetVal = e.target.value;
+                  setSelectedDate(targetVal);
+                  const target = new Date(`${targetVal}T00:00:00`);
+                  if (!Number.isNaN(target.getTime())) {
+                    const mondayOf = (date) => {
+                      const v = new Date(date);
+                      v.setHours(0, 0, 0, 0);
+                      v.setDate(v.getDate() - ((v.getDay() + 6) % 7));
+                      return v;
+                    };
+                    const weeks = Math.round((mondayOf(target) - mondayOf(new Date())) / (7 * 24 * 60 * 60 * 1000));
+                    setWeekOffset(weeks);
+                  }
+                }}
+              />
+            </label>
+          </div>
           <div className="bk-days-row">
             <FaChevronLeft
               className="bk-nav-icon"
@@ -793,7 +841,7 @@ export default function BookingPage() {
             {days.map((d) => (
               <div
                 key={d.full}
-                className={`bk-day-box ${selectedDate === d.full ? "active" : ""}`}
+                className={`bk-day-box ${selectedDate === d.full ? "active" : ""} ${d.day === "Sabtu" || d.day === "Minggu" ? "weekend" : ""}`}
                 onClick={() => {
                   setSelectedDate(d.full);
                 }}
@@ -1341,8 +1389,7 @@ export default function BookingPage() {
                 })
                 .map((f, idx) => {
                   const rawVal = (f.value || "").trim();
-                  const isTersediaWord = rawVal.toLowerCase() === "tersedia";
-                  const displayValue = isTersediaWord ? "" : rawVal;
+                  const displayValue = rawVal || "Tersedia";
 
                   return (
                     <div key={idx} className="bk-facility-row">
@@ -1350,11 +1397,7 @@ export default function BookingPage() {
                         <FacilityIcon type={f.label} />
                         <span className="bk-facility-label">{f.label}</span>
                       </div>
-                      {displayValue ? (
-                        <div className="bk-facility-value">{displayValue}</div>
-                      ) : (
-                        <div className="bk-facility-value"></div>
-                      )}
+                      <div className="bk-facility-value">{displayValue}</div>
                     </div>
                   );
                 })}

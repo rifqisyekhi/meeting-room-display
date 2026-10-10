@@ -60,6 +60,15 @@ export function ensureDevSessionSync() {
 
     storages.forEach((storage) => {
       try {
+        const testResetFlag = storage.getItem('app_clean_reset_test_20261010');
+        if (!testResetFlag) {
+          storage.removeItem('app_meetings');
+          storage.removeItem('app_notifications');
+          storage.removeItem('app_users');
+          storage.removeItem('app_login_users');
+          storage.setItem('app_clean_reset_test_20261010', 'true');
+        }
+
         const storedMeetings = storage.getItem('app_meetings');
         if (storedMeetings) {
           const parsed = JSON.parse(storedMeetings);

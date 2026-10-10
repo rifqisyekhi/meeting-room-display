@@ -85,13 +85,24 @@
   ],
   "users": [
     {
+      "id": "approval2",
+      "name": "Wakil Pimpinan",
+      "username": "approval2",
+      "password": "approval234",
+      "email": "wakil.pimpinan@kemnaker.go.id",
+      "dept": "Biro Keuangan dan BMN",
+      "role": "Pimpinan",
+      "status": "Aktif"
+    },
+    {
       "id": "admin",
       "name": "Admin Utama",
       "username": "admin",
       "email": "admin@kemnaker.go.id",
       "dept": "Biro Keuangan dan BMN",
-      "role": "Administrator",
-      "status": "Aktif"
+      "role": "Admin",
+      "status": "Aktif",
+      "password": "admin123"
     },
     {
       "id": "approval1",
@@ -99,138 +110,39 @@
       "username": "approval1",
       "email": "pimpinan@kemnaker.go.id",
       "dept": "Biro Keuangan dan BMN",
-      "role": "Approval",
-      "status": "Aktif"
+      "role": "Pimpinan",
+      "status": "Aktif",
+      "password": "approval123"
     },
     {
-      "id": "approval2",
-      "name": "Wakil Pimpinan",
-      "username": "approval2",
-      "email": "wakil.pimpinan@kemnaker.go.id",
-      "dept": "Biro Keuangan dan BMN",
-      "role": "Approval",
-      "status": "Aktif"
-    },
-    {
-      "id": 1,
-      "name": "Windy Nuraini Putri",
-      "username": "windy",
-      "email": "windy@kemnaker.go.id",
-      "dept": "Biro Keuangan dan BMN",
-      "role": "Administrator",
-      "status": "Aktif"
-    },
-    {
-      "id": 3,
-      "name": "Siti Rahma",
-      "username": "siti",
-      "email": "siti@kemnaker.go.id",
-      "dept": "Biro Keuangan",
+      "id": "user_1791632714165",
+      "name": "sakeh",
+      "username": "sakeh",
+      "password": "sakeh",
+      "email": "sakeh@kemnaker.go.id",
+      "dept": "TU",
       "role": "User",
-      "status": "Aktif"
-    },
-    {
-      "id": 4,
-      "name": "Budi Santoso",
-      "username": "budi",
-      "email": "budi@kemnaker.go.id",
-      "dept": "Biro Umum",
-      "role": "Admin Ruangan",
-      "status": "Aktif"
-    },
-    {
-      "id": 5,
-      "name": "Rizky Handoko",
-      "username": "rizky",
-      "email": "rizky@kemnaker.go.id",
-      "dept": "IT Support",
-      "role": "Admin Sistem",
       "status": "Aktif"
     }
   ],
   "meetings": [
     {
-      "id": "73b0rm47pmi6p7olqq151vsp88",
-      "title": "testing by sakeh",
+      "id": "7vkv4uqtd4u289fgkatdujntmo",
+      "title": "bukber",
       "requester": "TU",
+      "bookedBy": "sakeh",
+      "bookedByUsername": "sakeh",
       "room": "Ruang Rapat Besar",
-      "date": "2026-10-07",
-      "start": "13:00",
-      "end": "13:30",
-      "status": "Selesai",
-      "participants": 20,
-      "desc": "testing by sakeh",
-      "createdAt": "2026-10-07T05:59:29.630Z",
-      "approvedBy": "Pimpinan - Approval",
-      "approvedAt": "2026-10-07T06:01:39.054Z",
-      "googleId": "73b0rm47pmi6p7olqq151vsp88",
-      "review": {
-        "rating": 5,
-        "cleanliness": 5,
-        "facilities": 5,
-        "comfort": 5,
-        "service": 5,
-        "comment": "Ruangan sangat bersih dan nyaman. Smart TV 85 inch dan mic nirkabel berfungsi dengan sangat jelas selama presentasi. AC juga dingin dan suasana kondusif. Terima kasih!",
-        "reviewer": "TU Biro Keuangan",
-        "submittedAt": "2026-10-07T13:40:00.000Z",
-        "tags": [
-          "Fasilitas Lengkap",
-          "Sangat Bersih",
-          "Audio Jernih",
-          "Sangat Puas"
-        ]
-      }
-    },
-    {
-      "id": "konsultasi-rev-001",
-      "title": "Konsultasi Pengelolaan Aset BMN",
-      "requester": "Siti Rahma",
-      "room": "Ruang Konsultasi",
-      "date": "2026-10-08",
-      "start": "09:00",
-      "end": "10:30",
-      "status": "Selesai",
-      "participants": 6,
-      "desc": "Konsultasi teknis inventarisasi BMN satker daerah",
-      "createdAt": "2026-10-08T01:30:00.000Z",
-      "approvedBy": "Pimpinan - Approval",
-      "approvedAt": "2026-10-08T01:45:00.000Z",
-      "review": {
-        "rating": 4.8,
-        "cleanliness": 5,
-        "facilities": 4.8,
-        "comfort": 5,
-        "service": 4.8,
-        "comment": "Ruangan sangat tenang dan privat, cocok sekali untuk sesi diskusi dan konsultasi intensif. Display monitor Smart TV dan stopkontak memudahkan jalannya diskusi.",
-        "reviewer": "Siti Rahma - Biro Keuangan",
-        "submittedAt": "2026-10-08T10:45:00.000Z",
-        "tags": [
-          "Suasana Tenang",
-          "AC Dingin",
-          "Koneksi Cepat",
-          "Sangat Nyaman"
-        ],
-        "adminReply": {
-          "text": "Terima kasih banyak atas feedback positifnya Ibu Siti Rahma. Kami berkomitmen untuk selalu menjaga kebersihan dan kenyamanan Ruang Konsultasi untuk seluruh unit kerja.",
-          "sender": "Pengelola Ruang Rapat Kemnaker",
-          "repliedAt": "2026-10-08T11:00:00.000Z"
-        }
-      }
-    },
-    {
-      "id": "mtg-upcoming-001",
-      "title": "Rapat Koordinasi Mingguan Biro",
-      "requester": "Biro Keuangan dan BMN",
-      "room": "Ruang Rapat Besar",
-      "date": "2026-10-10",
-      "start": "14:00",
+      "date": "2026-10-09",
+      "start": "15:00",
       "end": "16:00",
       "status": "Akan Datang",
-      "participants": 25,
-      "desc": "Koordinasi evaluasi serapan anggaran triwulan berjalan",
-      "createdAt": "2026-10-10T02:00:00.000Z",
-      "approvedBy": "Pimpinan - Approval",
-      "approvedAt": "2026-10-10T02:15:00.000Z"
+      "participants": 1,
+      "desc": "bukber",
+      "createdAt": "2026-10-10T11:58:24.778Z",
+      "approvedBy": "Pimpinan - Pimpinan",
+      "approvedAt": "2026-10-10T11:59:40.632Z",
+      "googleId": "7vkv4uqtd4u289fgkatdujntmo"
     }
   ]
 }

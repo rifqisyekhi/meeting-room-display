@@ -220,20 +220,72 @@ function RoomPanel({ room, todayEvents, upcomingEvents, now }) {
           {/* Divider, not a nested card: a running meter while the room is in
               use, the next booking while it is free. */}
           {current ? (
-            <div className="slot__foot">
-              <span className="eyebrow">Sisa waktu</span>
-              <Countdown end={current.selesai} now={now} />
+            <div className="slot__foot slot__foot--with-qr">
+              <div className="slot__countdown-wrap">
+                <span className="eyebrow">Sisa waktu</span>
+                <Countdown end={current.selesai} now={now} />
+              </div>
+              {current.id && (
+                <a
+                  href={`/meeting/${current.id}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="slot__qr-pass"
+                  title="Pindai QR untuk Check-in, Daftar Hadir, & Info Rapat"
+                >
+                  <div className="slot__qr-pass-code">
+                    <QRCodeSVG
+                      value={`${typeof window !== 'undefined' ? window.location.origin : ''}/meeting/${current.id}`}
+                      size={58}
+                      level="M"
+                      bgColor="#ffffff"
+                      fgColor="#0f244f"
+                      marginSize={1}
+                    />
+                  </div>
+                  <div className="slot__qr-pass-label">
+                    <span>📱 QR Presensi</span>
+                    <small>Scan untuk Hadir / Pass</small>
+                  </div>
+                </a>
+              )}
             </div>
           ) : (
-            <div className="slot__foot">
-              <span className="eyebrow">Booking berikutnya</span>
-              {next ? (
-                <>
-                  <strong>{next.mulai} – {next.selesai} WIB</strong>
-                  <span className="slot__next">{next.tanggal} · {next.agenda}</span>
-                </>
-              ) : (
-                <strong className="is-empty">Belum ada booking</strong>
+            <div className="slot__foot slot__foot--with-qr">
+              <div className="slot__next-wrap">
+                <span className="eyebrow">Booking berikutnya</span>
+                {next ? (
+                  <>
+                    <strong>{next.mulai} – {next.selesai} WIB</strong>
+                    <span className="slot__next">{next.tanggal} · {next.agenda}</span>
+                  </>
+                ) : (
+                  <strong className="is-empty">Belum ada booking</strong>
+                )}
+              </div>
+              {next?.id && (
+                <a
+                  href={`/meeting/${next.id}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="slot__qr-pass"
+                  title="Pindai QR untuk Check-in, Daftar Hadir, & Info Rapat"
+                >
+                  <div className="slot__qr-pass-code">
+                    <QRCodeSVG
+                      value={`${typeof window !== 'undefined' ? window.location.origin : ''}/meeting/${next.id}`}
+                      size={58}
+                      level="M"
+                      bgColor="#ffffff"
+                      fgColor="#0f244f"
+                      marginSize={1}
+                    />
+                  </div>
+                  <div className="slot__qr-pass-label">
+                    <span>📱 QR Presensi</span>
+                    <small>Scan untuk Check-in</small>
+                  </div>
+                </a>
               )}
             </div>
           )}

@@ -14,7 +14,7 @@ const DEFAULT_USERS = [
     password: process.env.ADMIN_PASSWORD || "",
     email: "admin@kemnaker.go.id",
     dept: "Biro Keuangan dan BMN",
-    role: "Administrator",
+    role: "Admin",
     status: "Aktif",
   },
   {
@@ -24,7 +24,7 @@ const DEFAULT_USERS = [
     password: process.env.APPROVAL1_PASSWORD || "",
     email: "pimpinan@kemnaker.go.id",
     dept: "Biro Keuangan dan BMN",
-    role: "Approval",
+    role: "Pimpinan",
     status: "Aktif",
   },
   {
@@ -34,7 +34,7 @@ const DEFAULT_USERS = [
     password: process.env.APPROVAL2_PASSWORD || "",
     email: "wakil.pimpinan@kemnaker.go.id",
     dept: "Biro Keuangan dan BMN",
-    role: "Approval",
+    role: "Pimpinan",
     status: "Aktif",
   },
 ];
@@ -261,6 +261,18 @@ async function getDashboardData() {
 
   if (calendarResult.success) {
     const calendarMeetings = calendarResult.meetings || [];
+    const calendarMeetingsWithLocalReviews = calendarMeetings.map((calendarMeeting) => {
+      const localMeeting = (store.meetings || []).find((storedMeeting) => {
+        if (String(storedMeeting.id) === String(calendarMeeting.id)) return true;
+        if (storedMeeting.googleId && String(storedMeeting.googleId) === String(calendarMeeting.id)) return true;
+        const sameDate = storedMeeting.date === calendarMeeting.date;
+        const sameTime = storedMeeting.start === calendarMeeting.start;
+        const storedRoom = (storedMeeting.room || "").toLowerCase().replace(/\s+/g, "");
+        const calendarRoom = (calendarMeeting.room || "").toLowerCase().replace(/\s+/g, "");
+        return sameDate && sameTime && storedRoom && calendarRoom && (storedRoom.includes(calendarRoom) || calendarRoom.includes(storedRoom));
+      });
+      return localMeeting?.review ? { ...calendarMeeting, review: localMeeting.review } : calendarMeeting;
+    });
     isGoogleConnected = true;
     statusMessage = `Berhasil terhubung ke Google Calendar (${calendarMeetings.length} jadwal disetujui)`;
 
@@ -292,7 +304,7 @@ async function getDashboardData() {
     });
 
     // Gabungkan jadwal (permohonan Menunggu Approval di urutan teratas, diikuti jadwal lokal aktif, lalu jadwal Google Calendar)
-    meetings = [...localPendingMeetings, ...localOtherMeetings, ...calendarMeetings];
+    meetings = [...localPendingMeetings, ...localOtherMeetings, ...calendarMeetingsWithLocalReviews];
   } else {
     isGoogleConnected = false;
     statusMessage = calendarResult.error;
@@ -547,6 +559,70 @@ async function deleteMeeting(id) {
   return true;
 }
 
+function getMeetingById(id) {
+  const store = readStore();
+  const meetings = store.meetings || [];
+  return (
+    meetings.find(
+      (m) => String(m.id) === String(id) || String(m.googleId) === String(id)
+    ) || null
+  );
+}
+
+async function checkInMeeting(id, checkedInBy = "Peserta (QR Code)") {
+  const store = readStore();
+  const meeting = (store.meetings || []).find(
+    (m) => String(m.id) === String(id) || String(m.googleId) === String(id)
+  );
+  if (!meeting) return null;
+
+  meeting.status = "Berjalan";
+  meeting.checkInAt = new Date().toISOString();
+  meeting.checkedInBy = checkedInBy;
+
+  return await saveMeeting(meeting);
+}
+
+async function checkOutMeeting(id, checkedOutBy = "Peserta (QR Code)") {
+  const store = readStore();
+  const meeting = (store.meetings || []).find(
+    (m) => String(m.id) === String(id) || String(m.googleId) === String(id)
+  );
+  if (!meeting) return null;
+
+  meeting.status = "Selesai";
+  meeting.checkOutAt = new Date().toISOString();
+  meeting.checkedOutBy = checkedOutBy;
+
+  return await saveMeeting(meeting);
+}
+
+function addMeetingAttendee(id, attendeeData) {
+  const store = readStore();
+  const meeting = (store.meetings || []).find(
+    (m) => String(m.id) === String(id) || String(m.googleId) === String(id)
+  );
+  if (!meeting) return null;
+
+  if (!Array.isArray(meeting.attendees)) {
+    meeting.attendees = [];
+  }
+
+  const attendee = {
+    id: "att_" + Date.now() + "_" + Math.floor(Math.random() * 1000),
+    name: (attendeeData?.name || "").trim() || "Peserta / Tamu",
+    dept: (attendeeData?.dept || attendeeData?.instansi || "").trim() || "-",
+    nip: (attendeeData?.nip || attendeeData?.phone || "").trim() || "",
+    role: (attendeeData?.role || attendeeData?.jabatan || "").trim() || "Peserta",
+    notes: (attendeeData?.notes || "").trim() || "",
+    signedAt: new Date().toISOString(),
+  };
+
+  meeting.attendees.push(attendee);
+  writeStore(store);
+  return { meeting, attendee };
+}
+
 function saveRoom(room) {
   const store = readStore();
   if (!store.rooms) store.rooms = [];
@@ -671,6 +747,10 @@ module.exports = {
   getDashboardData,
   saveMeeting,
   deleteMeeting,
+  getMeetingById,
+  checkInMeeting,
+  checkOutMeeting,
+  addMeetingAttendee,
   saveRoom,
   saveUser,
   deleteUser,

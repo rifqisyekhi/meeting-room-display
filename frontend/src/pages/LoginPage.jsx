@@ -7,19 +7,19 @@ const dummyDB = [
   {
     username: import.meta.env.VITE_ADMIN_USERNAME || "admin",
     password: import.meta.env.VITE_ADMIN_PASSWORD || "",
-    role: "Administrator",
+    role: "Admin",
     name: "Admin Utama",
   },
   {
     username: import.meta.env.VITE_APPROVAL1_USERNAME || "approval1",
     password: import.meta.env.VITE_APPROVAL1_PASSWORD || "",
-    role: "Approval",
+    role: "Pimpinan",
     name: "Pimpinan",
   },
   {
     username: import.meta.env.VITE_APPROVAL2_USERNAME || "approval2",
     password: import.meta.env.VITE_APPROVAL2_PASSWORD || "",
-    role: "Approval",
+    role: "Pimpinan",
     name: "Wakil Pimpinan",
   },
   {
@@ -42,6 +42,27 @@ export default function LoginPage() {
   const location = useLocation();
   const returnTo = location.state?.from?.pathname || "/dashboard";
   const isBookingLogin = returnTo.startsWith("/booking");
+
+  // Jika sudah login dan tidak dalam mode tambah akun, langsung arahkan strictly sesuai role
+  useEffect(() => {
+    const isAdding = sessionStorage.getItem("isAddingAccount") === "true";
+    const isAuth = localStorage.getItem("isAuthenticated") === "true";
+    if (isAuth && !isAdding) {
+      try {
+        const u = JSON.parse(localStorage.getItem("currentUser") || "{}");
+        const role = (u.role || "").toLowerCase();
+        const uname = (u.username || "").toLowerCase();
+        const isAdminOrPimpinan =
+          role.includes("admin") ||
+          role.includes("pimpinan") ||
+          role.includes("approval") ||
+          uname === "admin" ||
+          uname.includes("approval") ||
+          uname.includes("pimpinan");
+        navigate(isAdminOrPimpinan ? "/dashboard" : "/booking", { replace: true });
+      } catch (e) {}
+    }
+  }, [navigate]);
 
   // Sinkronkan seluruh data akun dari backend database saat halaman login dibuka
   useEffect(() => {
@@ -194,10 +215,10 @@ export default function LoginPage() {
             (u.username || "").toLowerCase() !== "andipratama",
         )
         .map((u) => {
-          if (u.role === "Approval 1" || u.role === "Approval 2") {
-            return { ...u, role: "Approval" };
-          }
-          return u;
+          let r = u.role || "User";
+          if (r === "Administrator") r = "Admin";
+          if (r.startsWith("Approval")) r = "Pimpinan";
+          return { ...u, role: r };
         });
 
       const existingIdx = saved.findIndex(
@@ -211,7 +232,21 @@ export default function LoginPage() {
       }
       localStorage.setItem("savedAccounts", JSON.stringify(saved));
 
-      navigate(returnTo, { replace: true });
+      // Penentuan rute STRICT sesuai role:
+      // - Admin & Pimpinan -> SELALU ke /dashboard
+      // - User             -> SELALU ke /booking
+      const userRole = (userData.role || "").toLowerCase();
+      const uname = (userData.username || "").toLowerCase();
+      const isAdminOrPimpinan =
+        userRole.includes("admin") ||
+        userRole.includes("pimpinan") ||
+        userRole.includes("approval") ||
+        uname === "admin" ||
+        uname.includes("approval") ||
+        uname.includes("pimpinan");
+
+      const destination = isAdminOrPimpinan ? "/dashboard" : "/booking";
+      navigate(destination, { replace: true });
     } else {
       alert("Username atau password salah!");
     }
