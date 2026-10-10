@@ -538,13 +538,14 @@ function getNotifications() {
     const stored = getAppStorage().getItem("app_notifications");
     if (stored) notifs = JSON.parse(stored);
   } catch (e) {}
+  if (!Array.isArray(notifs)) notifs = [];
 
   // Sinkronisasi otomatis dengan state.meetings:
   // Setiap meeting dengan status "Menunggu Approval" yang belum ada di notifikasi otomatis didaftarkan
   let changed = false;
   if (Array.isArray(state.meetings)) {
     state.meetings.forEach((m) => {
-      const existing = notifs.find((n) => n.meetingId === m.id);
+      const existing = notifs.find((n) => n.meetingId === m.id && n.type !== "MEETING_REVIEW");
       if (!existing) {
         if (
           m.status === "Menunggu Approval" ||
@@ -598,6 +599,28 @@ function getNotifications() {
           changed = true;
         }
       }
+    if (m.review && !notifs.some((n) => n.type === "MEETING_REVIEW" && String(n.meetingId) === String(m.id))) {
+      const review = m.review;
+      const submittedAt = review.submittedAt || new Date().toISOString();
+      notifs.unshift({
+        id: `review-${m.id}-${submittedAt}`,
+        meetingId: m.id,
+        type: "MEETING_REVIEW",
+        title: `Ulasan Baru — ${m.room || "Ruang Rapat"}`,
+        message: `${review.reviewer || m.bookedBy || "User"} memberi rating ${review.rating || 0}/5${review.text ? `: ${review.text}` : "."}`,
+        room: m.room || "-",
+        requester: review.reviewer || m.bookedBy || m.requester || "User",
+        date: m.date || "-",
+        time: `${m.start || ""} - ${m.end || ""}`,
+        rating: review.rating || 0,
+        review: review.text || "",
+        status: "Ulasan Baru",
+        targetRoles: ["Administrator", "Approval 1", "Approval 2"],
+        createdAt: submittedAt,
+        readBy: [],
+      });
+      changed = true;
+    }
     });
   }
 
@@ -621,8 +644,9 @@ function getUnreadNotifCount(currentUser) {
   const username = currentUser?.username || "admin";
   return notifs.filter(
     (n) =>
-      (n.status === "Menunggu Approval" || n.type === "CANCELED_PRIORITY") &&
-      (!n.readBy || !n.readBy.includes(username)),
+      (n.status === "Menunggu Approval" || n.type === "CANCELED_PRIORITY" || n.type === "MEETING_REVIEW") &&
+      (!n.readBy || !n.readBy.includes(username)) &&
+      (!Array.isArray(n.targetRoles) || n.targetRoles.includes(currentUser?.role)),
   ).length;
 }
 
@@ -765,7 +789,9 @@ function openNotifFromToast(id, btn) {
 }
 
 function getDashboardNotifPanelHTML(currentUser) {
-  const notifs = getNotifications();
+  const notifs = getNotifications().filter((notification) =>
+    !Array.isArray(notification.targetRoles) || notification.targetRoles.includes(currentUser?.role),
+  );
   const canApprove = isAtasanRole(currentUser);
   const pendingCount = notifs.filter((n) =>
     (n.status || "").toLowerCase().includes("menunggu"),
@@ -785,6 +811,7 @@ function getDashboardNotifPanelHTML(currentUser) {
       .map((n) => {
         const m =
           state.meetings.find((x) => String(x.id) === String(n.meetingId)) || n;
+        const isReview = n.type === "MEETING_REVIEW";
         const isPending = (m.status || "").toLowerCase().includes("menunggu");
         const isApproved =
           m.status === "Akan Datang" ||
@@ -798,7 +825,9 @@ function getDashboardNotifPanelHTML(currentUser) {
             n.cancellationReason.includes("Kepala Biro"));
 
         let statusBadge = "";
-        if (isPriorityCancel) {
+        if (isReview) {
+          statusBadge = `<span class="notif-status-badge approved" style="background:#ecfdf5;color:#0f766e;border:1px solid #99f6e4;font-size:10.5px;padding:3px 8px;border-radius:10px;font-weight:600;display:inline-block;white-space:nowrap;">Rating ${esc(n.rating || 0)}/5</span>`;
+        } else if (isPriorityCancel) {
           statusBadge = `<span class="notif-status-badge rejected" style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;font-size:10.5px;padding:3px 8px;border-radius:10px;font-weight:600;display:inline-block;white-space:nowrap;">✕ Dibatalkan (Prioritas)</span>`;
         } else if (isPending) {
           statusBadge = `<span class="notif-status-badge pending" style="background:#fff7ed;color:#ea580c;border:1px solid #fed7aa;font-size:10.5px;padding:3px 8px;border-radius:10px;font-weight:600;display:inline-block;white-space:nowrap;">⏳ Menunggu Persetujuan</span>`;
@@ -811,7 +840,9 @@ function getDashboardNotifPanelHTML(currentUser) {
         }
 
         let actionsHTML = "";
-        if (isPending) {
+        if (isReview) {
+          actionsHTML = `<div class="notif-action-row"><button class="notif-btn-view" onclick="viewMeetingFromNotif(event, '${esc(m.id)}')">Detail Rapat</button></div>`;
+        } else if (isPending) {
           if (canApprove) {
             actionsHTML = `
               <div class="notif-action-row" style="display:flex;gap:6px;">
@@ -834,14 +865,18 @@ function getDashboardNotifPanelHTML(currentUser) {
           `;
         }
 
-        const iconBg = isPriorityCancel
+        const iconBg = isReview
+          ? "#ccfbf1"
+          : isPriorityCancel
           ? "#fee2e2"
           : isPending
             ? "#fff7ed"
             : isApproved
               ? "#ecfdf5"
               : "#fef2f2";
-        const iconColor = isPriorityCancel
+        const iconColor = isReview
+          ? "#0f766e"
+          : isPriorityCancel
           ? "#b91c1c"
           : isPending
             ? "#ea580c"
@@ -862,7 +897,7 @@ function getDashboardNotifPanelHTML(currentUser) {
                     ${esc(n.title || m.title || "Permintaan Booking")}
                   </div>
                   <div class="notif-item-requester" style="font-size:11.5px;color:#4b6a90;margin-top:2px;">
-                    Pemohon: <b style="color:#0c2d5e;">${esc(m.requester || "Bagian")}</b>
+                    ${isReview ? "Pemberi ulasan" : "Pemohon"}: <b style="color:#0c2d5e;">${esc(isReview ? n.requester || "User" : m.requester || "Bagian")}</b>
                   </div>
                 </div>
               </div>
@@ -876,6 +911,8 @@ function getDashboardNotifPanelHTML(currentUser) {
               <div>🏛️ <b>Ruang:</b> <span style="font-weight:600;color:#0c2d5e;">${esc(m.room)}</span></div>
               <div style="color:#64748b;">📅 <b>Jadwal:</b> ${formatDate(m.date)} (${m.start || ""}-${m.end || ""})</div>
             </div>
+
+            ${isReview && n.review ? `<div style="margin-top:8px;padding:8px 10px;border-radius:8px;background:#f0fdfa;color:#334155;font-size:11.5px;line-height:1.45;"><b>Ulasan:</b> ${esc(n.review)}</div>` : ""}
 
             ${
               isPriorityCancel
@@ -1597,7 +1634,7 @@ function meetingTable(data, actions = true, allowDelete = true) {
 
   const rows =
     !data || data.length === 0
-      ? `<tr><td colspan="8" style="text-align:center;padding:36px;color:#8c9ba5;font-weight:500;">Belum ada jadwal rapat</td></tr>`
+      ? `<tr><td colspan="9" style="text-align:center;padding:36px;color:#8c9ba5;font-weight:500;">Belum ada jadwal rapat</td></tr>`
       : data
           .map((m, i) => {
             const faEye = svgIcon(
@@ -1639,11 +1676,20 @@ function meetingTable(data, actions = true, allowDelete = true) {
                 }
               }
             }
-            return `<tr><td>${i + 1}</td><td><b>${esc(m.title)}</b></td><td>${esc(m.requester)}</td><td>${esc(m.room)}</td><td>${formatDate(m.date)}</td><td>${m.start}-${m.end}</td><td>${badge(m.status)}</td><td><div class="actions">${actionButtons}</div></td></tr>`;
+
+            const isCompleted = String(m.status || "").toLowerCase() === "selesai";
+            const rating = Math.max(0, Math.min(5, Number(m.review?.rating) || 0));
+            const reviewCell = isCompleted
+              ? m.review
+                ? `<div style="display:flex;flex-direction:column;align-items:flex-start;gap:3px;min-width:105px;"><span style="color:#e4a719;letter-spacing:1px;white-space:nowrap;" aria-label="Rating ${rating} dari 5">${"★".repeat(rating)}<span style="color:#cbd5e1;">${"☆".repeat(5 - rating)}</span></span><button type="button" onclick="viewMeeting('${m.id}')" style="padding:3px 7px;border:1px solid #c9d9ef;border-radius:6px;color:#15508d;background:#f3f8ff;font:600 10px inherit;cursor:pointer;">Lihat Review</button></div>`
+                : `<span style="color:#8291a5;font-size:11px;">Belum ada review</span>`
+              : `<span style="color:#9aa8b8;">-</span>`;
+
+            return `<tr><td>${i + 1}</td><td><b>${esc(m.title)}</b></td><td>${esc(m.requester)}</td><td>${esc(m.room)}</td><td>${formatDate(m.date)}</td><td>${m.start}-${m.end}</td><td>${badge(m.status)}</td><td>${reviewCell}</td><td><div class="actions">${actionButtons}</div></td></tr>`;
           })
           .join("");
 
-  return `<div class="table-wrap"><table class="table"><thead><tr><th>No</th><th>Judul Rapat</th><th>Pemesan</th><th>Ruangan</th><th>Tanggal</th><th>Waktu</th><th>Status</th><th>Aksi</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  return `<div class="table-wrap"><table class="table"><thead><tr><th>No</th><th>Judul Rapat</th><th>Pemesan</th><th>Ruangan</th><th>Tanggal</th><th>Waktu</th><th>Status</th><th>Rating &amp; Review</th><th>Aksi</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
 function meetings() {
@@ -4142,6 +4188,21 @@ function viewMeeting(id) {
        </div>`
     : "";
 
+  const reviewRating = Math.max(0, Math.min(5, Number(m.review?.rating) || 0));
+  const reviewBox = m.review
+    ? `<div style="margin:14px 0;padding:13px 15px;border:1px solid #d9e6f4;border-radius:10px;background:#f6faff;">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px;">
+          <b style="color:#123760;">Rating &amp; Review</b>
+          <span style="color:#e4a719;letter-spacing:1px;" aria-label="Rating ${reviewRating} dari 5">${"★".repeat(reviewRating)}<span style="color:#cbd5e1;">${"☆".repeat(5 - reviewRating)}</span></span>
+          <b style="color:#526a85;">${reviewRating}/5</b>
+        </div>
+        <div style="color:#405d7e;white-space:pre-wrap;">${esc(m.review.text || "Tidak ada komentar.")}</div>
+        ${m.review.reviewer ? `<small style="display:block;margin-top:7px;color:#75869b;">Dari ${esc(m.review.reviewer)}</small>` : ""}
+      </div>`
+    : m.status === "Selesai"
+      ? `<div style="margin:14px 0;padding:11px 14px;border-radius:9px;color:#75869b;background:#f3f6fa;font-size:12px;">Belum ada rating dan review untuk rapat ini.</div>`
+      : "";
+
   let actionBtns = `<button class="btn btn-light" style="display:inline-flex;align-items:center;gap:6px;" onclick="exportNotulensiPDF('${m.id}')">${ICONS.export} <span>Notulensi</span></button>`;
 
   const isPending = (m.status || "").toLowerCase().includes("menunggu");
@@ -4169,6 +4230,7 @@ function viewMeeting(id) {
     "Detail Rapat",
     `<p style="font-size:16px;color:#0c2d5e;"><b>${esc(m.title)}</b></p>
     ${cancelBox}
+    ${reviewBox}
     <p class="muted" style="margin:12px 0">${formatDate(m.date)} · ${m.start}-${m.end}</p>
     <p>📍 ${esc(m.room)}</p>
     <p>👤 <b>Pemesan:</b> ${esc(m.requester)}</p>
