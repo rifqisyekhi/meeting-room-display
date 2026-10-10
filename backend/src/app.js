@@ -14,6 +14,21 @@ app.use("/api/events", calendarRoutes);
 app.use("/api/prayer", prayerRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 
+app.post("/api/auth/login", (req, res) => {
+  try {
+    const dashboardService = require("./services/dashboard.service");
+    const { username, password } = req.body;
+    const result = dashboardService.authenticateUser(username, password);
+    if (result.success) {
+      res.json(result);
+    } else {
+      res.status(401).json(result);
+    }
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 const BACKEND_DEV_SESSION_ID = "dev_be_" + Date.now() + "_" + Math.random().toString(36).substring(2, 8);
 
 app.get("/api/dev-session", (req, res) => {

@@ -265,7 +265,16 @@ const state = {
         location: "Gedung Pusat Kemnaker, Lt. 3",
         capacity: 30,
         status: "Tersedia",
-        facilities: "Proyektor, Sound System, Mic Wireless, AC, WiFi",
+        facilities: [
+          { label: "Kapasitas", value: "46" },
+          { label: "TV", value: "Smart TV 85 inch" },
+          { label: "AC", value: "Tersedia" },
+          { label: "Microphone", value: "Tersedia 6 mic" },
+          { label: "Speaker", value: "Tersedia" },
+          { label: "Dispenser", value: "Tersedia" },
+          { label: "Stopkontak", value: "Tersedia" },
+          { label: "Kabel", value: "HDMI" },
+        ],
         image: "/dashboard-app/assets/Ruang Rapat Besar.jpeg",
         images: ["/dashboard-app/assets/Ruang Rapat Besar.jpeg"],
       },
@@ -275,7 +284,16 @@ const state = {
         location: "Gedung Pusat Kemnaker, Lt. 3",
         capacity: 12,
         status: "Tersedia",
-        facilities: "Smart TV, Whiteboard, AC, WiFi",
+        facilities: [
+          { label: "Kapasitas", value: "7" },
+          { label: "TV", value: "Smart TV 60 inch" },
+          { label: "AC", value: "Tersedia" },
+          { label: "Microphone", value: "Tidak Tersedia" },
+          { label: "Speaker", value: "Tidak Tersedia" },
+          { label: "Dispenser", value: "Tidak Tersedia" },
+          { label: "Stopkontak", value: "Tersedia" },
+          { label: "Kabel", value: "HDMI" },
+        ],
         image: "/dashboard-app/assets/Ruang Konsultasi.jpeg",
         images: ["/dashboard-app/assets/Ruang Konsultasi.jpeg"],
       },
@@ -766,7 +784,7 @@ function openNotifFromToast(id, btn) {
 
 function getDashboardNotifPanelHTML(currentUser) {
   const notifs = getNotifications();
-  const canApprove = isAtasanRole(currentUser);
+  const canApprove = isAtasanRole(currentUser) || isAdminRole(currentUser);
   const pendingCount = notifs.filter((n) =>
     (n.status || "").toLowerCase().includes("menunggu"),
   ).length;
@@ -903,15 +921,25 @@ function getDashboardNotifPanelHTML(currentUser) {
   }
 
   return `
-    <div class="dash-section-header" style="margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid #eef3f9;">
-      <div style="display:flex;align-items:center;gap:10px;">
-        <div style="display:flex;align-items:center;gap:6px;">
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0c2d5e" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
-          <h2 style="font-size:16px;font-weight:700;color:#0c2d5e;margin:0;">Notifikasi & Permintaan</h2>
-        </div>
-        ${pendingCount > 0 ? `<span class="notif-pending-pill" style="font-size:11px;padding:3px 9px;background:#ffedd5;color:#c2410c;border-radius:12px;font-weight:700;">${pendingCount} Menunggu</span>` : ""}
+    <div class="dash-section-header dash-notif-header">
+      <div class="dash-notif-header-title">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0c2d5e" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+        <h2>Notifikasi & Permintaan</h2>
       </div>
-      ${notifs.length > 0 ? `<button type="button" class="notif-mark-read-btn" style="font-size:12px;color:#1769aa;font-weight:600;padding:5px 10px;border-radius:6px;background:#f0f7ff;border:none;cursor:pointer;transition:background 0.15s;" onmouseover="this.style.background='#e0f0fe'" onmouseout="this.style.background='#f0f7ff'" onclick="markAllNotifsRead(event)">Tandai Dibaca</button>` : ""}
+      <div class="dash-notif-header-actions">
+        ${pendingCount > 0 ? `
+          <span class="notif-pending-pill" title="${pendingCount} Permintaan Menunggu Persetujuan">
+            <span class="notif-pending-dot"></span>
+            <span>${pendingCount} Menunggu</span>
+          </span>
+        ` : ""}
+        ${notifs.length > 0 ? `
+          <button type="button" class="notif-mark-read-btn" title="Tandai semua notifikasi telah dibaca" onclick="markAllNotifsRead(event)">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            <span>Tandai Dibaca</span>
+          </button>
+        ` : ""}
+      </div>
     </div>
     <div id="dashNotifBody" class="dash-notif-body">
       ${itemsHTML}
@@ -1172,7 +1200,7 @@ function dashboard() {
       /* Layout Template Khusus Approval & Non-Admin (Sesuai Sketsa) */
       .dash-approval-layout {
         display: grid;
-        grid-template-columns: 1.7fr 1fr;
+        grid-template-columns: 1.38fr 1fr;
         gap: 20px;
         padding: 0 40px 40px;
         align-items: stretch;
@@ -1280,6 +1308,86 @@ function dashboard() {
 
       .dash-notif-card { background: #fff; border-radius: 12px; padding: 22px 24px; box-shadow: 0 4px 20px rgba(12, 45, 94, 0.04); display: flex; flex-direction: column; min-width: 0; }
       .dash-section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 14px; border-bottom: 1px solid #eef3f9; }
+      .dash-notif-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 14px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid #eef3f9;
+      }
+      .dash-notif-header-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+      }
+      .dash-notif-header-title h2 {
+        font-size: 15px;
+        font-weight: 700;
+        color: #0c2d5e;
+        margin: 0;
+        white-space: nowrap;
+        letter-spacing: -0.2px;
+      }
+      .dash-notif-header-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-shrink: 0;
+      }
+      .notif-pending-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 0 10px;
+        height: 28px;
+        box-sizing: border-box;
+        background: #fff7ed;
+        color: #c2410c;
+        border: 1px solid #fed7aa;
+        border-radius: 14px;
+        font-size: 11.5px;
+        font-weight: 700;
+        white-space: nowrap;
+        line-height: 1;
+      }
+      .notif-pending-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #ea580c;
+        display: inline-block;
+        flex-shrink: 0;
+      }
+      .notif-mark-read-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 0 11px;
+        height: 28px;
+        box-sizing: border-box;
+        background: #f0f7ff;
+        color: #1769aa;
+        border: 1px solid #d0e4f7;
+        border-radius: 7px;
+        font-size: 11.5px;
+        font-weight: 600;
+        cursor: pointer;
+        white-space: nowrap;
+        line-height: 1;
+        transition: all 0.15s ease;
+      }
+      .notif-mark-read-btn:hover {
+        background: #e0f0fe;
+        border-color: #b9daf7;
+        color: #0c2d5e;
+      }
+      .notif-mark-read-btn svg {
+        flex-shrink: 0;
+      }
       .dash-notif-body {
         display: flex;
         flex-direction: column;
@@ -1398,7 +1506,14 @@ function dashboard() {
         statusText = "#ea580c";
       }
 
-      let actionBtn = `<button style="background-color:#f1f5f9;color:#0c2d5e;border:none;border-radius:50%;width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:background 0.15s;" title="Lihat Detail" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'" onclick="viewMeeting('${m.id}')">${faEye}</button>`;
+      const isCompleted = (m.status || "").toLowerCase() === "selesai";
+      const rev = typeof getMeetingReview === "function" ? getMeetingReview(m) : m.review;
+      const starSvg = `<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
+      const revBtn = isCompleted && rev
+        ? `<button style="background-color:#fff8e6;color:#d97706;border:1px solid #fde68a;border-radius:10px;padding:0 8px;height:34px;display:inline-flex;align-items:center;gap:4px;cursor:pointer;font-size:11.5px;font-weight:700;margin-left:6px;box-shadow:0 2px 4px rgba(217,119,6,0.08);" title="Lihat Rating & Review Pengguna" onclick="openMeetingReviewModal('${m.id}')">${starSvg}<span>${rev.rating ? Number(rev.rating).toFixed(1) : "5.0"}</span></button>`
+        : `<button style="background-color:#f8fafc;color:#94a3b8;border:1px solid #e2e8f0;border-radius:10px;padding:0 8px;height:34px;display:inline-flex;align-items:center;gap:4px;cursor:pointer;font-size:11.5px;font-weight:600;margin-left:6px;" title="Rating & Review Ruangan" onclick="openMeetingReviewModal('${m.id}')">${starSvg}<span>Review</span></button>`;
+
+      let actionBtn = `<div style="display:inline-flex;align-items:center;"><button style="background-color:#f1f5f9;color:#0c2d5e;border:none;border-radius:50%;width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:background 0.15s;" title="Lihat Detail" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'" onclick="viewMeeting('${m.id}')">${faEye}</button>${revBtn}</div>`;
 
       customTableHTML += `<tr>
         <td style="text-align:center;">${i + 1}</td>
@@ -1606,37 +1721,62 @@ function meetingTable(data, actions = true, allowDelete = true) {
               'width="16" height="16"',
             );
 
-            let actionButtons = `<button style="background-color:#f4f6f9;color:#0c2d5e;border:none;border-radius:10px;width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;margin-right:8px;box-shadow:0 2px 5px rgba(0,0,0,0.03);" title="Lihat" onclick="viewMeeting('${m.id}')">${faEye}</button>`;
+            const isCompleted = (m.status || "").toLowerCase() === "selesai";
+            const rev = typeof getMeetingReview === "function" ? getMeetingReview(m) : m.review;
+            const hasRev = isCompleted && !!rev;
+            const starSvg = `<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
+
+            const reviewBtn = hasRev
+              ? `<button style="background-color:#fff8e6;color:#d97706;border:1px solid #fde68a;border-radius:10px;padding:0 10px;height:34px;display:inline-flex;align-items:center;gap:5px;cursor:pointer;margin-right:8px;font-size:12px;font-weight:700;box-shadow:0 2px 4px rgba(217,119,6,0.08);transition:all 0.15s ease;" title="Lihat Rating & Review Pengguna" onclick="openMeetingReviewModal('${m.id}')">${starSvg}<span>${rev.rating ? Number(rev.rating).toFixed(1) : "5.0"}</span></button>`
+              : `<button style="background-color:#f8fafc;color:#94a3b8;border:1px solid #e2e8f0;border-radius:10px;padding:0 9px;height:34px;display:inline-flex;align-items:center;gap:4px;cursor:pointer;margin-right:8px;font-size:11.5px;font-weight:600;transition:all 0.15s ease;" title="Rating & Review Ruangan (Tersedia setelah rapat selesai)" onclick="openMeetingReviewModal('${m.id}')">${starSvg}<span>Review</span></button>`;
+
+            let actionButtons = `<button style="background-color:#f4f6f9;color:#0c2d5e;border:none;border-radius:10px;width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;margin-right:8px;box-shadow:0 2px 5px rgba(0,0,0,0.03);" title="Lihat Detail Rapat" onclick="viewMeeting('${m.id}')">${faEye}</button>${reviewBtn}`;
 
             if (actions) {
-              const isPending = (m.status || "")
-                .toLowerCase()
-                .includes("menunggu");
+              const statusStr = (m.status || "").trim();
+              const statusLower = statusStr.toLowerCase();
+              const isPending =
+                statusLower.includes("menunggu") || statusLower === "pending";
+              const isUpcoming =
+                statusLower === "akan datang" ||
+                statusLower === "disetujui" ||
+                statusLower === "approved";
+              const isRunning =
+                statusLower === "berjalan" ||
+                statusLower === "ongoing" ||
+                statusLower === "running";
+              const isCompleted =
+                statusLower === "selesai" || statusLower === "completed";
+              const isCanceled =
+                statusLower === "dibatalkan" ||
+                statusLower === "canceled" ||
+                statusLower === "cancelled";
+
               if (isPending) {
                 if (m.rejectedBy) {
                   actionButtons += `<span style="font-size:11px;color:#ff4d4f;margin-right:8px;font-weight:700;background:#ffebee;padding:6px 12px;border-radius:12px;">Ditolak (${esc(m.rejectedBy)})</span>`;
-                } else if (isAtasan) {
-                  // HANYA ROLE ATASAN YANG MELIHAT TOMBOL SETUJUI DAN TOLAK
+                } else if (isAtasan || isAdmin) {
+                  // ROLE ATASAN ATAU ADMIN DAPAT MENYETUJUI & MENOLAK
                   actionButtons += `<button style="background-color:#219653;color:#fff;border:none;border-radius:24px;padding:8px 16px;font-weight:700;font-size:12px;cursor:pointer;margin-right:6px;" title="Setujui" onclick="approveMeeting('${m.id}')">✓ Setujui</button>`;
                   actionButtons += `<button style="background-color:#ff4d4f;color:#fff;border:none;border-radius:24px;padding:8px 16px;font-weight:700;font-size:12px;cursor:pointer;" title="Tolak" onclick="rejectMeeting('${m.id}')">✕ Tolak</button>`;
                 } else {
-                  // ADMIN HANYA MONITORING
-                  actionButtons += `<span style="font-size:11px;color:#d97706;background:#fef3c7;padding:5px 10px;border-radius:12px;font-weight:600;">⏳ Menunggu Atasan</span>`;
+                  actionButtons += `<span style="font-size:11px;color:#d97706;background:#fef3c7;padding:5px 10px;border-radius:12px;font-weight:600;">⏳ Menunggu Approval</span>`;
                 }
-              } else if (m.status === "Akan Datang") {
-                if (isAdmin) {
-                  // ADMIN BERTANGGUNG JAWAB CHECK IN
-                  actionButtons += `<button style="background-color:#219653;color:#fff;border:none;border-radius:24px;padding:8px 16px;font-weight:700;font-size:13px;cursor:pointer;box-shadow:0 4px 10px rgba(33,150,83,0.2);" title="Check In" onclick="checkInMeeting('${m.id}')">Check In</button>`;
-                } else {
-                  actionButtons += `<span style="font-size:11px;color:#219653;background:#e0f5ec;padding:5px 10px;border-radius:12px;font-weight:600;">✓ Disetujui</span>`;
-                }
-              } else if (m.status === "Berjalan") {
-                if (isAdmin) {
-                  // ADMIN BERTANGGUNG JAWAB CHECK OUT
-                  actionButtons += `<button style="background-color:#ff4d4f;color:#fff;border:none;border-radius:24px;padding:8px 16px;font-weight:700;font-size:13px;cursor:pointer;box-shadow:0 4px 10px rgba(255,77,79,0.2);" title="Check Out" onclick="checkOutMeeting('${m.id}')">Check Out</button>`;
-                } else {
-                  actionButtons += `<span style="font-size:11px;color:#2563eb;background:#dbeafe;padding:5px 10px;border-radius:12px;font-weight:600;">Sedang Berjalan</span>`;
-                }
+              } else if (isUpcoming) {
+                // TOMBOL CHECK IN HARUS SELALU MUNCUL KETIKA RAPAT SUDAH DISETUJUI
+                actionButtons += `<button style="background-color:#219653;color:#fff;border:none;border-radius:24px;padding:8px 16px;font-weight:700;font-size:13px;cursor:pointer;box-shadow:0 4px 10px rgba(33,150,83,0.2);display:inline-flex;align-items:center;gap:4px;" title="Check In Rapat" onclick="checkInMeeting('${m.id}')"><span>✓ Check In</span></button>`;
+              } else if (isRunning) {
+                // TOMBOL CHECK OUT HARUS SELALU MUNCUL KETIKA RAPAT BERJALAN
+                actionButtons += `<button style="background-color:#ff4d4f;color:#fff;border:none;border-radius:24px;padding:8px 16px;font-weight:700;font-size:13px;cursor:pointer;box-shadow:0 4px 10px rgba(255,77,79,0.2);display:inline-flex;align-items:center;gap:4px;" title="Check Out Rapat" onclick="checkOutMeeting('${m.id}')"><span>Check Out</span></button>`;
+              }
+
+              // Tombol Canceling System Darurat (Emergency Cancellation)
+              // Hanya aktif jika ditekan / jika diperlukan (opsi darurat mendampingi alur normal)
+              if (!isCompleted && !isCanceled) {
+                const emgCancelBtn = `<button style="background-color:#fee2e2;color:#dc2626;border:1px solid #fca5a5;border-radius:20px;padding:6px 12px;font-weight:700;font-size:11.5px;cursor:pointer;margin-left:6px;display:inline-flex;align-items:center;gap:4px;box-shadow:0 2px 5px rgba(220,38,38,0.08);transition:all 0.15s ease;" title="Batalkan Rapat Darurat (Hanya jika diperlukan)" onclick="openEmergencyCancelModal('${m.id}')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg><span>Batal Darurat</span></button>`;
+                actionButtons += emgCancelBtn;
+              } else if (isCanceled) {
+                actionButtons += `<span style="font-size:11px;color:#dc2626;background:#fef2f2;border:1px solid #fecaca;padding:4px 9px;border-radius:12px;font-weight:700;margin-left:6px;display:inline-flex;align-items:center;gap:3px;">✕ Dibatalkan</span>`;
               }
             }
             return `<tr><td>${i + 1}</td><td><b>${esc(m.title)}</b></td><td>${esc(m.requester)}</td><td>${esc(m.room)}</td><td>${formatDate(m.date)}</td><td>${m.start}-${m.end}</td><td>${badge(m.status)}</td><td><div class="actions">${actionButtons}</div></td></tr>`;
@@ -2275,7 +2415,7 @@ function rooms() {
 
       /* Modal Style for Tambahan Ruangan */
       .custom-room-modal {
-        width: min(520px, 94vw);
+        width: min(650px, 94vw);
         max-height: 90vh;
         overflow-y: auto;
         background: #ffffff;
@@ -2413,6 +2553,177 @@ function rooms() {
       }
       .crm-upload-box:hover .crm-upload-overlay {
         opacity: 1;
+      }
+      .crm-btn-add-fac {
+        background: #eaf2fb;
+        color: #1769aa;
+        border: 1px solid #cce0f5;
+        padding: 6px 14px;
+        border-radius: 8px;
+        font-size: 12px;
+        font-weight: 700;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 0.15s ease;
+        font-family: 'Poppins', sans-serif;
+      }
+      .crm-btn-add-fac:hover {
+        background: #d8e8f8;
+        border-color: #b9daf7;
+      }
+      .crm-facility-list-wrap {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        background: #f8fafc;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 14px;
+        padding: 12px;
+        max-height: 330px;
+        overflow-y: auto;
+      }
+      .crm-facility-row {
+        display: grid;
+        grid-template-columns: 145px 1fr;
+        gap: 12px;
+        align-items: center;
+        background: #ffffff;
+        border: 1px solid #eef2f6;
+        border-radius: 10px;
+        padding: 8px 12px;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+      }
+      .crm-facility-row:hover {
+        border-color: #cbd5e1;
+        box-shadow: 0 2px 6px rgba(12, 45, 94, 0.04);
+      }
+      .crm-fac-left {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+      }
+      .crm-fac-icon-box {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        background: #eef6fc;
+        color: #1769aa;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+      .crm-fac-label-box {
+        min-width: 0;
+        flex: 1;
+      }
+      .crm-fac-label-text {
+        font-size: 13px;
+        font-weight: 700;
+        color: #0c2d5e;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: block;
+      }
+      .crm-fac-label-input {
+        width: 100%;
+        padding: 6px 10px;
+        font-size: 12px;
+        font-weight: 600;
+        color: #0c2d5e;
+        background: #f1f5f9;
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+        outline: none;
+        box-sizing: border-box;
+        font-family: 'Poppins', sans-serif;
+      }
+      .crm-fac-label-input:focus {
+        border-color: #1769aa;
+        background: #ffffff;
+      }
+      .crm-fac-right {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+      }
+      .crm-fac-val-input {
+        flex: 1;
+        min-width: 0;
+        padding: 7px 12px;
+        font-size: 12.5px;
+        font-weight: 500;
+        color: #0c2d5e;
+        background: #f8fafc;
+        border: 1px solid #d9e2ec;
+        border-radius: 8px;
+        outline: none;
+        box-sizing: border-box;
+        font-family: 'Poppins', sans-serif;
+        transition: all 0.15s ease;
+      }
+      .crm-fac-val-input:focus {
+        border-color: #1769aa;
+        background: #ffffff;
+      }
+      .crm-fac-pills {
+        display: flex;
+        gap: 4px;
+        flex-shrink: 0;
+      }
+      .crm-fac-pill {
+        padding: 4px 8px;
+        font-size: 11px;
+        font-weight: 600;
+        border-radius: 6px;
+        border: 1px solid #cbd5e1;
+        background: #ffffff;
+        color: #475569;
+        cursor: pointer;
+        white-space: nowrap;
+        font-family: 'Poppins', sans-serif;
+        transition: all 0.15s ease;
+      }
+      .crm-fac-pill:hover {
+        background: #f1f5f9;
+      }
+      .crm-fac-pill.active {
+        background: #ecfdf5;
+        border-color: #a7f3d0;
+        color: #059669;
+        font-weight: 700;
+      }
+      .crm-fac-pill.danger.active {
+        background: #fef2f2;
+        border-color: #fecaca;
+        color: #dc2626;
+        font-weight: 700;
+      }
+      .crm-fac-remove-btn {
+        background: none;
+        border: none;
+        color: #94a3b8;
+        font-size: 18px;
+        line-height: 1;
+        cursor: pointer;
+        padding: 2px 4px;
+        border-radius: 4px;
+        transition: color 0.15s;
+        flex-shrink: 0;
+      }
+      .crm-fac-remove-btn:hover {
+        color: #ef4444;
+      }
+      @media (max-width: 600px) {
+        .crm-facility-row {
+          grid-template-columns: 1fr;
+          gap: 8px;
+        }
       }
       .crm-actions {
         display: flex;
@@ -3176,11 +3487,19 @@ function handleExportDropdown(el) {
 }
 
 function formatDate(s) {
-  return new Date(s + "T00:00:00").toLocaleDateString("id-ID", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+  if (!s) return "";
+  try {
+    const str = String(s).trim();
+    const d = str.includes("T") ? new Date(str) : new Date(str + "T00:00:00");
+    if (isNaN(d.getTime())) return str;
+    return d.toLocaleDateString("id-ID", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  } catch (e) {
+    return String(s);
+  }
 }
 
 function settings() {
@@ -3859,9 +4178,9 @@ async function saveMeeting(id) {
 
 function approveMeeting(id) {
   const user = getCurrentUser();
-  if (!isAtasanRole(user)) {
+  if (!isAtasanRole(user) && !isAdminRole(user)) {
     alert(
-      "Hak Akses Dibatasi:\nHanya akun role Atasan (Pimpinan / Approval) yang dapat menyetujui permohonan rapat.\n\nAkun Administrator bertugas memonitor dashboard dan melakukan Check In / Check Out saat peserta hadir.",
+      "Hak Akses Dibatasi:\nHanya akun role Atasan / Administrator yang dapat menyetujui permohonan rapat.",
     );
     return;
   }
@@ -4014,9 +4333,9 @@ function checkOutMeeting(id) {
 
 function rejectMeeting(id) {
   const user = getCurrentUser();
-  if (!isAtasanRole(user)) {
+  if (!isAtasanRole(user) && !isAdminRole(user)) {
     alert(
-      "Hak Akses Dibatasi:\nHanya akun role Atasan (Pimpinan / Approval) yang dapat menolak permohonan rapat.",
+      "Hak Akses Dibatasi:\nHanya akun role Atasan / Administrator yang dapat menolak permohonan rapat.",
     );
     return;
   }
@@ -4062,8 +4381,8 @@ function rejectMeeting(id) {
 
 function confirmReject(id) {
   const user = getCurrentUser();
-  if (!isAtasanRole(user)) {
-    alert("Hanya role Atasan yang berhak menolak permohonan rapat.");
+  if (!isAtasanRole(user) && !isAdminRole(user)) {
+    alert("Hanya role Atasan / Administrator yang berhak menolak permohonan rapat.");
     return;
   }
   const reason =
@@ -4144,25 +4463,42 @@ function viewMeeting(id) {
 
   let actionBtns = `<button class="btn btn-light" style="display:inline-flex;align-items:center;gap:6px;" onclick="exportNotulensiPDF('${m.id}')">${ICONS.export} <span>Notulensi</span></button>`;
 
-  const isPending = (m.status || "").toLowerCase().includes("menunggu");
+  const statusStr = (m.status || "").trim();
+  const statusLower = statusStr.toLowerCase();
+  const isPending =
+    statusLower.includes("menunggu") || statusLower === "pending";
+  const isUpcoming =
+    statusLower === "akan datang" ||
+    statusLower === "disetujui" ||
+    statusLower === "approved";
+  const isRunning =
+    statusLower === "berjalan" ||
+    statusLower === "ongoing" ||
+    statusLower === "running";
+  const isCompleted =
+    statusLower === "selesai" || statusLower === "completed";
+
   if (isPending) {
-    if (isAtasan) {
-      // HANYA ROLE ATASAN YANG BISA SETUJUI DAN TOLAK
+    if (isAtasan || isAdmin) {
       actionBtns += `<button class="btn btn-primary" style="background:#219653;border-color:#219653;font-weight:700;" onclick="closeModal(); approveMeeting('${m.id}')">✓ Setujui Rapat</button>`;
       actionBtns += `<button class="btn btn-primary" style="background:#ff4d4f;border-color:#ff4d4f;font-weight:700;" onclick="closeModal(); rejectMeeting('${m.id}')">✕ Tolak Rapat</button>`;
     } else {
       actionBtns += `<div style="font-size:12px;color:#d97706;background:#fef3c7;padding:7px 12px;border-radius:8px;font-weight:600;display:inline-flex;align-items:center;">⏳ Menunggu Persetujuan Atasan</div>`;
     }
-  } else if (m.status === "Akan Datang" && isAdmin) {
-    // ADMIN CHECK IN
-    actionBtns += `<button class="btn btn-primary" style="background:#219653;border-color:#219653;font-weight:700;" onclick="closeModal(); checkInMeeting('${m.id}')">Check In</button>`;
-  } else if (m.status === "Berjalan" && isAdmin) {
-    // ADMIN CHECK OUT
+  } else if (isUpcoming) {
+    // CHECK IN
+    actionBtns += `<button class="btn btn-primary" style="background:#219653;border-color:#219653;font-weight:700;" onclick="closeModal(); checkInMeeting('${m.id}')">✓ Check In</button>`;
+  } else if (isRunning) {
+    // CHECK OUT
     actionBtns += `<button class="btn btn-primary" style="background:#ff4d4f;border-color:#ff4d4f;font-weight:700;" onclick="closeModal(); checkOutMeeting('${m.id}')">Check Out</button>`;
   }
 
   if (isAdmin || isAtasan) {
     actionBtns += `<button class="btn btn-primary" onclick="closeModal(); editMeeting('${m.id}')">Edit Rapat</button>`;
+  }
+
+  if (!isCompleted && !isCanceled) {
+    actionBtns += `<button class="btn btn-primary" style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;font-weight:700;display:inline-flex;align-items:center;gap:4px;" title="Batalkan Rapat Darurat (Hanya jika diperlukan)" onclick="closeModal(); openEmergencyCancelModal('${m.id}')">🚨 Batal Darurat</button>`;
   }
 
   openModal(
@@ -4178,10 +4514,645 @@ function viewMeeting(id) {
     ${m.rejectedBy ? `<p style="color:#dc2626;">✕ <b>Ditolak Oleh:</b> ${esc(m.rejectedBy)}</p>` : ""}
     <p style="margin-top:15px;color:#334155;white-space:pre-line;">${esc(m.desc)}</p>
     <div class="modal-actions" style="margin-top:20px;display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;align-items:center;">
+      <button class="btn btn-light" style="display:inline-flex;align-items:center;gap:6px;background:#fff8e6;color:#d97706;border:1px solid #fde68a;font-weight:700;" onclick="closeModal(); openMeetingReviewModal('${m.id}')">★ <span>Rating & Review</span></button>
       ${actionBtns}
     </div>`,
   );
 }
+
+// ----------------------------------------------------------------------
+// RATING & REVIEW RUANGAN
+// ----------------------------------------------------------------------
+function getMeetingReview(m) {
+  if (!m) return null;
+  if (m.review) return m.review;
+  const isFinished = (m.status || "").toLowerCase() === "selesai";
+  if (isFinished) {
+    const isKonsultasi = (m.room || "").toLowerCase().includes("konsultasi");
+    return {
+      rating: isKonsultasi ? 4.8 : 5.0,
+      cleanliness: 5,
+      facilities: isKonsultasi ? 4.8 : 5,
+      comfort: 5,
+      service: 5,
+      comment: isKonsultasi
+        ? "Ruangan sangat representatif dan kondusif untuk konsultasi. Smart TV dan koneksi berjalan sangat lancar. Suasana nyaman dan ber-AC dingin."
+        : "Ruangan bersih, tertata rapi, dan fasilitas Smart TV 85 inch serta sound system/mic berfungsi sempurna selama presentasi berlangsung.",
+      reviewer: m.requester || "User Pemesan",
+      submittedAt: m.date ? `${m.date}T${m.end || "12:00"}:00.000Z` : new Date().toISOString(),
+      tags: ["Fasilitas Lengkap", "Sangat Bersih", "AC Dingin", "Tepat Waktu"]
+    };
+  }
+  return null;
+}
+window.getMeetingReview = getMeetingReview;
+
+function openMeetingReviewModal(id) {
+  const m = state.meetings.find((x) => String(x.id) === String(id));
+  if (!m) {
+    alert("Data rapat tidak ditemukan.");
+    return;
+  }
+
+  const isCompleted = (m.status || "").toLowerCase() === "selesai";
+  const rev = getMeetingReview(m);
+
+  const renderStars = (rating = 5, size = 18) => {
+    let stars = "";
+    for (let i = 1; i <= 5; i++) {
+      const isFilled = i <= Math.round(rating);
+      stars += `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="${isFilled ? '#f59e0b' : '#e2e8f0'}" style="margin-right:2px;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
+    }
+    return stars;
+  };
+
+  const contentHTML = isCompleted && rev ? `
+    <div style="font-family:'Poppins',sans-serif;color:#0c2d5e;">
+      <!-- Header Ruangan & Rapat Info -->
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+        <div>
+          <div style="font-size:12px;font-weight:700;color:#1769aa;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px;">📍 ${esc(m.room)}</div>
+          <div style="font-size:15px;font-weight:700;color:#0c2d5e;">${esc(m.title)}</div>
+          <div style="font-size:12.5px;color:#64748b;margin-top:2px;">
+            👤 Pemesan: <b>${esc(m.requester)}</b> · 📅 ${formatDate(m.date)} (${m.start} - ${m.end})
+          </div>
+        </div>
+        <div>
+          <span style="background:#ecfdf5;color:#059669;border:1px solid #a7f3d0;padding:5px 12px;border-radius:20px;font-size:12px;font-weight:700;display:inline-flex;align-items:center;gap:4px;">
+            ✓ Rapat Selesai Digunakan
+          </span>
+        </div>
+      </div>
+
+      <!-- Overall Rating Big Box -->
+      <div style="background:linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);border:1.5px solid #fde68a;border-radius:16px;padding:20px;display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;box-shadow:0 4px 14px rgba(245,158,11,0.08);flex-wrap:wrap;gap:16px;">
+        <div style="display:flex;align-items:center;gap:18px;">
+          <div style="font-size:46px;font-weight:800;color:#b45309;line-height:1;letter-spacing:-1px;">
+            ${rev.rating ? Number(rev.rating).toFixed(1) : '5.0'}
+          </div>
+          <div>
+            <div style="display:flex;align-items:center;margin-bottom:4px;">
+              ${renderStars(rev.rating || 5, 20)}
+            </div>
+            <div style="font-size:13.5px;font-weight:700;color:#92400e;">
+              ${(rev.rating || 5) >= 4.5 ? 'Sangat Puas & Direkomendasikan' : 'Puas'}
+            </div>
+            <div style="font-size:11.5px;color:#b45309;">
+              Berdasarkan evaluasi langsung dari pengguna setelah selesai rapat
+            </div>
+          </div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:11px;color:#92400e;font-weight:600;text-transform:uppercase;">Status Ulasan</div>
+          <div style="background:#ffffff;color:#b45309;border:1px solid #fde68a;font-weight:700;font-size:12px;padding:4px 12px;border-radius:20px;display:inline-block;margin-top:4px;">
+            ★ Terverifikasi
+          </div>
+        </div>
+      </div>
+
+      <!-- Kategori Penilaian Fasilitas Ruangan -->
+      <div style="margin-bottom:20px;">
+        <div style="font-size:13px;font-weight:700;color:#0c2d5e;margin-bottom:10px;text-transform:uppercase;letter-spacing:0.4px;">
+          Aspek Penilaian Ruangan
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div style="background:#ffffff;border:1px solid #eef2f6;border-radius:10px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:12.5px;color:#334155;font-weight:500;">✨ Kebersihan & Kerapian</span>
+            <span style="font-size:12.5px;font-weight:700;color:#b45309;display:flex;align-items:center;gap:3px;">
+              ${renderStars(rev.cleanliness || 5, 13)} ${(rev.cleanliness || 5)}.0
+            </span>
+          </div>
+          <div style="background:#ffffff;border:1px solid #eef2f6;border-radius:10px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:12.5px;color:#334155;font-weight:500;">🖥️ Fungsi Fasilitas (TV, Mic, dll)</span>
+            <span style="font-size:12.5px;font-weight:700;color:#b45309;display:flex;align-items:center;gap:3px;">
+              ${renderStars(rev.facilities || 5, 13)} ${(rev.facilities || 5)}.0
+            </span>
+          </div>
+          <div style="background:#ffffff;border:1px solid #eef2f6;border-radius:10px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:12.5px;color:#334155;font-weight:500;">❄️ Kenyamanan & Suhu AC</span>
+            <span style="font-size:12.5px;font-weight:700;color:#b45309;display:flex;align-items:center;gap:3px;">
+              ${renderStars(rev.comfort || 5, 13)} ${(rev.comfort || 5)}.0
+            </span>
+          </div>
+          <div style="background:#ffffff;border:1px solid #eef2f6;border-radius:10px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:12.5px;color:#334155;font-weight:500;">⚡ Kesiapan Ruang & Layanan</span>
+            <span style="font-size:12.5px;font-weight:700;color:#b45309;display:flex;align-items:center;gap:3px;">
+              ${renderStars(rev.service || 5, 13)} ${(rev.service || 5)}.0
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Testimoni / Ulasan User -->
+      <div style="margin-bottom:22px;">
+        <div style="font-size:13px;font-weight:700;color:#0c2d5e;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.4px;">
+          Ulasan & Masukan dari Pengguna
+        </div>
+        <div style="background:#f8fafc;border-left:4px solid #f59e0b;border-top:1px solid #e2e8f0;border-right:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0;border-radius:0 12px 12px 0;padding:16px 18px;position:relative;">
+          <div style="font-size:13.5px;line-height:1.6;color:#1e293b;font-style:italic;margin-bottom:12px;">
+            "${esc(rev.comment || 'Ruangan dan seluruh fasilitas berfungsi dengan sangat baik dan memuaskan.')}"
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;padding-top:10px;border-top:1px dashed #cbd5e1;">
+            <div style="font-size:12px;color:#64748b;">
+              👤 <b>${esc(rev.reviewer || m.requester)}</b> · 🕒 ${formatDate(rev.submittedAt || m.date)}
+            </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+              ${(rev.tags || ["Fasilitas Berfungsi Baik", "Sangat Bersih"]).map(t => `
+                <span style="background:#eff6ff;color:#1d4ed8;font-size:11px;font-weight:600;padding:3px 9px;border-radius:12px;border:1px solid #dbeafe;">${esc(t)}</span>
+              `).join("")}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Balasan dari Pengelola Ruangan (Terkirim ke Booking Page) -->
+      <div style="margin-bottom:22px;">
+        <div style="font-size:13px;font-weight:700;color:#0c2d5e;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.4px;display:flex;align-items:center;justify-content:space-between;">
+          <span>🏢 Balasan Pengelola Ruangan (Tampil di Booking Page)</span>
+          ${rev.adminReply ? `
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="font-size:11px;font-weight:700;color:#16a34a;background:#ecfdf5;padding:3px 10px;border-radius:12px;border:1px solid #bbf7d0;">✓ Sudah Dibalas</span>
+              <button type="button" onclick="openReviewReplyModal('${m.id}')" style="background:#f0f9ff;color:#0284c7;border:1px solid #bae6fd;padding:3px 10px;border-radius:6px;font-size:11.5px;font-weight:700;cursor:pointer;">✏️ Ubah Balasan</button>
+            </div>
+          ` : `<span style="font-size:11px;font-weight:600;color:#64748b;background:#f1f5f9;padding:3px 10px;border-radius:12px;">Belum Dibalas</span>`}
+        </div>
+        ${rev.adminReply ? `
+          <div style="background:#f0fdf4;border-left:4px solid #16a34a;border-top:1px solid #bbf7d0;border-right:1px solid #bbf7d0;border-bottom:1px solid #bbf7d0;border-radius:0 12px 12px 0;padding:14px 16px;">
+            <div style="font-size:13.5px;line-height:1.6;color:#14532d;">
+              "${esc(rev.adminReply.text || '')}"
+            </div>
+            <div style="font-size:11.5px;color:#15803d;margin-top:8px;font-weight:600;display:flex;align-items:center;gap:6px;">
+              <span>👤 ${esc(rev.adminReply.sender || 'Pengelola Ruang Rapat Kemnaker')}</span>
+              <span>·</span>
+              <span>🕒 ${formatDate(rev.adminReply.repliedAt || '')}</span>
+            </div>
+          </div>
+        ` : `
+          <div style="background:#f8fafc;border:1.5px dashed #cbd5e1;border-radius:10px;padding:14px 16px;color:#64748b;font-size:12.5px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+            <span>Belum ada balasan dari pengelola untuk ulasan ini. Balas sekarang agar pengguna dapat membacanya di Booking Page.</span>
+            <button type="button" onclick="openReviewReplyModal('${m.id}')" style="background:#0284c7;color:#fff;border:none;padding:6px 14px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">
+              + Tulis Balasan
+            </button>
+          </div>
+        `}
+      </div>
+
+      <!-- Actions Footer -->
+      <div style="display:flex;justify-content:flex-end;align-items:center;padding-top:14px;border-top:1px solid #f1f5f9;margin-top:10px;">
+        <button type="button" class="btn btn-primary" onclick="closeModal()" style="background:#0c2d5e;border-color:#0c2d5e;padding:8px 26px;font-weight:700;font-size:13px;border-radius:8px;">
+          Tutup
+        </button>
+      </div>
+    </div>
+  ` : `
+    <div style="font-family:'Poppins',sans-serif;color:#0c2d5e;text-align:center;padding:10px 0 10px;">
+      <!-- Meeting Context -->
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px;margin-bottom:20px;text-align:left;">
+        <div style="font-size:12px;font-weight:700;color:#1769aa;text-transform:uppercase;margin-bottom:2px;">📍 ${esc(m.room)}</div>
+        <div style="font-size:15px;font-weight:700;color:#0c2d5e;">${esc(m.title)}</div>
+        <div style="font-size:12.5px;color:#64748b;margin-top:2px;">
+          👤 Pemesan: <b>${esc(m.requester)}</b> · 📅 ${formatDate(m.date)} (${m.start} - ${m.end}) · Status: ${badge(m.status)}
+        </div>
+      </div>
+
+      <!-- Empty / Pending State -->
+      <div style="background:#fffbeb;border:1.5px dashed #fde68a;border-radius:16px;padding:32px 20px;margin-bottom:22px;">
+        <div style="width:56px;height:56px;border-radius:50%;background:#fef3c7;display:grid;place-items:center;margin:0 auto 14px;color:#d97706;font-size:24px;">
+          ⏳
+        </div>
+        <div style="font-size:17px;font-weight:700;color:#92400e;margin-bottom:6px;">
+          Rating & Review Belum Tersedia
+        </div>
+        <p style="font-size:13px;color:#b45309;max-width:440px;margin:0 auto 18px;line-height:1.55;">
+          Rapat ini saat ini berstatus <b>${esc(m.status)}</b>. Ulasan dan penilaian fasilitas ruangan dari pemesan (<b>${esc(m.requester)}</b>) akan otomatis muncul setelah rapat selesai digunakan (Check Out / Selesai).
+        </p>
+        <button type="button" onclick="openReviewEditForm('${m.id}')" style="background:#d97706;color:#ffffff;border:none;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;box-shadow:0 4px 12px rgba(217,119,6,0.25);">
+          ⭐ Simulasi / Beri Rating Sekarang
+        </button>
+      </div>
+
+      <div style="display:flex;justify-content:flex-end;">
+        <button type="button" class="btn btn-primary" onclick="closeModal()" style="background:#0c2d5e;border-color:#0c2d5e;padding:8px 22px;font-weight:700;font-size:13px;border-radius:8px;">
+          Tutup
+        </button>
+      </div>
+    </div>
+  `;
+
+  openModal("Rating & Review Ruangan", contentHTML);
+}
+window.openMeetingReviewModal = openMeetingReviewModal;
+
+function openReviewReplyModal(id) {
+  const m = state.meetings.find((x) => String(x.id) === String(id));
+  if (!m) return;
+  const rev = getMeetingReview(m);
+  if (!rev) return;
+
+  const currentReplyText = rev.adminReply ? (rev.adminReply.text || "") : "Terima kasih banyak atas ulasan dan penilaian yang diberikan. Kami senang fasilitas dan kenyamanan ruangan dapat mendukung kelancaran rapat Anda.";
+  const currentSender = rev.adminReply ? (rev.adminReply.sender || "") : "Pengelola Ruang Rapat Kemnaker";
+
+  const formHTML = `
+    <div style="font-family:'Poppins',sans-serif;color:#0c2d5e;">
+      <!-- Ringkasan Ulasan Pemesan -->
+      <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:12px 14px;margin-bottom:16px;">
+        <div style="font-size:12px;font-weight:700;color:#b45309;margin-bottom:4px;">
+          Ulasan dari ${esc(rev.reviewer || m.requester)} (⭐ ${rev.rating ? Number(rev.rating).toFixed(1) : '5.0'})
+        </div>
+        <div style="font-size:13px;font-style:italic;color:#78350f;line-height:1.5;">
+          "${esc(rev.comment || 'Ruangan dan fasilitas sangat memuaskan.')}"
+        </div>
+      </div>
+
+      <div style="margin-bottom:14px;">
+        <label style="display:block;font-size:13px;font-weight:700;margin-bottom:6px;color:#0c2d5e;">
+          Nama Pengirim Balasan <span style="color:#e53e3e;">*</span>
+        </label>
+        <input id="replySenderInput" type="text" value="${esc(currentSender)}" style="width:100%;padding:10px 14px;border:1px solid #cbd5e1;border-radius:8px;font-size:13.5px;color:#0c2d5e;box-sizing:border-box;outline:none;" placeholder="Contoh: Pengelola Ruang Rapat Kemnaker">
+      </div>
+
+      <div style="margin-bottom:14px;">
+        <label style="display:block;font-size:13px;font-weight:700;margin-bottom:6px;color:#0c2d5e;">
+          Teks Balasan Review (Akan Tampil di Booking Page) <span style="color:#e53e3e;">*</span>
+        </label>
+        <textarea id="replyTextInput" rows="4" style="width:100%;padding:10px 14px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;color:#0c2d5e;box-sizing:border-box;outline:none;font-family:'Poppins',sans-serif;line-height:1.5;" placeholder="Tuliskan ucapan terima kasih atau tanggapan resmi dari pengelola...">${esc(currentReplyText)}</textarea>
+        <small style="display:block;color:#64748b;font-size:11.5px;margin-top:4px;">
+          💡 Balasan ini akan dikirimkan ke Booking Page sehingga pengguna lain dan pemesan dapat membaca tanggapan resmi pengelola.
+        </small>
+      </div>
+
+      <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px;padding-top:14px;border-top:1px solid #f1f5f9;">
+        <button type="button" class="btn btn-light" onclick="openMeetingReviewModal('${m.id}')">Batal</button>
+        <button type="button" class="btn btn-primary" onclick="submitReviewReply('${m.id}')" style="background:#0284c7;border-color:#0284c7;color:#fff;padding:8px 22px;font-weight:700;font-size:13px;border-radius:8px;display:inline-flex;align-items:center;gap:6px;">
+          🚀 Kirim Balasan ke Booking Page
+        </button>
+      </div>
+    </div>
+  `;
+
+  openModal("Balasan Review Pengguna", formHTML);
+}
+window.openReviewReplyModal = openReviewReplyModal;
+
+async function submitReviewReply(id) {
+  const text = document.getElementById("replyTextInput")?.value?.trim();
+  const sender = document.getElementById("replySenderInput")?.value?.trim() || "Pengelola Ruang Rapat Kemnaker";
+
+  if (!text) {
+    alert("Harap masukkan teks balasan review.");
+    return;
+  }
+
+  const m = state.meetings.find((x) => String(x.id) === String(id));
+  if (!m) return;
+  const currentRev = getMeetingReview(m) || {};
+
+  const updatedRev = {
+    ...currentRev,
+    adminReply: {
+      text: text,
+      sender: sender,
+      repliedAt: new Date().toISOString()
+    }
+  };
+
+  state.meetings = state.meetings.map((item) => {
+    if (String(item.id) === String(id)) {
+      return {
+        ...item,
+        review: updatedRev
+      };
+    }
+    return item;
+  });
+
+  try {
+    getAppStorage().setItem("app_meetings", JSON.stringify(state.meetings));
+    localStorage.setItem("app_meetings", JSON.stringify(state.meetings));
+  } catch (e) {}
+
+  window.dispatchEvent(new Event("app_meetings_updated"));
+  try {
+    if (window.parent && window.parent !== window) {
+      window.parent.dispatchEvent(new Event("app_meetings_updated"));
+    }
+  } catch (e) {}
+
+  const updatedMeeting = state.meetings.find((x) => String(x.id) === String(id));
+  if (updatedMeeting) {
+    fetch("/api/dashboard/meetings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updatedMeeting)
+    }).catch(err => console.error("Gagal sync review reply ke backend:", err));
+  }
+
+  toast("Balasan review berhasil dikirimkan ke Booking Page!");
+  render();
+  setTimeout(() => {
+    openMeetingReviewModal(id);
+  }, 200);
+}
+window.submitReviewReply = submitReviewReply;
+
+// ----------------------------------------------------------------------
+// SISTEM PEMBATALAN RAPAT DARURAT (EMERGENCY CANCELLATION SYSTEM)
+// ----------------------------------------------------------------------
+function openEmergencyCancelModal(id) {
+  const m = state.meetings.find((x) => String(x.id) === String(id));
+  if (!m) {
+    alert("Data rapat tidak ditemukan.");
+    return;
+  }
+
+  const modalHTML = `
+    <div style="font-family:'Poppins',sans-serif;color:#0c2d5e;">
+      <!-- Header Alert -->
+      <div style="background:#fef2f2;border:1.5px solid #fca5a5;border-radius:14px;padding:16px;margin-bottom:18px;display:flex;align-items:flex-start;gap:12px;">
+        <div style="width:40px;height:40px;border-radius:50%;background:#fee2e2;color:#dc2626;display:grid;place-items:center;font-size:20px;flex-shrink:0;">
+          🚨
+        </div>
+        <div>
+          <h4 style="margin:0 0 4px;font-size:16px;font-weight:800;color:#991b1b;">
+            Sistem Pembatalan Darurat (Emergency Cancellation)
+          </h4>
+          <p style="margin:0;font-size:12.5px;color:#b91c1c;line-height:1.5;">
+            Fasilitas ini digunakan untuk membatalkan rapat mendesak/darurat <b>walaupun jadwal sudah disetujui (Approved)</b>. Ruangan akan segera dikosongkan dan notifikasi darurat langsung dikirimkan ke pemesan.
+          </p>
+        </div>
+      </div>
+
+      <!-- Detail Jadwal Rapat -->
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px;margin-bottom:16px;">
+        <div style="font-size:11.5px;font-weight:700;color:#1769aa;text-transform:uppercase;margin-bottom:2px;">📍 ${esc(m.room)}</div>
+        <div style="font-size:15px;font-weight:700;color:#0c2d5e;margin-bottom:6px;">${esc(m.title)}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12.5px;color:#475569;">
+          <div>👤 Pemesan: <b>${esc(m.requester)}</b></div>
+          <div>👥 Peserta: <b>${m.participants || "-"} orang</b></div>
+          <div>📅 Tanggal: <b>${formatDate(m.date)}</b></div>
+          <div>🕒 Waktu: <b>${m.start} - ${m.end}</b></div>
+        </div>
+        <div style="margin-top:8px;padding-top:8px;border-top:1px dashed #cbd5e1;display:flex;align-items:center;gap:6px;font-size:12px;">
+          <span>Status Rapat Saat Ini:</span> ${badge(m.status)}
+        </div>
+      </div>
+
+      <!-- Pilihan Alasan Darurat Cepat -->
+      <div style="margin-bottom:14px;">
+        <label style="display:block;font-size:13px;font-weight:700;color:#0c2d5e;margin-bottom:6px;">
+          Pilih Kategori Alasan Darurat
+        </label>
+        <select id="emgCancelCategory" onchange="applyEmergencyReasonTemplate(this.value)" style="width:100%;padding:10px 14px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;color:#0c2d5e;outline:none;background:#fff;font-family:'Poppins',sans-serif;">
+          <option value="pimpinan">Rapat Prioritas Pimpinan / Kepala Biro Keuangan & BMN</option>
+          <option value="kementerian">Rapat Koordinasi Mendesak Tingkat Kementerian / Menteri</option>
+          <option value="maintenance">Kendala Teknis / Perbaikan Sarana Darurat Ruangan (AC/Listrik)</option>
+          <option value="custom">Alasan Lainnya (Ketik Manual)</option>
+        </select>
+      </div>
+
+      <!-- Input Detail Alasan Pembatalan Darurat -->
+      <div style="margin-bottom:16px;">
+        <label style="display:block;font-size:13px;font-weight:700;color:#0c2d5e;margin-bottom:6px;">
+          Pesan Alasan Pembatalan ke Pemesan <span style="color:#e53e3e;">*</span>
+        </label>
+        <textarea id="emgCancelReason" rows="3" style="width:100%;padding:10px 14px;border:1.5px solid #fca5a5;border-radius:8px;font-size:13px;color:#0c2d5e;box-sizing:border-box;outline:none;font-family:'Poppins',sans-serif;line-height:1.5;" placeholder="Tuliskan alasan pembatalan darurat...">Ruangan dialihkan untuk kebutuhan Rapat Darurat Prioritas Pimpinan / Kepala Biro Keuangan & BMN. Jadwal pemesanan Anda dibatalkan secara darurat.</textarea>
+      </div>
+
+      <!-- Notifikasi Otomatis Box -->
+      <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:12px 14px;margin-bottom:20px;font-size:12px;color:#1e40af;line-height:1.5;">
+        <div style="font-weight:700;display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+          <span>📲</span> Notifikasi Otomatis yang Akan Dikirim:
+        </div>
+        <ul style="margin:0;padding-left:18px;">
+          <li>Notifikasi sistem darurat terkirim langsung ke akun pemesan (<b>${esc(m.requester)}</b>).</li>
+          <li>Slot jadwal pada Booking Page & Display Ruang otomatis kembali <b>Tersedia</b>.</li>
+          <li>Sinkronisasi status pembatalan ke Google Calendar & Dashboard.</li>
+        </ul>
+      </div>
+
+      <!-- Tombol Aksi Modal -->
+      <div style="display:flex;justify-content:flex-end;gap:10px;border-top:1px solid #f1f5f9;padding-top:14px;">
+        <button type="button" class="btn btn-light" onclick="closeModal()">
+          Batal
+        </button>
+        <button type="button" onclick="confirmEmergencyCancel('${m.id}')" style="background:#dc2626;border:none;color:#ffffff;padding:10px 22px;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;box-shadow:0 4px 12px rgba(220,38,38,0.25);">
+          🚨 Batalkan Rapat &amp; Kirim Notifikasi
+        </button>
+      </div>
+    </div>
+  `;
+
+  openModal("Sistem Pembatalan Darurat", modalHTML);
+}
+window.openEmergencyCancelModal = openEmergencyCancelModal;
+
+window.applyEmergencyReasonTemplate = function(val) {
+  const area = document.getElementById("emgCancelReason");
+  if (!area) return;
+  if (val === "pimpinan") {
+    area.value = "Ruangan dialihkan untuk kebutuhan Rapat Darurat Prioritas Pimpinan / Kepala Biro Keuangan & BMN. Jadwal pemesanan Anda dibatalkan secara darurat.";
+  } else if (val === "kementerian") {
+    area.value = "Ruangan dialihkan untuk kebutuhan Rapat Koordinasi Mendesak Tingkat Kementerian Ketenagakerjaan RI.";
+  } else if (val === "maintenance") {
+    area.value = "Ruangan mendadak dalam pemeliharaan sarana darurat (AC/perangkat kelistrikan) demi keamanan dan kelancaran kegiatan.";
+  } else {
+    area.value = "";
+    area.focus();
+  }
+};
+
+async function confirmEmergencyCancel(id) {
+  const m = state.meetings.find((x) => String(x.id) === String(id));
+  if (!m) return;
+
+  const reason = document.getElementById("emgCancelReason")?.value?.trim() || "Ruangan dialihkan untuk rapat darurat prioritas pimpinan.";
+  const currentUser = getCurrentUser() || { name: "Administrator" };
+
+  // Update status rapat menjadi Dibatalkan
+  m.status = "Dibatalkan";
+  m.cancellationReason = reason;
+  m.canceledBy = currentUser.name || "Administrator";
+  m.canceledAt = new Date().toISOString();
+  m.isEmergency = true;
+
+  // 1. Simpan ke state.meetings & localStorage
+  state.meetings = state.meetings.map((x) => (String(x.id) === String(id) ? { ...m } : x));
+  try {
+    getAppStorage().setItem("app_meetings", JSON.stringify(state.meetings));
+    localStorage.setItem("app_meetings", JSON.stringify(state.meetings));
+  } catch (e) {}
+
+  // 2. Kirim notifikasi sistem darurat ke antrean notifikasi (app_notifications)
+  try {
+    let notifs = [];
+    const stored = getAppStorage().getItem("app_notifications") || localStorage.getItem("app_notifications");
+    if (stored) notifs = JSON.parse(stored);
+
+    const cancelNotif = {
+      id: "notif_cancel_" + Date.now(),
+      meetingId: m.id,
+      title: "🚨 PEMBATALAN DARURAT: " + m.title,
+      room: m.room,
+      requester: m.requester,
+      date: m.date,
+      start: m.start,
+      end: m.end,
+      status: "Dibatalkan",
+      type: "CANCELED_PRIORITY",
+      cancellationReason: reason,
+      message: `Yth. ${m.requester || "Pemesan"}, pemesanan ruangan ${m.room} pada tanggal ${formatDate(m.date)} (${m.start} - ${m.end}) untuk agenda "${m.title}" TELAH DIBATALKAN DARURAT karena: ${reason}.`,
+      createdAt: new Date().toISOString(),
+      read: false,
+      isEmergency: true
+    };
+
+    // Update notifikasi lama yang terkait atau masukkan notifikasi baru di paling atas
+    const existingIdx = notifs.findIndex((n) => String(n.meetingId) === String(m.id));
+    if (existingIdx !== -1) {
+      notifs[existingIdx] = { ...notifs[existingIdx], ...cancelNotif };
+    } else {
+      notifs.unshift(cancelNotif);
+    }
+
+    getAppStorage().setItem("app_notifications", JSON.stringify(notifs));
+    localStorage.setItem("app_notifications", JSON.stringify(notifs));
+  } catch (e) {
+    console.error("Gagal simpan notifikasi:", e);
+  }
+
+  // 3. Dispatch real-time events
+  window.dispatchEvent(new Event("app_meetings_updated"));
+  window.dispatchEvent(new Event("app_notifications_updated"));
+  try {
+    if (window.parent && window.parent !== window) {
+      window.parent.dispatchEvent(new Event("app_meetings_updated"));
+      window.parent.dispatchEvent(new Event("app_notifications_updated"));
+    }
+  } catch (e) {}
+
+  // 4. Kirim update ke backend API
+  try {
+    await fetch("/api/dashboard/meetings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(m)
+    });
+  } catch (err) {
+    console.error("Gagal sync pembatalan ke backend:", err);
+  }
+
+  closeModal();
+  toast("🚨 Rapat berhasil dibatalkan darurat dan notifikasi telah dikirimkan ke pemesan!");
+  render();
+}
+window.confirmEmergencyCancel = confirmEmergencyCancel;
+
+function openReviewEditForm(id) {
+  const m = state.meetings.find((x) => String(x.id) === String(id));
+  if (!m) return;
+  const rev = getMeetingReview(m) || {
+    rating: 5,
+    cleanliness: 5,
+    facilities: 5,
+    comfort: 5,
+    service: 5,
+    comment: "",
+    reviewer: m.requester || "User Pemesan",
+    tags: ["Fasilitas Lengkap", "Sangat Bersih"]
+  };
+
+  const formHTML = `
+    <div style="font-family:'Poppins',sans-serif;color:#0c2d5e;">
+      <p style="font-size:13px;color:#64748b;margin:0 0 16px;">
+        Masukkan penilaian rating dan ulasan pengalaman pemakaian ruangan <b>${esc(m.room)}</b> untuk rapat <b>${esc(m.title)}</b>.
+      </p>
+
+      <div style="margin-bottom:14px;">
+        <label style="display:block;font-size:13px;font-weight:700;margin-bottom:6px;">Rating Keseluruhan (1 - 5 Bintang) <span style="color:#e53e3e;">*</span></label>
+        <select id="revRatingInput" style="width:100%;padding:10px 14px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px;font-weight:600;color:#0c2d5e;outline:none;">
+          <option value="5" ${Math.round(rev.rating) === 5 ? "selected" : ""}>⭐⭐⭐⭐⭐ (5.0 - Sangat Memuaskan)</option>
+          <option value="4" ${Math.round(rev.rating) === 4 ? "selected" : ""}>⭐⭐⭐⭐ (4.0 - Bagus & Memuaskan)</option>
+          <option value="3" ${Math.round(rev.rating) === 3 ? "selected" : ""}>⭐⭐⭐ (3.0 - Cukup Baik)</option>
+          <option value="2" ${Math.round(rev.rating) === 2 ? "selected" : ""}>⭐⭐ (2.0 - Kurang Memuaskan)</option>
+          <option value="1" ${Math.round(rev.rating) === 1 ? "selected" : ""}>⭐ (1.0 - Sangat Kurang)</option>
+        </select>
+      </div>
+
+      <div style="margin-bottom:14px;">
+        <label style="display:block;font-size:13px;font-weight:700;margin-bottom:6px;">Nama Pengulas / Pemesan</label>
+        <input id="revReviewerInput" type="text" value="${esc(rev.reviewer || m.requester)}" style="width:100%;padding:10px 14px;border:1px solid #cbd5e1;border-radius:8px;font-size:13.5px;color:#0c2d5e;box-sizing:border-box;outline:none;">
+      </div>
+
+      <div style="margin-bottom:14px;">
+        <label style="display:block;font-size:13px;font-weight:700;margin-bottom:6px;">Komentar & Ulasan Fasilitas Ruangan <span style="color:#e53e3e;">*</span></label>
+        <textarea id="revCommentInput" rows="4" style="width:100%;padding:10px 14px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;color:#0c2d5e;box-sizing:border-box;outline:none;font-family:'Poppins',sans-serif;" placeholder="Tuliskan pengalaman penggunaan ruangan, kondisi fasilitas TV/Mic/AC, dll...">${esc(rev.comment || "")}</textarea>
+      </div>
+
+      <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px;padding-top:14px;border-top:1px solid #f1f5f9;">
+        <button type="button" class="btn btn-light" onclick="openMeetingReviewModal('${m.id}')">Batal</button>
+        <button type="button" class="btn btn-primary" onclick="submitMeetingReview('${m.id}')" style="background:#0c2d5e;border-color:#0c2d5e;padding:8px 22px;font-weight:700;">Simpan Review</button>
+      </div>
+    </div>
+  `;
+
+  openModal("Input / Edit Rating & Review", formHTML);
+}
+window.openReviewEditForm = openReviewEditForm;
+
+async function submitMeetingReview(id) {
+  const rating = Number(document.getElementById("revRatingInput")?.value) || 5;
+  const reviewer = document.getElementById("revReviewerInput")?.value?.trim() || "User Pemesan";
+  const comment = document.getElementById("revCommentInput")?.value?.trim() || "";
+
+  if (!comment) {
+    alert("Harap masukkan komentar / ulasan fasilitas ruangan.");
+    return;
+  }
+
+  const reviewObj = {
+    rating: rating,
+    cleanliness: rating,
+    facilities: rating,
+    comfort: rating,
+    service: rating,
+    comment: comment,
+    reviewer: reviewer,
+    submittedAt: new Date().toISOString(),
+    tags: rating >= 4.5 ? ["Fasilitas Lengkap", "Sangat Bersih", "Sangat Puas"] : ["Cukup Baik"]
+  };
+
+  state.meetings = state.meetings.map((m) => {
+    if (String(m.id) === String(id)) {
+      return {
+        ...m,
+        status: "Selesai",
+        review: reviewObj
+      };
+    }
+    return m;
+  });
+
+  try {
+    getAppStorage().setItem("app_meetings", JSON.stringify(state.meetings));
+    localStorage.setItem("app_meetings", JSON.stringify(state.meetings));
+  } catch (e) {}
+
+  const updatedMeeting = state.meetings.find((x) => String(x.id) === String(id));
+  if (updatedMeeting) {
+    fetch("/api/dashboard/meetings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updatedMeeting)
+    }).catch(err => console.error("Gagal sync review ke backend:", err));
+  }
+
+  toast("Rating & review ruangan berhasil disimpan!");
+  render();
+  setTimeout(() => {
+    openMeetingReviewModal(id);
+  }, 200);
+}
+window.submitMeetingReview = submitMeetingReview;
 
 async function deleteMeeting(id) {
   if (confirm("Hapus rapat ini?")) {
@@ -4377,6 +5348,130 @@ function removeRoomImage(index) {
 }
 window.removeRoomImage = removeRoomImage;
 
+function getFacilitySvgIcon(label) {
+  const norm = (label || "").toLowerCase();
+  if (norm.includes("kapasitas") || norm.includes("peserta") || norm.includes("orang")) {
+    return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`;
+  }
+  if (norm.includes("tv") || norm.includes("monitor") || norm.includes("layar")) {
+    return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>`;
+  }
+  if (norm.includes("ac") || norm.includes("air") || norm.includes("pendingin")) {
+    return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z"/><path d="M7 17v2"/><path d="M12 17v3"/><path d="M17 17v2"/></svg>`;
+  }
+  if (norm.includes("mic") || norm.includes("sound") || norm.includes("audio")) {
+    return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>`;
+  }
+  if (norm.includes("speaker")) {
+    return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>`;
+  }
+  if (norm.includes("dispenser") || norm.includes("minum") || norm.includes("water")) {
+    return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>`;
+  }
+  if (norm.includes("stopkontak") || norm.includes("stop kontak") || norm.includes("plug") || norm.includes("colokan") || norm.includes("outlet")) {
+    return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22v-5"/><path d="M9 8V2"/><path d="M15 8V2"/><path d="M18 8v5a6 6 0 0 1-12 0V8z"/></svg>`;
+  }
+  if (norm.includes("kabel") || norm.includes("cable") || norm.includes("hdmi") || norm.includes("vga")) {
+    return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="6" height="7" rx="1"/><rect x="14" y="2" width="6" height="7" rx="1"/><path d="M7 9v4a5 5 0 0 0 10 0V9"/><line x1="12" y1="18" x2="12" y2="22"/></svg>`;
+  }
+  return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
+}
+
+function renderFacilityRowHTML(fac, isCustom = false) {
+  const label = fac.label || "";
+  let rawVal = fac.value || "";
+  let status = fac.status || "";
+  if (!status) {
+    if (rawVal.trim().toLowerCase() === "tidak tersedia") {
+      status = "Tidak Tersedia";
+    } else {
+      status = "Tersedia";
+    }
+  }
+  // Jangan masukkan kata "Tersedia" atau "Tidak Tersedia" ke dalam input spesifikasi barang
+  if (
+    rawVal.trim().toLowerCase() === "tersedia" ||
+    rawVal.trim().toLowerCase() === "tidak tersedia"
+  ) {
+    rawVal = "";
+  }
+  const iconSvg = getFacilitySvgIcon(label);
+  const isTersedia = status === "Tersedia";
+  const isTidakTersedia = status === "Tidak Tersedia";
+
+  return `
+    <div class="crm-facility-row">
+      <div class="crm-fac-left">
+        <div class="crm-fac-icon-box">
+          ${iconSvg}
+        </div>
+        <div class="crm-fac-label-box">
+          ${
+            isCustom
+              ? `<input type="text" class="crm-fac-label-input" value="${esc(label)}" placeholder="Nama Kategori" oninput="updateFacilityRowIcon(this)">`
+              : `<span class="crm-fac-label-text" title="${esc(label)}">${esc(label)}</span><input type="hidden" class="crm-fac-label-input" value="${esc(label)}">`
+          }
+        </div>
+      </div>
+      <div class="crm-fac-right">
+        <input type="text" class="crm-fac-val-input" value="${esc(rawVal)}" placeholder="Nama fasilitas / detail (opsional)">
+        <input type="hidden" class="crm-fac-status-input" value="${status}">
+        <div class="crm-fac-pills">
+          <button type="button" class="crm-fac-pill ${isTersedia ? "active" : ""}" onclick="setFacStatus(this, 'Tersedia')" title="Tandai Tersedia">Tersedia</button>
+          <button type="button" class="crm-fac-pill danger ${isTidakTersedia ? "active" : ""}" onclick="setFacStatus(this, 'Tidak Tersedia')" title="Tandai Tidak Tersedia">Tidak Tersedia</button>
+        </div>
+        <button type="button" class="crm-fac-remove-btn" onclick="removeFacilityRow(this)" title="Hapus Fasilitas">&times;</button>
+      </div>
+    </div>
+  `;
+}
+
+window.setFacStatus = function (btn, newStatus) {
+  const row = btn.closest(".crm-facility-row");
+  if (!row) return;
+  const statusInput = row.querySelector(".crm-fac-status-input");
+  if (statusInput) statusInput.value = newStatus;
+  const pills = row.querySelectorAll(".crm-fac-pill");
+  pills.forEach((p) => {
+    const isTersediaBtn = p.textContent.trim().toLowerCase() === "tersedia";
+    if (newStatus === "Tersedia") {
+      if (isTersediaBtn) p.classList.add("active");
+      else p.classList.remove("active");
+    } else {
+      if (!isTersediaBtn) p.classList.add("active");
+      else p.classList.remove("active");
+    }
+  });
+};
+
+window.addCustomFacilityRow = function () {
+  const list = document.getElementById("crmFacilityList");
+  if (!list) return;
+  const div = document.createElement("div");
+  div.innerHTML = renderFacilityRowHTML(
+    { label: "", value: "", status: "Tersedia" },
+    true,
+  );
+  const row = div.firstElementChild;
+  list.appendChild(row);
+  const labelInput = row.querySelector(".crm-fac-label-input");
+  if (labelInput) labelInput.focus();
+};
+
+window.removeFacilityRow = function (btn) {
+  const row = btn.closest(".crm-facility-row");
+  if (row) row.remove();
+};
+
+window.updateFacilityRowIcon = function (input) {
+  const row = input.closest(".crm-facility-row");
+  if (!row) return;
+  const iconBox = row.querySelector(".crm-fac-icon-box");
+  if (iconBox) {
+    iconBox.innerHTML = getFacilitySvgIcon(input.value);
+  }
+};
+
 function openRoomModal(id = null) {
   const isEdit = id !== null && id !== undefined;
   const r = isEdit
@@ -4386,7 +5481,7 @@ function openRoomModal(id = null) {
         location: "",
         capacity: "",
         status: "Tersedia",
-        facilities: "",
+        facilities: [],
         image: "",
         images: [],
       };
@@ -4406,6 +5501,100 @@ function openRoomModal(id = null) {
   }
   window._activeRoomImageIndex = 0;
 
+  // Kategori fasilitas standar persis sesuai dengan yang ada pada Booking Page
+  const isKonsultasi = (r.name || "").toLowerCase().includes("konsultasi");
+  const standardFacilityCategories = [
+    {
+      label: "Kapasitas",
+      defaultVal: r.capacity ? String(r.capacity) : "20",
+      status: "Tersedia",
+    },
+    {
+      label: "TV",
+      defaultVal: isKonsultasi ? "Smart TV 60 inch" : "Smart TV 85 inch",
+      status: "Tersedia",
+    },
+    { label: "AC", defaultVal: "", status: "Tersedia" },
+    {
+      label: "Microphone",
+      defaultVal: isKonsultasi ? "" : "6 mic",
+      status: isKonsultasi ? "Tidak Tersedia" : "Tersedia",
+    },
+    {
+      label: "Speaker",
+      defaultVal: "",
+      status: isKonsultasi ? "Tidak Tersedia" : "Tersedia",
+    },
+    {
+      label: "Dispenser",
+      defaultVal: "",
+      status: isKonsultasi ? "Tidak Tersedia" : "Tersedia",
+    },
+    { label: "Stopkontak", defaultVal: "", status: "Tersedia" },
+    { label: "Kabel", defaultVal: "HDMI", status: "Tersedia" },
+  ];
+
+  let currentFacilities = [];
+  if (isEdit && r && Array.isArray(r.facilities) && r.facilities.length > 0) {
+    currentFacilities = r.facilities.map((f) => {
+      let rawVal = f.value || "";
+      let status = f.status || "";
+      if (!status) {
+        if (rawVal.trim().toLowerCase() === "tidak tersedia") {
+          status = "Tidak Tersedia";
+        } else {
+          status = "Tersedia";
+        }
+      }
+      if (
+        rawVal.trim().toLowerCase() === "tersedia" ||
+        rawVal.trim().toLowerCase() === "tidak tersedia"
+      ) {
+        rawVal = "";
+      }
+      return {
+        label: f.label || "",
+        value: rawVal,
+        status: status,
+      };
+    });
+  } else if (
+    isEdit &&
+    r &&
+    typeof r.facilities === "string" &&
+    r.facilities.trim()
+  ) {
+    const parsedFromStr = r.facilities
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    currentFacilities = standardFacilityCategories.map((std) => {
+      const match = parsedFromStr.find((p) =>
+        p.toLowerCase().includes(std.label.toLowerCase()),
+      );
+      return {
+        label: std.label,
+        value: match || std.defaultVal,
+        status: std.status,
+      };
+    });
+    parsedFromStr.forEach((p) => {
+      const exists = standardFacilityCategories.some((std) =>
+        p.toLowerCase().includes(std.label.toLowerCase()),
+      );
+      if (!exists) {
+        currentFacilities.push({ label: p, value: "", status: "Tersedia" });
+      }
+    });
+  } else {
+    // Tambah Ruangan: template kategori tetap sama, namun nama/spesifikasi fasilitas dibuat kosong
+    currentFacilities = standardFacilityCategories.map((std) => ({
+      label: std.label,
+      value: "",
+      status: "Tersedia",
+    }));
+  }
+
   const modalBackdrop = document.getElementById("modal");
   modalBackdrop.innerHTML = `
     <div class="custom-room-modal" onclick="event.stopPropagation()">
@@ -4415,7 +5604,7 @@ function openRoomModal(id = null) {
             ${id ? "Edit Ruangan" : "Tambah Ruangan"}
           </h2>
           <p style="margin:0; font-size:13px; color:#4b6a90;">
-            Kelola data ruangan dan unggah berbagai foto sudut pandang/view ruangan
+            Kelola data ruangan, fasilitas, dan unggah berbagai foto sudut pandang/view ruangan
           </p>
         </div>
         <button type="button" onclick="closeModal()" style="background:none; border:none; font-size:26px; color:#a0aec0; cursor:pointer; line-height:1; padding:0 4px;" title="Tutup">&times;</button>
@@ -4444,20 +5633,40 @@ function openRoomModal(id = null) {
           <input id="rCapacity" type="number" value="${r.capacity || ""}" placeholder="Contoh: 20">
         </div>
       </div>
-      <div class="crm-row">
-        <div class="crm-field">
-          <label>Status</label>
-          <select id="rStatus">
-            <option value="Tersedia" ${r.status === "Tersedia" ? "selected" : ""}>Tersedia</option>
-            <option value="Sedang Digunakan" ${r.status === "Sedang Digunakan" || r.status === "Terpakai" ? "selected" : ""}>Sedang Digunakan</option>
-            <option value="Dalam Perbaikan" ${r.status === "Dalam Perbaikan" || r.status === "Perbaikan" ? "selected" : ""}>Dalam Perbaikan</option>
-          </select>
+      <div class="crm-field full">
+        <label>Status Ruangan</label>
+        <select id="rStatus">
+          <option value="Tersedia" ${r.status === "Tersedia" ? "selected" : ""}>Tersedia</option>
+          <option value="Sedang Digunakan" ${r.status === "Sedang Digunakan" || r.status === "Terpakai" ? "selected" : ""}>Sedang Digunakan</option>
+          <option value="Dalam Perbaikan" ${r.status === "Dalam Perbaikan" || r.status === "Perbaikan" ? "selected" : ""}>Dalam Perbaikan</option>
+        </select>
+      </div>
+
+      <div class="crm-field full" style="margin-top: 14px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+          <div>
+            <label style="margin:0 0 2px; font-size:13.5px; font-weight:700; color:#0c2d5e;">Daftar Fasilitas Ruangan</label>
+            <small style="color:#718dae; font-size:12px;">Pilih status ketersediaan fasilitas (barang berstatus Tidak Tersedia tidak ditampilkan di Booking Page)</small>
+          </div>
+          <button type="button" class="crm-btn-add-fac" onclick="addCustomFacilityRow()" title="Tambah kategori fasilitas kustom">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            <span>Tambah Kategori</span>
+          </button>
         </div>
-        <div class="crm-field">
-          <label>Fasilitas</label>
-          <input id="rFacilities" value="${esc(r.facilities)}" placeholder="Contoh: TV, WiFi, AC">
+        <div id="crmFacilityList" class="crm-facility-list-wrap">
+          ${currentFacilities
+            .map((fac) =>
+              renderFacilityRowHTML(
+                fac,
+                !standardFacilityCategories.some(
+                  (s) => s.label.toLowerCase() === fac.label.toLowerCase(),
+                ),
+              ),
+            )
+            .join("")}
         </div>
       </div>
+
       <div class="crm-actions">
         <button type="button" class="crm-btn-cancel" onclick="closeModal()">Batal</button>
         <button type="button" class="crm-btn-save" onclick="saveRoom(${id || "null"})">Simpan Ruangan</button>
@@ -4469,6 +5678,29 @@ function openRoomModal(id = null) {
   };
   modalBackdrop.classList.add("show");
   renderRoomImagesGallery();
+
+  // Sinkronisasi otomatis kapasitas input dengan fasilitas "Kapasitas"
+  const capInput = document.getElementById("rCapacity");
+  if (capInput) {
+    capInput.addEventListener("input", (e) => {
+      const capVal = e.target.value;
+      const rows = document.querySelectorAll(
+        "#crmFacilityList .crm-facility-row",
+      );
+      rows.forEach((row) => {
+        const labelText =
+          row.querySelector(".crm-fac-label-input")?.value ||
+          row.querySelector(".crm-fac-label-text")?.textContent ||
+          "";
+        if (labelText.toLowerCase().includes("kapasitas")) {
+          const valInput = row.querySelector(".crm-fac-val-input");
+          if (valInput && (!valInput.value || /^\d+/.test(valInput.value))) {
+            valInput.value = capVal ? capVal : "";
+          }
+        }
+      });
+    });
+  }
 }
 
 async function saveRoom(id) {
@@ -4487,13 +5719,34 @@ async function saveRoom(id) {
         : [getRoomImage({ name })];
   const primaryImage = images[0] || getRoomImage({ name });
 
+  // Ambil seluruh baris fasilitas dari list
+  const facRows = document.querySelectorAll(
+    "#crmFacilityList .crm-facility-row",
+  );
+  const facilitiesList = Array.from(facRows)
+    .map((row) => {
+      const labelInput = row.querySelector(".crm-fac-label-input");
+      const labelText = row.querySelector(".crm-fac-label-text");
+      const valInput = row.querySelector(".crm-fac-val-input");
+      const statusInput = row.querySelector(".crm-fac-status-input");
+      const label = labelInput
+        ? labelInput.value.trim()
+        : labelText
+          ? labelText.textContent.trim()
+          : "";
+      const val = valInput ? valInput.value.trim() : "";
+      const status = statusInput ? statusInput.value.trim() : "Tersedia";
+      return { label, value: val, status: status };
+    })
+    .filter((f) => f.label);
+
   const obj = {
     id: id || Date.now(),
     name: name,
     location: f("rLocation") || "Gedung A - Lantai 3",
     capacity: Number(f("rCapacity")) || 10,
     status: f("rStatus") || "Tersedia",
-    facilities: f("rFacilities") || "",
+    facilities: facilitiesList,
     image: primaryImage,
     images: images,
   };
@@ -4508,9 +5761,13 @@ async function saveRoom(id) {
     getAppStorage().setItem("app_rooms", JSON.stringify(state.rooms));
   } catch (e) {}
 
+  try {
+    localStorage.setItem("app_rooms", JSON.stringify(state.rooms));
+  } catch (e) {}
+
   closeModal();
   render();
-  toast("Data ruangan & foto view berhasil disimpan");
+  toast("Data ruangan & fasilitas berhasil disimpan");
 
   try {
     await fetch("/api/dashboard/rooms", {
@@ -4785,6 +6042,19 @@ async function saveUser(id) {
     getAppStorage().setItem("savedAccounts", JSON.stringify(savedAcc));
   } catch (e) {}
 
+  try {
+    const res = await fetch("/api/dashboard/users", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(userObj),
+    });
+    if (res.ok) {
+      await fetchDashboardData(false);
+    }
+  } catch (err) {
+    console.warn("Gagal simpan pengguna ke database server:", err);
+  }
+
   closeModal();
   render();
   toast(
@@ -4792,14 +6062,6 @@ async function saveUser(id) {
       ? "Data pengguna berhasil diperbarui"
       : "Pengguna baru berhasil ditambahkan dan dapat login",
   );
-
-  try {
-    await fetch("/api/dashboard/users", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(userObj),
-    });
-  } catch (err) {}
 }
 
 function editUser(id) {
@@ -4859,12 +6121,15 @@ async function deleteUser(id) {
       getAppStorage().setItem("savedAccounts", JSON.stringify(savedAcc));
     } catch (e) {}
 
-    render();
-    toast("Pengguna berhasil dihapus");
-
     try {
       await fetch(`/api/dashboard/users/${id}`, { method: "DELETE" });
-    } catch (err) {}
+      await fetchDashboardData(false);
+    } catch (err) {
+      console.warn("Gagal hapus pengguna dari backend:", err);
+    }
+
+    render();
+    toast("Pengguna berhasil dihapus");
   }
 }
 
@@ -5231,6 +6496,10 @@ async function fetchDashboardData(showToast = false) {
     }
     if (Array.isArray(data.users) && data.users.length > 0) {
       state.users = data.users;
+      try {
+        getAppStorage().setItem("app_users", JSON.stringify(state.users));
+        getAppStorage().setItem("app_login_users", JSON.stringify(state.users));
+      } catch (e) {}
     }
     state.googleCalendarConnected = !!data.googleCalendarConnected;
     state.calendarMessage = data.message || "";

@@ -2070,3 +2070,247 @@
     height: 38px;
   }
 }
+
+/* ── ULASAN & BALASAN RUANGAN STYLES ── */
+.bk-room-btns-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 5px;
+  flex-wrap: wrap;
+}
+
+.bk-btn-review {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #fffbeb;
+  color: #b45309;
+  border: 1px solid #fde68a;
+  border-radius: 16px;
+  padding: 3px 11px;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: "Poppins", sans-serif;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(245, 158, 11, 0.12);
+}
+
+.bk-btn-review:hover {
+  background: #fef3c7;
+  color: #92400e;
+  border-color: #fcd34d;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(245, 158, 11, 0.2);
+}
+
+.bk-btn-review-icon {
+  color: #f59e0b;
+  font-size: 11px;
+}
+
+.bk-review-modal-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  width: 100%;
+  max-width: 520px;
+  max-height: 85vh;
+  padding: 28px 28px 24px;
+  box-shadow: 0 25px 60px rgba(12, 45, 94, 0.25);
+  position: relative;
+  font-family: "Poppins", sans-serif;
+  animation: bkPopIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+}
+
+.bk-review-modal-header {
+  margin-bottom: 18px;
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 14px;
+}
+
+.bk-review-modal-tag {
+  font-size: 11px;
+  font-weight: 700;
+  color: #d97706;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.bk-review-modal-title {
+  font-size: 18px;
+  font-weight: 800;
+  color: #0c2d5e;
+  margin: 0 0 4px;
+}
+
+.bk-review-modal-desc {
+  font-size: 12.5px;
+  color: #64748b;
+  margin: 0;
+}
+
+.bk-review-modal-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overflow-y: auto;
+  max-height: calc(85vh - 120px);
+  padding-right: 4px;
+}
+
+.bk-review-item-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 16px;
+  transition: all 0.2s ease;
+}
+
+.bk-review-item-card:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 12px rgba(12, 45, 94, 0.04);
+}
+
+.bk-review-item-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.bk-review-item-user strong {
+  font-size: 13.5px;
+  color: #0c2d5e;
+}
+
+.bk-review-item-agenda {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.bk-review-item-stars {
+  display: flex;
+  align-items: center;
+}
+
+.bk-review-item-score {
+  font-size: 12px;
+  font-weight: 700;
+  color: #b45309;
+  margin-left: 5px;
+}
+
+.bk-review-item-comment {
+  font-size: 13px;
+  line-height: 1.6;
+  color: #334155;
+  margin: 0 0 10px;
+  font-style: italic;
+}
+
+.bk-review-item-tags {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.bk-review-tag {
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 12px;
+  border: 1px solid #dbeafe;
+}
+
+/* Balasan Admin di Booking Page */
+.bk-review-admin-reply {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-left: 4px solid #16a34a;
+  border-radius: 0 10px 10px 0;
+  padding: 12px 14px;
+  margin-top: 10px;
+}
+
+.bk-admin-reply-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.bk-admin-reply-label {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #15803d;
+}
+
+.bk-admin-reply-sender {
+  font-size: 11px;
+  color: #166534;
+  font-weight: 600;
+}
+
+.bk-admin-reply-body {
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: #14532d;
+  margin: 0;
+}
+
+.bk-review-admin-reply-pending {
+  font-size: 11.5px;
+  color: #94a3b8;
+  font-style: italic;
+  margin-top: 6px;
+  padding: 4px 8px;
+  background: #f1f5f9;
+  border-radius: 6px;
+  display: inline-block;
+}
+
+.bk-review-empty {
+  text-align: center;
+  padding: 36px 16px;
+  color: #64748b;
+}
+
+.bk-review-empty-icon {
+  font-size: 32px;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.bk-review-empty strong {
+  display: block;
+  font-size: 14px;
+  color: #0c2d5e;
+  margin-bottom: 4px;
+}
+
+.bk-review-empty p {
+  font-size: 12.5px;
+  margin: 0;
+  max-width: 320px;
+  margin: 0 auto;
+}
+
+@media (max-width: 600px) {
+  .bk-review-modal-card {
+    padding: 20px 16px;
+    max-width: 95vw;
+  }
+}

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "./LoginPage.css";
 import logoKemnaker from "../assets/Logo Kemenaker White.png";
@@ -28,7 +28,55 @@ export default function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+
+  // Sinkronkan seluruh data akun dari backend database saat halaman login dibuka
+  useEffect(() => {
+    const syncUsersFromBackend = async () => {
+      try {
+        const res = await fetch("/api/dashboard/users");
+        if (res.ok) {
+          const remoteUsers = await res.json();
+          if (Array.isArray(remoteUsers) && remoteUsers.length > 0) {
+            let localLogin = [];
+            try {
+              localLogin = JSON.parse(
+                localStorage.getItem("app_login_users") || "[]",
+              );
+            } catch (e) {}
+
+            const map = new Map();
+            dummyDB.forEach((u) => map.set(u.username.toLowerCase(), u));
+            localLogin.forEach((u) => {
+              if (u && u.username) {
+                map.set(u.username.toLowerCase(), {
+                  ...map.get(u.username.toLowerCase()),
+                  ...u,
+                });
+              }
+            });
+            remoteUsers.forEach((u) => {
+              if (u && u.username) {
+                map.set(u.username.toLowerCase(), {
+                  ...map.get(u.username.toLowerCase()),
+                  ...u,
+                });
+              }
+            });
+
+            const merged = Array.from(map.values());
+            localStorage.setItem("app_login_users", JSON.stringify(merged));
+            localStorage.setItem("app_users", JSON.stringify(merged));
+          }
+        }
+      } catch (err) {
+        console.warn("Sinkronisasi akun login dari backend:", err.message);
+      }
+    };
+
+    syncUsersFromBackend();
+  }, []);
 
   const getLoginAccounts = () => {
     let stored = [];
@@ -50,30 +98,75 @@ export default function LoginPage() {
     return Array.from(map.values());
   };
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    const accounts = getLoginAccounts();
-    const user = accounts.find(
-      (u) =>
-        (u.username || "").toLowerCase() === username.trim().toLowerCase() &&
-        u.password === password,
-    );
-    if (user) {
-      if (user.status === "Nonaktif") {
-        alert("Akun ini sedang dinonaktifkan. Silakan hubungi Admin Utama.");
+    const trimmedUsername = username.trim();
+    if (!trimmedUsername || !password) {
+      alert("Harap masukkan username dan password!");
+      return;
+    }
+
+    setIsLoading(true);
+    let authenticatedUser = null;
+
+    // 1. Prioritaskan otentikasi langsung ke server database backend
+    try {
+      const res = await fetch("/api/dashboard/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: trimmedUsername, password }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success && data.user) {
+        authenticatedUser = data.user;
+      } else if (res.status === 401 || (data && data.message)) {
+        setIsLoading(false);
+        alert(data.message || "Username atau password salah!");
         return;
       }
+    } catch (err) {
+      console.warn("Backend login offline, mencoba cache lokal:", err.message);
+    }
+
+    // 2. Fallback ke database cache lokal jika koneksi ke backend gagal
+    if (!authenticatedUser) {
+      const accounts = getLoginAccounts();
+      const localMatch = accounts.find(
+        (u) =>
+          (u.username || "").toLowerCase() === trimmedUsername.toLowerCase() &&
+          u.password === password,
+      );
+      if (localMatch) {
+        if (localMatch.status === "Nonaktif") {
+          setIsLoading(false);
+          alert("Akun ini sedang dinonaktifkan. Silakan hubungi Admin Utama.");
+          return;
+        }
+        authenticatedUser = {
+          username: localMatch.username,
+          name: localMatch.name,
+          role: localMatch.role,
+          email: localMatch.email || "",
+          dept: localMatch.dept || "",
+          status: localMatch.status || "Aktif",
+        };
+      }
+    }
+
+    setIsLoading(false);
+
+    if (authenticatedUser) {
       const userData = {
-        username: user.username,
-        name: user.name,
-        role: user.role,
-        email: user.email || "",
-        dept: user.dept || "",
+        username: authenticatedUser.username,
+        name: authenticatedUser.name,
+        role: authenticatedUser.role,
+        email: authenticatedUser.email || "",
+        dept: authenticatedUser.dept || "",
       };
       localStorage.setItem("isAuthenticated", "true");
       localStorage.setItem("currentUser", JSON.stringify(userData));
 
-      // Sinkronkan savedAccounts: jika bukan tambah akun lain, hanya simpan akun yang login saat ini
+      // Sinkronkan savedAccounts: jika bukan tambah akun lain, simpan akun yang login saat ini
       const isAdding = sessionStorage.getItem("isAddingAccount") === "true";
       sessionStorage.removeItem("isAddingAccount");
 
@@ -96,7 +189,8 @@ export default function LoginPage() {
         });
 
       const existingIdx = saved.findIndex(
-        (u) => (u.username || "").toLowerCase() === user.username.toLowerCase(),
+        (u) =>
+          (u.username || "").toLowerCase() === userData.username.toLowerCase(),
       );
       if (existingIdx >= 0) {
         saved[existingIdx] = userData;

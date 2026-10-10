@@ -89,6 +89,31 @@ router.post("/rooms", (req, res) => {
   }
 });
 
+// Ambil seluruh daftar pengguna
+router.get("/users", (req, res) => {
+  try {
+    const users = dashboardService.getUsers();
+    res.json(users);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Otentikasi login pengguna
+router.post("/login", (req, res) => {
+  try {
+    const { username, password } = req.body;
+    const result = dashboardService.authenticateUser(username, password);
+    if (result.success) {
+      res.json(result);
+    } else {
+      res.status(401).json(result);
+    }
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // Simpan / update pengguna
 router.post("/users", (req, res) => {
   try {

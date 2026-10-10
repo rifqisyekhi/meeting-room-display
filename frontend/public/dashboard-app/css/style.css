@@ -682,7 +682,19 @@ button {
 }
 
 /* ─── CUSTOM ROOM & USER MODAL ───────────────── */
-.custom-room-modal,
+.custom-room-modal {
+  width: min(650px, 94vw);
+  max-height: 90vh;
+  overflow-y: auto;
+  background: #ffffff !important;
+  border-radius: 20px;
+  padding: 32px 36px 36px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.28);
+  font-family: 'Poppins', sans-serif;
+  box-sizing: border-box;
+  position: relative;
+  z-index: 10000;
+}
 .custom-user-modal {
   width: min(540px, 94vw);
   max-height: 90vh;
@@ -695,6 +707,177 @@ button {
   box-sizing: border-box;
   position: relative;
   z-index: 10000;
+}
+.crm-btn-add-fac {
+  background: #eaf2fb;
+  color: #1769aa;
+  border: 1px solid #cce0f5;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+  font-family: 'Poppins', sans-serif;
+}
+.crm-btn-add-fac:hover {
+  background: #d8e8f8;
+  border-color: #b9daf7;
+}
+.crm-facility-list-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: #f8fafc;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 12px;
+  max-height: 330px;
+  overflow-y: auto;
+}
+.crm-facility-row {
+  display: grid;
+  grid-template-columns: 145px 1fr;
+  gap: 12px;
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid #eef2f6;
+  border-radius: 10px;
+  padding: 8px 12px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.crm-facility-row:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 2px 6px rgba(12, 45, 94, 0.04);
+}
+.crm-fac-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.crm-fac-icon-box {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: #eef6fc;
+  color: #1769aa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.crm-fac-label-box {
+  min-width: 0;
+  flex: 1;
+}
+.crm-fac-label-text {
+  font-size: 13px;
+  font-weight: 700;
+  color: #0c2d5e;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+}
+.crm-fac-label-input {
+  width: 100%;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #0c2d5e;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  outline: none;
+  box-sizing: border-box;
+  font-family: 'Poppins', sans-serif;
+}
+.crm-fac-label-input:focus {
+  border-color: #1769aa;
+  background: #ffffff;
+}
+.crm-fac-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.crm-fac-val-input {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 12px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #0c2d5e;
+  background: #f8fafc;
+  border: 1px solid #d9e2ec;
+  border-radius: 8px;
+  outline: none;
+  box-sizing: border-box;
+  font-family: 'Poppins', sans-serif;
+  transition: all 0.15s ease;
+}
+.crm-fac-val-input:focus {
+  border-color: #1769aa;
+  background: #ffffff;
+}
+.crm-fac-pills {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.crm-fac-pill {
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #475569;
+  cursor: pointer;
+  white-space: nowrap;
+  font-family: 'Poppins', sans-serif;
+  transition: all 0.15s ease;
+}
+.crm-fac-pill:hover {
+  background: #f1f5f9;
+}
+.crm-fac-pill.active {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+  color: #059669;
+  font-weight: 700;
+}
+.crm-fac-pill.danger.active {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #dc2626;
+  font-weight: 700;
+}
+.crm-fac-remove-btn {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: color 0.15s;
+  flex-shrink: 0;
+}
+.crm-fac-remove-btn:hover {
+  color: #ef4444;
+}
+@media (max-width: 600px) {
+  .crm-facility-row {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
 }
 
 .custom-room-modal h2,
@@ -1647,6 +1830,86 @@ button {
   padding-bottom: 14px;
   border-bottom: 1px solid #eef3f9;
 }
+.dash-notif-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #eef3f9;
+}
+.dash-notif-header-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.dash-notif-header-title h2 {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0c2d5e;
+  margin: 0;
+  white-space: nowrap;
+  letter-spacing: -0.2px;
+}
+.dash-notif-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.notif-pending-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  height: 28px;
+  box-sizing: border-box;
+  background: #fff7ed;
+  color: #c2410c;
+  border: 1px solid #fed7aa;
+  border-radius: 14px;
+  font-size: 11.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  line-height: 1;
+}
+.notif-pending-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ea580c;
+  display: inline-block;
+  flex-shrink: 0;
+}
+.notif-mark-read-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 11px;
+  height: 28px;
+  box-sizing: border-box;
+  background: #f0f7ff;
+  color: #1769aa;
+  border: 1px solid #d0e4f7;
+  border-radius: 7px;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  line-height: 1;
+  transition: all 0.15s ease;
+}
+.notif-mark-read-btn:hover {
+  background: #e0f0fe;
+  border-color: #b9daf7;
+  color: #0c2d5e;
+}
+.notif-mark-read-btn svg {
+  flex-shrink: 0;
+}
 .dash-bottom-grid {
   display: grid;
   grid-template-columns: 1.65fr 1fr;
@@ -1696,7 +1959,7 @@ button {
 /* Layout Template Khusus Approval & Non-Admin (Sesuai Sketsa) */
 .dash-approval-layout {
   display: grid;
-  grid-template-columns: 1.7fr 1fr;
+  grid-template-columns: 1.38fr 1fr;
   gap: 20px;
   padding: 0 40px 40px;
   align-items: stretch;
