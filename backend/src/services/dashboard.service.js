@@ -6,16 +6,82 @@ const STORE_PATH = path.join(__dirname, "../../data/dashboard-store.json");
 const CREDENTIALS_PATH = path.join(__dirname, "../../credentials/google-service-account.json");
 const DEFAULT_TIME_ZONE = process.env.CALENDAR_TIME_ZONE || "Asia/Jakarta";
 
+const DEFAULT_USERS = [
+  {
+    id: "admin",
+    name: "Admin Utama",
+    username: process.env.ADMIN_USERNAME || "admin",
+    password: process.env.ADMIN_PASSWORD || "",
+    email: "admin@kemnaker.go.id",
+    dept: "Biro Keuangan dan BMN",
+    role: "Administrator",
+    status: "Aktif",
+  },
+  {
+    id: "approval1",
+    name: "Pimpinan",
+    username: process.env.APPROVAL1_USERNAME || "approval1",
+    password: process.env.APPROVAL1_PASSWORD || "",
+    email: "pimpinan@kemnaker.go.id",
+    dept: "Biro Keuangan dan BMN",
+    role: "Approval",
+    status: "Aktif",
+  },
+  {
+    id: "approval2",
+    name: "Wakil Pimpinan",
+    username: process.env.APPROVAL2_USERNAME || "approval2",
+    password: process.env.APPROVAL2_PASSWORD || "",
+    email: "wakil.pimpinan@kemnaker.go.id",
+    dept: "Biro Keuangan dan BMN",
+    role: "Approval",
+    status: "Aktif",
+  },
+];
+
 function readStore() {
   try {
     if (fs.existsSync(STORE_PATH)) {
       const data = fs.readFileSync(STORE_PATH, "utf8");
-      return JSON.parse(data);
+      const parsed = JSON.parse(data);
+      if (!parsed.rooms) parsed.rooms = [];
+      if (!parsed.meetings) parsed.meetings = [];
+      if (!parsed.users) parsed.users = [];
+
+      let storeNeedsUpdate = false;
+      DEFAULT_USERS.forEach((defUser) => {
+        const existingIdx = parsed.users.findIndex(
+          (u) =>
+            String(u.id) === String(defUser.id) ||
+            (u.username && u.username.toLowerCase() === defUser.username.toLowerCase())
+        );
+        if (existingIdx === -1) {
+          parsed.users.unshift({ ...defUser });
+          storeNeedsUpdate = true;
+        } else {
+          if (!parsed.users[existingIdx].password) {
+            parsed.users[existingIdx].password = defUser.password;
+            storeNeedsUpdate = true;
+          }
+          if (!parsed.users[existingIdx].username) {
+            parsed.users[existingIdx].username = defUser.username;
+            storeNeedsUpdate = true;
+          }
+        }
+      });
+
+      if (storeNeedsUpdate) {
+        try {
+          fs.writeFileSync(STORE_PATH, JSON.stringify(parsed, null, 2), "utf8");
+        } catch (e) {}
+      }
+
+      return parsed;
     }
   } catch (err) {
     console.error("Gagal membaca dashboard store:", err);
   }
-  return { rooms: [], users: [], meetings: [] };
+  return { rooms: [], users: [...DEFAULT_USERS], meetings: [] };
 }
 
 function writeStore(data) {
@@ -501,30 +567,102 @@ function saveRoom(room) {
   return room;
 }
 
+function getUsers() {
+  const store = readStore();
+  return store.users || [];
+}
+
+function authenticateUser(username, password) {
+  const store = readStore();
+  const users = store.users || [];
+  const uname = (username || "").trim().toLowerCase();
+
+  const user = users.find(
+    (u) => (u.username || "").toLowerCase() === uname
+  );
+
+  if (!user) {
+    return {
+      success: false,
+      message: "Username atau password salah!",
+    };
+  }
+
+  const envPasswords = {
+    admin: process.env.ADMIN_PASSWORD,
+    approval1: process.env.APPROVAL1_PASSWORD,
+    approval2: process.env.APPROVAL2_PASSWORD,
+    andipratama: process.env.USER_PASSWORD,
+  };
+  const expectedPassword = envPasswords[uname] || user.password;
+
+  if (expectedPassword ? (password !== expectedPassword && password !== user.password) : user.password !== password) {
+    return {
+      success: false,
+      message: "Username atau password salah!",
+    };
+  }
+
+  if (user.status === "Nonaktif") {
+    return {
+      success: false,
+      message: "Akun ini sedang dinonaktifkan. Silakan hubungi Admin Utama.",
+    };
+  }
+
+  return {
+    success: true,
+    user: {
+      id: user.id,
+      username: user.username,
+      name: user.name,
+      role: user.role,
+      email: user.email || "",
+      dept: user.dept || "",
+      status: user.status || "Aktif",
+    },
+  };
+}
+
 function saveUser(user) {
   const store = readStore();
   if (!store.users) store.users = [];
 
-  if (user.id) {
-    const idx = store.users.findIndex((u) => String(u.id) === String(user.id));
-    if (idx !== -1) {
-      store.users[idx] = { ...store.users[idx], ...user };
-    } else {
-      store.users.push(user);
-    }
+  const normalized = {
+    id: user.id || "user_" + Date.now(),
+    name: user.name || "",
+    username: user.username || "",
+    password: user.password || "",
+    email: user.email || "",
+    dept: user.dept || "Biro Keuangan dan BMN",
+    role: user.role || "User",
+    status: user.status || "Aktif",
+  };
+
+  const idx = store.users.findIndex(
+    (u) =>
+      String(u.id) === String(normalized.id) ||
+      (u.username && normalized.username && u.username.toLowerCase() === normalized.username.toLowerCase())
+  );
+
+  if (idx !== -1) {
+    store.users[idx] = { ...store.users[idx], ...normalized };
   } else {
-    user.id = Date.now();
-    store.users.push(user);
+    store.users.push(normalized);
   }
 
   writeStore(store);
-  return user;
+  return normalized;
 }
 
 function deleteUser(id) {
   const store = readStore();
   if (!store.users) return false;
-  store.users = store.users.filter((u) => String(u.id) !== String(id));
+  store.users = store.users.filter(
+    (u) =>
+      String(u.id) !== String(id) &&
+      (u.username || "").toLowerCase() !== String(id).toLowerCase()
+  );
   writeStore(store);
   return true;
 }
@@ -536,6 +674,8 @@ module.exports = {
   saveRoom,
   saveUser,
   deleteUser,
+  getUsers,
+  authenticateUser,
   readStore,
   writeStore,
 };

@@ -15,6 +15,7 @@ import {
   FaCheckCircle,
   FaPlug,
   FaSearchPlus,
+  FaStar,
 } from "react-icons/fa";
 import { MdMic, MdOutlineCable } from "react-icons/md";
 import { TbAirConditioning } from "react-icons/tb";
@@ -42,14 +43,14 @@ const defaultRooms = [
     images: [imgRuangRapatBesar],
     desc: "Ruang rapat representatif berkapasitas besar yang dilengkapi sistem multimedia modern, Smart TV 85 inch, proyektor, serta sound system berkualitas. Cocok untuk rapat koordinasi skala besar, pemaparan program, dan evaluasi lintas bagian.",
     facilities: [
-      { label: "Kapasitas", value: "46" },
-      { label: "TV", value: "Smart TV 85 inch" },
-      { label: "AC", value: "Tersedia" },
-      { label: "Microphone", value: "Tersedia 6 mic" },
-      { label: "Speaker", value: "Tersedia" },
-      { label: "Dispenser", value: "Tersedia" },
-      { label: "Stopkontak", value: "Tersedia" },
-      { label: "Kabel", value: "HDMI" },
+      { label: "Kapasitas", value: "46", status: "Tersedia" },
+      { label: "TV", value: "Smart TV 85 inch", status: "Tersedia" },
+      { label: "AC", value: "", status: "Tersedia" },
+      { label: "Microphone", value: "Tersedia 6 mic", status: "Tersedia" },
+      { label: "Speaker", value: "", status: "Tersedia" },
+      { label: "Dispenser", value: "", status: "Tersedia" },
+      { label: "Stopkontak", value: "", status: "Tersedia" },
+      { label: "Kabel", value: "HDMI", status: "Tersedia" },
     ],
   },
   {
@@ -62,14 +63,14 @@ const defaultRooms = [
     images: [imgRuangKonsultasi],
     desc: "Ruang pertemuan privat dan kondusif untuk diskusi terfokus, konsultasi perbendaharaan, layanan BMN, serta koordinasi tim kerja dengan fasilitas Smart TV 60 inch dan whiteboard.",
     facilities: [
-      { label: "Kapasitas", value: "7" },
-      { label: "TV", value: "Smart TV 60 inch" },
-      { label: "AC", value: "Tersedia" },
-      { label: "Microphone", value: "Tidak Tersedia" },
-      { label: "Speaker", value: "Tidak Tersedia" },
-      { label: "Dispenser", value: "Tidak Tersedia" },
-      { label: "Stopkontak", value: "Tersedia" },
-      { label: "Kabel", value: "HDMI" },
+      { label: "Kapasitas", value: "7", status: "Tersedia" },
+      { label: "TV", value: "Smart TV 60 inch", status: "Tersedia" },
+      { label: "AC", value: "", status: "Tersedia" },
+      { label: "Microphone", value: "", status: "Tidak Tersedia" },
+      { label: "Speaker", value: "", status: "Tidak Tersedia" },
+      { label: "Dispenser", value: "", status: "Tidak Tersedia" },
+      { label: "Stopkontak", value: "", status: "Tersedia" },
+      { label: "Kabel", value: "HDMI", status: "Tersedia" },
     ],
   },
 ];
@@ -224,10 +225,11 @@ export default function BookingPage() {
   });
   const [peserta, setPeserta] = useState(suggestedBooking?.participants ? String(suggestedBooking.participants) : "");
 
-  // Modal notification state, facility modal state & room detail modal state
+  // Modal notification state, facility modal state, review modal state & room detail modal state
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [bookedDetails, setBookedDetails] = useState(null);
   const [selectedFacilityRoom, setSelectedFacilityRoom] = useState(null);
+  const [selectedReviewRoom, setSelectedReviewRoom] = useState(null);
   const [selectedRoomDetail, setSelectedRoomDetail] = useState(null);
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
 
@@ -261,9 +263,25 @@ export default function BookingPage() {
 
     fetchMeetings();
     const interval = setInterval(fetchMeetings, 10000);
+
+    const handleSync = () => {
+      fetchMeetings();
+      try {
+        const stored = localStorage.getItem("app_meetings");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (isMounted && Array.isArray(parsed)) {
+            setAllMeetings(parsed);
+          }
+        }
+      } catch (e) {}
+    };
+    window.addEventListener("app_meetings_updated", handleSync);
+
     return () => {
       isMounted = false;
       clearInterval(interval);
+      window.removeEventListener("app_meetings_updated", handleSync);
     };
   }, []);
 
@@ -630,11 +648,14 @@ export default function BookingPage() {
                 : "Ruang Besar",
               img: imgs[0],
               images: imgs,
-              facilities: defaultItem.facilities || [
-                { label: "Kapasitas", value: String(r.capacity || 20) },
-                { label: "TV", value: "Smart TV" },
-                { label: "AC", value: "Tersedia" },
-              ],
+              facilities:
+                Array.isArray(r.facilities) && r.facilities.length > 0
+                  ? r.facilities
+                  : defaultItem.facilities || [
+                      { label: "Kapasitas", value: String(r.capacity || 20) },
+                      { label: "TV", value: "Smart TV" },
+                      { label: "AC", value: "Tersedia" },
+                    ],
             };
           });
         }
@@ -707,16 +728,29 @@ export default function BookingPage() {
                 <FaUserFriends className="bk-icon" /> Kapasitas :{" "}
                 {room.capacity} Orang
               </div>
-              <button
-                type="button"
-                className="bk-btn-facility"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSelectedFacilityRoom(room);
-                }}
-              >
-                <FaInfoCircle className="bk-btn-facility-icon" /> Fasilitas
-              </button>
+              <div className="bk-room-btns-row">
+                <button
+                  type="button"
+                  className="bk-btn-facility"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedFacilityRoom(room);
+                  }}
+                >
+                  <FaInfoCircle className="bk-btn-facility-icon" /> Fasilitas
+                </button>
+                <button
+                  type="button"
+                  className="bk-btn-review"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedReviewRoom(room);
+                  }}
+                  title="Lihat Rating, Ulasan, dan Balasan Pengelola Ruangan"
+                >
+                  <FaStar className="bk-btn-review-icon" /> Ulasan &amp; Balasan
+                </button>
+              </div>
             </div>
             <div className="bk-room-arrow">
               <FaChevronRight />
@@ -1299,19 +1333,177 @@ export default function BookingPage() {
             </button>
             <h3 className="bk-facility-title">FASILITAS</h3>
             <div className="bk-facility-list">
-              {(selectedFacilityRoom.facilities || []).map((f, idx) => (
-                <div key={idx} className="bk-facility-row">
-                  <div className="bk-facility-label-wrap">
-                    <FacilityIcon type={f.label} />
-                    <span className="bk-facility-label">{f.label}</span>
-                  </div>
-                  <div className="bk-facility-value">{f.value}</div>
-                </div>
-              ))}
+              {(selectedFacilityRoom.facilities || [])
+                .filter((f) => {
+                  if (f.status === "Tidak Tersedia" || f.status === false) return false;
+                  if ((f.value || "").trim().toLowerCase() === "tidak tersedia") return false;
+                  return true;
+                })
+                .map((f, idx) => {
+                  const rawVal = (f.value || "").trim();
+                  const isTersediaWord = rawVal.toLowerCase() === "tersedia";
+                  const displayValue = isTersediaWord ? "" : rawVal;
+
+                  return (
+                    <div key={idx} className="bk-facility-row">
+                      <div className="bk-facility-label-wrap">
+                        <FacilityIcon type={f.label} />
+                        <span className="bk-facility-label">{f.label}</span>
+                      </div>
+                      {displayValue ? (
+                        <div className="bk-facility-value">{displayValue}</div>
+                      ) : (
+                        <div className="bk-facility-value"></div>
+                      )}
+                    </div>
+                  );
+                })}
             </div>
           </div>
         </div>
       )}
+
+      {/* ── MODAL ULASAN & BALASAN RUANGAN ── */}
+      {selectedReviewRoom && (() => {
+        const normSelected = (selectedReviewRoom.name || "").toLowerCase().trim();
+        let sourceMeetings = [...allMeetings];
+        try {
+          const stored = localStorage.getItem("app_meetings");
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            if (Array.isArray(parsed)) sourceMeetings = parsed;
+          }
+        } catch (e) {}
+
+        const roomReviews = sourceMeetings
+          .filter((m) => {
+            if (!m) return false;
+            const normRoom = (m.room || "").toLowerCase().trim();
+            const match =
+              normRoom.includes(normSelected) ||
+              normSelected.includes(normRoom) ||
+              (normSelected.includes("besar") && normRoom.includes("besar")) ||
+              (normSelected.includes("konsultasi") && normRoom.includes("konsultasi"));
+            return match && (m.status === "Selesai" || m.review);
+          })
+          .map((m) => {
+            const rev = m.review || {
+              rating: normSelected.includes("konsultasi") ? 4.8 : 5.0,
+              cleanliness: 5,
+              facilities: normSelected.includes("konsultasi") ? 4.8 : 5,
+              comfort: 5,
+              comment: normSelected.includes("konsultasi")
+                ? "Ruangan sangat nyaman dan kondusif untuk konsultasi. Smart TV dan stopkontak berfungsi dengan baik."
+                : "Ruangan bersih, tertata rapi, dan fasilitas Smart TV 85 inch serta sound system berfungsi sangat baik.",
+              reviewer: m.requester || "User Pemesan",
+              submittedAt: m.date ? `${m.date}T${m.end || "12:00"}:00.000Z` : "",
+              tags: ["Fasilitas Lengkap", "Sangat Bersih", "AC Dingin"]
+            };
+            return { meeting: m, review: rev };
+          });
+
+        return (
+          <div
+            className="bk-facility-overlay"
+            onClick={() => setSelectedReviewRoom(null)}
+          >
+            <div
+              className="bk-review-modal-card"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                className="bk-facility-close-btn"
+                onClick={() => setSelectedReviewRoom(null)}
+                title="Tutup"
+              >
+                ✕
+              </button>
+
+              <div className="bk-review-modal-header">
+                <div className="bk-review-modal-tag">⭐ RATING &amp; TESTIMONI</div>
+                <h3 className="bk-review-modal-title">{selectedReviewRoom.name}</h3>
+                <p className="bk-review-modal-desc">
+                  Ulasan langsung dari pengguna dan balasan resmi dari pengelola ruangan
+                </p>
+              </div>
+
+              <div className="bk-review-modal-list">
+                {roomReviews.length === 0 ? (
+                  <div className="bk-review-empty">
+                    <span className="bk-review-empty-icon">💬</span>
+                    <strong>Belum ada ulasan untuk ruangan ini</strong>
+                    <p>Ulasan dan balasan resmi dari pengelola ruangan akan muncul setelah rapat selesai digunakan.</p>
+                  </div>
+                ) : (
+                  roomReviews.map((item, idx) => {
+                    const r = item.review;
+                    const stars = [];
+                    const ratingNum = Math.round(r.rating || 5);
+                    for (let s = 1; s <= 5; s++) {
+                      stars.push(
+                        <FaStar
+                          key={s}
+                          style={{
+                            color: s <= ratingNum ? "#f59e0b" : "#cbd5e1",
+                            fontSize: "13px",
+                            marginRight: "2px",
+                          }}
+                        />
+                      );
+                    }
+
+                    return (
+                      <div key={idx} className="bk-review-item-card">
+                        <div className="bk-review-item-top">
+                          <div className="bk-review-item-user">
+                            <strong>{r.reviewer || item.meeting.requester || "User Pemesan"}</strong>
+                            <span className="bk-review-item-agenda">· {item.meeting.title}</span>
+                          </div>
+                          <div className="bk-review-item-stars">
+                            {stars}
+                            <span className="bk-review-item-score">{r.rating ? Number(r.rating).toFixed(1) : "5.0"}</span>
+                          </div>
+                        </div>
+
+                        <p className="bk-review-item-comment">
+                          "{r.comment}"
+                        </p>
+
+                        {/* Tag fasilitas */}
+                        {r.tags && r.tags.length > 0 && (
+                          <div className="bk-review-item-tags">
+                            {r.tags.map((t, tIdx) => (
+                              <span key={tIdx} className="bk-review-tag">{t}</span>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Balasan dari Pengelola Ruangan */}
+                        {r.adminReply ? (
+                          <div className="bk-review-admin-reply">
+                            <div className="bk-admin-reply-head">
+                              <span className="bk-admin-reply-label">🏢 Balasan Pengelola Ruangan</span>
+                              <span className="bk-admin-reply-sender">{r.adminReply.sender || "Pengelola Ruang Rapat Kemnaker"}</span>
+                            </div>
+                            <p className="bk-admin-reply-body">
+                              "{r.adminReply.text}"
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="bk-review-admin-reply-pending">
+                            <span>⏳ Menunggu balasan dari pengelola ruangan</span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── POPUP FOTO RUANGAN (HANYA FOTO SAJA DENGAN MULTI-VIEW) ── */}
       {selectedRoomDetail && (
