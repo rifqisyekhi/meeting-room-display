@@ -110,6 +110,18 @@ const FacilityIcon = ({ type }) => {
   return <GrGroup className="bk-facility-icon" />;
 };
 
+const timeToMinutes = (timeStr) => {
+  const [h, m] = (timeStr || "00:00").split(":").map(Number);
+  return (h || 0) * 60 + (m || 0);
+};
+
+const quickTimePresets = [
+  "08:00 - 10:00",
+  "10:00 - 12:00",
+  "13:00 - 15:00",
+  "15:00 - 17:00",
+];
+
 export default function BookingPage() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -380,6 +392,35 @@ export default function BookingPage() {
       setSelectedTime(null);
     }
   };
+
+  const handleSelectPreset = (preset) => {
+    const [pStart, pEnd] = preset.split(" - ");
+    const [sh, sm] = pStart.split(":");
+    const [eh, em] = pEnd.split(":");
+    updateTimes(sh, sm, eh, em);
+  };
+
+  const currentConflict = useMemo(() => {
+    if (!startHour || !endHour || (startHour === "00" && endHour === "00") || !unavailableSlots.length) return null;
+    const reqStart = timeToMinutes(`${startHour}:${startMinute}`);
+    const reqEnd = timeToMinutes(`${endHour}:${endMinute}`);
+    if (reqEnd <= reqStart) return null;
+    return (
+      unavailableSlots.find((slot) => {
+        const slotStart = timeToMinutes(slot.start);
+        const slotEnd = timeToMinutes(slot.end);
+        return reqStart < slotEnd && reqEnd > slotStart;
+      }) || null
+    );
+  }, [startHour, startMinute, endHour, endMinute, unavailableSlots]);
+
+  const isOutsideOperational = useMemo(() => {
+    if (!startHour || !endHour || (startHour === "00" && endHour === "00")) return false;
+    const reqStart = timeToMinutes(`${startHour}:${startMinute}`);
+    const reqEnd = timeToMinutes(`${endHour}:${endMinute}`);
+    if (reqEnd <= reqStart) return false;
+    return reqStart < 8 * 60 || reqEnd > 17 * 60;
+  }, [startHour, startMinute, endHour, endMinute]);
 
   const handleStartHourInput = (val) => {
     const cleaned = val.replace(/\D/g, "").slice(0, 2);
@@ -757,7 +798,10 @@ export default function BookingPage() {
               </div>
               <div className="bk-room-meta">
                 <FaUserFriends className="bk-icon" /> Kapasitas :{" "}
-                {room.capacity} Orang
+                <strong>{room.capacity} Orang</strong>
+              </div>
+              <div className="bk-room-meta location">
+                <FaMapMarkerAlt className="bk-icon" /> {room.location || "-"}
               </div>
               <div className="bk-room-btns-row">
                 <button
@@ -767,6 +811,7 @@ export default function BookingPage() {
                     e.stopPropagation();
                     setSelectedFacilityRoom(room);
                   }}
+                  title="Lihat kelengkapan fasilitas ruangan"
                 >
                   <FaInfoCircle className="bk-btn-facility-icon" /> Fasilitas
                 </button>
@@ -779,7 +824,7 @@ export default function BookingPage() {
                   }}
                   title="Lihat Rating, Ulasan, dan Balasan Pengelola Ruangan"
                 >
-                  <FaStar className="bk-btn-review-icon" /> Ulasan &amp; Balasan
+                  <FaStar className="bk-btn-review-icon" /> Ulasan
                 </button>
               </div>
             </div>
@@ -793,7 +838,7 @@ export default function BookingPage() {
         <div className="bk-room-info-card">
           <div className="bk-rinfo-title">
             <FaInfoCircle className="bk-rinfo-icon" />
-            <span>Ketentuan Peminjaman Ruang Rapat:</span>
+            <span>Ketentuan Peminjaman Ruang Rapat</span>
           </div>
           <ul className="bk-rinfo-list">
             <li>Pilih ruangan sesuai dengan kapasitas peserta rapat.</li>
@@ -914,10 +959,40 @@ export default function BookingPage() {
             </div>
           </div>
 
+          {/* Quick preset chips */}
+          <div className="bk-quick-presets-section">
+            <span className="bk-quick-presets-label">Pilihan Slot Waktu Cepat:</span>
+            <div className="bk-quick-presets-chips">
+              {quickTimePresets.map((preset) => {
+                const isSelected = selectedTime === preset;
+                const [pStart, pEnd] = preset.split(" - ");
+                const pS = timeToMinutes(pStart);
+                const pE = timeToMinutes(pEnd);
+                const isPresetConflicted = unavailableSlots.some((slot) => {
+                  const sS = timeToMinutes(slot.start);
+                  const sE = timeToMinutes(slot.end);
+                  return pS < sE && pE > sS;
+                });
+                return (
+                  <button
+                    key={preset}
+                    type="button"
+                    className={`bk-quick-chip ${isSelected ? "active" : ""} ${isPresetConflicted ? "conflicted" : ""}`}
+                    disabled={isPresetConflicted}
+                    title={isPresetConflicted ? "Slot waktu ini sudah terisi oleh pemesan lain" : `Pilih rentang ${preset}`}
+                    onClick={() => handleSelectPreset(preset)}
+                  >
+                    {preset}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           {/* Time Picker Boxes: Mulai & Selesai (hour via numpad, minute in 10-minute increments) */}
           <div className="bk-time-boxes">
             {/* Box Mulai */}
-            <div className="bk-time-box">
+            <div className={`bk-time-box ${currentConflict ? "has-conflict" : ""}`}>
               <div className="bk-clock-icon">
                 <CiClock2 className="bk-ci-clock" />
               </div>
@@ -953,7 +1028,7 @@ export default function BookingPage() {
             </div>
 
             {/* Box Selesai */}
-            <div className="bk-time-box">
+            <div className={`bk-time-box ${currentConflict ? "has-conflict" : ""}`}>
               <div className="bk-clock-icon">
                 <CiClock2 className="bk-ci-clock" />
               </div>
@@ -989,54 +1064,65 @@ export default function BookingPage() {
             </div>
           </div>
 
+          {/* Live Conflict Warning Banner */}
+          {currentConflict && (
+            <div className="bk-time-conflict-banner">
+              <FaInfoCircle className="bk-conflict-icon" />
+              <div>
+                <strong>Jadwal Bentrok:</strong> Waktu pilihan Anda ({startHour}:{startMinute} - {endHour}:{endMinute}) berbenturan dengan jadwal <strong>{currentConflict.requester}</strong> ({currentConflict.time}). Silakan pilih jam lain.
+              </div>
+            </div>
+          )}
+
+          {/* Operational Hours Note */}
+          {isOutsideOperational && !currentConflict && (
+            <div className="bk-time-operational-banner">
+              <FaInfoCircle className="bk-operational-icon" />
+              <div>
+                <strong>Catatan Jam Kerja:</strong> Jam operasional pemakaian ruangan adalah pukul 08:00 – 17:00 WIB.
+              </div>
+            </div>
+          )}
+
           {/* Horizontal indicator line 2 */}
           <div className="bk-indicator-line"></div>
 
           {/* Section: Jam tidak tersedia */}
-          <h3 className="bk-unavailable-title">Jam tidak tersedia</h3>
+          <div className="bk-unavailable-section-header">
+            <h3 className="bk-unavailable-title">Jadwal yang Sudah Dipesan</h3>
+            <span className="bk-unavailable-subtitle">Waktu yang telah disetujui untuk pemesan lain pada tanggal ini</span>
+          </div>
           <div className="bk-unavailable-grid">
             {unavailableSlots.length > 0 ? (
-              unavailableSlots.map((slot) => (
-                <div
-                  key={slot.time}
-                  className="bk-unavail-slot"
-                  title={`Jam ${slot.time} sudah terisi oleh ${slot.requester}`}
-                  onClick={() =>
-                    alert(
-                      `Jam ${slot.time} tidak tersedia karena sudah disetujui untuk pemesan:\n` +
-                        `• Pemesan: ${slot.requester}`,
-                    )
-                  }
-                >
-                  <span style={{ fontWeight: 700 }}>{slot.time}</span>
+              unavailableSlots.map((slot) => {
+                const isConflict = currentConflict && currentConflict.time === slot.time;
+                return (
                   <div
-                    style={{
-                      fontSize: "11px",
-                      opacity: 0.9,
-                      marginTop: "3px",
-                      whiteSpace: "nowrap",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      fontWeight: 500,
-                    }}
+                    key={slot.time}
+                    className={`bk-unavail-slot ${isConflict ? "conflict-highlight" : ""}`}
+                    title={`Jam ${slot.time} sudah terisi oleh ${slot.requester}`}
+                    onClick={() =>
+                      alert(
+                        `Jam ${slot.time} tidak tersedia karena sudah disetujui untuk pemesan:\n` +
+                          `• Pemesan: ${slot.requester}\n` +
+                          `• Agenda: ${slot.agenda}`,
+                      )
+                    }
                   >
-                    {slot.requester}
+                    <div className="bk-unavail-slot-top">
+                      <span className="bk-unavail-slot-time">{slot.time}</span>
+                      <span className={`bk-unavail-slot-badge ${isConflict ? "conflict" : ""}`}>
+                        {isConflict ? "Bentrok" : "Sudah Dipesan"}
+                      </span>
+                    </div>
+                    <div className="bk-unavail-slot-requester" title={slot.requester}>
+                      {slot.requester}
+                    </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             ) : (
-              <div
-                style={{
-                  gridColumn: "1 / -1",
-                  textAlign: "center",
-                  padding: "14px 10px",
-                  fontSize: "12px",
-                  color: "#64748b",
-                  background: "#f8fafc",
-                  borderRadius: "10px",
-                  border: "1px dashed #cbd5e1",
-                }}
-              >
+              <div className="bk-unavailable-empty">
                 {!selectedRoom
                   ? "Pilih ruangan terlebih dahulu untuk melihat jadwal yang terisi"
                   : "Semua jam tersedia untuk tanggal ini (belum ada rapat yang disetujui)"}
@@ -1052,50 +1138,56 @@ export default function BookingPage() {
     <>
       <h2 className="bk-col-title">DETAIL PEMESANAN</h2>
       <div className="bk-detail-card">
-        <div className="bk-detail-room">
-          <div
-            className="bk-detail-img-wrapper"
-            onClick={(e) => {
-              if (selectedRoom) {
-                e.stopPropagation();
-                setSelectedRoomDetail(selectedRoom);
-              }
-            }}
-            title="Klik gambar untuk melihat detail ruangan"
-          >
-            <img src={selectedRoom?.img} alt={selectedRoom?.name} />
-            <div className="bk-room-img-zoom-badge small">
-              <FaSearchPlus />
+        {/* Structured Booking Summary Card */}
+        <div className="bk-booking-summary-card">
+          <div className="bk-detail-room">
+            <div
+              className="bk-detail-img-wrapper"
+              onClick={(e) => {
+                if (selectedRoom) {
+                  e.stopPropagation();
+                  setSelectedRoomDetail(selectedRoom);
+                }
+              }}
+              title="Klik gambar untuk melihat detail ruangan"
+            >
+              <img src={selectedRoom?.img} alt={selectedRoom?.name} />
+              <div className="bk-room-img-zoom-badge small">
+                <FaSearchPlus />
+              </div>
+            </div>
+            <div className="bk-detail-room-info">
+              <h3>{selectedRoom?.name || "Pilih Ruangan"}</h3>
+              <div className="bk-room-meta">
+                <FaUserFriends className="bk-icon" /> Kapasitas :{" "}
+                <strong>{selectedRoom?.capacity || "-"} Orang</strong>
+              </div>
+              <div className="bk-room-meta location">
+                <FaMapMarkerAlt className="bk-icon" /> {selectedRoom?.location || "-"}
+              </div>
             </div>
           </div>
-          <div>
-            <h3>{selectedRoom?.name}</h3>
-            <div className="bk-room-meta">
-              <FaUserFriends className="bk-icon" /> Kapasitas :{" "}
-              {selectedRoom?.capacity} Orang
+          <div className="bk-detail-datetime">
+            <div>
+              <FaRegCalendarAlt className="bk-icon-dark" /> <span>Tanggal</span>
             </div>
-            <div className="bk-room-meta">
-              <FaMapMarkerAlt className="bk-icon" /> {selectedRoom?.location}
+            <div className="bk-val">{formattedDateString || "-"}</div>
+            <div>
+              <FaRegClock className="bk-icon-dark" /> <span>Waktu</span>
+            </div>
+            <div className={`bk-val ${selectedTime ? "selected-time" : ""}`}>
+              {selectedTime ? selectedTime : "Belum dipilih"}
             </div>
           </div>
         </div>
-        <div className="bk-detail-datetime">
-          <div>
-            <FaRegCalendarAlt className="bk-icon-dark" /> <span>Tanggal</span>
-          </div>
-          <div className="bk-val">{formattedDateString}</div>
-          <div>
-            <FaRegClock className="bk-icon-dark" /> <span>Waktu</span>
-          </div>
-          <div className="bk-val">{selectedTime ? selectedTime : "-"}</div>
-        </div>
+
         <div className="bk-form">
           <div className="bk-form-group">
             <label>
               <FaRegListAlt className="bk-icon-dark" /> Agenda Rapat
             </label>
             <textarea
-              placeholder="Masukkan agenda rapat..."
+              placeholder="Masukkan agenda rapat secara spesifik..."
               value={agenda}
               onChange={(e) => setAgenda(e.target.value)}
             ></textarea>
@@ -1134,18 +1226,19 @@ export default function BookingPage() {
               />
             )}
           </div>
-          <div className="bk-form-group inline">
+          <div className="bk-form-group">
             <label>
               <FaUsers className="bk-icon-dark" /> Jumlah Peserta
             </label>
-            <div className="bk-input-row">
+            <div className="bk-peserta-input-wrap">
               <input
                 type="number"
-                placeholder="Jumlah peserta"
+                min="1"
+                placeholder="Masukkan jumlah peserta"
                 value={peserta}
                 onChange={(e) => setPeserta(e.target.value)}
               />
-              <span>Orang</span>
+              <span className="bk-peserta-suffix">Orang</span>
             </div>
           </div>
           <button className="bk-submit-btn" onClick={handleBooking}>
@@ -1163,48 +1256,44 @@ export default function BookingPage() {
         <BookingAccountBar currentUser={currentUser} />
         <div className="bk-header-content">
           <h1>BOOKING RUANG RAPAT</h1>
-          <p>
-            Pesan Ruang Rapat sesuai kebutuhan Anda
-            <br />
-            dengan mudah dan cepat.
-          </p>
+          <p>Pesan ruang rapat sesuai kebutuhan Anda dengan mudah dan cepat.</p>
         </div>
       </header>
 
       {/* Stepper */}
       <div className="bk-stepper">
         <div
-          className={`bk-step ${currentStep >= 1 ? "active" : ""} ${mobileStep >= 1 ? "mobile-active" : ""}`}
+          className={`bk-step ${currentStep > 1 ? "completed" : currentStep === 1 ? "active" : "upcoming"} ${mobileStep >= 1 ? "mobile-active" : ""}`}
           onClick={() => setMobileStep(1)}
         >
-          <span className="step-num">1</span>{" "}
+          <span className="step-num">{currentStep > 1 ? "✓" : "1"}</span>{" "}
           <span className="step-label">Pilih Ruangan</span>
         </div>
-        <div className="bk-line"></div>
+        <div className={`bk-line ${currentStep > 1 ? "completed" : ""}`}></div>
         <div
-          className={`bk-step ${currentStep >= 2 ? "active" : ""} ${mobileStep >= 2 ? "mobile-active" : ""}`}
+          className={`bk-step ${currentStep > 2 ? "completed" : currentStep === 2 ? "active" : "upcoming"} ${mobileStep >= 2 ? "mobile-active" : ""}`}
           onClick={() => {
             if (selectedRoom) setMobileStep(2);
           }}
         >
-          <span className="step-num">2</span>{" "}
+          <span className="step-num">{currentStep > 2 ? "✓" : "2"}</span>{" "}
           <span className="step-label">Pilih Tanggal &amp; Waktu</span>
         </div>
-        <div className="bk-line"></div>
+        <div className={`bk-line ${currentStep > 2 ? "completed" : ""}`}></div>
         <div
-          className={`bk-step ${currentStep >= 3 ? "active" : ""} ${mobileStep >= 3 ? "mobile-active" : ""}`}
+          className={`bk-step ${currentStep > 3 ? "completed" : currentStep === 3 ? "active" : "upcoming"} ${mobileStep >= 3 ? "mobile-active" : ""}`}
           onClick={() => {
             if (selectedRoom && selectedDate && selectedTime) setMobileStep(3);
           }}
         >
-          <span className="step-num">3</span>{" "}
+          <span className="step-num">{currentStep > 3 ? "✓" : "3"}</span>{" "}
           <span className="step-label">Isi Detail Rapat</span>
         </div>
-        <div className="bk-line"></div>
+        <div className={`bk-line ${currentStep > 3 ? "completed" : ""}`}></div>
         <div
-          className={`bk-step ${currentStep >= 4 ? "active" : ""} ${showSuccessModal ? "mobile-active" : ""}`}
+          className={`bk-step ${currentStep === 4 ? "active" : "upcoming"} ${showSuccessModal ? "mobile-active" : ""}`}
         >
-          <span className="step-num">4</span>{" "}
+          <span className="step-num">{currentStep === 4 ? "✓" : "4"}</span>{" "}
           <span className="step-label">Konfirmasi</span>
         </div>
       </div>

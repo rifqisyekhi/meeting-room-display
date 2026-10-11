@@ -99,7 +99,6 @@ export default function BookingHistoryPage() {
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [search, setSearch] = useState("");
-  const [expandedId, setExpandedId] = useState(null);
   const [extensionTarget, setExtensionTarget] = useState(null);
   const [extensionComplete, setExtensionComplete] = useState(null);
   const [reviewTarget, setReviewTarget] = useState(null);
@@ -480,7 +479,6 @@ export default function BookingHistoryPage() {
           const key = effectiveStatusKey(meeting, clockNow);
           const room = rooms.find((item) => item.name?.toLowerCase() === meeting.room?.toLowerCase()) ||
             roomDefaults.find((item) => meeting.room?.toLowerCase().includes(item.name.toLowerCase())) || roomDefaults[0];
-          const isExpanded = String(expandedId) === String(meeting.id);
           const end = meeting.end || meeting.endTime || "00:00";
           const canExtend = key === "approved" && isExtensionWindowOpen(meeting, clockNow);
           const showExtensionButton = key === "approved" && isMeetingNotEnded(meeting, clockNow);
@@ -490,14 +488,13 @@ export default function BookingHistoryPage() {
           const submittedAt = meeting.createdAt;
           const changedAt = key === "rejected" ? meeting.rejectedAt : meeting.approvedAt || meeting.updatedAt;
           const statusText = {
-            pending: "Menunggu Persetujuan Pimpinan", approved: "Disetujui", rejected: "Ditolak",
+            pending: "Menunggu Persetujuan", approved: "Disetujui", rejected: "Ditolak",
             completed: "Selesai", cancelled: "Dibatalkan",
           }[key];
           return (
-            <article className={`booking-history-card ${isExpanded ? "expanded" : ""}`} key={meeting.id}>
+            <article className="booking-history-card" key={meeting.id}>
               <div className="booking-history-row">
-                <button type="button" className="booking-history-expand" aria-expanded={isExpanded}
-                  onClick={() => setExpandedId(isExpanded ? null : meeting.id)}>
+                <div className="booking-history-expand">
                   <img className="booking-history-room-image" src={room.image || room.img || imgRuangRapatBesar} alt={meeting.room || "Ruangan"} />
                   <span className="booking-history-room-info">
                     <strong>{meeting.room || "Ruang Rapat"}</strong>
@@ -520,7 +517,7 @@ export default function BookingHistoryPage() {
                     <i className={`booking-history-line ${key === "pending" ? "pending" : "done"}`} />
                     <span className={`booking-history-step ${key === "pending" ? "current" : key === "rejected" || key === "cancelled" ? "rejected" : "done"}`}>
                       <i>{key === "rejected" || key === "cancelled" ? "×" : key === "pending" ? "" : "✓"}</i>
-                      <b>{key === "pending" ? "Menunggu Persetujuan Pimpinan" : key === "rejected" ? "Ditolak" : key === "cancelled" ? "Dibatalkan" : "Disetujui"}</b>
+                      <b>{key === "pending" ? "Menunggu Persetujuan" : key === "rejected" ? "Ditolak" : key === "cancelled" ? "Dibatalkan" : "Disetujui"}</b>
                       <small>{formatStamp(changedAt)}</small>
                     </span>
                     <i className={`booking-history-line ${key === "completed" ? "done" : ""}`} />
@@ -530,43 +527,40 @@ export default function BookingHistoryPage() {
                     </span>
                   </span>
                   <span className={`booking-history-status ${key}`}>{statusText}</span>
-                  <FaChevronRight className="booking-history-chevron" />
-                </button>
-                {(showExtensionButton || canRecommend || canReview || canShowQr) && (
-                  <div className="booking-history-row-actions">
-                    {canShowQr && (
-                      <button type="button" className="booking-history-qr-button"
-                        title="Buka QR Pass Rapat & Presensi"
-                        onClick={() => { setCopiedPassUrl(false); setQrModalMeeting(meeting); }}>
-                        <FaQrcode /> QR Pass
-                      </button>
-                    )}
-                    {canRecommend && (
-                      <button type="button" className="booking-history-recommendation-button"
-                        onClick={() => { setSelectedRecommendationSlots({}); setShowAllRecommendations(false); setRecommendationTarget(meeting); }}>
-                        Lihat Rekomendasi <FaChevronRight />
-                      </button>
-                    )}
-                    {showExtensionButton && (
-                      <button type="button" className="booking-history-add-time" disabled={!canExtend}
-                        title={canExtend ? "Tambah waktu rapat" : "Aktif sejak rapat dimulai hingga 30 menit sebelum rapat selesai"}
-                        onClick={() => { if (canExtend) { setNotice(""); setExtensionTarget(meeting); } }}>
-                        <FaPlus /> Tambah Waktu
-                      </button>
-                    )}
-                    {canReview && (
-                      <button type="button" className="booking-history-review-button" onClick={() => {
-                        setReviewTarget(meeting);
-                        setReviewRating(0);
-                        setReviewText("");
-                      }}>
-                        <FaStar /> Beri Rating
-                      </button>
-                    )}
-                  </div>
-                )}
+                </div>
+                <div className="booking-history-row-actions">
+                  {canShowQr && (
+                    <button type="button" className="booking-history-qr-button"
+                      title="Buka QR Pass Rapat & Presensi"
+                      onClick={() => { setCopiedPassUrl(false); setQrModalMeeting(meeting); }}>
+                      <FaQrcode /> QR Pass
+                    </button>
+                  )}
+                  {canRecommend && (
+                    <button type="button" className="booking-history-recommendation-button"
+                      onClick={() => { setSelectedRecommendationSlots({}); setShowAllRecommendations(false); setRecommendationTarget(meeting); }}>
+                      Lihat Rekomendasi <FaChevronRight />
+                    </button>
+                  )}
+                  {showExtensionButton && (
+                    <button type="button" className="booking-history-add-time" disabled={!canExtend}
+                      title={canExtend ? "Tambah waktu rapat" : "Aktif sejak rapat dimulai hingga 30 menit sebelum rapat selesai"}
+                      onClick={() => { if (canExtend) { setNotice(""); setExtensionTarget(meeting); } }}>
+                      <FaPlus /> Tambah Waktu
+                    </button>
+                  )}
+                  {canReview && (
+                    <button type="button" className="booking-history-review-button" onClick={() => {
+                      setReviewTarget(meeting);
+                      setReviewRating(0);
+                      setReviewText("");
+                    }}>
+                      <FaStar /> Beri Rating
+                    </button>
+                  )}
+                </div>
               </div>
-              {isExpanded && (
+              {((Array.isArray(meeting.extensionHistory) && meeting.extensionHistory.length > 0) || meeting.review) && (
                 <div className="booking-history-details">
                   {Array.isArray(meeting.extensionHistory) && meeting.extensionHistory.length > 0 && (
                     <span><strong>Tambahan waktu:</strong> {meeting.extensionHistory.map((item) => `+${item.hours} jam`).join(", ")}</span>

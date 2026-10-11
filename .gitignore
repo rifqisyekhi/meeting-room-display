@@ -10,3 +10,5 @@ credentials.json
 build/
 credentials/
 *service-account*.json
+backend/data/*.json
+!backend/data/dashboard-store.example.json

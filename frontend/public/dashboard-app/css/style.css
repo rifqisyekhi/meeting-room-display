@@ -1,3 +1,10 @@
+@import url("dashboard.css");
+@import url("rooms.css");
+@import url("users.css");
+@import url("calendar.css");
+@import url("reports.css");
+@import url("settings.css");
+
 * {
   box-sizing: border-box;
   margin: 0;

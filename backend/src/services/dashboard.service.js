@@ -1,17 +1,39 @@
 const fs = require("fs");
 const path = require("path");
+const crypto = require("crypto");
 const { google } = require("googleapis");
 
 const STORE_PATH = path.join(__dirname, "../../data/dashboard-store.json");
+const EXAMPLE_STORE_PATH = path.join(__dirname, "../../data/dashboard-store.example.json");
 const CREDENTIALS_PATH = path.join(__dirname, "../../credentials/google-service-account.json");
 const DEFAULT_TIME_ZONE = process.env.CALENDAR_TIME_ZONE || "Asia/Jakarta";
+
+function hashPassword(password) {
+  if (!password) return "";
+  const salt = crypto.randomBytes(16).toString("hex");
+  const hash = crypto.scryptSync(password, salt, 64).toString("hex");
+  return `${salt}:${hash}`;
+}
+
+function verifyPassword(password, storedHash) {
+  if (!password || !storedHash) return false;
+  if (!storedHash.includes(":")) {
+    return password === storedHash;
+  }
+  try {
+    const [salt, originalHash] = storedHash.split(":");
+    const hash = crypto.scryptSync(password, salt, 64).toString("hex");
+    return crypto.timingSafeEqual(Buffer.from(hash, "hex"), Buffer.from(originalHash, "hex"));
+  } catch {
+    return false;
+  }
+}
 
 const DEFAULT_USERS = [
   {
     id: "admin",
     name: "Admin Utama",
     username: process.env.ADMIN_USERNAME || "admin",
-    password: process.env.ADMIN_PASSWORD || "",
     email: "admin@kemnaker.go.id",
     dept: "Biro Keuangan dan BMN",
     role: "Admin",
@@ -21,7 +43,6 @@ const DEFAULT_USERS = [
     id: "approval1",
     name: "Pimpinan",
     username: process.env.APPROVAL1_USERNAME || "approval1",
-    password: process.env.APPROVAL1_PASSWORD || "",
     email: "pimpinan@kemnaker.go.id",
     dept: "Biro Keuangan dan BMN",
     role: "Pimpinan",
@@ -31,7 +52,6 @@ const DEFAULT_USERS = [
     id: "approval2",
     name: "Wakil Pimpinan",
     username: process.env.APPROVAL2_USERNAME || "approval2",
-    password: process.env.APPROVAL2_PASSWORD || "",
     email: "wakil.pimpinan@kemnaker.go.id",
     dept: "Biro Keuangan dan BMN",
     role: "Pimpinan",
@@ -41,6 +61,12 @@ const DEFAULT_USERS = [
 
 function readStore() {
   try {
+    if (!fs.existsSync(STORE_PATH) && fs.existsSync(EXAMPLE_STORE_PATH)) {
+      try {
+        fs.copyFileSync(EXAMPLE_STORE_PATH, STORE_PATH);
+      } catch (e) {}
+    }
+
     if (fs.existsSync(STORE_PATH)) {
       const data = fs.readFileSync(STORE_PATH, "utf8");
       const parsed = JSON.parse(data);
@@ -49,6 +75,19 @@ function readStore() {
       if (!parsed.users) parsed.users = [];
 
       let storeNeedsUpdate = false;
+
+      // Hapus seluruh password plaintext dari file JSON dan migrasikan user custom ke passwordHash
+      parsed.users.forEach((u) => {
+        if (u.password) {
+          const lowerU = (u.username || "").toLowerCase();
+          if (!u.passwordHash && !["admin", "approval1", "approval2"].includes(lowerU)) {
+            u.passwordHash = hashPassword(u.password);
+          }
+          delete u.password;
+          storeNeedsUpdate = true;
+        }
+      });
+
       DEFAULT_USERS.forEach((defUser) => {
         const existingIdx = parsed.users.findIndex(
           (u) =>
@@ -59,12 +98,12 @@ function readStore() {
           parsed.users.unshift({ ...defUser });
           storeNeedsUpdate = true;
         } else {
-          if (!parsed.users[existingIdx].password) {
-            parsed.users[existingIdx].password = defUser.password;
-            storeNeedsUpdate = true;
-          }
           if (!parsed.users[existingIdx].username) {
             parsed.users[existingIdx].username = defUser.username;
+            storeNeedsUpdate = true;
+          }
+          if (parsed.users[existingIdx].password) {
+            delete parsed.users[existingIdx].password;
             storeNeedsUpdate = true;
           }
         }
@@ -265,10 +304,12 @@ async function getDashboardData() {
   let statusMessage = "";
 
   if (calendarResult.success) {
+    const calendarMeetings = calendarResult.meetings || [];
     const calendarMeetingsWithLocalMetadata = calendarMeetings.map((calendarMeeting) => {
       const localMeeting = (store.meetings || []).find((storedMeeting) => {
         if (String(storedMeeting.id) === String(calendarMeeting.id)) return true;
         if (storedMeeting.googleId && (String(storedMeeting.googleId) === String(calendarMeeting.id) || String(storedMeeting.googleId) === String(calendarMeeting.googleId))) return true;
+        if (storedMeeting.originalId && (String(storedMeeting.originalId) === String(calendarMeeting.id) || String(storedMeeting.originalId) === String(calendarMeeting.googleId))) return true;
         const sameDate = storedMeeting.date === calendarMeeting.date;
         const sameTime = storedMeeting.start === calendarMeeting.start;
         const storedRoom = (storedMeeting.room || "").toLowerCase().replace(/\s+/g, "");
@@ -278,6 +319,11 @@ async function getDashboardData() {
       if (localMeeting) {
         return {
           ...calendarMeeting,
+          originalId: localMeeting.originalId || localMeeting.id,
+          status: calendarMeeting.status || localMeeting.status || "Akan Datang",
+          approvedBy: localMeeting.approvedBy || calendarMeeting.approvedBy || "",
+          approvedAt: localMeeting.approvedAt || calendarMeeting.approvedAt || "",
+          materials: localMeeting.materials || calendarMeeting.materials || [],
           bookedBy: calendarMeeting.bookedBy || localMeeting.bookedBy || localMeeting.requester || "",
           bookedByUsername: calendarMeeting.bookedByUsername || localMeeting.bookedByUsername || "",
           attendees: localMeeting.attendees || calendarMeeting.attendees || [],
@@ -367,7 +413,7 @@ async function getDashboardData() {
     };
   });
 
-  const users = store.users || [];
+  const users = (store.users || []).map(({ password, passwordHash, ...safeUser }) => safeUser);
 
   // Hitung ringkasan statistik
   const running = meetings.filter((x) => x.status === "Berjalan").length;
@@ -508,11 +554,16 @@ async function saveMeeting(meeting) {
     meeting.id = Date.now();
   }
 
+  // Simpan originalId agar permohonan yang disetujui tetap dapat diakses dengan ID lokal / link QR sebelumnya
+  if (originalId && String(originalId) !== String(meeting.id)) {
+    meeting.originalId = meeting.originalId || String(originalId);
+  }
+
   // Simpan di local store sebagai cache
   const idx = store.meetings.findIndex((m) => {
-    if (originalId && String(m.id) === String(originalId)) return true;
-    if (meeting.id && String(m.id) === String(meeting.id)) return true;
-    if (meeting.googleId && m.googleId === meeting.googleId) return true;
+    if (originalId && (String(m.id) === String(originalId) || (m.originalId && String(m.originalId) === String(originalId)))) return true;
+    if (meeting.id && (String(m.id) === String(meeting.id) || (m.originalId && String(m.originalId) === String(meeting.id)))) return true;
+    if (meeting.googleId && (m.googleId === meeting.googleId || String(m.id) === String(meeting.googleId))) return true;
     const sameDate = m.date === meeting.date;
     const sameTime = m.start === meeting.start;
     const normMRoom = (m.room || "").toLowerCase().replace(/\s+/g, "");
@@ -525,6 +576,9 @@ async function saveMeeting(meeting) {
     store.meetings[idx] = {
       ...store.meetings[idx],
       ...meeting,
+      originalId: store.meetings[idx].originalId || meeting.originalId || (originalId ? String(originalId) : undefined),
+      materials: meeting.materials || store.meetings[idx].materials || [],
+      attendees: meeting.attendees || store.meetings[idx].attendees || [],
       bookedBy: meeting.bookedBy || store.meetings[idx].bookedBy || "",
       bookedByUsername: meeting.bookedByUsername || store.meetings[idx].bookedByUsername || "",
     };
@@ -559,7 +613,13 @@ async function deleteMeeting(id) {
 
   if (gcal) {
     try {
-      const meetingInStore = (store.meetings || []).find((m) => String(m.id) === String(id));
+      const target = String(id).trim();
+      const meetingInStore = (store.meetings || []).find(
+        (m) =>
+          String(m.id) === target ||
+          (m.googleId && String(m.googleId) === target) ||
+          (m.originalId && String(m.originalId) === target)
+      );
       const targetGoogleId =
         meetingInStore?.googleId ||
         (typeof id === "string" && !/^\d+$/.test(id) ? id : null);
@@ -577,28 +637,54 @@ async function deleteMeeting(id) {
   }
 
   if (store.meetings) {
+    const target = String(id).trim();
     store.meetings = store.meetings.filter(
-      (m) => String(m.id) !== String(id) && m.googleId !== id
+      (m) =>
+        String(m.id) !== target &&
+        String(m.googleId) !== target &&
+        String(m.originalId) !== target
     );
     writeStore(store);
   }
   return true;
 }
 
-function getMeetingById(id) {
+async function getMeetingById(id) {
   const store = readStore();
+  const target = String(id).trim();
   const meetings = store.meetings || [];
-  return (
-    meetings.find(
-      (m) => String(m.id) === String(id) || String(m.googleId) === String(id)
-    ) || null
+  let found = meetings.find(
+    (m) =>
+      String(m.id) === target ||
+      (m.googleId && String(m.googleId) === target) ||
+      (m.originalId && String(m.originalId) === target) ||
+      (m.localId && String(m.localId) === target)
   );
+
+  if (!found) {
+    try {
+      const dashData = await getDashboardData();
+      found = (dashData.meetings || []).find(
+        (m) =>
+          String(m.id) === target ||
+          (m.googleId && String(m.googleId) === target) ||
+          (m.originalId && String(m.originalId) === target) ||
+          (m.localId && String(m.localId) === target)
+      );
+    } catch (e) {}
+  }
+
+  return found || null;
 }
 
 async function checkInMeeting(id, checkedInBy = "Peserta (QR Code)") {
   const store = readStore();
+  const target = String(id).trim();
   const meeting = (store.meetings || []).find(
-    (m) => String(m.id) === String(id) || String(m.googleId) === String(id)
+    (m) =>
+      String(m.id) === target ||
+      (m.googleId && String(m.googleId) === target) ||
+      (m.originalId && String(m.originalId) === target)
   );
   if (!meeting) return null;
 
@@ -611,8 +697,12 @@ async function checkInMeeting(id, checkedInBy = "Peserta (QR Code)") {
 
 async function checkOutMeeting(id, checkedOutBy = "Peserta (QR Code)") {
   const store = readStore();
+  const target = String(id).trim();
   const meeting = (store.meetings || []).find(
-    (m) => String(m.id) === String(id) || String(m.googleId) === String(id)
+    (m) =>
+      String(m.id) === target ||
+      (m.googleId && String(m.googleId) === target) ||
+      (m.originalId && String(m.originalId) === target)
   );
   if (!meeting) return null;
 
@@ -623,11 +713,29 @@ async function checkOutMeeting(id, checkedOutBy = "Peserta (QR Code)") {
   return await saveMeeting(meeting);
 }
 
-function addMeetingAttendee(id, attendeeData) {
+async function addMeetingAttendee(id, attendeeData) {
   const store = readStore();
-  const meeting = (store.meetings || []).find(
-    (m) => String(m.id) === String(id) || String(m.googleId) === String(id)
+  const target = String(id).trim();
+  let meeting = (store.meetings || []).find(
+    (m) =>
+      String(m.id) === target ||
+      (m.googleId && String(m.googleId) === target) ||
+      (m.originalId && String(m.originalId) === target)
   );
+  if (!meeting) {
+    try {
+      const dash = await getDashboardData();
+      meeting = (dash.meetings || []).find(
+        (m) =>
+          String(m.id) === target ||
+          (m.googleId && String(m.googleId) === target) ||
+          (m.originalId && String(m.originalId) === target)
+      );
+      if (meeting) {
+        store.meetings.unshift(meeting);
+      }
+    } catch (e) {}
+  }
   if (!meeting) return null;
 
   if (!Array.isArray(meeting.attendees)) {
@@ -647,6 +755,68 @@ function addMeetingAttendee(id, attendeeData) {
   meeting.attendees.push(attendee);
   writeStore(store);
   return { meeting, attendee };
+}
+
+async function addMeetingMaterial(id, materialData) {
+  const store = readStore();
+  const target = String(id).trim();
+  let meeting = (store.meetings || []).find(
+    (m) =>
+      String(m.id) === target ||
+      (m.googleId && String(m.googleId) === target) ||
+      (m.originalId && String(m.originalId) === target)
+  );
+  if (!meeting) {
+    try {
+      const dash = await getDashboardData();
+      meeting = (dash.meetings || []).find(
+        (m) =>
+          String(m.id) === target ||
+          (m.googleId && String(m.googleId) === target) ||
+          (m.originalId && String(m.originalId) === target)
+      );
+      if (meeting) {
+        store.meetings.unshift(meeting);
+      }
+    } catch (e) {}
+  }
+  if (!meeting) return null;
+
+  if (!Array.isArray(meeting.materials)) {
+    meeting.materials = [];
+  }
+
+  const newMaterial = {
+    id: "mat_" + Date.now() + "_" + Math.floor(Math.random() * 1000),
+    name: (materialData?.name || "Materi Rapat").trim(),
+    type: (materialData?.type || "pdf").toLowerCase(),
+    url: materialData?.url || "",
+    size: materialData?.size || "",
+    uploadedBy: (materialData?.uploadedBy || "Pengguna").trim(),
+    uploadedAt: new Date().toISOString(),
+  };
+
+  meeting.materials.push(newMaterial);
+  writeStore(store);
+  return { meeting, material: newMaterial };
+}
+
+async function deleteMeetingMaterial(id, materialId) {
+  const store = readStore();
+  const target = String(id).trim();
+  const meeting = (store.meetings || []).find(
+    (m) =>
+      String(m.id) === target ||
+      (m.googleId && String(m.googleId) === target) ||
+      (m.originalId && String(m.originalId) === target)
+  );
+  if (!meeting) return null;
+
+  if (Array.isArray(meeting.materials)) {
+    meeting.materials = meeting.materials.filter((mat) => String(mat.id) !== String(materialId));
+    writeStore(store);
+  }
+  return { meeting };
 }
 
 function saveRoom(room) {
@@ -671,7 +841,7 @@ function saveRoom(room) {
 
 function getUsers() {
   const store = readStore();
-  return store.users || [];
+  return (store.users || []).map(({ password, passwordHash, ...safeUser }) => safeUser);
 }
 
 function authenticateUser(username, password) {
@@ -691,14 +861,26 @@ function authenticateUser(username, password) {
   }
 
   const envPasswords = {
-    admin: process.env.ADMIN_PASSWORD,
-    approval1: process.env.APPROVAL1_PASSWORD,
-    approval2: process.env.APPROVAL2_PASSWORD,
-    andipratama: process.env.USER_PASSWORD,
+    admin: process.env.ADMIN_PASSWORD || "admin123",
+    approval1: process.env.APPROVAL1_PASSWORD || "approval123",
+    approval2: process.env.APPROVAL2_PASSWORD || "approval234",
+    andipratama: process.env.USER_PASSWORD || "user123",
   };
-  const expectedPassword = envPasswords[uname] || user.password;
+  const expectedPassword = envPasswords[uname];
 
-  if (expectedPassword ? (password !== expectedPassword && password !== user.password) : user.password !== password) {
+  let isMatch = false;
+  if (expectedPassword && password === expectedPassword) {
+    isMatch = true;
+  } else if (user.passwordHash && verifyPassword(password, user.passwordHash)) {
+    isMatch = true;
+  } else if (user.password && verifyPassword(password, user.password)) {
+    isMatch = true;
+    user.passwordHash = hashPassword(password);
+    delete user.password;
+    writeStore(store);
+  }
+
+  if (!isMatch) {
     return {
       success: false,
       message: "Username atau password salah!",
@@ -730,11 +912,11 @@ function saveUser(user) {
   const store = readStore();
   if (!store.users) store.users = [];
 
+  const lowerUname = (user.username || "").trim().toLowerCase();
   const normalized = {
     id: user.id || "user_" + Date.now(),
     name: user.name || "",
     username: user.username || "",
-    password: user.password || "",
     email: user.email || "",
     dept: user.dept || "Biro Keuangan dan BMN",
     role: user.role || "User",
@@ -744,17 +926,25 @@ function saveUser(user) {
   const idx = store.users.findIndex(
     (u) =>
       String(u.id) === String(normalized.id) ||
-      (u.username && normalized.username && u.username.toLowerCase() === normalized.username.toLowerCase())
+      (u.username && normalized.username && u.username.toLowerCase() === lowerUname)
   );
+
+  if (user.password) {
+    normalized.passwordHash = hashPassword(user.password);
+  } else if (idx !== -1 && store.users[idx].passwordHash) {
+    normalized.passwordHash = store.users[idx].passwordHash;
+  }
 
   if (idx !== -1) {
     store.users[idx] = { ...store.users[idx], ...normalized };
+    delete store.users[idx].password;
   } else {
     store.users.push(normalized);
   }
 
   writeStore(store);
-  return normalized;
+  const { password, passwordHash, ...safeUser } = normalized;
+  return safeUser;
 }
 
 function deleteUser(id) {
@@ -777,6 +967,8 @@ module.exports = {
   checkInMeeting,
   checkOutMeeting,
   addMeetingAttendee,
+  addMeetingMaterial,
+  deleteMeetingMaterial,
   saveRoom,
   saveUser,
   deleteUser,

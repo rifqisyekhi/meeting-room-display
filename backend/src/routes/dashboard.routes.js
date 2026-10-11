@@ -80,9 +80,9 @@ router.delete("/meetings/:id", async (req, res) => {
 });
 
 // Ambil detail 1 rapat berdasarkan ID (untuk Halaman QR Pass / Presensi)
-router.get("/meetings/:id", (req, res) => {
+router.get("/meetings/:id", async (req, res) => {
   try {
-    const meeting = dashboardService.getMeetingById(req.params.id);
+    const meeting = await dashboardService.getMeetingById(req.params.id);
     if (!meeting) {
       return res.status(404).json({ success: false, error: "Rapat tidak ditemukan" });
     }
@@ -121,13 +121,39 @@ router.post("/meetings/:id/checkout", async (req, res) => {
 });
 
 // Tambah daftar hadir peserta (Attendance / Presensi Buku Tamu Rapat)
-router.post("/meetings/:id/attendees", (req, res) => {
+router.post("/meetings/:id/attendees", async (req, res) => {
   try {
-    const result = dashboardService.addMeetingAttendee(req.params.id, req.body);
+    const result = await dashboardService.addMeetingAttendee(req.params.id, req.body);
     if (!result) {
       return res.status(404).json({ success: false, error: "Rapat tidak ditemukan" });
     }
     res.json({ success: true, attendee: result.attendee, meeting: result.meeting });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Tambah / Unggah materi rapat (PDF, Presentasi PPT, Dokumen, Link)
+router.post("/meetings/:id/materials", async (req, res) => {
+  try {
+    const result = await dashboardService.addMeetingMaterial(req.params.id, req.body);
+    if (!result) {
+      return res.status(404).json({ success: false, error: "Rapat tidak ditemukan" });
+    }
+    res.json({ success: true, material: result.material, meeting: result.meeting });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Hapus materi rapat
+router.delete("/meetings/:id/materials/:materialId", async (req, res) => {
+  try {
+    const result = await dashboardService.deleteMeetingMaterial(req.params.id, req.params.materialId);
+    if (!result) {
+      return res.status(404).json({ success: false, error: "Materi atau rapat tidak ditemukan" });
+    }
+    res.json({ success: true, meeting: result.meeting });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }

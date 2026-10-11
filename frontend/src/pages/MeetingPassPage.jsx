@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
 import { QRCodeSVG } from "qrcode.react";
 import {
@@ -17,6 +17,16 @@ import {
   FaFileAlt,
   FaUserTie,
   FaBuilding,
+  FaFileUpload,
+  FaFilePdf,
+  FaFilePowerpoint,
+  FaFileWord,
+  FaLink,
+  FaExternalLinkAlt,
+  FaDownload,
+  FaTrashAlt,
+  FaPlus,
+  FaTimes,
 } from "react-icons/fa";
 import kemnakerLogo from "../assets/kemnaker-logo.png";
 import "./MeetingPassPage.css";
@@ -33,12 +43,21 @@ export default function MeetingPassPage() {
   // Field Perwakilan (Khusus PIC)
   const [repName, setRepName] = useState("");
 
-  // Form Presensi Peserta (Untuk Seluruh Peserta)
+  // Form Presensi Peserta (Untuk Seluruh Peserta - Catatan telah ditiadakan sesuai arahan)
   const [attName, setAttName] = useState("");
   const [attDept, setAttDept] = useState("");
   const [attNip, setAttNip] = useState("");
-  const [attNotes, setAttNotes] = useState("");
   const [submittingAtt, setSubmittingAtt] = useState(false);
+
+  // State Modal Unggah Materi Rapat (PDF / Paparan / Link)
+  const [showMaterialModal, setShowMaterialModal] = useState(false);
+  const [materialTab, setMaterialTab] = useState("file"); // "file" | "link"
+  const [materialName, setMaterialName] = useState("");
+  const [materialUrl, setMaterialUrl] = useState("");
+  const [materialFileMeta, setMaterialFileMeta] = useState(null);
+  const [materialUploader, setMaterialUploader] = useState("");
+  const [uploadingMaterial, setUploadingMaterial] = useState(false);
+  const fileInputRef = useRef(null);
 
   const showToast = (message, type = "success") => {
     setToast({ message, type });
@@ -47,24 +66,92 @@ export default function MeetingPassPage() {
 
   const loadMeeting = useCallback(async () => {
     if (!id) return;
+    let foundMeeting = null;
+
+    // 1. Coba fetch langsung ke endpoint rapat berdasarkan ID
     try {
       const res = await fetch(`/api/dashboard/meetings/${id}`);
       if (res.ok) {
         const data = await res.json();
         if (data?.meeting) {
-          setMeeting(data.meeting);
-          setLoading(false);
-          return;
+          foundMeeting = data.meeting;
         }
       }
     } catch (e) {
-      console.warn("Backend fetch failed, falling back to localStorage:", e);
+      console.warn("Backend fetch meeting failed:", e);
     }
 
+    // 2. Jika belum ditemukan (misal ID Google Calendar berbeda atau baru di-approve), cari di data dashboard
+    if (!foundMeeting) {
+      try {
+        const dashRes = await fetch("/api/dashboard/data");
+        if (dashRes.ok) {
+          const dashData = await dashRes.json();
+          const targetId = String(id).trim();
+
+          // Ambil meeting lokal dari localStorage sebagai referensi pembanding
+          let localStored = null;
+          try {
+            const stored = JSON.parse(localStorage.getItem("app_meetings") || "[]");
+            localStored = stored.find(
+              (m) =>
+                String(m.id) === targetId ||
+                String(m.googleId) === targetId ||
+                String(m.originalId) === targetId
+            );
+          } catch (e) {}
+
+          foundMeeting = (dashData.meetings || []).find((m) => {
+            if (String(m.id) === targetId) return true;
+            if (m.googleId && String(m.googleId) === targetId) return true;
+            if (m.originalId && String(m.originalId) === targetId) return true;
+            if (localStored) {
+              const sameDate = m.date === localStored.date;
+              const sameTime = m.start === localStored.start;
+              const mTitle = (m.title || "").toLowerCase().trim();
+              const lsTitle = (localStored.title || "").toLowerCase().trim();
+              const sameTitle = mTitle && lsTitle && (mTitle === lsTitle || mTitle.includes(lsTitle) || lsTitle.includes(mTitle));
+              if (sameDate && sameTime && sameTitle) return true;
+            }
+            return false;
+          });
+        }
+      } catch (e) {
+        console.warn("Backend fetch dashboard data fallback failed:", e);
+      }
+    }
+
+    // 3. Jika berhasil didapat dari backend, sinkronkan ke state & localStorage
+    if (foundMeeting) {
+      setMeeting(foundMeeting);
+      setLoading(false);
+      try {
+        const stored = JSON.parse(localStorage.getItem("app_meetings") || "[]");
+        const idx = stored.findIndex(
+          (m) =>
+            String(m.id) === String(id) ||
+            String(m.id) === String(foundMeeting.id) ||
+            (m.googleId && (String(m.googleId) === String(id) || String(m.googleId) === String(foundMeeting.googleId))) ||
+            (m.originalId && (String(m.originalId) === String(id) || String(m.originalId) === String(foundMeeting.originalId)))
+        );
+        if (idx !== -1) {
+          stored[idx] = { ...stored[idx], ...foundMeeting };
+        } else {
+          stored.unshift(foundMeeting);
+        }
+        localStorage.setItem("app_meetings", JSON.stringify(stored));
+      } catch (e) {}
+      return;
+    }
+
+    // 4. Fallback terakhir ke localStorage jika backend tidak dapat dihubungi
     try {
       const stored = JSON.parse(localStorage.getItem("app_meetings") || "[]");
       const found = stored.find(
-        (m) => String(m.id) === String(id) || String(m.googleId) === String(id)
+        (m) =>
+          String(m.id) === String(id) ||
+          String(m.googleId) === String(id) ||
+          String(m.originalId) === String(id)
       );
       if (found) {
         setMeeting(found);
@@ -176,8 +263,9 @@ export default function MeetingPassPage() {
   // Handle Presensi Peserta
   const handleSubmitAttendance = async (e) => {
     e.preventDefault();
-    const norm = (meeting?.status || "").toLowerCase();
-    if (norm.includes("menunggu") || norm === "pending") {
+    const norm = (meeting?.status || "").toLowerCase().trim();
+    const hasApproved = !!(meeting?.approvedBy || meeting?.approvedAt);
+    if (!hasApproved && (norm.includes("menunggu") || norm === "pending")) {
       showToast("Presensi belum dapat diisi karena rapat belum disetujui Pimpinan.", "error");
       return;
     }
@@ -191,7 +279,6 @@ export default function MeetingPassPage() {
       name: attName.trim(),
       dept: attDept.trim() || "-",
       nip: attNip.trim() || "-",
-      notes: attNotes.trim() || "",
     };
 
     try {
@@ -230,12 +317,139 @@ export default function MeetingPassPage() {
       setAttName("");
       setAttDept("");
       setAttNip("");
-      setAttNotes("");
       showToast("✓ Kehadiran Anda berhasil dicatat dalam Daftar Hadir!");
     } catch (err) {
       showToast("Gagal menyimpan presensi, silakan coba lagi.", "error");
     } finally {
       setSubmittingAtt(false);
+    }
+  };
+
+  // Helper Format Ukuran File
+  const formatFileSize = (bytes) => {
+    if (!bytes || isNaN(bytes)) return "";
+    if (bytes < 1024) return bytes + " B";
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+    return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+  };
+
+  // Handle Pilih File Materi Rapat
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const ext = file.name.split(".").pop().toLowerCase();
+    let type = "file";
+    if (ext === "pdf") type = "pdf";
+    else if (ext === "ppt" || ext === "pptx") type = "ppt";
+    else if (ext === "doc" || ext === "docx") type = "doc";
+    else if (ext === "xls" || ext === "xlsx") type = "excel";
+
+    const reader = new FileReader();
+    reader.onload = (loadEvent) => {
+      setMaterialUrl(loadEvent.target?.result || "");
+      setMaterialFileMeta({
+        name: file.name,
+        size: formatFileSize(file.size),
+        type,
+      });
+      if (!materialName.trim()) {
+        setMaterialName(file.name.replace(/\.[^/.]+$/, ""));
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Handle Simpan & Unggah Materi Rapat
+  const handleSaveMaterial = async (e) => {
+    e.preventDefault();
+    if (!meeting) return;
+
+    if (materialTab === "file" && !materialUrl) {
+      alert("Mohon pilih file materi yang ingin diunggah.");
+      return;
+    }
+    if (materialTab === "link" && !materialUrl.trim()) {
+      alert("Mohon masukkan tautan / link dokumen materi.");
+      return;
+    }
+
+    const matPayload = {
+      name: materialName.trim() || (materialTab === "file" ? materialFileMeta?.name : "Tautan Materi Rapat") || "Materi Rapat",
+      type: materialTab === "link" ? "link" : (materialFileMeta?.type || "pdf"),
+      url: materialUrl.trim(),
+      size: materialTab === "file" ? (materialFileMeta?.size || "") : "Link",
+      uploadedBy: materialUploader.trim() || meeting.bookedBy || meeting.requester || "Peserta Rapat",
+    };
+
+    setUploadingMaterial(true);
+    try {
+      const res = await fetch(`/api/dashboard/meetings/${meeting.id}/materials`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(matPayload),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.meeting) {
+          setMeeting(data.meeting);
+        }
+      } else {
+        const localMat = {
+          id: "mat_" + Date.now(),
+          ...matPayload,
+          uploadedAt: new Date().toISOString(),
+        };
+        const updated = {
+          ...meeting,
+          materials: [...(meeting.materials || []), localMat],
+        };
+        setMeeting(updated);
+        try {
+          const stored = JSON.parse(localStorage.getItem("app_meetings") || "[]");
+          const idx = stored.findIndex((m) => String(m.id) === String(meeting.id));
+          if (idx !== -1) {
+            stored[idx] = updated;
+            localStorage.setItem("app_meetings", JSON.stringify(stored));
+          }
+        } catch (e) {}
+      }
+
+      showToast("✓ Materi rapat berhasil ditambahkan!");
+      setShowMaterialModal(false);
+      setMaterialName("");
+      setMaterialUrl("");
+      setMaterialFileMeta(null);
+      setMaterialUploader("");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    } catch (err) {
+      showToast("Gagal mengunggah materi, silakan coba lagi.", "error");
+    } finally {
+      setUploadingMaterial(false);
+    }
+  };
+
+  // Handle Hapus Materi Rapat
+  const handleDeleteMaterial = async (matId) => {
+    if (!window.confirm("Apakah Anda yakin ingin menghapus materi ini?")) return;
+    try {
+      const res = await fetch(`/api/dashboard/meetings/${meeting.id}/materials/${matId}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.meeting) setMeeting(data.meeting);
+      } else {
+        const updated = {
+          ...meeting,
+          materials: (meeting.materials || []).filter((m) => String(m.id) !== String(matId)),
+        };
+        setMeeting(updated);
+      }
+      showToast("✓ Dokumen materi berhasil dihapus.");
+    } catch (e) {
+      showToast("Gagal menghapus materi.", "error");
     }
   };
 
@@ -291,13 +505,26 @@ export default function MeetingPassPage() {
     );
   }
 
-  const normStatus = (meeting.status || "").toLowerCase();
-  const isRunning = normStatus === "berjalan" || normStatus === "in_progress";
-  const isUpcoming = normStatus === "akan datang" || normStatus === "disetujui" || normStatus === "upcoming";
+  const normStatus = (meeting.status || "").toLowerCase().trim();
+  const hasApprovedTag = !!(meeting.approvedBy || meeting.approvedAt);
+  const isRunning = normStatus === "berjalan" || normStatus === "in_progress" || normStatus === "ongoing";
   const isCompleted = normStatus === "selesai" || normStatus === "completed";
-  const isPending = normStatus.includes("menunggu") || normStatus === "pending";
+  const isUpcoming =
+    normStatus === "akan datang" ||
+    normStatus === "segera" ||
+    normStatus === "disetujui" ||
+    normStatus === "approved" ||
+    normStatus === "upcoming" ||
+    (hasApprovedTag && !normStatus.includes("tolak") && !normStatus.includes("batal"));
+  const isPending =
+    !hasApprovedTag &&
+    (normStatus.includes("menunggu") || normStatus === "pending") &&
+    !isCompleted &&
+    !isUpcoming &&
+    !isRunning;
 
   const attendeesList = Array.isArray(meeting.attendees) ? meeting.attendees : [];
+  const materialsList = Array.isArray(meeting.materials) ? meeting.materials : [];
   const currentUrl = typeof window !== "undefined" ? window.location.href : "";
 
   return (
@@ -421,10 +648,79 @@ export default function MeetingPassPage() {
                 </tr>
 
                 <tr>
-                  <td className="mp-field-label">Materi Rapat</td>
-                  <td className="mp-field-colon">:</td>
-                  <td className="mp-field-value mp-field-desc">
-                    {meeting.desc || meeting.notes || "Materi dan paparan dibagikan saat sesi rapat berlangsung."}
+                  <td className="mp-field-label mp-field-label-top">Materi Rapat</td>
+                  <td className="mp-field-colon mp-field-colon-top">:</td>
+                  <td className="mp-field-value">
+                    <div className="mp-materials-block">
+                      {materialsList.length > 0 ? (
+                        <div className="mp-materials-list">
+                          {materialsList.map((mat, idx) => (
+                            <div key={mat.id || idx} className="mp-material-item">
+                              <div className="mp-mat-icon-wrap">
+                                {mat.type === "pdf" ? (
+                                  <FaFilePdf className="pdf" />
+                                ) : mat.type === "ppt" || mat.type === "pptx" ? (
+                                  <FaFilePowerpoint className="ppt" />
+                                ) : mat.type === "link" ? (
+                                  <FaLink className="link" />
+                                ) : mat.type === "doc" || mat.type === "docx" ? (
+                                  <FaFileWord className="file" />
+                                ) : (
+                                  <FaFileAlt className="file" />
+                                )}
+                              </div>
+                              <div className="mp-mat-info">
+                                <span className="mp-mat-name" title={mat.name}>{mat.name}</span>
+                                <span className="mp-mat-meta">
+                                  {mat.size ? `${mat.size} · ` : ""}
+                                  {mat.uploadedBy ? `Oleh: ${mat.uploadedBy}` : "Materi Paparan"}
+                                </span>
+                              </div>
+                              <div className="mp-mat-actions">
+                                <a
+                                  href={mat.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="mp-mat-download-btn"
+                                  download={mat.type !== "link" ? mat.name : undefined}
+                                  title="Buka atau Unduh Dokumen"
+                                >
+                                  {mat.type === "link" ? <FaExternalLinkAlt /> : <FaDownload />}
+                                  <span>{mat.type === "link" ? "Buka Tautan" : "Unduh / Buka"}</span>
+                                </a>
+                                <button
+                                  type="button"
+                                  className="mp-mat-delete-btn"
+                                  onClick={() => handleDeleteMaterial(mat.id)}
+                                  title="Hapus materi ini"
+                                >
+                                  <FaTrashAlt />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="mp-materials-empty-inline">
+                          Belum ada materi atau paparan rapat yang diunggah.
+                        </div>
+                      )}
+
+                      {/* Tombol Aksi Unggah Materi */}
+                      <div className="mp-materials-action-bar">
+                        <button
+                          type="button"
+                          className="mp-upload-trigger-btn"
+                          onClick={() => setShowMaterialModal(true)}
+                        >
+                          <FaFileUpload />
+                          <span>+ Unggah Materi (PDF / Paparan)</span>
+                        </button>
+                        <span className="mp-materials-note-hint">
+                          Materi berupa PDF atau paparan dapat diunggah langsung oleh pengguna atau diminta ke Admin untuk dimasukkan.
+                        </span>
+                      </div>
+                    </div>
                   </td>
                 </tr>
               </tbody>
@@ -600,17 +896,6 @@ export default function MeetingPassPage() {
                   onChange={(e) => setAttNip(e.target.value)}
                 />
               </div>
-
-              <div className="mp-input-group">
-                <label>Catatan / Keterangan (Opsional)</label>
-                <input
-                  type="text"
-                  className="mp-text-input"
-                  placeholder="Contoh: Hadir mendampingi pimpinan"
-                  value={attNotes}
-                  onChange={(e) => setAttNotes(e.target.value)}
-                />
-              </div>
             </div>
 
             <div className="mp-form-submit-row">
@@ -760,6 +1045,133 @@ export default function MeetingPassPage() {
                 Cetak Halaman
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Unggah Materi Rapat (PDF / PPT / Paparan) */}
+      {showMaterialModal && (
+        <div className="mp-modal-backdrop" onClick={() => setShowMaterialModal(false)}>
+          <div className="mp-modal-box" style={{ maxWidth: "520px" }} onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              className="mp-modal-close-btn"
+              onClick={() => setShowMaterialModal(false)}
+              aria-label="Tutup Modal"
+            >
+              ×
+            </button>
+
+            <h3 className="mp-modal-title">Unggah Materi Rapat</h3>
+            <p className="mp-modal-subtitle">
+              Lampirkan dokumen PDF, materi paparan (PPT), atau tautan presentasi untuk seluruh peserta rapat.
+            </p>
+
+            <div className="mp-modal-tabs">
+              <button
+                type="button"
+                className={`mp-modal-tab-btn ${materialTab === "file" ? "active" : ""}`}
+                onClick={() => setMaterialTab("file")}
+              >
+                <FaFileUpload style={{ marginRight: 6 }} /> Upload Dokumen / Slide
+              </button>
+              <button
+                type="button"
+                className={`mp-modal-tab-btn ${materialTab === "link" ? "active" : ""}`}
+                onClick={() => setMaterialTab("link")}
+              >
+                <FaLink style={{ marginRight: 6 }} /> Tautan / Link Online
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveMaterial}>
+              {materialTab === "file" ? (
+                <div style={{ marginBottom: 16 }}>
+                  <label style={{ display: "block", fontSize: "12.5px", fontWeight: 600, color: "#334155", marginBottom: 6 }}>
+                    Pilih File Dokumen (PDF, PPT, PPTX, Word) <span style={{ color: "#dc2626" }}>*</span>
+                  </label>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,application/pdf,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation"
+                    onChange={handleFileChange}
+                    style={{
+                      width: "100%",
+                      padding: "10px",
+                      border: "1px dashed #cbd5e1",
+                      borderRadius: "8px",
+                      background: "#f8fafc",
+                      boxSizing: "border-box",
+                      fontSize: "13px",
+                    }}
+                    required={!materialUrl}
+                  />
+                  {materialFileMeta && (
+                    <div style={{ marginTop: 8, fontSize: "12px", color: "#16a34a", fontWeight: 600 }}>
+                      ✓ File terpilih: {materialFileMeta.name} ({materialFileMeta.size})
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div style={{ marginBottom: 16 }}>
+                  <label style={{ display: "block", fontSize: "12.5px", fontWeight: 600, color: "#334155", marginBottom: 6 }}>
+                    Tautan / URL Dokumen (Google Drive, OneDrive, Web) <span style={{ color: "#dc2626" }}>*</span>
+                  </label>
+                  <input
+                    type="url"
+                    placeholder="Contoh: https://drive.google.com/file/d/..."
+                    value={materialUrl}
+                    onChange={(e) => setMaterialUrl(e.target.value)}
+                    className="mp-text-input"
+                    required
+                  />
+                </div>
+              )}
+
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: "block", fontSize: "12.5px", fontWeight: 600, color: "#334155", marginBottom: 6 }}>
+                  Judul / Nama Dokumen
+                </label>
+                <input
+                  type="text"
+                  placeholder="Contoh: Paparan Implementasi Gaji Terpusat"
+                  value={materialName}
+                  onChange={(e) => setMaterialName(e.target.value)}
+                  className="mp-text-input"
+                />
+              </div>
+
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ display: "block", fontSize: "12.5px", fontWeight: 600, color: "#334155", marginBottom: 6 }}>
+                  Nama Pengunggah (Opsional)
+                </label>
+                <input
+                  type="text"
+                  placeholder={`Contoh: ${meeting.bookedBy || "Peserta / Admin"}`}
+                  value={materialUploader}
+                  onChange={(e) => setMaterialUploader(e.target.value)}
+                  className="mp-text-input"
+                />
+              </div>
+
+              <div className="mp-modal-actions" style={{ marginTop: 0 }}>
+                <button
+                  type="button"
+                  className="mp-btn-action light"
+                  onClick={() => setShowMaterialModal(false)}
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="mp-btn-action primary"
+                  disabled={uploadingMaterial}
+                >
+                  <FaFileUpload />
+                  <span>{uploadingMaterial ? "Menyimpan..." : "Simpan Materi"}</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

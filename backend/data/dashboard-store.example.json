@@ -1,0 +1,69 @@
+{
+  "rooms": [
+    {
+      "id": 1,
+      "name": "Ruang Rapat Besar",
+      "location": "Gedung Pusat Kemnaker, Lt. 3",
+      "capacity": 30,
+      "status": "Tersedia",
+      "facilities": [
+        { "label": "Kapasitas", "value": "46" },
+        { "label": "TV", "value": "Smart TV 85 inch" },
+        { "label": "AC", "value": "Tersedia" },
+        { "label": "Microphone", "value": "Tersedia 6 mic" },
+        { "label": "Speaker", "value": "Tersedia" },
+        { "label": "Dispenser", "value": "Tersedia" },
+        { "label": "Stopkontak", "value": "Tersedia" },
+        { "label": "Kabel", "value": "HDMI" }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Ruang Konsultasi",
+      "location": "Gedung Pusat Kemnaker, Lt. 3",
+      "capacity": 12,
+      "status": "Tersedia",
+      "facilities": [
+        { "label": "Kapasitas", "value": "7" },
+        { "label": "TV", "value": "Smart TV 60 inch" },
+        { "label": "AC", "value": "Tersedia" },
+        { "label": "Microphone", "value": "Tidak Tersedia" },
+        { "label": "Speaker", "value": "Tidak Tersedia" },
+        { "label": "Dispenser", "value": "Tidak Tersedia" },
+        { "label": "Stopkontak", "value": "Tersedia" },
+        { "label": "Kabel", "value": "HDMI" }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "id": "admin",
+      "name": "Admin Utama",
+      "username": "admin",
+      "email": "admin@kemnaker.go.id",
+      "dept": "Biro Keuangan dan BMN",
+      "role": "Admin",
+      "status": "Aktif"
+    },
+    {
+      "id": "approval1",
+      "name": "Pimpinan",
+      "username": "approval1",
+      "email": "pimpinan@kemnaker.go.id",
+      "dept": "Biro Keuangan dan BMN",
+      "role": "Pimpinan",
+      "status": "Aktif"
+    },
+    {
+      "id": "approval2",
+      "name": "Wakil Pimpinan",
+      "username": "approval2",
+      "email": "wakil.pimpinan@kemnaker.go.id",
+      "dept": "Biro Keuangan dan BMN",
+      "role": "Pimpinan",
+      "status": "Aktif"
+    }
+  ],
+  "meetings": []
+}
+

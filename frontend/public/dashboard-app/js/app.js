@@ -72,6 +72,7 @@ function denyAccess(message) {
 }
 
 function isPageAllowed(page, user) {
+  if (page === "reports") return isAdminRole(user);
   if (page === "users") return can("manageUsers", user);
   if (page === "settings") return can("manageSettings", user);
   return true;
@@ -354,6 +355,28 @@ function akhirBulan() {
   return tanggalKe(akhir - d.getDate());
 }
 
+function awalMinggu() {
+  const d = new Date();
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  const monday = new Date(d);
+  monday.setDate(diff);
+  const bulan = String(monday.getMonth() + 1).padStart(2, "0");
+  const hari = String(monday.getDate()).padStart(2, "0");
+  return monday.getFullYear() + "-" + bulan + "-" + hari;
+}
+
+function akhirMinggu() {
+  const d = new Date();
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? 0 : 7);
+  const sunday = new Date(d);
+  sunday.setDate(diff);
+  const bulan = String(sunday.getMonth() + 1).padStart(2, "0");
+  const hari = String(sunday.getDate()).padStart(2, "0");
+  return sunday.getFullYear() + "-" + bulan + "-" + hari;
+}
+
 const state = {
   page: location.hash.replace("#", "") || "dashboard",
   googleCalendarConnected: false,
@@ -566,6 +589,7 @@ const nav = [
   ["dashboard", ICONS.dashboard, "Dashboard"],
   ["meetings", ICONS.meetings, "Manajemen Rapat"],
   ["rooms", ICONS.rooms, "Manajemen Ruangan"],
+  ["reports", ICONS.reports, "Laporan Penggunaan"],
   ["users", ICONS.users, "Pengguna"],
   ["calendar", ICONS.calendar, "Kalender"],
   ["settings", ICONS.settings, "Pengaturan"],
@@ -641,6 +665,7 @@ function layout(content) {
         "dashboard",
         "meetings",
         "rooms",
+        "reports",
         "users",
         "calendar",
         "settings",
@@ -657,7 +682,7 @@ function layout(content) {
         ${getProfileHTML()}
       </div>
     </header>`
-    }<section class="content" ${["dashboard", "meetings", "rooms", "users", "calendar", "settings"].includes(state.page) ? 'style="padding:0;max-width:none;"' : ""}>${content}</section></main></div><div id="modal" class="modal-backdrop"></div>`;
+    }<section class="content" ${["dashboard", "meetings", "rooms", "reports", "users", "calendar", "settings"].includes(state.page) ? 'style="padding:0;max-width:none;"' : ""}>${content}</section></main></div><div id="modal" class="modal-backdrop"></div>`;
 }
 
 // ----------------------------------------------------------------------
@@ -1260,358 +1285,6 @@ function dashboard() {
     'width="16" height="16"',
   );
 
-  const customCSS = `
-    <style>
-      .rep-page-wrapper { background: linear-gradient(180deg, #d4e6f6 0%, #edf5fc 300px); min-height: 100vh; display: flex; flex-direction: column; }
-      .rep-header { display: flex; justify-content: space-between; align-items: flex-start; padding: 30px 40px 24px; }
-      .rep-breadcrumb { font-size: 12px; color: #4b6a90; margin-bottom: 8px; font-weight: 500; }
-      .rep-header h1 { font-size: 28px; font-weight: 700; color: #0c2d5e; margin-bottom: 6px; }
-      .rep-header p { color: #4b6a90; font-size: 14px; font-weight: 500; }
-      
-      .rep-filters-row { display: flex; justify-content: space-between; align-items: center; padding: 0 40px 20px; }
-      .rep-filters-left { display: flex; gap: 12px; align-items: center; }
-      .rep-filters-left select, .rep-filters-left button { padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; outline: none; border: 1px solid #e2eaf5; cursor: pointer; }
-      .rep-filters-left select { background: #fff; color: #0c2d5e; min-width: 150px; appearance: none; -webkit-appearance: none; padding-right: 32px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%230c2d5e' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; }
-      .rep-filters-left .btn-white { background: #fff; color: #4b6a90; }
-      .rep-filters-left .btn-blue { background: #1769aa; color: #fff; }
-      .rep-export-btn { background: #0c2d5e; color: #fff; border: none; padding: 8px 20px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; }
-      
-      .rep-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; padding: 0 40px 24px; }
-      .rep-card { background: rgba(255,255,255,0.85); border-radius: 12px; padding: 20px; display: flex; align-items: center; gap: 16px; box-shadow: 0 4px 20px rgba(12, 45, 94, 0.04); }
-      .rc-icon { width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center; }
-      .rc-icon.blue1 { background: #e6f0fa; color: #1769aa; }
-      .rc-text strong { display: block; font-size: 24px; font-weight: 700; color: #0c2d5e; line-height: 1.1; }
-      .rc-text span { display: block; font-size: 12px; font-weight: 500; color: #4b6a90; margin-top: 4px; }
-      
-      .rep-charts { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 20px; padding: 0 40px 24px; }
-      .rep-chart-card { background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 4px 20px rgba(12, 45, 94, 0.04); }
-      .rep-chart-card h2 { font-size: 16px; font-weight: 700; color: #0c2d5e; margin-bottom: 20px; }
-      
-      .rep-list { background: #fff; margin: 0 40px 40px; border-radius: 12px; padding: 24px; box-shadow: 0 4px 20px rgba(12, 45, 94, 0.04); }
-      .rep-list table { width: 100%; border-collapse: collapse; }
-      .rep-list th { text-align: left; padding: 12px 16px; color: #4b6a90; font-weight: 600; font-size: 13px; border-bottom: 1px solid #eef3f9; }
-      .rep-list td { padding: 16px; color: #0c2d5e; font-size: 13px; font-weight: 500; border-bottom: 1px solid #f4f8fc; }
-
-      /* Middle Grid: Charts on the left, Notifications & Requests on the right */
-      .dash-middle-grid { display: grid; grid-template-columns: 1.55fr 1fr; gap: 20px; padding: 0 40px 24px; align-items: stretch; }
-      @media (max-width: 1200px) { .dash-middle-grid { grid-template-columns: 1fr; } }
-      .dash-charts-col { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
-      .dash-charts-subgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; min-width: 0; }
-      @media (max-width: 768px) { .dash-charts-subgrid { grid-template-columns: 1fr; } }
-      /* Bottom Grid: Meetings Table & Notifications side-by-side */
-      .dash-bottom-grid { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 20px; padding: 0 40px 40px; align-items: stretch; }
-      @media (max-width: 1100px) { .dash-bottom-grid { grid-template-columns: 1fr; } }
-      .dash-table-col { min-width: 0; display: flex; flex-direction: column; }
-      .dash-table-col .dash-table-card { width: 100%; flex: 1; display: flex; flex-direction: column; box-sizing: border-box; }
-      .dash-table-col .dash-table-wrapper { flex: 1; }
-      .dash-notif-col { min-width: 0; width: 330px; display: flex; flex-direction: column; }
-      @media (max-width: 1100px) { .dash-notif-col { width: 100%; } }
-      .dash-notif-col .dash-notif-card { width: 100%; height: 100%; flex: 1; display: flex; flex-direction: column; box-sizing: border-box; }
-      .dash-notif-col .dash-notif-body { flex: 1; min-height: 250px; max-height: 560px; overflow-y: auto; }
-
-      /* Layout Template Khusus Approval & Non-Admin (Sesuai Sketsa) */
-      .dash-approval-layout {
-        display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 16px;
-        padding: 0 40px 40px;
-        align-items: start;
-      }
-      @media (max-width: 1100px) {
-        .dash-approval-layout {
-          grid-template-columns: 1fr;
-        }
-      }
-      .dash-approval-left {
-        grid-column: span 3;
-        display: flex;
-        flex-direction: column;
-        gap: 20px;
-        min-width: 0;
-      }
-      @media (max-width: 1100px) {
-        .dash-approval-left {
-          grid-column: span 1;
-        }
-      }
-      .dash-approval-left .dash-table-card {
-        width: 100%;
-        display: flex;
-        flex-direction: column;
-        margin: 0;
-        box-sizing: border-box;
-      }
-      .dash-approval-left .dash-table-wrapper {
-        width: 100%;
-        overflow-x: auto;
-      }
-      .dash-approval-right {
-        grid-column: span 1;
-        min-width: 0;
-        display: flex;
-        flex-direction: column;
-      }
-      @media (max-width: 1100px) {
-        .dash-approval-right {
-          grid-column: span 1;
-        }
-      }
-      .dash-approval-right .dash-notif-card {
-        width: 100%;
-        display: flex;
-        flex-direction: column;
-        box-sizing: border-box;
-      }
-      .dash-approval-right .dash-notif-body {
-        max-height: 480px;
-        overflow-y: auto;
-      }
-
-      /* Admin Charts Section (Balanced 2-Card Layout) */
-      .rep-charts-admin {
-        display: grid;
-        grid-template-columns: 1.55fr 1fr;
-        gap: 16px;
-        padding: 0 40px 20px;
-        align-items: stretch;
-      }
-      @media (max-width: 1100px) {
-        .rep-charts-admin {
-          grid-template-columns: 1fr;
-        }
-      }
-      .admin-chart-card {
-        background: #ffffff;
-        border-radius: 12px;
-        padding: 20px 22px;
-        box-shadow: 0 4px 20px rgba(12, 45, 94, 0.04);
-        border: 1px solid #eef3f9;
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-      }
-      .admin-chart-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        margin-bottom: 16px;
-        padding-bottom: 12px;
-        border-bottom: 1px solid #eef3f9;
-      }
-      .admin-chart-header h2 {
-        font-size: 15px;
-        font-weight: 700;
-        color: #0c2d5e;
-        margin: 0 0 2px;
-        letter-spacing: -0.2px;
-      }
-      .admin-chart-header small {
-        font-size: 11.5px;
-        color: #64748b;
-        font-weight: 500;
-      }
-
-      /* Compact Stat Cards (Sejajar dengan Tabel Rapat) */
-      .rep-cards-compact {
-        display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 16px;
-      }
-      @media (max-width: 900px) {
-        .rep-cards-compact {
-          grid-template-columns: repeat(2, 1fr);
-        }
-      }
-      .rep-card-compact {
-        background: #ffffff;
-        border-radius: 12px;
-        padding: 14px 18px;
-        display: flex;
-        align-items: center;
-        gap: 14px;
-        box-shadow: 0 4px 18px rgba(12, 45, 94, 0.04);
-        border: 1px solid #eef3f9;
-        min-width: 0;
-        transition: transform 0.15s, box-shadow 0.15s;
-      }
-      .rep-card-compact:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(12, 45, 94, 0.07);
-      }
-      .rc-icon-compact {
-        width: 44px;
-        height: 44px;
-        border-radius: 12px;
-        display: grid;
-        place-items: center;
-        flex-shrink: 0;
-        background: #e6f0fa;
-        color: #1769aa;
-      }
-      .rc-icon-compact svg {
-        width: 22px !important;
-        height: 22px !important;
-      }
-      .rc-text-compact {
-        min-width: 0;
-      }
-      .rc-text-compact strong {
-        display: block;
-        font-size: 22px;
-        font-weight: 700;
-        color: #0c2d5e;
-        line-height: 1.15;
-      }
-      .rc-text-compact span {
-        display: block;
-        font-size: 12px;
-        font-weight: 600;
-        color: #4b6a90;
-        margin-top: 3px;
-        white-space: nowrap;
-      }
-
-      .dash-notif-card { background: #fff; border-radius: 12px; padding: 18px 20px; box-shadow: 0 4px 20px rgba(12, 45, 94, 0.04); display: flex; flex-direction: column; min-width: 0; box-sizing: border-box; }
-      .dash-section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 14px; border-bottom: 1px solid #eef3f9; }
-      .dash-notif-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: 10px;
-        margin-bottom: 14px;
-        padding-bottom: 12px;
-        border-bottom: 1px solid #eef3f9;
-      }
-      .dash-notif-header-title {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        min-width: 0;
-      }
-      .dash-notif-header-title h2 {
-        font-size: 15px;
-        font-weight: 700;
-        color: #0c2d5e;
-        margin: 0;
-        white-space: nowrap;
-        letter-spacing: -0.2px;
-      }
-      .dash-notif-header-actions {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        flex-shrink: 0;
-      }
-      .notif-pending-pill {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        padding: 0 10px;
-        height: 28px;
-        box-sizing: border-box;
-        background: #fff7ed;
-        color: #c2410c;
-        border: 1px solid #fed7aa;
-        border-radius: 14px;
-        font-size: 11.5px;
-        font-weight: 700;
-        white-space: nowrap;
-        line-height: 1;
-      }
-      .notif-pending-dot {
-        width: 6px;
-        height: 6px;
-        border-radius: 50%;
-        background: #ea580c;
-        display: inline-block;
-        flex-shrink: 0;
-      }
-      .notif-mark-read-btn {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        padding: 0 11px;
-        height: 28px;
-        box-sizing: border-box;
-        background: #f0f7ff;
-        color: #1769aa;
-        border: 1px solid #d0e4f7;
-        border-radius: 7px;
-        font-size: 11.5px;
-        font-weight: 600;
-        cursor: pointer;
-        white-space: nowrap;
-        line-height: 1;
-        transition: all 0.15s ease;
-      }
-      .notif-mark-read-btn:hover {
-        background: #e0f0fe;
-        border-color: #b9daf7;
-        color: #0c2d5e;
-      }
-      .notif-mark-read-btn svg {
-        flex-shrink: 0;
-      }
-      .dash-notif-body {
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-        max-height: 480px;
-        overflow-y: auto;
-        overflow-x: hidden;
-        padding-right: 4px;
-        scroll-behavior: smooth;
-      }
-      .dash-notif-body::-webkit-scrollbar { width: 5px; }
-      .dash-notif-body::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
-      .dash-notif-body::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-      .dash-notif-body::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-      .dash-notif-item {
-        width: 100%;
-        box-sizing: border-box;
-        background: #ffffff;
-        border: 1px solid #e2e8f0;
-        border-radius: 10px;
-        padding: 13px 15px;
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        transition: all 0.15s ease;
-        box-shadow: 0 2px 6px rgba(12, 45, 94, 0.03);
-      }
-      .dash-notif-item:hover {
-        background: #f8fafc;
-        border-color: #cbd5e1;
-        box-shadow: 0 4px 12px rgba(12, 45, 94, 0.06);
-      }
-      .dash-notif-item.highlight-pending {
-        background: #fffcf8;
-        border: 1.5px solid #fed7aa;
-        border-left: 4px solid #ea580c;
-        box-shadow: 0 3px 12px rgba(234, 88, 12, 0.08);
-      }
-      
-      /* Bottom Meeting Table Card */
-      .dash-table-card { background: #fff; margin: 0; border-radius: 12px; padding: 20px; box-shadow: 0 4px 20px rgba(12, 45, 94, 0.04); display: flex; flex-direction: column; overflow: hidden; }
-      .dash-table-wrapper { overflow-x: hidden; width: 100%; }
-      .dash-table-wrapper table { width: 100%; border-collapse: collapse; table-layout: auto; }
-      .dash-table-wrapper th { text-align: left; padding: 10px 6px; color: #4b6a90; font-weight: 600; font-size: 12px; border-bottom: 1px solid #eef3f9; white-space: nowrap; }
-      .dash-table-wrapper td { padding: 10px 6px; color: #0c2d5e; font-size: 12.5px; font-weight: 500; border-bottom: 1px solid #f4f8fc; }
-      
-      /* Chart Mocks */
-      .mock-bar-chart { display: flex; align-items: flex-end; gap: 12px; height: 200px; padding-top: 20px; }
-      .mock-bar { background: #82b1ff; width: 100%; border-radius: 4px 4px 0 0; position: relative; }
-      .mock-bar.dark { background: #1769aa; }
-      .mock-bar span { position: absolute; top: -20px; width: 100%; text-align: center; font-size: 10px; color: #4b6a90; }
-      
-      .mock-donut { width: 180px; height: 180px; border-radius: 50%; margin: 0 auto; background: conic-gradient(#1f9e5c 0 57%, #f8b449 57% 83%, #8ab4f8 83% 100%); position: relative; }
-      .mock-donut::after { content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 0; height: 0; background: #fff; border-radius: 50%; }
-      
-      .mock-stacked-bar { height: 70px; background: #4a4a4a; display: flex; margin-bottom: 24px; }
-      .mock-stacked-bar-fill { height: 100%; background: #4285f4; }
-    </style>
-  `;
 
   const currentUser = getCurrentUser();
   const isAdmin = isAdminRole(currentUser);
@@ -1631,6 +1304,10 @@ function dashboard() {
     if (f.mode === "harian") {
       const today = getTodayIsoDate();
       meetingsToDisplay = meetingsToDisplay.filter((m) => m.date === today);
+    } else if (f.mode === "mingguan") {
+      const start = f.startDate || awalMinggu();
+      const end = f.endDate || akhirMinggu();
+      meetingsToDisplay = meetingsToDisplay.filter((m) => m.date >= start && m.date <= end);
     } else if (f.mode === "date" && f.startDate && f.endDate) {
       meetingsToDisplay = meetingsToDisplay.filter((m) => m.date >= f.startDate && m.date <= f.endDate);
     } else if (f.mode === "bulanan" && f.startDate && f.endDate) {
@@ -1781,7 +1458,7 @@ function dashboard() {
               <span>Tambah Rapat</span>
             </button>
             `
-            : `<span style="font-size:11.5px;font-weight:700;color:#475569;background:#f1f5f9;border:1px solid #e2e8f0;padding:5px 11px;border-radius:8px;display:inline-flex;align-items:center;gap:4px;">👁 Mode Pemantauan</span>`
+            : ""
         }
         </div>
       </div>
@@ -1909,7 +1586,6 @@ function dashboard() {
   `;
 
   return (
-    customCSS +
     `
     <div class="rep-page-wrapper">
       <div class="rep-header">
@@ -2192,227 +1868,8 @@ function meetings() {
     'width="18" height="18"',
   );
 
-  const customCSS = `
-    <style>
-      .dashboard-wrapper {
-        background: linear-gradient(180deg, #d4e6f6 0%, #edf5fc 300px);
-        min-height: 100vh;
-        display: flex;
-        flex-direction: column;
-      }
-      .dash-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        padding: 30px 40px 30px;
-      }
-      .dash-breadcrumb {
-        font-size: 12px;
-        color: #4b6a90;
-        margin-bottom: 8px;
-        font-weight: 500;
-      }
-      .dash-title h1 {
-        font-size: 28px;
-        font-weight: 700;
-        color: #0c2d5e;
-        margin-bottom: 6px;
-      }
-      .dash-title p {
-        color: #4b6a90;
-        font-size: 14px;
-        font-weight: 500;
-      }
-      .dash-actions {
-        display: flex;
-        align-items: center;
-        gap: 24px;
-      }
-      .dash-bell {
-        width: 44px;
-        height: 44px;
-        border-radius: 50%;
-        background: rgba(255,255,255,0.7);
-        display: grid;
-        place-items: center;
-        position: relative;
-        cursor: pointer;
-        font-size: 16px;
-      }
-      .dash-bell::after {
-        content: '';
-        position: absolute;
-        top: 12px;
-        right: 14px;
-        width: 6px;
-        height: 6px;
-        background: red;
-        border-radius: 50%;
-      }
-      .dash-actions .profile {
-        margin: 0;
-        background: transparent;
-      }
-      .dash-actions .avatar {
-        background: rgba(255,255,255,0.6);
-        color: #0c2d5e;
-        border: 1px solid #d4e6f6;
-      }
-      
-      .dash-cards {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 20px;
-        padding: 0 40px 30px;
-      }
-      .d-card {
-        background: rgba(255,255,255,0.85);
-        border: 1px solid #fff;
-        border-radius: 16px;
-        padding: 24px;
-        display: flex;
-        align-items: center;
-        gap: 18px;
-        box-shadow: 0 10px 30px rgba(12, 45, 94, 0.05);
-        backdrop-filter: blur(10px);
-      }
-      .dc-icon {
-        width: 56px;
-        height: 56px;
-        border-radius: 50%;
-        display: grid;
-        place-items: center;
-      }
-      .dc-icon.blue { background: #e6f0fa; color: #1769aa; }
-      .dc-icon.green { background: #e2f7ec; color: #13865b; }
-      .dc-icon.yellow { background: #fff5da; color: #aa7600; }
-      .dc-icon.purple { background: #efeaff; color: #1769aa; }
-      
-      .dc-text strong {
-        display: block;
-        font-size: 26px;
-        font-weight: 700;
-        color: #0c2d5e;
-        line-height: 1.1;
-      }
-      .dc-text span {
-        display: block;
-        font-size: 14px;
-        font-weight: 600;
-        color: #0c2d5e;
-        margin-top: 4px;
-      }
-      .dc-text small {
-        display: block;
-        font-size: 11px;
-        color: #4b6a90;
-        margin-top: 2px;
-        font-weight: 500;
-      }
-      
-      .dash-table-container {
-        flex: 1;
-        background: #fff;
-        border-radius: 20px 20px 0 0;
-        padding: 30px 40px;
-        box-shadow: 0 -4px 20px rgba(0,0,0,0.02);
-        margin: 0;
-      }
-      
-      /* Tabs override */
-      .dash-tabs {
-        display: flex;
-        gap: 30px;
-        border-bottom: 1px solid #edf3f9;
-        margin-bottom: 24px;
-      }
-      .dash-tabs button {
-        background: none;
-        border: none;
-        padding: 10px 0;
-        font-size: 15px;
-        font-weight: 600;
-        color: #607490;
-        cursor: pointer;
-        position: relative;
-        transition: color 0.2s;
-      }
-      .dash-tabs button.active {
-        color: #0c2d5e;
-      }
-      .dash-tabs button.active::after {
-        content: '';
-        position: absolute;
-        bottom: -1px;
-        left: 0;
-        right: 0;
-        height: 3px;
-        background: #1769aa;
-        border-radius: 3px 3px 0 0;
-      }
-      
-      /* Filters override */
-      .dash-filters {
-        display: flex;
-        gap: 16px;
-        margin-bottom: 24px;
-      }
-      .dash-search-box {
-        position: relative;
-        display: flex;
-        align-items: center;
-        width: 320px;
-      }
-      .dash-search-box svg {
-        position: absolute;
-        left: 14px;
-        color: #1769aa;
-      }
-      .dash-search-box input {
-        width: 100%;
-        padding: 10px 14px 10px 40px;
-        border: 1px solid #edf3f9;
-        border-radius: 8px;
-        font-size: 14px;
-        outline: none;
-        color: #0c2d5e;
-        transition: border-color 0.2s;
-      }
-      .dash-search-box input:focus { border-color: #1769aa; }
-      .dash-filters select {
-        padding: 10px 36px 10px 14px;
-        border: 1px solid #edf3f9;
-        border-radius: 8px;
-        font-size: 14px;
-        color: #0c2d5e;
-        outline: none;
-        background-color: #fff;
-        appearance: none;
-        -webkit-appearance: none;
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%230c2d5e' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-        background-repeat: no-repeat;
-        background-position: right 12px center;
-        cursor: pointer;
-      }
-      
-      /* Force table style */
-      .dash-table-container .table th {
-        background: #f4f8fc;
-        color: #0c2d5e;
-        font-weight: 600;
-        border-bottom: 1px solid #eef3f9;
-      }
-      .dash-table-container .table td {
-        border-bottom: 1px solid #f4f8fc;
-      }
-      .dash-table-container .table tr:hover td {
-        background: #f9fbff;
-      }
-    </style>
-  `;
 
   return (
-    customCSS +
     `
     <div class="dashboard-wrapper">
       <div class="dash-header">
@@ -2607,593 +2064,8 @@ function rooms() {
     (r) => r.status === "Dalam Perbaikan" || r.status === "Perbaikan",
   ).length;
 
-  const customCSS = `
-    <style>
-      .rooms-wrapper {
-        background: linear-gradient(180deg, #d4e6f6 0%, #edf5fc 320px);
-        min-height: 100vh;
-        display: flex;
-        flex-direction: column;
-        font-family: 'Poppins', sans-serif;
-      }
-      .rooms-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        padding: 30px 40px 24px;
-      }
-      .rooms-breadcrumb {
-        font-size: 13px;
-        color: #4b6a90;
-        margin-bottom: 6px;
-        font-weight: 500;
-      }
-      .rooms-title h1 {
-        font-size: 28px;
-        font-weight: 700;
-        color: #0c2d5e;
-        margin: 0 0 4px;
-      }
-      .rooms-title p {
-        color: #4b6a90;
-        font-size: 14px;
-        font-weight: 500;
-        margin: 0;
-      }
-      .rooms-actions {
-        display: flex;
-        align-items: center;
-        gap: 24px;
-      }
-      .rooms-stat-grid {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 20px;
-        padding: 0 40px 28px;
-      }
-      .r-card {
-        background: #ffffff;
-        border-radius: 14px;
-        padding: 22px 24px;
-        display: flex;
-        align-items: center;
-        gap: 18px;
-        box-shadow: 0 4px 20px rgba(12, 45, 94, 0.05);
-        position: relative;
-        overflow: hidden;
-      }
-      .r-card::after {
-        content: '';
-        position: absolute;
-        right: -20px;
-        bottom: -25px;
-        width: 90px;
-        height: 90px;
-        border-radius: 50%;
-        background: #edf6fd;
-        z-index: 0;
-        pointer-events: none;
-      }
-      .r-icon-box {
-        width: 52px;
-        height: 52px;
-        border-radius: 50%;
-        display: grid;
-        place-items: center;
-        flex-shrink: 0;
-        position: relative;
-        z-index: 1;
-      }
-      .r-icon-box.plain {
-        border-radius: 0;
-        background: transparent;
-        color: #1769aa;
-      }
-      .r-icon-box.circle-blue {
-        background: #bce0fd;
-        color: #0c2d5e;
-      }
-      .r-dot-red {
-        width: 20px;
-        height: 20px;
-        border-radius: 50%;
-        background: #e53e3e;
-      }
-      .r-info {
-        position: relative;
-        z-index: 1;
-      }
-      .r-info strong {
-        display: block;
-        font-size: 28px;
-        font-weight: 700;
-        color: #0c2d5e;
-        line-height: 1.1;
-      }
-      .r-info span {
-        display: block;
-        font-size: 13px;
-        font-weight: 500;
-        color: #4b6a90;
-        margin-top: 4px;
-      }
-      .rooms-panel {
-        background: #ffffff;
-        margin: 0 40px 40px;
-        border-radius: 16px;
-        padding: 28px 32px 36px;
-        box-shadow: 0 4px 24px rgba(12, 45, 94, 0.05);
-      }
-      .rooms-filter-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 28px;
-        flex-wrap: wrap;
-        gap: 16px;
-      }
-      .rooms-filter-left {
-        display: flex;
-        align-items: center;
-        gap: 16px;
-        flex-wrap: wrap;
-      }
-      .rooms-search-box {
-        position: relative;
-        display: flex;
-        align-items: center;
-        width: 250px;
-      }
-      .rooms-search-box svg {
-        position: absolute;
-        left: 14px;
-        color: #1769aa;
-        pointer-events: none;
-      }
-      .rooms-search-box input {
-        width: 100%;
-        padding: 10px 14px 10px 40px;
-        border: 1px solid #edf3f9;
-        border-radius: 8px;
-        font-size: 14px;
-        font-family: 'Poppins', sans-serif;
-        outline: none;
-        color: #0c2d5e;
-        background: #fff;
-        box-sizing: border-box;
-      }
-      .rooms-filter-left select {
-        padding: 10px 36px 10px 16px;
-        border: 1px solid #edf3f9;
-        border-radius: 8px;
-        font-size: 14px;
-        font-weight: 700;
-        font-family: 'Poppins', sans-serif;
-        color: #0c2d5e;
-        outline: none;
-        background-color: #fff;
-        appearance: none;
-        -webkit-appearance: none;
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%230c2d5e' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-        background-repeat: no-repeat;
-        background-position: right 14px center;
-        cursor: pointer;
-      }
-      .btn-add-room {
-        background: #0c2d5e;
-        color: #ffffff;
-        border: none;
-        padding: 11px 24px;
-        border-radius: 8px;
-        font-size: 14px;
-        font-weight: 700;
-        font-family: 'Poppins', sans-serif;
-        cursor: pointer;
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        transition: background 0.2s;
-      }
-      .btn-add-room:hover {
-        background: #1769aa;
-      }
-      .room-grid-custom {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(320px, 350px));
-        gap: 28px;
-      }
-      .custom-room-card {
-        border-radius: 12px;
-        overflow: hidden;
-        background: #ffffff;
-        border: 1px solid #eef3f9;
-        box-shadow: 0 2px 10px rgba(12, 45, 94, 0.04);
-        cursor: pointer;
-        transition: transform 0.2s, box-shadow 0.2s;
-        display: flex;
-        flex-direction: column;
-      }
-      .custom-room-card:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 8px 24px rgba(12, 45, 94, 0.09);
-      }
-      .crc-img-wrap {
-        width: 100%;
-        height: 190px;
-        background: #eef3f9;
-        overflow: hidden;
-      }
-      .crc-img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        display: block;
-      }
-      .crc-footer {
-        background: #e9eff6;
-        padding: 16px 14px;
-        text-align: center;
-      }
-      .crc-footer span {
-        font-size: 15px;
-        font-weight: 700;
-        color: #0c2d5e;
-        font-family: 'Poppins', sans-serif;
-      }
-
-      /* Modal Style for Tambahan Ruangan */
-      .custom-room-modal {
-        width: min(650px, 94vw);
-        max-height: 90vh;
-        overflow-y: auto;
-        background: #ffffff;
-        border-radius: 20px;
-        padding: 32px 36px 36px;
-        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18);
-        font-family: 'Poppins', sans-serif;
-        box-sizing: border-box;
-      }
-      .custom-room-modal h2 {
-        font-size: 24px;
-        font-weight: 800;
-        color: #0c2d5e;
-        margin: 0 0 24px;
-        letter-spacing: -0.3px;
-      }
-      .crm-field {
-        margin-bottom: 18px;
-      }
-      .crm-field.full {
-        width: 100%;
-      }
-      .crm-row {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 16px;
-      }
-      .crm-field label {
-        display: block;
-        font-size: 14px;
-        font-weight: 700;
-        color: #0c2d5e;
-        margin-bottom: 8px;
-      }
-      .crm-field input,
-      .crm-field select {
-        width: 100%;
-        padding: 12px 18px;
-        border-radius: 14px;
-        border: none;
-        background: #eef2f8;
-        font-size: 14px;
-        font-family: 'Poppins', sans-serif;
-        color: #0c2d5e;
-        outline: none;
-        box-sizing: border-box;
-      }
-      .crm-field select {
-        appearance: none;
-        -webkit-appearance: none;
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%230c2d5e' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-        background-repeat: no-repeat;
-        background-position: right 16px center;
-        cursor: pointer;
-      }
-      .crm-upload-box {
-        border: 2px dashed #b9cde3;
-        border-radius: 14px;
-        background: #f7fafe;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        overflow: hidden;
-        position: relative;
-      }
-      .crm-upload-box:hover,
-      .crm-upload-box.dragover {
-        border-color: #1769aa;
-        background: #edf5fc;
-      }
-      .crm-image-preview-wrap {
-        width: 100%;
-        min-height: 110px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        position: relative;
-      }
-      .crm-image-preview-wrap.has-image {
-        min-height: 140px;
-        max-height: 180px;
-      }
-      .crm-img-preview {
-        width: 100%;
-        height: 150px;
-        object-fit: cover;
-        display: block;
-        border-radius: 12px;
-      }
-      .crm-upload-placeholder {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        padding: 20px 16px;
-        text-align: center;
-      }
-      .crm-upload-icon {
-        width: 44px;
-        height: 44px;
-        border-radius: 50%;
-        background: #e1effa;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: #1769aa;
-      }
-      .crm-upload-text strong {
-        font-size: 13.5px;
-        color: #0c2d5e;
-        display: block;
-        font-weight: 600;
-      }
-      .crm-upload-text small {
-        font-size: 11.5px;
-        color: #718dae;
-        display: block;
-        margin-top: 3px;
-      }
-      .crm-upload-overlay {
-        position: absolute;
-        inset: 0;
-        background: rgba(12, 45, 94, 0.65);
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        gap: 6px;
-        color: #ffffff;
-        font-size: 13px;
-        font-weight: 600;
-        opacity: 0;
-        transition: opacity 0.2s ease;
-        border-radius: 12px;
-      }
-      .crm-upload-box:hover .crm-upload-overlay {
-        opacity: 1;
-      }
-      .crm-btn-add-fac {
-        background: #eaf2fb;
-        color: #1769aa;
-        border: 1px solid #cce0f5;
-        padding: 6px 14px;
-        border-radius: 8px;
-        font-size: 12px;
-        font-weight: 700;
-        cursor: pointer;
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        transition: all 0.15s ease;
-        font-family: 'Poppins', sans-serif;
-      }
-      .crm-btn-add-fac:hover {
-        background: #d8e8f8;
-        border-color: #b9daf7;
-      }
-      .crm-facility-list-wrap {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        background: #f8fafc;
-        border: 1.5px solid #e2e8f0;
-        border-radius: 14px;
-        padding: 12px;
-        max-height: 330px;
-        overflow-y: auto;
-      }
-      .crm-facility-row {
-        display: grid;
-        grid-template-columns: 145px 1fr;
-        gap: 12px;
-        align-items: center;
-        background: #ffffff;
-        border: 1px solid #eef2f6;
-        border-radius: 10px;
-        padding: 8px 12px;
-        transition: border-color 0.15s ease, box-shadow 0.15s ease;
-      }
-      .crm-facility-row:hover {
-        border-color: #cbd5e1;
-        box-shadow: 0 2px 6px rgba(12, 45, 94, 0.04);
-      }
-      .crm-fac-left {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        min-width: 0;
-      }
-      .crm-fac-icon-box {
-        width: 32px;
-        height: 32px;
-        border-radius: 8px;
-        background: #eef6fc;
-        color: #1769aa;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-      }
-      .crm-fac-label-box {
-        min-width: 0;
-        flex: 1;
-      }
-      .crm-fac-label-text {
-        font-size: 13px;
-        font-weight: 700;
-        color: #0c2d5e;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        display: block;
-      }
-      .crm-fac-label-input {
-        width: 100%;
-        padding: 6px 10px;
-        font-size: 12px;
-        font-weight: 600;
-        color: #0c2d5e;
-        background: #f1f5f9;
-        border: 1px solid #cbd5e1;
-        border-radius: 6px;
-        outline: none;
-        box-sizing: border-box;
-        font-family: 'Poppins', sans-serif;
-      }
-      .crm-fac-label-input:focus {
-        border-color: #1769aa;
-        background: #ffffff;
-      }
-      .crm-fac-right {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        min-width: 0;
-      }
-      .crm-fac-val-input {
-        flex: 1;
-        min-width: 0;
-        padding: 7px 12px;
-        font-size: 12.5px;
-        font-weight: 500;
-        color: #0c2d5e;
-        background: #f8fafc;
-        border: 1px solid #d9e2ec;
-        border-radius: 8px;
-        outline: none;
-        box-sizing: border-box;
-        font-family: 'Poppins', sans-serif;
-        transition: all 0.15s ease;
-      }
-      .crm-fac-val-input:focus {
-        border-color: #1769aa;
-        background: #ffffff;
-      }
-      .crm-fac-pills {
-        display: flex;
-        gap: 4px;
-        flex-shrink: 0;
-      }
-      .crm-fac-pill {
-        padding: 4px 8px;
-        font-size: 11px;
-        font-weight: 600;
-        border-radius: 6px;
-        border: 1px solid #cbd5e1;
-        background: #ffffff;
-        color: #475569;
-        cursor: pointer;
-        white-space: nowrap;
-        font-family: 'Poppins', sans-serif;
-        transition: all 0.15s ease;
-      }
-      .crm-fac-pill:hover {
-        background: #f1f5f9;
-      }
-      .crm-fac-pill.active {
-        background: #ecfdf5;
-        border-color: #a7f3d0;
-        color: #059669;
-        font-weight: 700;
-      }
-      .crm-fac-pill.danger.active {
-        background: #fef2f2;
-        border-color: #fecaca;
-        color: #dc2626;
-        font-weight: 700;
-      }
-      .crm-fac-remove-btn {
-        background: none;
-        border: none;
-        color: #94a3b8;
-        font-size: 18px;
-        line-height: 1;
-        cursor: pointer;
-        padding: 2px 4px;
-        border-radius: 4px;
-        transition: color 0.15s;
-        flex-shrink: 0;
-      }
-      .crm-fac-remove-btn:hover {
-        color: #ef4444;
-      }
-      @media (max-width: 600px) {
-        .crm-facility-row {
-          grid-template-columns: 1fr;
-          gap: 8px;
-        }
-      }
-      .crm-actions {
-        display: flex;
-        justify-content: flex-end;
-        gap: 12px;
-        margin-top: 28px;
-      }
-      .crm-btn-cancel {
-        background: #eef2f8;
-        color: #0c2d5e;
-        font-weight: 700;
-        font-size: 14px;
-        font-family: 'Poppins', sans-serif;
-        border: none;
-        padding: 10px 24px;
-        border-radius: 8px;
-        cursor: pointer;
-        transition: background 0.2s;
-      }
-      .crm-btn-cancel:hover {
-        background: #dfe6f0;
-      }
-      .crm-btn-save {
-        background: #0c2d5e;
-        color: #ffffff;
-        font-weight: 700;
-        font-size: 14px;
-        font-family: 'Poppins', sans-serif;
-        border: none;
-        padding: 10px 28px;
-        border-radius: 8px;
-        cursor: pointer;
-        transition: background 0.2s;
-      }
-      .crm-btn-save:hover {
-        background: #1769aa;
-      }
-    </style>
-  `;
 
   return `
-    ${customCSS}
     <div class="rooms-wrapper">
       <div class="rooms-header">
         <div class="rooms-title">
@@ -3270,7 +2142,7 @@ function rooms() {
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
             Tambah Ruangan
           </button>`
-              : `<span style="font-size:12px;font-weight:600;color:#475569;background:#f1f5f9;padding:8px 14px;border-radius:8px;">👁 Mode lihat saja</span>`
+              : ""
           }
         </div>
 
@@ -3326,154 +2198,6 @@ function users() {
     'width="18" height="18"',
   );
 
-  const customCSS = `
-    <style>
-      .dashboard-wrapper {
-        background: linear-gradient(180deg, #d4e6f6 0%, #edf5fc 300px);
-        min-height: 100vh;
-        display: flex;
-        flex-direction: column;
-      }
-      .dash-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        padding: 30px 40px 30px;
-      }
-      .dash-breadcrumb {
-        font-size: 12px;
-        color: #4b6a90;
-        margin-bottom: 8px;
-        font-weight: 500;
-      }
-      .dash-title h1 {
-        font-size: 28px;
-        font-weight: 700;
-        color: #0c2d5e;
-        margin-bottom: 6px;
-      }
-      .dash-title p {
-        color: #4b6a90;
-        font-size: 14px;
-        font-weight: 500;
-      }
-      .dash-actions {
-        display: flex;
-        align-items: center;
-        gap: 24px;
-      }
-      .dash-bell {
-        width: 44px;
-        height: 44px;
-        border-radius: 50%;
-        background: rgba(255,255,255,0.7);
-        display: grid;
-        place-items: center;
-        position: relative;
-        cursor: pointer;
-        font-size: 16px;
-      }
-      .dash-bell::after {
-        content: '';
-        position: absolute;
-        top: 12px;
-        right: 14px;
-        width: 6px;
-        height: 6px;
-        background: red;
-        border-radius: 50%;
-      }
-      .dash-actions .profile { margin: 0; background: transparent; }
-      .dash-actions .avatar { background: rgba(255,255,255,0.6); color: #0c2d5e; border: 1px solid #d4e6f6; }
-      
-      .dash-cards-users {
-        display: flex;
-        gap: 20px;
-        padding: 0 40px 30px;
-      }
-      .d-card-user {
-        background: rgba(255,255,255,0.85);
-        border: 1px solid #fff;
-        border-radius: 16px;
-        padding: 16px 24px;
-        display: flex;
-        align-items: center;
-        gap: 24px;
-        box-shadow: 0 10px 30px rgba(12, 45, 94, 0.05);
-        backdrop-filter: blur(10px);
-        width: 320px;
-      }
-      .dc-icon-user {
-        width: 64px;
-        height: 64px;
-        border-radius: 50%;
-        display: grid;
-        place-items: center;
-      }
-      .dc-icon-user.blue { background: #e6f0fa; color: #1769aa; }
-      .dc-icon-user.orange { background: #fdf2e9; color: #e89540; fill: transparent; stroke: #e89540; stroke-width: 20px; }
-      .dc-icon-user.orange svg path { fill: transparent; stroke: #e89540; stroke-width: 20px; }
-      
-      .dc-text-user strong { display: block; font-size: 32px; font-weight: 700; color: #0c2d5e; line-height: 1.1; }
-      .dc-text-user span { display: block; font-size: 15px; font-weight: 600; color: #4b6a90; margin-top: 4px; }
-      
-      .dash-table-container {
-        flex: 1;
-        background: #fff;
-        border-radius: 20px 20px 0 0;
-        padding: 30px 40px;
-        box-shadow: 0 -4px 20px rgba(0,0,0,0.02);
-        margin: 0;
-      }
-      
-      .btn-add-user {
-        background: #0c2d5e;
-        color: #ffffff;
-        border: none;
-        padding: 10px 22px;
-        border-radius: 8px;
-        font-size: 14px;
-        font-weight: 700;
-        font-family: 'Poppins', sans-serif;
-        cursor: pointer;
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        transition: background 0.2s;
-      }
-      .btn-add-user:hover {
-        background: #1769aa;
-      }
-      
-      .dash-filters {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: 16px;
-        margin-bottom: 24px;
-      }
-      .dash-filters-left {
-        display: flex;
-        align-items: center;
-        gap: 16px;
-        flex-wrap: wrap;
-      }
-      .dash-search-box { position: relative; display: flex; align-items: center; width: 320px; }
-      .dash-search-box svg { position: absolute; left: 14px; color: #1769aa; }
-      .dash-search-box input {
-        width: 100%; padding: 10px 14px 10px 40px; border: 1px solid #edf3f9; border-radius: 8px; font-size: 14px; outline: none; color: #0c2d5e;
-      }
-      .dash-filters select {
-        padding: 10px 36px 10px 14px; border: 1px solid #edf3f9; border-radius: 8px; font-size: 14px; color: #0c2d5e; outline: none; background-color: #fff; appearance: none; -webkit-appearance: none;
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%230c2d5e' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-        background-repeat: no-repeat; background-position: right 12px center; cursor: pointer;
-      }
-      
-      .dash-table-container .table th { background: #fff; color: #0c2d5e; font-weight: 700; border-bottom: 1px solid #eef3f9; }
-      .dash-table-container .table td { border-bottom: 1px solid #f4f8fc; padding: 16px 12px; }
-    </style>
-  `;
 
   const numUsers = state.users.length;
   const numAdmins = state.users.filter(
@@ -3481,7 +2205,6 @@ function users() {
   ).length;
 
   return (
-    customCSS +
     `
     <div class="dashboard-wrapper">
       <div class="dash-header">
@@ -3644,102 +2367,8 @@ function calendar() {
     })
     .join("");
 
-  const customCSS = `<style>
-    .cal-page-wrapper {
-      background: linear-gradient(180deg, #d4e6f6 0%, #edf5fc 280px);
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-    }
-    .cal-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      padding: 30px 40px 24px;
-    }
-    .cal-breadcrumb { font-size: 12px; color: #4b6a90; margin-bottom: 8px; font-weight: 500; }
-    .cal-header h1 { font-size: 28px; font-weight: 700; color: #0c2d5e; margin-bottom: 6px; }
-    .cal-header p { color: #4b6a90; font-size: 14px; font-weight: 500; }
-    .dash-bell {
-      width: 44px; height: 44px; border-radius: 50%;
-      background: rgba(255,255,255,0.7);
-      display: grid; place-items: center;
-      position: relative; cursor: pointer;
-    }
-    .dash-bell::after {
-      content: ''; position: absolute; top: 12px; right: 14px;
-      width: 6px; height: 6px; background: red; border-radius: 50%;
-    }
-    .dash-actions { display: flex; align-items: center; gap: 24px; }
-    .dash-actions .profile { margin: 0; background: transparent; }
-    .dash-actions .avatar { background: rgba(255,255,255,0.6); color: #0c2d5e; border: 1px solid #d4e6f6; }
-    
-    .cal-body {
-      flex: 1;
-      display: grid;
-      grid-template-columns: 1fr 320px;
-      gap: 24px;
-      padding: 0 40px 40px;
-    }
-    .cal-card {
-      background: #fff;
-      border-radius: 16px;
-      padding: 28px;
-      box-shadow: 0 4px 20px rgba(12,45,94,0.06);
-    }
-    .cal-card-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 24px;
-    }
-    .cal-card-header h2 { font-size: 18px; font-weight: 700; color: #0c2d5e; }
-    .cal-nav-btn {
-      background: #f4f6f9; border: none; border-radius: 8px;
-      width: 32px; height: 32px; cursor: pointer;
-      color: #0c2d5e; font-size: 16px; font-weight: 700;
-      display: grid; place-items: center; transition: background 0.2s;
-    }
-    .cal-nav-btn:hover { background: #e2eaf5; }
-    
-    .cal-grid {
-      display: grid;
-      grid-template-columns: repeat(7, 1fr);
-      gap: 4px;
-    }
-    .cal-head {
-      text-align: center; font-size: 12px; font-weight: 700;
-      color: #4b6a90; padding: 8px 0;
-    }
-    .cal-empty { padding: 8px; }
-    .cal-day {
-      text-align: center; font-size: 13px; font-weight: 500;
-      color: #0c2d5e; padding: 10px 4px;
-      border-radius: 8px; cursor: pointer;
-      transition: background 0.15s;
-      position: relative;
-    }
-    .cal-day:hover { background: #edf5fc; }
-    .cal-sat { color: #13865b; }
-    .cal-sun { color: #e53e3e; }
-    .cal-today {
-      background: #0c2d5e !important; color: #fff !important;
-      font-weight: 700; border-radius: 8px;
-    }
-    .cal-has::after {
-      content: ''; position: absolute; bottom: 3px;
-      left: 50%; transform: translateX(-50%);
-      width: 4px; height: 4px; border-radius: 50%;
-      background: #1769aa;
-    }
-    .cal-today.cal-has::after { background: #fff; }
-    
-    .cal-schedule-title { font-size: 16px; font-weight: 700; color: #0c2d5e; margin-bottom: 4px; }
-    .cal-schedule-empty { color: #4b6a90; font-size: 14px; padding: 20px 0; }
-  </style>`;
 
   return (
-    customCSS +
     `
   <div class="cal-page-wrapper">
     <div class="cal-header">
@@ -3777,11 +2406,553 @@ function calendar() {
 }
 
 // ----------------------------------------------------------------------
-// BAGIAN YANG DIUBAH: meetingTable pada Laporan diset tanpa tombol Hapus
-// `meetingTable(state.meetings, false)`
+// LAPORAN PENGGUNAAN RUANG RAPAT (MINGGUAN & BULANAN)
 // ----------------------------------------------------------------------
+function getFilteredReportMeetings() {
+  const selectedRoom = state.dashboardRoomFilter || "semua";
+  const f = state.reportFilter || {
+    mode: "bulanan",
+    startDate: awalBulan(),
+    endDate: akhirBulan(),
+  };
+  let list = [...(state.meetings || [])];
+
+  if (selectedRoom && selectedRoom !== "semua") {
+    list = list.filter((m) => m.room === selectedRoom);
+  }
+
+  if (f.mode === "harian") {
+    const today = getTodayIsoDate();
+    list = list.filter((m) => m.date === today);
+  } else if (f.mode === "mingguan") {
+    const start = f.startDate || awalMinggu();
+    const end = f.endDate || akhirMinggu();
+    list = list.filter((m) => m.date >= start && m.date <= end);
+  } else if (f.mode === "bulanan") {
+    const start = f.startDate || awalBulan();
+    const end = f.endDate || akhirBulan();
+    list = list.filter((m) => m.date >= start && m.date <= end);
+  } else if (f.mode === "date" && f.startDate && f.endDate) {
+    list = list.filter((m) => m.date >= f.startDate && m.date <= f.endDate);
+  }
+
+  list.sort((a, b) => {
+    if (a.date !== b.date) return (b.date || "").localeCompare(a.date || "");
+    return (a.start || "").localeCompare(b.start || "");
+  });
+
+  return list;
+}
+window.getFilteredReportMeetings = getFilteredReportMeetings;
+
+function setReportPeriod(mode) {
+  if (mode === "mingguan") {
+    state.reportFilter = {
+      mode: "mingguan",
+      startDate: awalMinggu(),
+      endDate: akhirMinggu(),
+    };
+  } else if (mode === "bulanan") {
+    state.reportFilter = {
+      mode: "bulanan",
+      startDate: awalBulan(),
+      endDate: akhirBulan(),
+    };
+  } else if (mode === "harian") {
+    state.reportFilter = {
+      mode: "harian",
+      startDate: getTodayIsoDate(),
+      endDate: getTodayIsoDate(),
+    };
+  } else if (mode === "semua") {
+    state.reportFilter = {
+      mode: "semua",
+      startDate: "",
+      endDate: "",
+    };
+  }
+  render();
+  toast(`✓ Periode laporan diubah: ${getActivePeriodLabel()}`);
+}
+window.setReportPeriod = setReportPeriod;
+
+function onReportRoomChange(room) {
+  state.dashboardRoomFilter = room;
+  render();
+  toast(room === "semua" ? "✓ Menampilkan semua ruangan" : `✓ Filter ruangan: ${room}`);
+}
+window.onReportRoomChange = onReportRoomChange;
+
 function reports() {
-  return dashboard();
+  const currentUser = getCurrentUser();
+  const isAdmin = isAdminRole(currentUser);
+
+  const liaUsersSolid = svgIcon(
+    '<path d="M 11.5 6 C 9.578125 6 8 7.578125 8 9.5 C 8 11.421875 9.578125 13 11.5 13 C 13.421875 13 15 11.421875 15 9.5 C 15 7.578125 13.421875 6 11.5 6 Z M 20.5 6 C 18.578125 6 17 7.578125 17 9.5 C 17 11.421875 18.578125 13 20.5 13 C 22.421875 13 24 11.421875 24 9.5 C 24 7.578125 22.421875 6 20.5 6 Z M 11.5 8 C 12.339844 8 13 8.660156 13 9.5 C 13 10.339844 12.339844 11 11.5 11 C 10.660156 11 10 10.339844 10 9.5 C 10 8.660156 10.660156 8 11.5 8 Z M 20.5 8 C 21.339844 8 22 8.660156 22 9.5 C 22 10.339844 21.339844 11 20.5 11 C 19.660156 11 19 10.339844 19 9.5 C 19 8.660156 19.660156 8 20.5 8 Z M 7 12 C 4.800781 12 3 13.800781 3 16 C 3 17.113281 3.476563 18.117188 4.21875 18.84375 C 2.886719 19.746094 2 21.28125 2 23 L 4 23 C 4 21.332031 5.332031 20 7 20 C 8.667969 20 10 21.332031 10 23 L 12 23 C 12 21.28125 11.113281 19.746094 9.78125 18.84375 C 10.523438 18.117188 11 17.113281 11 16 C 11 13.800781 9.199219 12 7 12 Z M 12 23 C 11.375 23.835938 11 24.886719 11 26 L 13 26 C 13 24.332031 14.332031 23 16 23 C 17.667969 23 19 24.332031 19 26 L 21 26 C 21 24.886719 20.625 23.835938 20 23 C 19.660156 22.546875 19.25 22.160156 18.78125 21.84375 C 19.523438 21.117188 20 20.113281 20 19 C 20 16.800781 18.199219 15 16 15 C 13.800781 15 12 16.800781 12 19 C 12 20.113281 12.476563 21.117188 13.21875 21.84375 C 12.75 22.160156 12.339844 22.546875 12 23 Z M 20 23 L 22 23 C 22 21.332031 23.332031 20 25 20 C 26.667969 20 28 21.332031 28 23 L 30 23 C 30 21.28125 29.113281 19.746094 27.78125 18.84375 C 28.523438 18.117188 29 17.113281 29 16 C 29 13.800781 27.199219 12 25 12 C 22.800781 12 21 13.800781 21 16 C 21 17.113281 21.476563 18.117188 22.21875 18.84375 C 20.886719 19.746094 20 21.28125 20 23 Z M 7 14 C 8.117188 14 9 14.882813 9 16 C 9 17.117188 8.117188 18 7 18 C 5.882813 18 5 17.117188 5 16 C 5 14.882813 5.882813 14 7 14 Z M 25 14 C 26.117188 14 27 14.882813 27 16 C 27 17.117188 26.117188 18 25 18 C 23.882813 18 23 17.117188 23 16 C 23 14.882813 23.882813 14 25 14 Z M 16 17 C 17.117188 17 18 17.882813 18 19 C 18 20.117188 17.117188 21 16 21 C 14.882813 21 14 20.117188 14 19 C 14 17.882813 14.882813 17 16 17 Z"/>',
+    "0 0 32 32",
+    'width="28" height="28"',
+  );
+  const faClock = svgIcon(
+    '<path d="M256,8C119,8,8,119,8,256S119,504,256,504,504,393,504,256,393,8,256,8Zm92.49,313h0l-20,25a16,16,0,0,1-22.49,2.5h0l-67-49.72a40,40,0,0,1-15-31.23V112a16,16,0,0,1,16-16h32a16,16,0,0,1,16,16V256l58,42.5A16,16,0,0,1,348.49,321Z"/>',
+    "0 0 512 512",
+    'width="24" height="24"',
+  );
+  const faUsers = svgIcon(
+    '<path d="M96 224c35.3 0 64-28.7 64-64s-28.7-64-64-64-64 28.7-64 64 28.7 64 64zm448 0c35.3 0 64-28.7 64-64s-28.7-64-64-64-64 28.7-64 64 28.7 64 64zm32 32h-64c-17.6 0-33.5 7.1-45.1 18.6 40.3 22.1 68.9 62 75.1 109.4h66c17.7 0 32-14.3 32-32v-32c0-35.3-28.7-64-64-64zm-256 0c61.9 0 112-50.1 112-112S381.9 32 320 32 208 82.1 208 144s50.1 112 112 112zm76.8 32h-8.3c-20.8 10-43.9 16-68.5 16s-47.6-6-68.5-16h-8.3C179.6 288 128 339.6 128 403.2V432c0 26.5 21.5 48 48 48h288c26.5 0 48-21.5 48-48v-28.8c0-63.6-51.6-115.2-115.2-115.2zm-223.7-13.4C161.5 263.1 145.6 256 128 256H64c-35.3 0-64 28.7-64 64v32c0 17.7 14.3 32 32 32h65.9c6.3-47.4 34.9-87.3 75.2-109.4z"/>',
+    "0 0 640 512",
+    'width="26" height="26"',
+  );
+  const bsBuilding = svgIcon(
+    '<path d="M2 1a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v7.256A4.5 4.5 0 0 0 12.5 8a4.5 4.5 0 0 0-3.59 1.787A.5.5 0 0 0 9 9.5v-1a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .39-.187A4.5 4.5 0 0 0 8.027 12H6.5a.5.5 0 0 0-.5.5V16H3a1 1 0 0 1-1-1zm2 1.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5m3 0v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5m3.5-.5a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5zM4 5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5M7.5 5a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5zm2.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5M4.5 8a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5z"/><path d="M11.886 9.46c.18-.613 1.048-.613 1.229 0l.043.148a.64.64 0 0 0 .921.382l.136-.074c.561-.306 1.175.308.87.869l-.075.136a.64.64 0 0 0 .382.92l.149.045c.612.18.612 1.048 0 1.229l-.15.043a.64.64 0 0 0-.38.921l.074.136c.305.561-.309 1.175-.87.87l-.136-.075a.64.64 0 0 0-.92.382l-.045.149c-.18.612-1.048.612-1.229 0l-.043-.15a.64.64 0 0 0-.921-.38l-.136.074c-.561.305-1.175-.309-.87-.87l.075-.136a.64.64 0 0 0-.382-.92l-.148-.045c-.613-.18-.613-1.048 0-1.229l.148-.043a.64.64 0 0 0 .382-.921l-.074-.136c-.306-.561.308-1.175.869-.87l.136.075a.64.64 0 0 0 .92-.382zM14 12.5a1.5 1.5 0 1 0-3 0 1.5 1.5 0 0 0 3 0"/>',
+    "0 0 16 16",
+    'width="24" height="24" fill="currentColor"',
+  );
+  const tiExport = svgIcon(
+    '<path d="M22.711 9.796c-.041-.041-4.055-4.096-5.982-6.146-.42-.414-.999-.65-1.586-.65-1.182 0-2.143.896-2.143 2h-8c-.553 0-1 .448-1 1v14c0 .552.447 1 1 1h14c.553 0 1-.448 1-1v-6.045c1.434-1.461 2.688-2.729 2.711-2.751.387-.39.387-1.018 0-1.408zm-7.432 6.145l-.136.059-.144-.04v-3.96h-1c-1.771.034-3.336.68-4.753 1.958.43-2.215 1.6-4.958 4.753-4.958h1v-3.958l.144-.042.154.05c1.436 1.525 4.051 4.187 5.297 5.45-.253.257-4.342 4.422-5.315 5.441zm-9.279 3.059v-12h8v1c-4.66 0-6 4.871-6 8.5v.5c1.691-2.578 3.6-3.953 6-4v3c0 .551.512 1 1.143 1 .364 0 .676-.158.883-.391.539-.565 1.242-1.291 1.976-2.043v4.434h-12.002z"/>',
+    "0 0 24 24",
+    'width="18" height="18"',
+  );
+  const faEye = svgIcon(
+    '<path d="M572.52 241.4C518.29 135.59 410.93 64 288 64S57.68 135.64 3.48 241.41a32.35 32.35 0 0 0 0 29.19C57.71 376.41 165.07 448 288 448s230.32-71.64 284.52-177.41a32.35 32.35 0 0 0 0-29.19zM288 400a144 144 0 1 1 144-144 143.93 143.93 0 0 1-144 144zm0-240a95.31 95.31 0 0 0-25.31 3.79 47.85 47.85 0 0 1-66.9 66.9A95.78 95.78 0 1 0 288 160z"/>',
+    "0 0 576 512",
+    'width="16" height="16"',
+  );
+
+  const selectedRoom = state.dashboardRoomFilter || "semua";
+  const f = state.reportFilter || { mode: "bulanan", startDate: awalBulan(), endDate: akhirBulan() };
+  const currentMode = f.mode || "bulanan";
+
+  const filteredMeetings = getFilteredReportMeetings();
+  const totalMeetings = filteredMeetings.length;
+
+  let totalMinutes = 0;
+  let totalParticipants = 0;
+  const statusCounts = {
+    berjalan: 0,
+    selesai: 0,
+    menunggu: 0,
+    akandatang: 0,
+  };
+  const deptCounts = {};
+
+  filteredMeetings.forEach((m) => {
+    if (m.start && m.end) {
+      const [sh, sm] = m.start.split(":").map(Number);
+      const [eh, em] = m.end.split(":").map(Number);
+      if (!isNaN(sh) && !isNaN(eh)) {
+        const diff = (eh * 60 + (em || 0)) - (sh * 60 + (sm || 0));
+        if (diff > 0) totalMinutes += diff;
+      }
+    }
+    const p = parseInt(m.participants, 10);
+    if (!isNaN(p) && p > 0) totalParticipants += p;
+
+    const st = (m.status || "").toLowerCase();
+    if (st.includes("berjalan")) statusCounts.berjalan++;
+    else if (st.includes("selesai")) statusCounts.selesai++;
+    else if (st.includes("menunggu") || st.includes("pending")) statusCounts.menunggu++;
+    else statusCounts.akandatang++;
+
+    const req = (m.requester || m.organizer || "Biro Keuangan / BMN").trim();
+    if (req) {
+      deptCounts[req] = (deptCounts[req] || 0) + 1;
+    }
+  });
+
+  const totalHours = (totalMinutes / 60).toFixed(1);
+  const avgHours = totalMeetings > 0 ? (totalMinutes / totalMeetings / 60).toFixed(1) : "0.0";
+
+  // Perhitungan Okupansi Ruangan
+  const activeRoomsCount = (selectedRoom !== "semua") ? 1 : Math.max(state.rooms.length, 1);
+  let businessHours = 40 * activeRoomsCount; // baseline mingguan (5 hari kerja x 8 jam)
+  if (currentMode === "harian") businessHours = 8 * activeRoomsCount;
+  else if (currentMode === "bulanan") businessHours = 176 * activeRoomsCount; // ~22 hari kerja x 8 jam
+  else if (currentMode === "date" && f.startDate && f.endDate) {
+    const d1 = new Date(f.startDate);
+    const d2 = new Date(f.endDate);
+    const days = Math.max(1, Math.round(Math.abs((d2 - d1) / (1000 * 60 * 60 * 24))) + 1);
+    businessHours = Math.max(8, days * 8) * activeRoomsCount;
+  }
+  const occupancyPct = businessHours > 0 ? Math.min(100, Math.round(((totalMinutes / 60) / businessHours) * 100)) : 0;
+
+  // Tren Aktivitas (Bar Chart)
+  let trendBarsData = [];
+  if (currentMode === "mingguan") {
+    const daysOfWeek = [
+      { key: "Sen", name: "Senin", dayIdx: 1 },
+      { key: "Sel", name: "Selasa", dayIdx: 2 },
+      { key: "Rab", name: "Rabu", dayIdx: 3 },
+      { key: "Kam", name: "Kamis", dayIdx: 4 },
+      { key: "Jum", name: "Jumat", dayIdx: 5 },
+      { key: "Sab", name: "Sabtu", dayIdx: 6 },
+      { key: "Min", name: "Minggu", dayIdx: 0 },
+    ];
+    const mStart = new Date(f.startDate || awalMinggu());
+    trendBarsData = daysOfWeek.map((d, i) => {
+      const curDate = new Date(mStart);
+      curDate.setDate(curDate.getDate() + i);
+      const dateStr = curDate.getFullYear() + "-" + String(curDate.getMonth() + 1).padStart(2, "0") + "-" + String(curDate.getDate()).padStart(2, "0");
+      const count = filteredMeetings.filter((m) => m.date === dateStr).length;
+      return {
+        label: d.key,
+        sub: curDate.getDate() + " " + curDate.toLocaleDateString("id-ID", { month: "short" }),
+        count: count,
+      };
+    });
+  } else if (currentMode === "harian") {
+    const timeSlots = [
+      { label: "08–10", sub: "Pagi", startH: 8, endH: 10 },
+      { label: "10–12", sub: "Siang", startH: 10, endH: 12 },
+      { label: "13–15", sub: "Siang", startH: 13, endH: 15 },
+      { label: "15–17", sub: "Sore", startH: 15, endH: 17 },
+      { label: "17+", sub: "Malam", startH: 17, endH: 24 },
+    ];
+    trendBarsData = timeSlots.map((slot) => {
+      const count = filteredMeetings.filter((m) => {
+        if (!m.start) return false;
+        const [h] = m.start.split(":").map(Number);
+        return h >= slot.startH && h < slot.endH;
+      }).length;
+      return {
+        label: slot.label,
+        sub: slot.sub,
+        count: count,
+      };
+    });
+  } else {
+    // Bulanan, date range, atau semua
+    const weekRanges = [
+      { label: "Mgg 1", sub: "1–7", minDay: 1, maxDay: 7 },
+      { label: "Mgg 2", sub: "8–14", minDay: 8, maxDay: 14 },
+      { label: "Mgg 3", sub: "15–21", minDay: 15, maxDay: 21 },
+      { label: "Mgg 4", sub: "22–28", minDay: 22, maxDay: 28 },
+      { label: "Mgg 5", sub: "29–31", minDay: 29, maxDay: 31 },
+    ];
+    trendBarsData = weekRanges.map((w) => {
+      const count = filteredMeetings.filter((m) => {
+        const parts = (m.date || "").split("-");
+        const dayNum = parseInt(parts[2], 10);
+        return !isNaN(dayNum) && dayNum >= w.minDay && dayNum <= w.maxDay;
+      }).length;
+      return {
+        label: w.label,
+        sub: w.sub,
+        count: count,
+      };
+    });
+  }
+
+  const maxTrendCount = Math.max(...trendBarsData.map((t) => t.count), 2);
+  const trendBarsHTML = trendBarsData.map((t) => {
+    const heightPct = t.count > 0 ? Math.min(100, Math.max(18, Math.round((t.count / maxTrendCount) * 85))) : 8;
+    const barColor = t.count > 0 ? "#1769aa" : "#e2e8f0";
+    return `
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;height:100%;justify-content:flex-end;">
+        <span style="font-size:12px;font-weight:700;color:${t.count > 0 ? "#0c2d5e" : "#94a3b8"};margin-bottom:6px;">${t.count}</span>
+        <div style="width:100%;max-width:38px;background:#f8fafc;border-radius:6px 6px 0 0;height:110px;display:flex;align-items:flex-end;overflow:hidden;border:1px solid #eef2f6;" title="${t.label} (${t.sub}): ${t.count} Rapat">
+          <div style="width:100%;height:${heightPct}%;background:${barColor};border-radius:5px 5px 0 0;transition:height 0.3s ease;"></div>
+        </div>
+        <span style="font-size:11.5px;font-weight:700;color:#0c2d5e;margin-top:8px;">${t.label}</span>
+        <span style="font-size:10px;color:#64748b;font-weight:500;">${t.sub}</span>
+      </div>
+    `;
+  }).join("");
+
+  // Pemanfaatan per Ruangan
+  const roomUsageHTML = state.rooms.map((room) => {
+    const rMeetings = filteredMeetings.filter((m) => m.room === room.name);
+    const count = rMeetings.length;
+    let rMin = 0;
+    rMeetings.forEach((m) => {
+      if (m.start && m.end) {
+        const [sh, sm] = m.start.split(":").map(Number);
+        const [eh, em] = m.end.split(":").map(Number);
+        if (!isNaN(sh) && !isNaN(eh)) {
+          const diff = (eh * 60 + (em || 0)) - (sh * 60 + (sm || 0));
+          if (diff > 0) rMin += diff;
+        }
+      }
+    });
+    const rHours = (rMin / 60).toFixed(1);
+    const rPct = totalMinutes > 0 ? Math.round((rMin / totalMinutes) * 100) : 0;
+    return `
+      <div style="margin-bottom: 12px; background:#f8fafc; border:1px solid #eef3f9; border-radius:10px; padding:10px 14px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
+          <div>
+            <strong style="font-size: 13px; color: #0c2d5e; display:block;">${esc(room.name)}</strong>
+            <small style="font-size: 11px; color: #64748b;">${esc(room.location || 'Lt. 3')} · Kapasitas ${room.capacity || 20} org</small>
+          </div>
+          <div style="text-align:right;">
+            <span style="font-size: 13px; font-weight: 700; color: #1769aa;">${count} Rapat</span>
+            <div style="font-size: 11px; color: #64748b; font-weight: 500;">${rHours} Jam (${rPct}%)</div>
+          </div>
+        </div>
+        <div style="height: 8px; background: #e2eaf5; border-radius: 6px; overflow: hidden; display: flex;">
+          <div style="width: ${rPct}%; background: linear-gradient(90deg, #1769aa, #38bdf8); border-radius: 6px; transition: width 0.3s ease;"></div>
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  // Status & Pemohon Teraktif
+  const sortedDepts = Object.entries(deptCounts).sort((a, b) => b[1] - a[1]).slice(0, 4);
+  const deptHTML = sortedDepts.length > 0 ? sortedDepts.map(([dept, count]) => `
+    <div style="display:flex; justify-content:space-between; align-items:center; padding: 7px 0; border-bottom: 1px dashed #eef2f6;">
+      <span style="font-size: 12px; color: #334155; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 170px;" title="${esc(dept)}">${esc(dept)}</span>
+      <span style="background: #e0f2fe; color: #0369a1; font-weight: 700; font-size: 11px; padding: 2px 8px; border-radius: 10px;">${count} Rapat</span>
+    </div>
+  `).join("") : `<div style="font-size:12px; color:#94a3b8; text-align:center; padding:12px 0;">Belum ada data pemohon</div>`;
+
+  const statusSummaryHTML = `
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;">
+      <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:8px 10px;">
+        <span style="font-size:10.5px; color:#15803d; font-weight:600; display:block;">Selesai</span>
+        <strong style="font-size:16px; color:#15803d;">${statusCounts.selesai}</strong>
+      </div>
+      <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:8px 10px;">
+        <span style="font-size:10.5px; color:#1d4ed8; font-weight:600; display:block;">Berjalan</span>
+        <strong style="font-size:16px; color:#1d4ed8;">${statusCounts.berjalan}</strong>
+      </div>
+      <div style="background:#fefce8; border:1px solid #fef08a; border-radius:8px; padding:8px 10px;">
+        <span style="font-size:10.5px; color:#854d0e; font-weight:600; display:block;">Akan Datang</span>
+        <strong style="font-size:16px; color:#854d0e;">${statusCounts.akandatang}</strong>
+      </div>
+      <div style="background:#fff7ed; border:1px solid #fed7aa; border-radius:8px; padding:8px 10px;">
+        <span style="font-size:10.5px; color:#c2410c; font-weight:600; display:block;">Menunggu Approval</span>
+        <strong style="font-size:16px; color:#c2410c;">${statusCounts.menunggu}</strong>
+      </div>
+    </div>
+  `;
+
+  // Meeting Table HTML
+  let customTableHTML = "";
+  if (filteredMeetings.length === 0) {
+    customTableHTML = `
+      <div class="rep-list" style="margin: 0 40px 40px; text-align:center; padding: 48px 20px;">
+        <div style="font-size: 38px; margin-bottom: 10px;">📋</div>
+        <h3 style="font-size: 16px; font-weight: 700; color: #0c2d5e; margin: 0 0 6px;">Tidak ada riwayat rapat pada periode ini</h3>
+        <p style="font-size: 13px; color: #64748b; margin: 0 0 16px;">Silakan pilih filter Mingguan, Bulanan, atau Semua Jadwal untuk melihat rekapitulasi penggunaan ruang rapat.</p>
+        <button class="btn btn-primary" onclick="setReportPeriod('bulanan')" style="font-size: 12.5px; padding: 8px 18px; border-radius: 8px; background: #0c2d5e; cursor:pointer;">Tampilkan Bulan Ini</button>
+      </div>
+    `;
+  } else {
+    customTableHTML = `
+      <div class="rep-list" style="margin: 0 40px 40px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 18px; flex-wrap: wrap; gap: 10px;">
+          <div>
+            <h2 style="font-size: 16px; font-weight: 700; color: #0c2d5e; margin: 0 0 3px;">Rekapitulasi Penggunaan Ruangan</h2>
+            <p style="font-size: 12px; color: #64748b; margin: 0;">Daftar seluruh agenda rapat tercatat pada periode <strong>${getActivePeriodLabel()}</strong></p>
+          </div>
+          <span style="font-size: 12px; font-weight: 700; color: #1769aa; background: #e0f2fe; padding: 5px 12px; border-radius: 20px;">
+            Total: ${filteredMeetings.length} Rapat
+          </span>
+        </div>
+        <div style="overflow-x: auto;">
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 40px;">No</th>
+                <th>Nama / Agenda Rapat</th>
+                <th>Pemesan / Bagian</th>
+                <th>Ruangan</th>
+                <th>Tanggal</th>
+                <th>Waktu</th>
+                <th>Durasi</th>
+                <th>Peserta</th>
+                <th>Status</th>
+                <th style="text-align: center; width: 60px;">Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${filteredMeetings.map((m, i) => {
+                let statusBadge = "";
+                const s = (m.status || "").toLowerCase();
+                if (s.includes("berjalan")) {
+                  statusBadge = `<span style="background:#e0f5ec;color:#13865b;padding:5px 10px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;">● Berjalan</span>`;
+                } else if (s.includes("selesai")) {
+                  statusBadge = `<span style="background:#f3f0ff;color:#5b3dd3;padding:5px 10px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;">✓ Selesai</span>`;
+                } else if (s.includes("menunggu") || s.includes("pending")) {
+                  statusBadge = `<span style="background:#fff7ed;color:#ea580c;padding:5px 10px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;">⏳ Menunggu Approval</span>`;
+                } else {
+                  statusBadge = `<span style="background:#e0f2fe;color:#0284c7;padding:5px 10px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;">📅 ${esc(m.status || "Akan Datang")}</span>`;
+                }
+
+                let durasiStr = "-";
+                if (m.start && m.end) {
+                  const [sh, sm] = m.start.split(":").map(Number);
+                  const [eh, em] = m.end.split(":").map(Number);
+                  if (!isNaN(sh) && !isNaN(eh)) {
+                    const diff = (eh * 60 + (em || 0)) - (sh * 60 + (sm || 0));
+                    if (diff > 0) {
+                      const h = Math.floor(diff / 60);
+                      const min = diff % 60;
+                      durasiStr = h > 0 ? (min > 0 ? `${h}j ${min}m` : `${h} Jam`) : `${min} Menit`;
+                    }
+                  }
+                }
+
+                const actionBtn = `<button style="background-color:#f0f4fa;color:#0c2d5e;border:1px solid #dbeafe;border-radius:8px;width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:background 0.15s;" title="Lihat Detail Rapat" onclick="viewMeeting('${m.id}')" onmouseover="this.style.background='#e0f2fe'" onmouseout="this.style.background='#f0f4fa'">${faEye}</button>`;
+
+                return `
+                  <tr>
+                    <td>${i + 1}</td>
+                    <td>
+                      <strong style="color:#0c2d5e; display:block;">${esc(m.title)}</strong>
+                      ${m.desc ? `<small style="color:#64748b; font-size:11px; font-weight:400;">${esc(m.desc.slice(0, 45))}${m.desc.length > 45 ? '...' : ''}</small>` : ''}
+                    </td>
+                    <td>${esc(m.requester || m.organizer || '-')}</td>
+                    <td><span style="font-weight:600; color:#1769aa;">${esc(m.room)}</span></td>
+                    <td>${formatDate(m.date)}</td>
+                    <td style="font-weight:600;">${m.start} – ${m.end}</td>
+                    <td>${durasiStr}</td>
+                    <td>${m.participants ? `${m.participants} org` : '-'}</td>
+                    <td>${statusBadge}</td>
+                    <td style="text-align: center;">${actionBtn}</td>
+                  </tr>
+                `;
+              }).join("")}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="rep-page-wrapper">
+      <div class="rep-header">
+        <div>
+          <div class="rep-breadcrumb">Dashboard › Laporan Penggunaan</div>
+          <h1>Laporan Penggunaan Ruang Rapat</h1>
+          <p>Ringkasan statistik pemanfaatan dan rekapitulasi penggunaan ruang rapat mingguan dan bulanan.</p>
+        </div>
+        <div class="dash-actions">
+          ${getProfileHTML()}
+        </div>
+      </div>
+
+      <!-- Quick Filter Row -->
+      <div class="rep-filters-row">
+        <div class="rep-filters-left" style="flex-wrap: wrap;">
+          <div style="display:flex; background:#eef3f9; padding:3px; border-radius:10px; gap:4px;">
+            <button type="button" class="${currentMode === 'mingguan' ? 'btn-blue' : 'btn-white'}" onclick="setReportPeriod('mingguan')" style="border:none; padding:7px 14px; border-radius:7px; font-size:12.5px;">
+              📆 Mingguan
+            </button>
+            <button type="button" class="${currentMode === 'bulanan' ? 'btn-blue' : 'btn-white'}" onclick="setReportPeriod('bulanan')" style="border:none; padding:7px 14px; border-radius:7px; font-size:12.5px;">
+              🗓️ Bulanan
+            </button>
+            <button type="button" class="${currentMode === 'harian' ? 'btn-blue' : 'btn-white'}" onclick="setReportPeriod('harian')" style="border:none; padding:7px 14px; border-radius:7px; font-size:12.5px;">
+              📅 Hari Ini
+            </button>
+            <button type="button" class="${currentMode === 'semua' ? 'btn-blue' : 'btn-white'}" onclick="setReportPeriod('semua')" style="border:none; padding:7px 14px; border-radius:7px; font-size:12.5px;">
+              🌐 Semua
+            </button>
+          </div>
+
+          <button class="btn-white" type="button" onclick="openFilterModal()" style="display:flex; align-items:center; gap:6px;">
+            <span>⚙️</span> Filter Kustom
+          </button>
+
+          <select id="trafficRoom" onchange="onReportRoomChange(this.value)" style="min-width: 170px;">
+            <option value="semua" ${selectedRoom === "semua" ? "selected" : ""}>Semua Ruangan</option>
+            ${state.rooms.map((r) => `<option value="${esc(r.name)}" ${selectedRoom === r.name ? "selected" : ""}>${esc(r.name)}</option>`).join("")}
+          </select>
+        </div>
+
+        <div class="rep-export-wrapper" style="position: relative; display: inline-block;">
+          <button class="rep-export-btn" id="exportBtn" type="button" onclick="toggleExportMenu(event)">
+            ${tiExport}
+            <span>Export Laporan</span>
+            <svg width="10" height="6" viewBox="0 0 10 6" fill="none" style="margin-left: 4px;">
+              <path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+          <div id="exportMenuDropdown" class="rep-export-menu" style="display: none; position: absolute; top: calc(100% + 6px); right: 0; background: #ffffff; border-radius: 8px; box-shadow: 0 10px 25px rgba(12, 45, 94, 0.12); border: 1px solid #e2e8f0; min-width: 170px; z-index: 1000; overflow: hidden;">
+            <button type="button" onclick="exportExcel(); closeExportMenu();" style="width: 100%; display: flex; align-items: center; gap: 8px; padding: 11px 16px; border: none; background: transparent; font-size: 13px; font-weight: 600; color: #0c2d5e; cursor: pointer; text-align: left; transition: background 0.15s;" onmouseover="this.style.background='#f0f4fa'" onmouseout="this.style.background='transparent'">
+              <span style="font-size:16px;">📊</span> Export Excel (.xlsx)
+            </button>
+            <button type="button" onclick="exportPDF(); closeExportMenu();" style="width: 100%; display: flex; align-items: center; gap: 8px; padding: 11px 16px; border: none; background: transparent; font-size: 13px; font-weight: 600; color: #0c2d5e; cursor: pointer; text-align: left; border-top: 1px solid #f1f5f9; transition: background 0.15s;" onmouseover="this.style.background='#f0f4fa'" onmouseout="this.style.background='transparent'">
+              <span style="font-size:16px;">📄</span> Export PDF (.pdf)
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stat Cards -->
+      <div class="rep-cards">
+        <div class="rep-card">
+          <div class="rc-icon blue1" style="background:#e0f2fe; color:#0284c7;">${liaUsersSolid}</div>
+          <div class="rc-text">
+            <strong>${totalMeetings} Rapat</strong>
+            <span>Total Rapat Dilaksanakan</span>
+          </div>
+        </div>
+        <div class="rep-card">
+          <div class="rc-icon blue1" style="background:#fef3c7; color:#b45309;">${faClock}</div>
+          <div class="rc-text">
+            <strong>${totalHours} Jam</strong>
+            <span>Total Durasi Pemakaian</span>
+          </div>
+        </div>
+        <div class="rep-card">
+          <div class="rc-icon blue1" style="background:#dcfce7; color:#15803d;">${bsBuilding}</div>
+          <div class="rc-text">
+            <strong>${occupancyPct}% Okupansi</strong>
+            <span>Tingkat Pemanfaatan Ruang</span>
+          </div>
+        </div>
+        <div class="rep-card">
+          <div class="rc-icon blue1" style="background:#f3e8ff; color:#7e22ce;">${faUsers}</div>
+          <div class="rc-text">
+            <strong>${avgHours} Jam/Rapat</strong>
+            <span>Rata-rata Durasi Rapat</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Charts Grid -->
+      <div class="rep-charts">
+        <div class="rep-chart-card">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
+            <div>
+              <h2 style="margin:0 0 2px;">Tren Penggunaan Ruang Rapat</h2>
+              <small style="color:#64748b; font-weight:500;">Distribusi rapat: <strong>${getActivePeriodLabel()}</strong></small>
+            </div>
+            <span style="font-size:11px; font-weight:700; color:#1769aa; background:#e0f2fe; padding:3px 8px; border-radius:6px;">
+              ${currentMode === 'mingguan' ? 'Harian (Minggu Ini)' : (currentMode === 'bulanan' ? 'Mingguan (Bulan Ini)' : 'Tren Periode')}
+            </span>
+          </div>
+          <div class="mock-bar-chart" style="align-items:flex-end;">
+            ${trendBarsHTML}
+          </div>
+        </div>
+
+        <div class="rep-chart-card">
+          <div style="margin-bottom:16px;">
+            <h2 style="margin:0 0 2px;">Pemanfaatan per Ruangan</h2>
+            <small style="color:#64748b; font-weight:500;">Proporsi penggunaan setiap ruang rapat</small>
+          </div>
+          <div style="display:flex; flex-direction:column;">
+            ${roomUsageHTML}
+          </div>
+        </div>
+
+        <div class="rep-chart-card">
+          <div style="margin-bottom:14px;">
+            <h2 style="margin:0 0 2px;">Status & Unit Pemohon</h2>
+            <small style="color:#64748b; font-weight:500;">Rekap status & unit kerja teraktif</small>
+          </div>
+          ${statusSummaryHTML}
+          <strong style="font-size:12px; color:#0c2d5e; display:block; margin: 12px 0 6px;">Top Unit Pemesan:</strong>
+          <div style="display:flex; flex-direction:column;">
+            ${deptHTML}
+          </div>
+        </div>
+      </div>
+
+      ${customTableHTML}
+    </div>
+  `;
 }
 
 function getActivePeriodLabel() {
@@ -3790,13 +2961,18 @@ function getActivePeriodLabel() {
   if (f.mode === "harian") {
     return `Hari Ini (${formatDate(getTodayIsoDate())})`;
   }
-  if (f.mode === "date" && f.startDate && f.endDate) {
-    return `${formatDate(f.startDate)} – ${formatDate(f.endDate)}`;
+  if (f.mode === "mingguan") {
+    const start = f.startDate || awalMinggu();
+    const end = f.endDate || akhirMinggu();
+    return `Minggu Ini (${formatDate(start)} – ${formatDate(end)})`;
   }
   if (f.mode === "bulanan") {
     const d = new Date();
-    const monthName = d.toLocaleDateString("id-ID", { month: "short", year: "numeric" });
+    const monthName = d.toLocaleDateString("id-ID", { month: "long", year: "numeric" });
     return `Bulan Ini (${monthName})`;
+  }
+  if (f.mode === "date" && f.startDate && f.endDate) {
+    return `${formatDate(f.startDate)} – ${formatDate(f.endDate)}`;
   }
   if (f.mode === "semua") {
     return "Semua Jadwal";
@@ -3809,7 +2985,7 @@ function openFilterModal() {
   const f = state.reportFilter || { mode: "bulanan", startDate: awalBulan(), endDate: akhirBulan() };
   const body = `
     <div style="display:flex; flex-direction:column; gap:12px; padding-top: 6px; font-family:'Poppins',sans-serif;">
-      <h3 style="font-size: 13.5px; font-weight:700; color: #0c2d5e; margin: 0 0 4px;">Pilih Periode Rapat</h3>
+      <h3 style="font-size: 13.5px; font-weight:700; color: #0c2d5e; margin: 0 0 4px;">Pilih Periode Rapat & Laporan</h3>
 
       <label style="display:flex; align-items:center; justify-content:space-between; cursor:pointer; padding: 10px 12px; border-radius:8px; border: 1px solid #e2e8f0; background: #fff;">
         <span style="font-size:13px; font-weight:600; color:#1e293b;">📅 Hari Ini saja (${formatDate(getTodayIsoDate())})</span>
@@ -3817,7 +2993,12 @@ function openFilterModal() {
       </label>
 
       <label style="display:flex; align-items:center; justify-content:space-between; cursor:pointer; padding: 10px 12px; border-radius:8px; border: 1px solid #e2e8f0; background: #fff;">
-        <span style="font-size:13px; font-weight:600; color:#1e293b;">🗓️ Bulan Ini</span>
+        <span style="font-size:13px; font-weight:600; color:#1e293b;">📆 Laporan Mingguan (Minggu Ini: ${formatDate(awalMinggu())} – ${formatDate(akhirMinggu())})</span>
+        <input type="radio" name="modalFilterMode" value="mingguan" onchange="toggleModalFilter()" ${f.mode === "mingguan" ? "checked" : ""}>
+      </label>
+
+      <label style="display:flex; align-items:center; justify-content:space-between; cursor:pointer; padding: 10px 12px; border-radius:8px; border: 1px solid #e2e8f0; background: #fff;">
+        <span style="font-size:13px; font-weight:600; color:#1e293b;">🗓️ Laporan Bulanan (Bulan Ini)</span>
         <input type="radio" name="modalFilterMode" value="bulanan" onchange="toggleModalFilter()" ${f.mode === "bulanan" ? "checked" : ""}>
       </label>
 
@@ -3827,7 +3008,7 @@ function openFilterModal() {
       </label>
 
       <label style="display:flex; align-items:center; justify-content:space-between; cursor:pointer; padding: 10px 12px; border-radius:8px; border: 1px solid #e2e8f0; background: #fff;">
-        <span style="font-size:13px; font-weight:600; color:#1e293b;">⚙️ Rentang Tanggal Tertentu</span>
+        <span style="font-size:13px; font-weight:600; color:#1e293b;">⚙️ Rentang Tanggal Khusus</span>
         <input type="radio" name="modalFilterMode" value="date" onchange="toggleModalFilter()" ${f.mode === "date" ? "checked" : ""}>
       </label>
 
@@ -3848,7 +3029,7 @@ function openFilterModal() {
       </div>
     </div>
   `;
-  openModal("Periode Rapat", body);
+  openModal("Periode Rapat & Laporan", body);
 }
 
 function toggleModalFilter() {
@@ -3879,8 +3060,21 @@ function toggleModalFilter() {
 function applyFilter() {
   const checked = document.querySelector('input[name="modalFilterMode"]:checked');
   const mode = checked ? checked.value : "bulanan";
-  const sd = document.getElementById("mStartDate")?.value || awalBulan();
-  const ed = document.getElementById("mEndDate")?.value || akhirBulan();
+  let sd = "";
+  let ed = "";
+  if (mode === "harian") {
+    sd = getTodayIsoDate();
+    ed = getTodayIsoDate();
+  } else if (mode === "mingguan") {
+    sd = awalMinggu();
+    ed = akhirMinggu();
+  } else if (mode === "bulanan") {
+    sd = awalBulan();
+    ed = akhirBulan();
+  } else if (mode === "date") {
+    sd = document.getElementById("mStartDate")?.value || awalBulan();
+    ed = document.getElementById("mEndDate")?.value || akhirBulan();
+  }
   state.reportFilter = {
     mode: mode,
     startDate: sd,
@@ -3888,7 +3082,7 @@ function applyFilter() {
   };
   closeModal();
   render();
-  toast(`✓ Periode rapat diterapkan: ${getActivePeriodLabel()}`);
+  toast(`✓ Periode diterapkan: ${getActivePeriodLabel()}`);
 }
 
 function applyDashboardFilter() {
@@ -4010,7 +3204,7 @@ function settings() {
     {
       no: 2,
       name: "Pimpinan",
-      access: "Otorisasi Persetujuan/Penolakan Booking Rapat, Mode Pemantauan, Pembatalan Darurat",
+      access: "Otorisasi Persetujuan/Penolakan Booking Rapat, Pembatalan Darurat",
       usersCount: pimpinanAktif,
     },
     {
@@ -4021,186 +3215,8 @@ function settings() {
     },
   ];
 
-  const customCSS = `
-    <style>
-      .settings-wrapper {
-        background: linear-gradient(180deg, #d4e6f6 0%, #edf5fc 320px);
-        min-height: 100vh;
-        display: flex;
-        flex-direction: column;
-        font-family: 'Poppins', sans-serif;
-      }
-      .settings-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        padding: 30px 40px 24px;
-      }
-      .settings-breadcrumb {
-        font-size: 13px;
-        color: #4b6a90;
-        margin-bottom: 6px;
-        font-weight: 500;
-      }
-      .settings-title h1 {
-        font-size: 28px;
-        font-weight: 700;
-        color: #0c2d5e;
-        margin: 0 0 4px;
-      }
-      .settings-title p {
-        color: #4b6a90;
-        font-size: 14px;
-        font-weight: 500;
-        margin: 0;
-      }
-      .settings-actions {
-        display: flex;
-        align-items: center;
-        gap: 24px;
-      }
-      .settings-stat-grid {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 20px;
-        padding: 0 40px 28px;
-      }
-      .s-card {
-        background: #ffffff;
-        border-radius: 14px;
-        padding: 22px 24px;
-        display: flex;
-        align-items: center;
-        gap: 18px;
-        box-shadow: 0 4px 20px rgba(12, 45, 94, 0.05);
-        position: relative;
-        overflow: hidden;
-      }
-      .s-card::after {
-        content: '';
-        position: absolute;
-        right: -20px;
-        bottom: -25px;
-        width: 90px;
-        height: 90px;
-        border-radius: 50%;
-        background: #edf6fd;
-        z-index: 0;
-        pointer-events: none;
-      }
-      .s-icon-box {
-        width: 52px;
-        height: 52px;
-        border-radius: 50%;
-        display: grid;
-        place-items: center;
-        flex-shrink: 0;
-        position: relative;
-        z-index: 1;
-      }
-      .s-icon-box.blue {
-        background: #d8ebfd;
-      }
-      .s-icon-box.green {
-        background: #d1fae5;
-      }
-      .s-icon-box.yellow {
-        background: #fef3c7;
-      }
-      .s-icon-box.purple {
-        background: #ede9fe;
-      }
-      .s-info {
-        position: relative;
-        z-index: 1;
-      }
-      .s-info strong {
-        display: block;
-        font-size: 28px;
-        font-weight: 700;
-        color: #0c2d5e;
-        line-height: 1.1;
-      }
-      .s-info span {
-        display: block;
-        font-size: 13px;
-        font-weight: 500;
-        color: #4b6a90;
-        margin-top: 4px;
-      }
-      .settings-panel {
-        background: #ffffff;
-        margin: 0 40px 40px;
-        border-radius: 16px;
-        padding: 28px 32px 36px;
-        box-shadow: 0 4px 24px rgba(12, 45, 94, 0.05);
-      }
-      .settings-panel h2 {
-        font-size: 20px;
-        font-weight: 800;
-        color: #0c2d5e;
-        margin: 0 0 24px;
-      }
-      .settings-table-wrap {
-        width: 100%;
-        overflow-x: auto;
-      }
-      .settings-table {
-        width: 100%;
-        border-collapse: collapse;
-      }
-      .settings-table th {
-        text-align: left;
-        padding: 16px 20px;
-        font-size: 14px;
-        font-weight: 700;
-        color: #0c2d5e;
-        border-bottom: 2px solid #edf3f9;
-        white-space: nowrap;
-      }
-      .settings-table td {
-        padding: 20px;
-        font-size: 14px;
-        color: #0c2d5e;
-        border-bottom: 1px solid #f4f8fc;
-      }
-      .settings-table tr:hover td {
-        background: #fafcfe;
-      }
-      .td-no {
-        font-weight: 700;
-        color: #0c2d5e;
-        width: 60px;
-      }
-      .td-role {
-        font-weight: 700;
-        color: #0c2d5e;
-        width: 220px;
-      }
-      .td-access {
-        color: #4b6a90;
-        font-weight: 500;
-      }
-      .td-count {
-        font-weight: 600;
-        color: #0c2d5e;
-        width: 160px;
-        text-align: center;
-      }
-      .role-pill {
-        display: inline-block;
-        background: #e0f2fe;
-        color: #0369a1;
-        font-weight: 700;
-        font-size: 13px;
-        padding: 4px 14px;
-        border-radius: 999px;
-      }
-    </style>
-  `;
 
   return `
-    ${customCSS}
     <div class="settings-wrapper">
       <div class="settings-header">
         <div class="settings-title">
@@ -4321,15 +3337,12 @@ function render() {
 
 window.addEventListener("hashchange", () => {
   let page = location.hash.replace("#", "") || "dashboard";
-  if (page === "reports") {
-    location.hash = "#dashboard";
-    return;
-  }
 
   const validPages = [
     "dashboard",
     "meetings",
     "rooms",
+    "reports",
     "users",
     "calendar",
     "settings",
@@ -5038,6 +4051,46 @@ function viewMeeting(id) {
     actionBtns += `<button class="btn btn-primary" style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;font-weight:700;display:inline-flex;align-items:center;gap:4px;" title="Batalkan Rapat Darurat (Hanya jika diperlukan)" onclick="closeModal(); openEmergencyCancelModal('${m.id}')">🚨 Batal Darurat</button>`;
   }
 
+  const materialsList = Array.isArray(m.materials) ? m.materials : [];
+  let materialsHtml = "";
+  if (materialsList.length > 0) {
+    materialsHtml = materialsList
+      .map((mat) => {
+        const isLink = mat.type === "link";
+        const icon = mat.type === "pdf" ? "📄" : mat.type === "ppt" ? "📊" : isLink ? "🔗" : "📁";
+        return `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;background:#fff;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:6px;">
+          <div style="display:flex;align-items:center;gap:8px;min-width:0;">
+            <span style="font-size:16px;">${icon}</span>
+            <div style="min-width:0;">
+              <div style="font-size:12.5px;font-weight:600;color:#0c2d5e;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(mat.name)}</div>
+              <div style="font-size:11px;color:#64748b;">${mat.size ? `${esc(mat.size)} · ` : ""}${esc(mat.uploadedBy || "Materi")}</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+            <a href="${esc(mat.url)}" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:6px;font-size:11.5px;font-weight:600;text-decoration:none;" download="${!isLink ? esc(mat.name) : ""}">
+              <span>${isLink ? "Buka Link" : "Unduh / Buka"}</span>
+            </a>
+            <button type="button" onclick="deleteMaterialFromMeeting('${esc(m.id)}', '${esc(mat.id)}')" style="border:none;background:transparent;color:#ef4444;cursor:pointer;padding:4px 6px;border-radius:4px;font-size:12px;" title="Hapus materi">🗑️</button>
+          </div>
+        </div>`;
+      })
+      .join("");
+  } else {
+    materialsHtml = `<div style="font-size:12px;color:#64748b;font-style:italic;padding:6px 0;">Belum ada dokumen materi atau paparan yang diunggah.</div>`;
+  }
+
+  const materialsBox = `
+    <div style="margin:16px 0;padding:12px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <b style="color:#0c2d5e;font-size:13px;display:flex;align-items:center;gap:6px;">📎 Materi Rapat (PDF &amp; Paparan)</b>
+        <button type="button" onclick="openAddMaterialModal('${esc(m.id)}')" style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;background:#0c2d5e;color:#fff;border:none;border-radius:6px;font-size:11.5px;font-weight:600;cursor:pointer;">
+          + Tambah Materi
+        </button>
+      </div>
+      <div>${materialsHtml}</div>
+    </div>
+  `;
+
   openModal(
     "Detail Rapat",
     `<p style="font-size:16px;color:#0c2d5e;"><b>${esc(m.title)}</b></p>
@@ -5051,12 +4104,198 @@ function viewMeeting(id) {
     ${m.approvedBy ? `<p>✓ <b>Disetujui Oleh:</b> <span style="color:#15803d;font-weight:600;">${esc(m.approvedBy)}</span></p>` : ""}
     ${m.rejectedBy ? `<p style="color:#dc2626;">✕ <b>Ditolak Oleh:</b> ${esc(m.rejectedBy)}</p>` : ""}
     <p style="margin-top:15px;color:#334155;white-space:pre-line;">${esc(m.desc)}</p>
+    ${materialsBox}
     <div class="modal-actions" style="margin-top:20px;display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;align-items:center;">
       <button class="btn btn-light" style="display:inline-flex;align-items:center;gap:6px;background:#fff8e6;color:#d97706;border:1px solid #fde68a;font-weight:700;" onclick="closeModal(); openMeetingReviewModal('${m.id}')">★ <span>Rating & Review</span></button>
       ${actionBtns}
     </div>`,
   );
 }
+
+let adminUploadedFileData = null;
+
+function toggleAdminMatInput(type) {
+  const fSec = document.getElementById("adminMatFileSection");
+  const lSec = document.getElementById("adminMatLinkSection");
+  if (type === "link") {
+    if (fSec) fSec.style.display = "none";
+    if (lSec) lSec.style.display = "block";
+  } else {
+    if (fSec) fSec.style.display = "block";
+    if (lSec) lSec.style.display = "none";
+  }
+}
+window.toggleAdminMatInput = toggleAdminMatInput;
+
+function onAdminMatFilePicked(input) {
+  const file = input.files?.[0];
+  if (!file) {
+    adminUploadedFileData = null;
+    return;
+  }
+  const ext = file.name.split(".").pop().toLowerCase();
+  let type = "file";
+  if (ext === "pdf") type = "pdf";
+  else if (ext === "ppt" || ext === "pptx") type = "ppt";
+  else if (ext === "doc" || ext === "docx") type = "doc";
+  else if (ext === "xls" || ext === "xlsx") type = "excel";
+
+  const sizeStr = file.size < 1024 * 1024 ? (file.size / 1024).toFixed(1) + " KB" : (file.size / (1024 * 1024)).toFixed(1) + " MB";
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    adminUploadedFileData = {
+      name: file.name,
+      url: e.target?.result,
+      size: sizeStr,
+      type,
+    };
+    const titleInput = document.getElementById("adminMatTitleInput");
+    if (titleInput && !titleInput.value.trim()) {
+      titleInput.value = file.name.replace(/\.[^/.]+$/, "");
+    }
+    const hint = document.getElementById("adminMatFileHint");
+    if (hint) hint.textContent = `✓ File siap: ${file.name} (${sizeStr})`;
+  };
+  reader.readAsDataURL(file);
+}
+window.onAdminMatFilePicked = onAdminMatFilePicked;
+
+function openAddMaterialModal(meetingId) {
+  const m = state.meetings.find((x) => String(x.id) === String(meetingId));
+  if (!m) {
+    alert("Data rapat tidak ditemukan.");
+    return;
+  }
+  adminUploadedFileData = null;
+  openModal(
+    "Tambah Materi Rapat",
+    `<div class="form-grid" style="font-family:'Poppins',sans-serif;">
+      <div class="field full">
+        <label>Pilih Jenis Sumber Dokumen</label>
+        <div style="display:flex;gap:16px;margin-top:6px;">
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
+            <input type="radio" name="adminMatType" value="file" checked onchange="toggleAdminMatInput('file')"> Upload Dokumen (PDF / PPT / Paparan)
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
+            <input type="radio" name="adminMatType" value="link" onchange="toggleAdminMatInput('link')"> Link / Tautan Online
+          </label>
+        </div>
+      </div>
+      <div class="field full" id="adminMatFileSection">
+        <label>Pilih File Dokumen</label>
+        <input type="file" id="adminMatFileInput" accept=".pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx" onchange="onAdminMatFilePicked(this)" style="font-size:12.5px;">
+        <small id="adminMatFileHint" style="display:block;margin-top:4px;color:#16a34a;font-weight:600;"></small>
+      </div>
+      <div class="field full" id="adminMatLinkSection" style="display:none;">
+        <label>Tautan / URL Dokumen (Google Drive, OneDrive, Web)</label>
+        <input type="url" id="adminMatUrlInput" placeholder="https://drive.google.com/file/d/..." style="font-size:13px;">
+      </div>
+      <div class="field full">
+        <label>Judul / Nama Materi</label>
+        <input type="text" id="adminMatTitleInput" placeholder="Contoh: Bahan Paparan Rapat" style="font-size:13px;">
+      </div>
+      <div class="field full">
+        <label>Pengunggah (Admin / PIC)</label>
+        <input type="text" id="adminMatUploaderInput" value="${esc(getCurrentUser()?.name || 'Admin')}" style="font-size:13px;">
+      </div>
+    </div>
+    <div class="modal-actions" style="margin-top:20px;">
+      <button class="btn btn-light" onclick="closeModal(); viewMeeting('${esc(m.id)}')">Kembali</button>
+      <button class="btn btn-primary" onclick="submitAdminMaterial('${esc(m.id)}')">Simpan Materi</button>
+    </div>`
+  );
+}
+window.openAddMaterialModal = openAddMaterialModal;
+
+async function submitAdminMaterial(meetingId) {
+  const isLink = document.querySelector('input[name="adminMatType"]:checked')?.value === "link";
+  let url = "";
+  let type = "pdf";
+  let size = "";
+  let name = (document.getElementById("adminMatTitleInput")?.value || "").trim();
+  const uploader = (document.getElementById("adminMatUploaderInput")?.value || "").trim() || "Admin";
+
+  if (isLink) {
+    url = (document.getElementById("adminMatUrlInput")?.value || "").trim();
+    if (!url) {
+      alert("Mohon masukkan tautan / link dokumen materi.");
+      return;
+    }
+    type = "link";
+    size = "Link";
+    if (!name) name = "Tautan Materi";
+  } else {
+    if (!adminUploadedFileData?.url) {
+      alert("Mohon pilih file materi yang ingin diunggah.");
+      return;
+    }
+    url = adminUploadedFileData.url;
+    type = adminUploadedFileData.type;
+    size = adminUploadedFileData.size;
+    if (!name) name = adminUploadedFileData.name;
+  }
+
+  const payload = { name, type, url, size, uploadedBy: uploader };
+
+  try {
+    const res = await fetch(`/api/dashboard/meetings/${meetingId}/materials`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data?.meeting) {
+        const idx = state.meetings.findIndex((m) => String(m.id) === String(meetingId));
+        if (idx !== -1) {
+          state.meetings[idx] = { ...state.meetings[idx], materials: data.meeting.materials };
+        }
+      }
+    } else {
+      const idx = state.meetings.findIndex((m) => String(m.id) === String(meetingId));
+      if (idx !== -1) {
+        if (!Array.isArray(state.meetings[idx].materials)) state.meetings[idx].materials = [];
+        state.meetings[idx].materials.push({
+          id: "mat_" + Date.now(),
+          ...payload,
+          uploadedAt: new Date().toISOString(),
+        });
+      }
+    }
+    try {
+      getAppStorage().setItem("app_meetings", JSON.stringify(state.meetings));
+    } catch (e) {}
+
+    toast("✓ Materi rapat berhasil ditambahkan.");
+    closeModal();
+    viewMeeting(meetingId);
+  } catch (err) {
+    alert("Gagal menyimpan materi: " + err.message);
+  }
+}
+window.submitAdminMaterial = submitAdminMaterial;
+
+async function deleteMaterialFromMeeting(meetingId, matId) {
+  if (!confirm("Hapus materi ini dari rapat?")) return;
+  try {
+    await fetch(`/api/dashboard/meetings/${meetingId}/materials/${matId}`, {
+      method: "DELETE",
+    });
+    const idx = state.meetings.findIndex((m) => String(m.id) === String(meetingId));
+    if (idx !== -1 && Array.isArray(state.meetings[idx].materials)) {
+      state.meetings[idx].materials = state.meetings[idx].materials.filter((x) => String(x.id) !== String(matId));
+      try {
+        getAppStorage().setItem("app_meetings", JSON.stringify(state.meetings));
+      } catch (e) {}
+    }
+    toast("Dokumen materi berhasil dihapus.");
+    viewMeeting(meetingId);
+  } catch (e) {
+    alert("Gagal menghapus materi.");
+  }
+}
+window.deleteMaterialFromMeeting = deleteMaterialFromMeeting;
 
 // ----------------------------------------------------------------------
 // RATING & REVIEW RUANGAN
@@ -6433,7 +5672,6 @@ function viewRoomDetail(id) {
             .join("")
         : `<p class="muted" style="font-size:12.5px;">Tidak ada jadwal hari ini.</p>`
     }
-    <div style="margin-top:14px;padding:8px 12px;border-radius:8px;background:#f1f5f9;color:#475569;font-size:11.5px;">👁 Mode lihat saja — pengelolaan ruangan dilakukan oleh Admin.</div>
     <div class="modal-actions" style="margin-top:14px;display:flex;justify-content:flex-end;"><button class="btn btn-light" onclick="closeModal()">Tutup</button></div>`,
   );
 }
@@ -6507,8 +5745,8 @@ function openUserModal(id = null) {
           <input id="uUsername" value="${esc(u.username || "")}" placeholder="Contoh: budi123" ${isEditingAdmin ? "readonly style='background:#e2e8f0; cursor:not-allowed;'" : ""}>
         </div>
         <div class="crm-field">
-          <label>Password (Untuk Login) <span style="color:#e53e3e;">*</span></label>
-          <input id="uPassword" type="text" value="${esc(u.password || "")}" placeholder="Masukkan password">
+          <label>Password (Untuk Login) ${id ? '<span style="font-size:11px;color:#718096;font-weight:normal;">(Opsional, kosongkan jika tidak diubah)</span>' : '<span style="color:#e53e3e;">*</span>'}</label>
+          <input id="uPassword" type="password" placeholder="${id ? 'Kosongkan jika tidak ingin mengubah password' : 'Masukkan password'}">
         </div>
       </div>
 
@@ -6590,7 +5828,7 @@ async function saveUser(id) {
     alert("Username untuk login tidak boleh kosong!");
     return;
   }
-  if (!password) {
+  if (!id && !password) {
     alert("Password untuk login tidak boleh kosong!");
     return;
   }
@@ -6634,12 +5872,14 @@ async function saveUser(id) {
     id: userId,
     name: name,
     username: username,
-    password: password,
     email: email || `${lowerUsername}@kemnaker.go.id`,
     dept: dept,
     role: role,
     status: status,
   };
+  if (password) {
+    userObj.password = password;
+  }
 
   if (id) {
     state.users = state.users.map((x) =>
@@ -6879,16 +6119,20 @@ function globalSearch(q) {
    ========================= */
 
 function getReportData() {
-  return state.meetings.map((m, i) => ({
+  const isReportsPage = state.page === "reports";
+  const list = isReportsPage && typeof getFilteredReportMeetings === "function"
+    ? getFilteredReportMeetings()
+    : state.meetings;
+  return list.map((m, i) => ({
     No: i + 1,
-    "Judul Rapat": m.title,
-    Pemesan: m.requester,
-    Ruangan: m.room,
+    "Judul Rapat": m.title || "",
+    Pemesan: m.requester || "",
+    Ruangan: m.room || "",
     Tanggal: formatDate(m.date),
-    "Waktu Mulai": m.start,
-    "Waktu Selesai": m.end,
-    Peserta: m.participants,
-    Status: m.status,
+    "Waktu Mulai": m.start || "",
+    "Waktu Selesai": m.end || "",
+    Peserta: m.participants || 0,
+    Status: m.status || "",
     Deskripsi: m.desc || "",
   }));
 }
@@ -6985,10 +6229,20 @@ async function exportPDF() {
       format: "a4",
     });
 
-    const data = state.meetings;
+    const isReportsPage = state.page === "reports";
+    const data =
+      isReportsPage && typeof getFilteredReportMeetings === "function"
+        ? getFilteredReportMeetings()
+        : state.meetings;
 
     doc.setFontSize(16);
-    doc.text("Laporan Rapat", 14, 15);
+    doc.text(
+      isReportsPage
+        ? `Laporan Penggunaan Ruang Rapat (${getActivePeriodLabel()})`
+        : "Laporan Rapat",
+      14,
+      15,
+    );
 
     doc.setFontSize(9);
     doc.text(`Dicetak: ${new Date().toLocaleString("id-ID")}`, 14, 21);

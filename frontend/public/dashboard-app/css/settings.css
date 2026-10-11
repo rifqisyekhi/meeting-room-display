@@ -1,0 +1,173 @@
+.settings-wrapper {
+        background: linear-gradient(180deg, #d4e6f6 0%, #edf5fc 320px);
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        font-family: 'Poppins', sans-serif;
+      }
+      .settings-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        padding: 30px 40px 24px;
+      }
+      .settings-breadcrumb {
+        font-size: 13px;
+        color: #4b6a90;
+        margin-bottom: 6px;
+        font-weight: 500;
+      }
+      .settings-title h1 {
+        font-size: 28px;
+        font-weight: 700;
+        color: #0c2d5e;
+        margin: 0 0 4px;
+      }
+      .settings-title p {
+        color: #4b6a90;
+        font-size: 14px;
+        font-weight: 500;
+        margin: 0;
+      }
+      .settings-actions {
+        display: flex;
+        align-items: center;
+        gap: 24px;
+      }
+      .settings-stat-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 20px;
+        padding: 0 40px 28px;
+      }
+      .s-card {
+        background: #ffffff;
+        border-radius: 14px;
+        padding: 22px 24px;
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        box-shadow: 0 4px 20px rgba(12, 45, 94, 0.05);
+        position: relative;
+        overflow: hidden;
+      }
+      .s-card::after {
+        content: '';
+        position: absolute;
+        right: -20px;
+        bottom: -25px;
+        width: 90px;
+        height: 90px;
+        border-radius: 50%;
+        background: #edf6fd;
+        z-index: 0;
+        pointer-events: none;
+      }
+      .s-icon-box {
+        width: 52px;
+        height: 52px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        flex-shrink: 0;
+        position: relative;
+        z-index: 1;
+      }
+      .s-icon-box.blue {
+        background: #d8ebfd;
+      }
+      .s-icon-box.green {
+        background: #d1fae5;
+      }
+      .s-icon-box.yellow {
+        background: #fef3c7;
+      }
+      .s-icon-box.purple {
+        background: #ede9fe;
+      }
+      .s-info {
+        position: relative;
+        z-index: 1;
+      }
+      .s-info strong {
+        display: block;
+        font-size: 28px;
+        font-weight: 700;
+        color: #0c2d5e;
+        line-height: 1.1;
+      }
+      .s-info span {
+        display: block;
+        font-size: 13px;
+        font-weight: 500;
+        color: #4b6a90;
+        margin-top: 4px;
+      }
+      .settings-panel {
+        background: #ffffff;
+        margin: 0 40px 40px;
+        border-radius: 16px;
+        padding: 28px 32px 36px;
+        box-shadow: 0 4px 24px rgba(12, 45, 94, 0.05);
+      }
+      .settings-panel h2 {
+        font-size: 20px;
+        font-weight: 800;
+        color: #0c2d5e;
+        margin: 0 0 24px;
+      }
+      .settings-table-wrap {
+        width: 100%;
+        overflow-x: auto;
+      }
+      .settings-table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      .settings-table th {
+        text-align: left;
+        padding: 16px 20px;
+        font-size: 14px;
+        font-weight: 700;
+        color: #0c2d5e;
+        border-bottom: 2px solid #edf3f9;
+        white-space: nowrap;
+      }
+      .settings-table td {
+        padding: 20px;
+        font-size: 14px;
+        color: #0c2d5e;
+        border-bottom: 1px solid #f4f8fc;
+      }
+      .settings-table tr:hover td {
+        background: #fafcfe;
+      }
+      .td-no {
+        font-weight: 700;
+        color: #0c2d5e;
+        width: 60px;
+      }
+      .td-role {
+        font-weight: 700;
+        color: #0c2d5e;
+        width: 220px;
+      }
+      .td-access {
+        color: #4b6a90;
+        font-weight: 500;
+      }
+      .td-count {
+        font-weight: 600;
+        color: #0c2d5e;
+        width: 160px;
+        text-align: center;
+      }
+      .role-pill {
+        display: inline-block;
+        background: #e0f2fe;
+        color: #0369a1;
+        font-weight: 700;
+        font-size: 13px;
+        padding: 4px 14px;
+        border-radius: 999px;
+      }
