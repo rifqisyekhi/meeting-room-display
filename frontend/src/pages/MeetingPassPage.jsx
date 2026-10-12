@@ -9,6 +9,7 @@ import {
   FaUsers,
   FaUserCheck,
   FaQrcode,
+  FaBarcode,
   FaShareAlt,
   FaArrowLeft,
   FaCheck,
@@ -182,7 +183,7 @@ export default function MeetingPassPage() {
       const res = await fetch(`/api/dashboard/meetings/${meeting.id}/checkin`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ by: actorName }),
+        body: JSON.stringify({ by: actorName, method: "barcode_qr" }),
       });
       if (res.ok) {
         const data = await res.json();
@@ -196,6 +197,8 @@ export default function MeetingPassPage() {
           status: "Berjalan",
           checkInAt: nowIso,
           checkedInBy: actorName,
+          checkInMethod: "barcode_qr",
+          checkInMethodLabel: "Scan Barcode / QR Mandiri",
         };
         setMeeting(updated);
         try {
@@ -227,7 +230,7 @@ export default function MeetingPassPage() {
       const res = await fetch(`/api/dashboard/meetings/${meeting.id}/checkout`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ by: actorName }),
+        body: JSON.stringify({ by: actorName, method: "barcode_qr" }),
       });
       if (res.ok) {
         const data = await res.json();
@@ -241,6 +244,8 @@ export default function MeetingPassPage() {
           status: "Selesai",
           checkOutAt: nowIso,
           checkedOutBy: actorName,
+          checkOutMethod: "barcode_qr",
+          checkOutMethodLabel: "Scan Barcode / QR Mandiri",
         };
         setMeeting(updated);
         try {
@@ -729,19 +734,28 @@ export default function MeetingPassPage() {
         </section>
 
         {/* ============================================================== */}
-        {/* CARD 2: KONTROL RAPAT (CHECK-IN & CHECK-OUT UNTUK PERWAKILAN)    */}
+        {/* CARD 2: KONTROL RAPAT (SISTEM 1: BARCODE & QR PRESENSI MANDIRI) */}
         {/* ============================================================== */}
         <section className="mp-card mp-control-card">
           <div className="mp-section-head">
             <div className="mp-section-badge-group">
+              <span className="mp-role-tag perwakilan" style={{ background: "#dbeafe", color: "#1e40af", borderColor: "#bfdbfe" }}>
+                <FaBarcode style={{ marginRight: 4 }} /> Sistem 1: Barcode &amp; QR Presensi Mandiri
+              </span>
               <span className="mp-role-tag perwakilan">
                 <FaUserTie /> Khusus Perwakilan / PIC
               </span>
-              <h3 className="mp-section-title">Kontrol Sesi Rapat</h3>
+              <h3 className="mp-section-title">Check-In &amp; Check-Out Mandiri</h3>
             </div>
             <p className="mp-section-subtitle">
-              Tombol <strong>Check-In</strong> dan <strong>Check-Out</strong> di bawah ini digunakan oleh <em>perwakilan rapat / penanggung jawab</em> untuk membuka dan mengakhiri sesi pemakaian ruangan secara resmi.
+              Sistem presensi mandiri berbasis Barcode &amp; QR Code: <strong>Admin tidak perlu lagi menekan tombol manual di dashboard</strong>. Perwakilan / PIC cukup menekan tombol <strong>Check-In</strong> dan <strong>Check-Out</strong> di bawah ini untuk membuka dan mengakhiri sesi rapat secara otomatis.
             </p>
+          </div>
+
+          {/* Banner Informasi Otomasi Sistem 1 */}
+          <div style={{ margin: "10px 0 16px", padding: "10px 14px", background: "rgba(16, 185, 129, 0.08)", border: "1px solid rgba(16, 185, 129, 0.25)", borderRadius: "10px", fontSize: "12px", color: "#065f46", display: "flex", alignItems: "center", gap: "8px" }}>
+            <FaCheckCircle style={{ color: "#10b981", flexShrink: 0 }} />
+            <span><strong>Otomatis Tanpa Admin:</strong> Check-In dan Check-Out mandiri ini langsung menyinkronkan status display TV ruangan dan dasbor kalender secara real-time.</span>
           </div>
 
           {/* Form / Konfirmasi Identitas Perwakilan */}
@@ -1008,20 +1022,30 @@ export default function MeetingPassPage() {
               ×
             </button>
 
-            <h3 className="mp-modal-title">QR Code Presensi Rapat</h3>
+            <h3 className="mp-modal-title">Barcode &amp; QR Pass Presensi Rapat</h3>
             <p className="mp-modal-subtitle">
-              Pindai dengan kamera smartphone untuk membuka halaman presensi &amp; detil rapat ini.
+              Sistem 1: Pindai dengan kamera smartphone untuk Check-In &amp; Check-Out otomatis tanpa perlu bantuan admin secara manual.
             </p>
 
-            <div className="mp-modal-qr-wrap">
+            <div className="mp-modal-qr-wrap" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "12px" }}>
               <QRCodeSVG
                 value={currentUrl}
-                size={220}
+                size={200}
                 level="H"
                 marginSize={2}
                 bgColor="#ffffff"
                 fgColor="#0c2d5e"
               />
+              <div style={{ background: "#f8fafc", padding: "8px 14px", borderRadius: "10px", border: "1px dashed #cbd5e1", width: "100%", maxWidth: "260px" }}>
+                <svg viewBox="0 0 240 44" style={{ width: "100%", height: "40px", display: "block" }}>
+                  {[10, 16, 22, 28, 36, 42, 50, 56, 64, 72, 80, 86, 94, 102, 110, 118, 126, 134, 142, 150, 158, 166, 174, 182, 190, 198, 206, 214, 222].map((x, i) => (
+                    <rect key={i} x={x} y="0" width={i % 3 === 0 ? 3 : i % 2 === 0 ? 2 : 1.4} height="30" fill="#0c2d5e" />
+                  ))}
+                  <text x="120" y="41" textAnchor="middle" fontFamily="monospace" fontSize="9" fontWeight="700" fill="#475569" letterSpacing="2">
+                    {`KMNKR-${String(meeting.id).padStart(6, "0")}`}
+                  </text>
+                </svg>
+              </div>
             </div>
 
             <div className="mp-modal-meeting-info">

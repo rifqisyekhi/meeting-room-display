@@ -415,8 +415,12 @@ async function getDashboardData() {
           review: localMeeting.review || calendarMeeting.review || null,
           checkInAt: localMeeting.checkInAt || calendarMeeting.checkInAt || null,
           checkedInBy: localMeeting.checkedInBy || calendarMeeting.checkedInBy || null,
+          checkInMethod: localMeeting.checkInMethod || calendarMeeting.checkInMethod || null,
+          checkInMethodLabel: localMeeting.checkInMethodLabel || calendarMeeting.checkInMethodLabel || null,
           checkOutAt: localMeeting.checkOutAt || calendarMeeting.checkOutAt || null,
           checkedOutBy: localMeeting.checkedOutBy || calendarMeeting.checkedOutBy || null,
+          checkOutMethod: localMeeting.checkOutMethod || calendarMeeting.checkOutMethod || null,
+          checkOutMethodLabel: localMeeting.checkOutMethodLabel || calendarMeeting.checkOutMethodLabel || null,
           createdAt: localMeeting.createdAt || calendarMeeting.createdAt || null,
         };
       }
@@ -836,7 +840,7 @@ async function getMeetingById(id) {
   return found || null;
 }
 
-async function checkInMeeting(id, checkedInBy = "Peserta (QR Code)") {
+async function checkInMeeting(id, checkedInBy = "Peserta (Barcode / QR)", method = "barcode_qr") {
   const store = readStore();
   const target = String(id).trim();
   const meeting = (store.meetings || []).find(
@@ -847,14 +851,17 @@ async function checkInMeeting(id, checkedInBy = "Peserta (QR Code)") {
   );
   if (!meeting) return null;
 
+  const isManual = method === "manual_admin" || (checkedInBy && checkedInBy.toLowerCase().includes("admin"));
   meeting.status = "Berjalan";
   meeting.checkInAt = new Date().toISOString();
   meeting.checkedInBy = checkedInBy;
+  meeting.checkInMethod = isManual ? "manual_admin" : "barcode_qr";
+  meeting.checkInMethodLabel = isManual ? "Manual oleh Admin" : "Barcode / QR Scanner (Otomatis)";
 
   return await saveMeeting(meeting);
 }
 
-async function checkOutMeeting(id, checkedOutBy = "Peserta (QR Code)") {
+async function checkOutMeeting(id, checkedOutBy = "Peserta (Barcode / QR)", method = "barcode_qr") {
   const store = readStore();
   const target = String(id).trim();
   const meeting = (store.meetings || []).find(
@@ -865,9 +872,12 @@ async function checkOutMeeting(id, checkedOutBy = "Peserta (QR Code)") {
   );
   if (!meeting) return null;
 
+  const isManual = method === "manual_admin" || (checkedOutBy && checkedOutBy.toLowerCase().includes("admin"));
   meeting.status = "Selesai";
   meeting.checkOutAt = new Date().toISOString();
   meeting.checkedOutBy = checkedOutBy;
+  meeting.checkOutMethod = isManual ? "manual_admin" : "barcode_qr";
+  meeting.checkOutMethodLabel = isManual ? "Manual oleh Admin" : "Barcode / QR Scanner (Otomatis)";
 
   return await saveMeeting(meeting);
 }

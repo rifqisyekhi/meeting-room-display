@@ -231,7 +231,7 @@ function RoomPanel({ room, todayEvents, upcomingEvents, now }) {
                   target="_blank"
                   rel="noreferrer"
                   className="slot__qr-pass"
-                  title="Pindai QR untuk Check-in, Daftar Hadir, & Info Rapat"
+                  title="Sistem 1: Pindai Barcode / QR untuk Check-In &amp; Check-Out Mandiri (Otomatis tanpa admin)"
                 >
                   <div className="slot__qr-pass-code">
                     <QRCodeSVG
@@ -244,8 +244,8 @@ function RoomPanel({ room, todayEvents, upcomingEvents, now }) {
                     />
                   </div>
                   <div className="slot__qr-pass-label">
-                    <span>📱 QR Presensi</span>
-                    <small>Scan untuk Hadir / Pass</small>
+                    <span>📱 Scan QR / Barcode</span>
+                    <small>Presensi Mandiri (Tanpa Admin)</small>
                   </div>
                 </a>
               )}
@@ -269,7 +269,7 @@ function RoomPanel({ room, todayEvents, upcomingEvents, now }) {
                   target="_blank"
                   rel="noreferrer"
                   className="slot__qr-pass"
-                  title="Pindai QR untuk Check-in, Daftar Hadir, & Info Rapat"
+                  title="Sistem 1: Pindai Barcode / QR untuk Check-In &amp; Check-Out Mandiri (Otomatis tanpa admin)"
                 >
                   <div className="slot__qr-pass-code">
                     <QRCodeSVG
@@ -282,8 +282,8 @@ function RoomPanel({ room, todayEvents, upcomingEvents, now }) {
                     />
                   </div>
                   <div className="slot__qr-pass-label">
-                    <span>📱 QR Presensi</span>
-                    <small>Scan untuk Check-in</small>
+                    <span>📱 Scan QR / Barcode</span>
+                    <small>Presensi Mandiri (Tanpa Admin)</small>
                   </div>
                 </a>
               )}

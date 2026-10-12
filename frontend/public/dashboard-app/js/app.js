@@ -1547,9 +1547,9 @@ function dashboard() {
       let actionButtons = "";
       if (isAdmin) {
         if (sLower === "berjalan") {
-          actionButtons += `<button type="button" onclick="checkOutMeeting('${m.id}')" style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;border-radius:6px;padding:0 8px;height:28px;font-size:11px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:3px;transition:all 0.15s;" title="Selesaikan rapat sekarang (Check-Out)"><span>Check Out</span></button>`;
+          actionButtons += `<button type="button" onclick="checkOutMeetingManual('${m.id}')" style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;border-radius:6px;padding:0 8px;height:28px;font-size:11px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:3px;transition:all 0.15s;" title="Check-Out Manual oleh Admin (Catatan: Peserta juga dapat Check-Out mandiri via Barcode/QR)"><span>Check Out (Manual)</span></button>`;
         } else if (sLower === "akan datang" || sLower === "segera" || sLower === "disetujui") {
-          actionButtons += `<button type="button" onclick="checkInMeeting('${m.id}')" style="background:#dcfce7;color:#15803d;border:1px solid #bbf7d0;border-radius:6px;padding:0 8px;height:28px;font-size:11px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:3px;transition:all 0.15s;" title="Mulai rapat sekarang (Check-In)"><span>✓ Check In</span></button>`;
+          actionButtons += `<button type="button" onclick="checkInMeetingManual('${m.id}')" style="background:#dcfce7;color:#15803d;border:1px solid #bbf7d0;border-radius:6px;padding:0 8px;height:28px;font-size:11px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:3px;transition:all 0.15s;" title="Check-In Manual oleh Admin (Gunakan ini jika peserta tidak scan Barcode/QR di ruangan)"><span>✓ Check In (Manual)</span></button>`;
         }
         actionButtons += qrBtn;
         actionButtons += viewBtn;
@@ -1557,6 +1557,16 @@ function dashboard() {
       } else {
         actionButtons = `${viewBtn}${qrBtn}${revBtn}`;
       }
+
+      const isQrMethod = m.checkInMethod === "barcode_qr" || (m.checkedInBy && (m.checkedInBy.toLowerCase().includes("qr") || m.checkedInBy.toLowerCase().includes("barcode")));
+      const isManualMethod = m.checkInMethod === "manual_admin" || (m.checkedInBy && m.checkedInBy.toLowerCase().includes("admin"));
+      const methodBadge = sLower === "berjalan"
+        ? (isQrMethod
+            ? `<div style="margin-top:3px;"><span style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;padding:1px 6px;border-radius:8px;font-size:9.5px;font-weight:700;display:inline-flex;align-items:center;gap:2px;" title="Check-In otomatis via Barcode/QR oleh ${esc(m.checkedInBy || 'Peserta')}"><span>📱</span><span>Scan QR</span></span></div>`
+            : isManualMethod
+            ? `<div style="margin-top:3px;"><span style="background:#fef3c7;color:#b45309;border:1px solid #fde68a;padding:1px 6px;border-radius:8px;font-size:9.5px;font-weight:700;display:inline-flex;align-items:center;gap:2px;" title="Check-In manual oleh Admin"><span>👤</span><span>Manual Admin</span></span></div>`
+            : "")
+        : "";
 
       const actionBtn = `<div style="display:inline-flex;align-items:center;gap:5px;white-space:nowrap;justify-content:center;">${actionButtons}</div>`;
 
@@ -1566,7 +1576,7 @@ function dashboard() {
         <td style="white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis;padding:10px 8px;" title="${esc(m.requester || m.bookedBy || 'TU')}">${esc(m.requester || m.bookedBy || 'TU')}</td>
         <td style="white-space:nowrap;max-width:140px;overflow:hidden;text-overflow:ellipsis;padding:10px 8px;" title="${esc(m.room)}">${esc(m.room)}</td>
         <td style="white-space:nowrap;font-size:12px;padding:10px 8px;">${formatDate(m.date)} · ${m.start}-${m.end}</td>
-        <td style="padding:10px 8px;"><span style="background:${statusColor};color:${statusText};padding:3px 8px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;display:inline-block;">${esc(m.status)}</span></td>
+        <td style="padding:10px 8px;"><span style="background:${statusColor};color:${statusText};padding:3px 8px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;display:inline-block;">${esc(m.status)}</span>${methodBadge}</td>
         <td style="text-align:center;padding:10px 6px;white-space:nowrap;">${actionBtn}</td>
       </tr>`;
     });
@@ -1805,9 +1815,9 @@ function meetingTable(data, actions = true, allowDelete = true) {
                   actionButtons += `<span style="font-size:11px;color:#d97706;background:#fef3c7;padding:5px 10px;border-radius:12px;font-weight:600;">⏳ Menunggu Persetujuan Pimpinan</span>`;
                 }
               } else if (isUpcoming && can("checkInOut", user)) {
-                actionButtons += `<button style="background-color:#219653;color:#fff;border:none;border-radius:24px;padding:8px 16px;font-weight:700;font-size:13px;cursor:pointer;box-shadow:0 4px 10px rgba(33,150,83,0.2);display:inline-flex;align-items:center;gap:4px;" title="Check In Rapat" onclick="checkInMeeting('${m.id}')"><span>✓ Check In</span></button>`;
+                actionButtons += `<button style="background-color:#219653;color:#fff;border:none;border-radius:24px;padding:8px 14px;font-weight:700;font-size:12px;cursor:pointer;box-shadow:0 4px 10px rgba(33,150,83,0.2);display:inline-flex;align-items:center;gap:4px;" title="Check-In Manual oleh Admin (Catatan: Peserta juga dapat Check-In mandiri via Barcode/QR di ruangan)" onclick="checkInMeetingManual('${m.id}')"><span>✓ Check In (Manual)</span></button>`;
               } else if (isRunning && can("checkInOut", user)) {
-                actionButtons += `<button style="background-color:#ff4d4f;color:#fff;border:none;border-radius:24px;padding:8px 16px;font-weight:700;font-size:13px;cursor:pointer;box-shadow:0 4px 10px rgba(255,77,79,0.2);display:inline-flex;align-items:center;gap:4px;" title="Check Out Rapat" onclick="checkOutMeeting('${m.id}')"><span>Check Out</span></button>`;
+                actionButtons += `<button style="background-color:#ff4d4f;color:#fff;border:none;border-radius:24px;padding:8px 14px;font-weight:700;font-size:12px;cursor:pointer;box-shadow:0 4px 10px rgba(255,77,79,0.2);display:inline-flex;align-items:center;gap:4px;" title="Check-Out Manual oleh Admin (Catatan: Peserta juga dapat Check-Out mandiri via Barcode/QR)" onclick="checkOutMeetingManual('${m.id}')"><span>Check Out (Manual)</span></button>`;
               }
 
               // Tombol Canceling System Darurat (Emergency Cancellation)
@@ -1819,6 +1829,20 @@ function meetingTable(data, actions = true, allowDelete = true) {
               }
             }
 
+            const isQrMethod = m.checkInMethod === "barcode_qr" || (m.checkedInBy && (m.checkedInBy.toLowerCase().includes("qr") || m.checkedInBy.toLowerCase().includes("barcode")));
+            const isManualMethod = m.checkInMethod === "manual_admin" || (m.checkedInBy && m.checkedInBy.toLowerCase().includes("admin"));
+            const methodTag = isRunning
+              ? (isQrMethod
+                  ? `<div style="margin-top:3px;"><span style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:700;display:inline-flex;align-items:center;gap:3px;" title="Check-In otomatis via Barcode/QR oleh ${esc(m.checkedInBy || 'Peserta')}"><span>📱</span><span>Scan Barcode/QR</span></span></div>`
+                  : isManualMethod
+                  ? `<div style="margin-top:3px;"><span style="background:#fef3c7;color:#b45309;border:1px solid #fde68a;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:700;display:inline-flex;align-items:center;gap:3px;" title="Check-In manual oleh Admin (${esc(m.checkedInBy || 'Admin')})"><span>👤</span><span>Manual Admin</span></span></div>`
+                  : "")
+              : isCompleted && (m.checkInMethod || m.checkOutMethod)
+              ? (m.checkInMethod === "barcode_qr" || m.checkOutMethod === "barcode_qr"
+                  ? `<div style="margin-top:3px;"><span style="background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;padding:2px 7px;border-radius:10px;font-size:9.5px;font-weight:600;" title="Selesai via Barcode/QR">📱 Barcode/QR</span></div>`
+                  : `<div style="margin-top:3px;"><span style="background:#f8fafc;color:#64748b;border:1px solid #e2e8f0;padding:2px 7px;border-radius:10px;font-size:9.5px;font-weight:600;" title="Selesai Manual Admin">👤 Manual Admin</span></div>`)
+              : "";
+
             const rating = Math.max(0, Math.min(5, Number(m.review?.rating) || 0));
             const reviewCell = isCompleted
               ? m.review
@@ -1826,7 +1850,7 @@ function meetingTable(data, actions = true, allowDelete = true) {
                 : `<span style="color:#8291a5;font-size:11px;">Belum ada review</span>`
               : `<span style="color:#9aa8b8;">-</span>`;
 
-            return `<tr><td>${i + 1}</td><td><b>${esc(m.title)}</b></td><td>${esc(m.requester)}</td><td>${esc(m.room)}</td><td>${formatDate(m.date)}</td><td>${m.start}-${m.end}</td><td>${badge(m.status)}</td><td>${reviewCell}</td><td><div class="actions">${actionButtons}</div></td></tr>`;
+            return `<tr><td>${i + 1}</td><td><b>${esc(m.title)}</b></td><td>${esc(m.requester)}</td><td>${esc(m.room)}</td><td>${formatDate(m.date)}</td><td>${m.start}-${m.end}</td><td>${badge(m.status)}${methodTag}</td><td>${reviewCell}</td><td><div class="actions">${actionButtons}</div></td></tr>`;
           })
           .join("");
 
@@ -3772,59 +3796,107 @@ function approveMeeting(id) {
   toast("✓ Rapat berhasil disetujui oleh " + approvedTag);
 }
 
-function checkInMeeting(id) {
-  if (!can("checkInOut")) return denyAccess("Check-In rapat dilakukan oleh Admin.");
-  state.meetings = state.meetings.map((m) => {
-    if (String(m.id) === String(id)) return { ...m, status: "Berjalan" };
-    return m;
+function checkInMeetingManual(id) {
+  const user = getCurrentUser();
+  if (!can("checkInOut", user)) return denyAccess("Check-In rapat dilakukan oleh Admin.");
+  
+  const m = state.meetings.find((x) => String(x.id) === String(id));
+  const title = m ? `"${m.title}"` : "rapat ini";
+  
+  const confirmMsg = `Lakukan Check-In MANUAL untuk ${title}?\n\n💡 Info Sistem: Peserta rapat/PIC sebenarnya dapat melakukan Check-In mandiri dengan memindai Barcode / QR Code di ruangan tanpa perlu Admin menekan tombol ini.\n\nGunakan tombol ini jika Anda ingin mengaktifkan sesi secara manual sekarang.`;
+  if (!confirm(confirmMsg)) return;
+
+  const nowIso = new Date().toISOString();
+  const adminName = user?.name ? `${user.name} (Admin)` : "Admin (Manual)";
+
+  state.meetings = state.meetings.map((item) => {
+    if (String(item.id) === String(id)) {
+      return {
+        ...item,
+        status: "Berjalan",
+        checkInAt: nowIso,
+        checkedInBy: adminName,
+        checkInMethod: "manual_admin",
+        checkInMethodLabel: "Manual oleh Admin",
+      };
+    }
+    return item;
   });
+
   try {
     getAppStorage().setItem("app_meetings", JSON.stringify(state.meetings));
   } catch (e) {}
-  const targetCheckIn = state.meetings.find((m) => String(m.id) === String(id));
-  if (targetCheckIn) {
-    fetch("/api/dashboard/meetings", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(targetCheckIn),
+
+  fetch(`/api/dashboard/meetings/${id}/checkin`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ by: adminName, method: "manual_admin" }),
+  })
+    .then(async () => {
+      await fetchDashboardData(false);
     })
-      .then(async () => {
-        await fetchDashboardData(false);
-      })
-      .catch((e) => console.warn("Sync check-in meeting:", e));
-  }
+    .catch((e) => console.warn("Sync checkin manual error:", e));
+
   render();
-  toast("Berhasil Check-In! Rapat telah berjalan.");
+  toast("✓ Berhasil Check-In Manual oleh Admin. Sesi rapat kini berstatus Berjalan.");
+}
+
+function checkOutMeetingManual(id) {
+  const user = getCurrentUser();
+  if (!can("checkInOut", user)) return denyAccess("Check-Out rapat dilakukan oleh Admin.");
+
+  const m = state.meetings.find((x) => String(x.id) === String(id));
+  const title = m ? `"${m.title}"` : "rapat ini";
+
+  const confirmMsg = `Selesaikan sesi ${title} secara MANUAL sebagai Admin?\n\n💡 Info Sistem: Peserta/PIC sebenarnya dapat melakukan Check-Out mandiri di ruangan dengan memindai Barcode / QR Code tanpa perlu Admin menekan tombol ini.\n\nApakah Anda yakin ingin menyelesaikan rapat ini sekarang?`;
+  if (!confirm(confirmMsg)) return;
+
+  const nowIso = new Date().toISOString();
+  const adminName = user?.name ? `${user.name} (Admin)` : "Admin (Manual)";
+
+  state.meetings = state.meetings.map((item) => {
+    if (String(item.id) === String(id)) {
+      return {
+        ...item,
+        status: "Selesai",
+        checkOutAt: nowIso,
+        checkedOutBy: adminName,
+        checkOutMethod: "manual_admin",
+        checkOutMethodLabel: "Manual oleh Admin",
+      };
+    }
+    return item;
+  });
+
+  try {
+    getAppStorage().setItem("app_meetings", JSON.stringify(state.meetings));
+  } catch (e) {}
+
+  fetch(`/api/dashboard/meetings/${id}/checkout`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ by: adminName, method: "manual_admin" }),
+  })
+    .then(async () => {
+      await fetchDashboardData(false);
+    })
+    .catch((e) => console.warn("Sync checkout manual error:", e));
+
+  render();
+  toast("✓ Berhasil Check-Out Manual oleh Admin. Rapat telah selesai.");
+}
+
+function checkInMeeting(id) {
+  return checkInMeetingManual(id);
 }
 
 function checkOutMeeting(id) {
-  if (!can("checkInOut")) return denyAccess("Check-Out rapat dilakukan oleh Admin.");
-  if (confirm("Tandai rapat ini sebagai selesai?")) {
-    state.meetings = state.meetings.map((m) => {
-      if (String(m.id) === String(id)) return { ...m, status: "Selesai" };
-      return m;
-    });
-    try {
-      getAppStorage().setItem("app_meetings", JSON.stringify(state.meetings));
-    } catch (e) {}
-    const targetCheckOut = state.meetings.find(
-      (m) => String(m.id) === String(id),
-    );
-    if (targetCheckOut) {
-      fetch("/api/dashboard/meetings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(targetCheckOut),
-      })
-        .then(async () => {
-          await fetchDashboardData(false);
-        })
-        .catch((e) => console.warn("Sync check-out meeting:", e));
-    }
-    render();
-    toast("Berhasil Check-Out! Rapat telah selesai.");
-  }
+  return checkOutMeetingManual(id);
 }
+window.checkInMeeting = checkInMeeting;
+window.checkOutMeeting = checkOutMeeting;
+window.checkInMeetingManual = checkInMeetingManual;
+window.checkOutMeetingManual = checkOutMeetingManual;
 
 function rejectMeeting(id) {
   const user = getCurrentUser();
@@ -4038,9 +4110,9 @@ function viewMeeting(id) {
       actionBtns += `<div style="font-size:12px;color:#d97706;background:#fef3c7;padding:7px 12px;border-radius:8px;font-weight:600;display:inline-flex;align-items:center;">⏳ Menunggu Persetujuan Pimpinan</div>`;
     }
   } else if (isUpcoming && can("checkInOut")) {
-    actionBtns += `<button class="btn btn-primary" style="background:#219653;border-color:#219653;font-weight:700;" onclick="closeModal(); checkInMeeting('${m.id}')">✓ Check In</button>`;
+    actionBtns += `<button class="btn btn-primary" style="background:#219653;border-color:#219653;font-weight:700;" onclick="closeModal(); checkInMeetingManual('${m.id}')" title="Sistem 2: Check-In Manual oleh Admin Dashboard">✓ Check In (Manual Admin)</button>`;
   } else if (isRunning && can("checkInOut")) {
-    actionBtns += `<button class="btn btn-primary" style="background:#ff4d4f;border-color:#ff4d4f;font-weight:700;" onclick="closeModal(); checkOutMeeting('${m.id}')">Check Out</button>`;
+    actionBtns += `<button class="btn btn-primary" style="background:#ff4d4f;border-color:#ff4d4f;font-weight:700;" onclick="closeModal(); checkOutMeetingManual('${m.id}')" title="Sistem 2: Check-Out Manual oleh Admin Dashboard">Check Out (Manual Admin)</button>`;
   }
 
   if (can("manageMeeting")) {
@@ -4091,6 +4163,40 @@ function viewMeeting(id) {
     </div>
   `;
 
+  // Info Audit Presensi: Sistem 1 (Barcode/QR Mandiri) vs Sistem 2 (Manual Admin)
+  let presensiAuditBox = "";
+  if (m.checkInAt || m.checkOutAt) {
+    presensiAuditBox = `
+      <div style="margin:14px 0;padding:12px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;font-size:12.5px;">
+        <div style="font-weight:700;color:#0c2d5e;margin-bottom:8px;display:flex;align-items:center;gap:6px;">
+          <span>📋</span> Riwayat Presensi &amp; Metode Check-In/Out
+        </div>
+        ${m.checkInAt ? `
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;flex-wrap:wrap;">
+            <div>
+              <span style="color:#15803d;font-weight:600;">✓ Check-In:</span>
+              <span style="color:#334155;">${formatDate(m.checkInAt)} · ${new Date(m.checkInAt).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} WIB</span>
+              ${m.checkedInBy ? `<small style="color:#64748b;">(${esc(m.checkedInBy)})</small>` : ""}
+            </div>
+            <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;background:${m.checkInMethod === 'barcode_qr' ? '#e0f2fe;color:#0369a1;border:1px solid #bae6fd;' : '#fef3c7;color:#b45309;border:1px solid #fde68a;'}">
+              ${m.checkInMethod === 'barcode_qr' ? '📱 [Sistem 1] Barcode / QR Mandiri' : '👤 [Sistem 2] Manual Admin'}
+            </span>
+          </div>` : ""}
+        ${m.checkOutAt ? `
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+            <div>
+              <span style="color:#b91c1c;font-weight:600;">✓ Check-Out:</span>
+              <span style="color:#334155;">${formatDate(m.checkOutAt)} · ${new Date(m.checkOutAt).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} WIB</span>
+              ${m.checkedOutBy ? `<small style="color:#64748b;">(${esc(m.checkedOutBy)})</small>` : ""}
+            </div>
+            <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;background:${m.checkOutMethod === 'barcode_qr' ? '#e0f2fe;color:#0369a1;border:1px solid #bae6fd;' : '#fef3c7;color:#b45309;border:1px solid #fde68a;'}">
+              ${m.checkOutMethod === 'barcode_qr' ? '📱 [Sistem 1] Barcode / QR Mandiri' : '👤 [Sistem 2] Manual Admin'}
+            </span>
+          </div>` : ""}
+      </div>
+    `;
+  }
+
   openModal(
     "Detail Rapat",
     `<p style="font-size:16px;color:#0c2d5e;"><b>${esc(m.title)}</b></p>
@@ -4103,6 +4209,7 @@ function viewMeeting(id) {
     <p>🏷️ <b>Status:</b> ${badge(m.status)}</p>
     ${m.approvedBy ? `<p>✓ <b>Disetujui Oleh:</b> <span style="color:#15803d;font-weight:600;">${esc(m.approvedBy)}</span></p>` : ""}
     ${m.rejectedBy ? `<p style="color:#dc2626;">✕ <b>Ditolak Oleh:</b> ${esc(m.rejectedBy)}</p>` : ""}
+    ${presensiAuditBox}
     <p style="margin-top:15px;color:#334155;white-space:pre-line;">${esc(m.desc)}</p>
     ${materialsBox}
     <div class="modal-actions" style="margin-top:20px;display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;align-items:center;">
@@ -4633,7 +4740,7 @@ async function submitReviewReply(id) {
 window.submitReviewReply = submitReviewReply;
 
 // ----------------------------------------------------------------------
-// MODAL QR CODE DINAMIS PER ORDER RAPAT (CHECK-IN, DAFTAR HADIR, CHECK-OUT)
+// MODAL QR CODE & BARCODE DINAMIS (SISTEM 1: PRESENSI MANDIRI TANPA ADMIN)
 // ----------------------------------------------------------------------
 function openMeetingQRModal(id) {
   let m = state.meetings.find((x) => String(x.id) === String(id));
@@ -4653,35 +4760,72 @@ function openMeetingQRModal(id) {
   const meetingUrl = `${window.location.origin}/meeting/${m.id}`;
   const qrImgUrl = `https://api.qrserver.com/v1/create-qr-code/?size=260x260&margin=10&data=${encodeURIComponent(meetingUrl)}`;
 
+  // Generate visual barcode representation (Code128 style)
+  const barcodeStr = `KMNKR-${String(m.id).padStart(6, '0')}`;
+  let barcodeBars = '';
+  let bx = 10;
+  for (let i = 0; i < barcodeStr.length; i++) {
+    const c = barcodeStr.charCodeAt(i);
+    const w1 = (c % 2) + 1.2;
+    const w2 = ((c >> 1) % 2) + 1.4;
+    const w3 = ((c >> 2) % 3) + 1.2;
+    barcodeBars += `<rect x="${bx}" y="0" width="${w1}" height="36" fill="#0c2d5e" />`;
+    bx += w1 + 1.4;
+    barcodeBars += `<rect x="${bx}" y="0" width="${w2}" height="36" fill="#0c2d5e" />`;
+    bx += w2 + 1.8;
+    barcodeBars += `<rect x="${bx}" y="0" width="${w3}" height="36" fill="#0c2d5e" />`;
+    bx += w3 + 1.4;
+  }
+  const barcodeSvg = `<svg viewBox="0 0 ${bx + 10} 52" style="width:100%;max-width:240px;height:46px;display:block;margin:0 auto;" xmlns="http://www.w3.org/2000/svg">
+    ${barcodeBars}
+    <text x="${(bx + 10) / 2}" y="48" text-anchor="middle" font-family="monospace" font-size="10.5" font-weight="700" fill="#334155" letter-spacing="2.5">${barcodeStr}</text>
+  </svg>`;
+
   const modalBackdrop = document.getElementById("modal");
   if (!modalBackdrop) return;
 
   modalBackdrop.innerHTML = `
-    <div class="modal-content" style="max-width:440px;text-align:center;padding:26px 22px;border-radius:20px;font-family:'Poppins',sans-serif;">
+    <div class="modal-content" style="max-width:480px;text-align:center;padding:26px 24px;border-radius:20px;font-family:'Poppins',sans-serif;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-        <span style="font-size:12px;font-weight:700;color:#0284c7;background:#e0f2fe;padding:4px 12px;border-radius:12px;display:inline-flex;align-items:center;gap:4px;">
-          <span>📱</span> QR Pass &amp; Presensi Digital
+        <span style="font-size:11.5px;font-weight:700;color:#0369a1;background:#e0f2fe;padding:4px 12px;border-radius:12px;display:inline-flex;align-items:center;gap:5px;border:1px solid #bae6fd;">
+          <span>📱</span> SISTEM 1: Barcode &amp; QR Presensi Mandiri
         </span>
         <button type="button" onclick="closeModal()" style="background:none;border:none;font-size:24px;color:#94a3b8;cursor:pointer;line-height:1;" title="Tutup">&times;</button>
       </div>
 
-      <h3 style="margin:0 0 4px;font-size:17px;font-weight:800;color:#0c2d5e;">${esc(m.title)}</h3>
-      <p style="margin:0 0 16px;font-size:12px;color:#64748b;">
+      <h3 style="margin:0 0 4px;font-size:16.5px;font-weight:800;color:#0c2d5e;">${esc(m.title)}</h3>
+      <p style="margin:0 0 14px;font-size:12px;color:#64748b;">
         📍 ${esc(m.room)} · 📅 ${formatDate(m.date)} (${m.start} - ${m.end} WIB)
       </p>
 
-      <div style="background:#f8fafc;border:1.5px dashed #cbd5e1;border-radius:18px;padding:18px;display:flex;flex-direction:column;align-items:center;margin-bottom:14px;">
-        <div style="background:#ffffff;padding:12px;border-radius:14px;box-shadow:0 4px 16px rgba(12,45,94,0.06);margin-bottom:10px;">
-          <img src="${qrImgUrl}" alt="QR Code Rapat" style="width:200px;height:200px;display:block;" />
+      <!-- Alert Card: Sistem 1 Mandiri Tanpa Admin -->
+      <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:12px;padding:10px 14px;margin-bottom:14px;text-align:left;display:flex;align-items:flex-start;gap:8px;">
+        <span style="font-size:18px;line-height:1;">💡</span>
+        <div style="font-size:11.5px;color:#166534;line-height:1.45;">
+          <strong>Otomatis Tanpa Tindakan Manual Admin:</strong><br />
+          Peserta / PIC cukup scan kode di bawah ini dengan smartphone untuk melakukan <strong>Check-In</strong> dan <strong>Check-Out</strong> mandiri. Status display dan sistem kalender akan terbarui otomatis.
         </div>
+      </div>
+
+      <div style="background:#f8fafc;border:1.5px dashed #cbd5e1;border-radius:18px;padding:16px 14px;display:flex;flex-direction:column;align-items:center;margin-bottom:14px;">
+        <!-- QR Code -->
+        <div style="background:#ffffff;padding:10px;border-radius:14px;box-shadow:0 4px 16px rgba(12,45,94,0.06);margin-bottom:12px;">
+          <img src="${qrImgUrl}" alt="QR Code Rapat" style="width:180px;height:180px;display:block;" />
+        </div>
+
+        <!-- Barcode Representation -->
+        <div style="background:#ffffff;padding:8px 12px;border-radius:10px;width:100%;box-sizing:border-box;margin-bottom:10px;box-shadow:0 2px 8px rgba(0,0,0,0.03);">
+          ${barcodeSvg}
+        </div>
+
         <div style="font-size:11.5px;color:#334155;font-weight:600;display:flex;align-items:center;gap:5px;">
-          <span>🎯</span> Scan dengan Kamera HP untuk Akses:
+          <span>🎯</span> Fitur Mandiri via Scan Smartphone:
         </div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-top:6px;">
-          <span style="background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:8px;font-size:10.5px;font-weight:700;">✓ Check-In</span>
-          <span style="background:#e0f2fe;color:#0369a1;padding:2px 8px;border-radius:8px;font-size:10.5px;font-weight:700;">✍️ Daftar Hadir</span>
-          <span style="background:#fee2e2;color:#b91c1c;padding:2px 8px;border-radius:8px;font-size:10.5px;font-weight:700;">Check-Out</span>
-          <span style="background:#f1f5f9;color:#475569;padding:2px 8px;border-radius:8px;font-size:10.5px;font-weight:700;">📋 Daftar Isi</span>
+          <span style="background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:8px;font-size:10.5px;font-weight:700;">✓ Check-In Mandiri</span>
+          <span style="background:#e0f2fe;color:#0369a1;padding:2px 8px;border-radius:8px;font-size:10.5px;font-weight:700;">✍️ Isi Daftar Hadir</span>
+          <span style="background:#fee2e2;color:#b91c1c;padding:2px 8px;border-radius:8px;font-size:10.5px;font-weight:700;">Check-Out Mandiri</span>
+          <span style="background:#f1f5f9;color:#475569;padding:2px 8px;border-radius:8px;font-size:10.5px;font-weight:700;">📎 Materi Paparan</span>
         </div>
       </div>
 
@@ -4690,12 +4834,15 @@ function openMeetingQRModal(id) {
         <button type="button" onclick="navigator.clipboard.writeText('${meetingUrl}'); toast('✓ Link QR Pass berhasil disalin!');" style="background:#0c2d5e;color:#fff;border:none;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:600;cursor:pointer;flex-shrink:0;">Salin</button>
       </div>
 
-      <div style="display:flex;gap:10px;">
-        <a href="${meetingUrl}" target="_blank" style="flex:1;background:#16a34a;color:#fff;border:none;border-radius:10px;padding:11px 14px;font-size:13px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:6px;transition:background 0.15s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
-          <span>Buka Halaman Rapat</span>
+      <div style="display:flex;gap:8px;">
+        <a href="${meetingUrl}" target="_blank" style="flex:1.2;background:#16a34a;color:#fff;border:none;border-radius:10px;padding:11px 12px;font-size:12.5px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:6px;transition:background 0.15s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
+          <span>Buka Pass Rapat</span>
           <span>↗</span>
         </a>
-        <button type="button" onclick="closeModal()" style="flex:1;background:#e2e8f0;color:#334155;border:none;border-radius:10px;padding:11px 14px;font-size:13px;font-weight:600;cursor:pointer;">Tutup</button>
+        <button type="button" onclick="window.open('${meetingUrl}', '_blank')" style="flex:1;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:10px;padding:11px 10px;font-size:12px;font-weight:700;cursor:pointer;">
+          Cetak Pass
+        </button>
+        <button type="button" onclick="closeModal()" style="flex:0.8;background:#e2e8f0;color:#334155;border:none;border-radius:10px;padding:11px 12px;font-size:12.5px;font-weight:600;cursor:pointer;">Tutup</button>
       </div>
     </div>
   `;
