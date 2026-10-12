@@ -2,6 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 const { google } = require("googleapis");
+const { query, getIsConnected } = require("../db");
 
 const STORE_PATH = path.join(__dirname, "../../data/dashboard-store.json");
 const EXAMPLE_STORE_PATH = path.join(__dirname, "../../data/dashboard-store.example.json");
@@ -295,7 +296,91 @@ async function getGoogleCalendarEvents() {
   }
 }
 
+async function syncStoreFromDatabase() {
+  if (!getIsConnected()) return;
+  try {
+    const roomsRes = await query("SELECT * FROM rooms ORDER BY id ASC");
+    const usersRes = await query("SELECT * FROM users ORDER BY created_at ASC");
+    const meetingsRes = await query("SELECT * FROM meetings ORDER BY date DESC, start_time DESC");
+    const reviewsRes = await query("SELECT * FROM reviews ORDER BY created_at DESC");
+
+    const store = readStore();
+    const beforeStr = JSON.stringify(store);
+
+    if (roomsRes.rows && roomsRes.rows.length > 0) {
+      store.rooms = roomsRes.rows.map((r) => ({
+        id: r.id,
+        name: r.name,
+        location: r.location,
+        capacity: r.capacity,
+        status: r.status,
+        category: r.category,
+        desc: r.description,
+        facilities: r.facilities || [],
+        images: r.images || [],
+        img: r.img || (r.images && r.images[0]) || "",
+      }));
+    }
+    if (usersRes.rows && usersRes.rows.length > 0) {
+      store.users = usersRes.rows.map((u) => ({
+        id: u.id,
+        name: u.name,
+        username: u.username,
+        email: u.email,
+        dept: u.dept,
+        role: u.role,
+        status: u.status,
+        passwordHash: u.password_hash,
+      }));
+    }
+    if (meetingsRes.rows && meetingsRes.rows.length > 0) {
+      store.meetings = meetingsRes.rows.map((m) => ({
+        id: m.id,
+        googleId: m.google_id,
+        title: m.title,
+        agenda: m.agenda,
+        desc: m.description,
+        requester: m.requester,
+        bookedBy: m.booked_by_name,
+        bookedByUsername: m.booked_by_username,
+        room: m.room_name,
+        date: m.date,
+        start: m.start_time,
+        end: m.end_time,
+        status: m.status,
+        participants: m.participants,
+        approvedBy: m.approved_by,
+        attendees: m.attendees || [],
+        materials: m.materials || [],
+        createdAt: m.created_at,
+      }));
+    }
+    if (reviewsRes.rows && reviewsRes.rows.length > 0) {
+      reviewsRes.rows.forEach((rev) => {
+        const m = (store.meetings || []).find((meet) => String(meet.id) === String(rev.meeting_id));
+        if (m && !m.review) {
+          m.review = {
+            rating: rev.rating,
+            text: rev.comment,
+            reviewer: rev.user_name,
+            submittedAt: rev.created_at,
+          };
+        }
+      });
+    }
+
+    if (JSON.stringify(store) !== beforeStr) {
+      writeStore(store);
+    }
+  } catch (err) {
+    console.warn("[PostgreSQL] Gagal sinkronisasi data ke store lokal:", err.message);
+  }
+}
+
 async function getDashboardData() {
+  if (getIsConnected()) {
+    await syncStoreFromDatabase();
+  }
   const store = readStore();
   const calendarResult = await getGoogleCalendarEvents();
 
@@ -603,6 +688,72 @@ async function saveMeeting(meeting) {
     return true;
   });
 
+  if (getIsConnected()) {
+    try {
+      await query(`
+        INSERT INTO meetings (
+          id, google_id, title, agenda, requester, booked_by_name, booked_by_username,
+          room_name, date, start_time, end_time, status, participants, approved_by,
+          attendees, materials, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, NOW())
+        ON CONFLICT (id) DO UPDATE SET
+          google_id = EXCLUDED.google_id,
+          title = EXCLUDED.title,
+          agenda = EXCLUDED.agenda,
+          requester = EXCLUDED.requester,
+          booked_by_name = EXCLUDED.booked_by_name,
+          booked_by_username = EXCLUDED.booked_by_username,
+          room_name = EXCLUDED.room_name,
+          date = EXCLUDED.date,
+          start_time = EXCLUDED.start_time,
+          end_time = EXCLUDED.end_time,
+          status = EXCLUDED.status,
+          participants = EXCLUDED.participants,
+          approved_by = EXCLUDED.approved_by,
+          attendees = EXCLUDED.attendees,
+          materials = EXCLUDED.materials,
+          updated_at = NOW();
+      `, [
+        String(meeting.id),
+        meeting.googleId || null,
+        meeting.title || meeting.agenda || "Rapat",
+        meeting.agenda || meeting.desc || "",
+        meeting.requester || "Umum",
+        meeting.bookedBy || meeting.bookedByName || "",
+        meeting.bookedByUsername || "",
+        meeting.room || meeting.roomName || "",
+        meeting.date,
+        meeting.start,
+        meeting.end,
+        meeting.status || "Akan Datang",
+        meeting.participants || 0,
+        meeting.approvedBy || null,
+        JSON.stringify(meeting.attendees || []),
+        JSON.stringify(meeting.materials || []),
+        meeting.createdAt ? new Date(meeting.createdAt) : new Date(),
+      ]);
+
+      if (meeting.review) {
+        await query(`
+          INSERT INTO reviews (id, meeting_id, room_name, user_name, rating, comment, created_at)
+          VALUES ($1, $2, $3, $4, $5, $6, NOW())
+          ON CONFLICT (id) DO UPDATE SET
+            rating = EXCLUDED.rating,
+            comment = EXCLUDED.comment;
+        `, [
+          `rev_${meeting.id}`,
+          String(meeting.id),
+          meeting.room || meeting.roomName || "",
+          meeting.review.reviewer || meeting.requester || "User",
+          Number(meeting.review.rating) || 5,
+          meeting.review.text || ""
+        ]);
+      }
+    } catch (dbErr) {
+      console.warn("[PostgreSQL] Gagal sync meeting ke DB:", dbErr.message);
+    }
+  }
+
   writeStore(store);
   return meeting;
 }
@@ -610,6 +761,14 @@ async function saveMeeting(meeting) {
 async function deleteMeeting(id) {
   const store = readStore();
   const gcal = getGoogleCalendarClient();
+
+  if (getIsConnected()) {
+    try {
+      await query("DELETE FROM meetings WHERE id = $1 OR google_id = $1", [String(id)]);
+    } catch (dbErr) {
+      console.warn("[PostgreSQL] Gagal delete meeting dari DB:", dbErr.message);
+    }
+  }
 
   if (gcal) {
     try {
@@ -754,6 +913,14 @@ async function addMeetingAttendee(id, attendeeData) {
 
   meeting.attendees.push(attendee);
   writeStore(store);
+
+  if (getIsConnected()) {
+    query(
+      "UPDATE meetings SET attendees = $1, updated_at = NOW() WHERE id = $2 OR google_id = $2",
+      [JSON.stringify(meeting.attendees), target]
+    ).catch((err) => console.warn("[PostgreSQL] Gagal sync attendees ke DB:", err.message));
+  }
+
   return { meeting, attendee };
 }
 
@@ -798,6 +965,14 @@ async function addMeetingMaterial(id, materialData) {
 
   meeting.materials.push(newMaterial);
   writeStore(store);
+
+  if (getIsConnected()) {
+    query(
+      "UPDATE meetings SET materials = $1, updated_at = NOW() WHERE id = $2 OR google_id = $2",
+      [JSON.stringify(meeting.materials), target]
+    ).catch((err) => console.warn("[PostgreSQL] Gagal sync materials ke DB:", err.message));
+  }
+
   return { meeting, material: newMaterial };
 }
 
@@ -815,6 +990,13 @@ async function deleteMeetingMaterial(id, materialId) {
   if (Array.isArray(meeting.materials)) {
     meeting.materials = meeting.materials.filter((mat) => String(mat.id) !== String(materialId));
     writeStore(store);
+
+    if (getIsConnected()) {
+      query(
+        "UPDATE meetings SET materials = $1, updated_at = NOW() WHERE id = $2 OR google_id = $2",
+        [JSON.stringify(meeting.materials), target]
+      ).catch((err) => console.warn("[PostgreSQL] Gagal sync delete materials ke DB:", err.message));
+    }
   }
   return { meeting };
 }
@@ -833,6 +1015,31 @@ function saveRoom(room) {
   } else {
     room.id = Date.now();
     store.rooms.push(room);
+  }
+
+  if (getIsConnected()) {
+    query(`
+      INSERT INTO rooms (name, location, capacity, status, category, description, facilities, images, updated_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+      ON CONFLICT (name) DO UPDATE SET
+        location = EXCLUDED.location,
+        capacity = EXCLUDED.capacity,
+        status = EXCLUDED.status,
+        category = EXCLUDED.category,
+        description = EXCLUDED.description,
+        facilities = EXCLUDED.facilities,
+        images = EXCLUDED.images,
+        updated_at = NOW();
+    `, [
+      room.name,
+      room.location || "-",
+      room.capacity || 10,
+      room.status || "Tersedia",
+      room.category || null,
+      room.desc || null,
+      JSON.stringify(room.facilities || []),
+      JSON.stringify(room.images || (room.img ? [room.img] : [])),
+    ]).catch((err) => console.warn("[PostgreSQL] Gagal sync room ke DB:", err.message));
   }
 
   writeStore(store);
@@ -942,6 +1149,30 @@ function saveUser(user) {
     store.users.push(normalized);
   }
 
+  if (getIsConnected()) {
+    query(`
+      INSERT INTO users (id, name, username, email, dept, role, status, password_hash, updated_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+      ON CONFLICT (username) DO UPDATE SET
+        name = EXCLUDED.name,
+        email = EXCLUDED.email,
+        dept = EXCLUDED.dept,
+        role = EXCLUDED.role,
+        status = EXCLUDED.status,
+        password_hash = COALESCE(EXCLUDED.password_hash, users.password_hash),
+        updated_at = NOW();
+    `, [
+      String(normalized.id),
+      normalized.name,
+      normalized.username,
+      normalized.email || null,
+      normalized.dept || "Biro Keuangan dan BMN",
+      normalized.role || "User",
+      normalized.status || "Aktif",
+      normalized.passwordHash || null,
+    ]).catch((err) => console.warn("[PostgreSQL] Gagal sync user ke DB:", err.message));
+  }
+
   writeStore(store);
   const { password, passwordHash, ...safeUser } = normalized;
   return safeUser;
@@ -950,6 +1181,12 @@ function saveUser(user) {
 function deleteUser(id) {
   const store = readStore();
   if (!store.users) return false;
+
+  if (getIsConnected()) {
+    query("DELETE FROM users WHERE id = $1 OR username = $1", [String(id)])
+      .catch((err) => console.warn("[PostgreSQL] Gagal delete user dari DB:", err.message));
+  }
+
   store.users = store.users.filter(
     (u) =>
       String(u.id) !== String(id) &&
@@ -976,4 +1213,5 @@ module.exports = {
   authenticateUser,
   readStore,
   writeStore,
+  syncStoreFromDatabase,
 };

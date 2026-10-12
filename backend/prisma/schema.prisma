@@ -1,0 +1,139 @@
+// Prisma Schema for Sistem Booking Ruang Rapat (Kemenaker)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  Admin
+  Pimpinan
+  User
+}
+
+enum UserStatus {
+  Aktif
+  Nonaktif
+}
+
+enum RoomStatus {
+  Tersedia
+  Tidak_Tersedia
+}
+
+enum MeetingStatus {
+  Menunggu_Approval
+  Akan_Datang
+  Berjalan
+  Selesai
+  Ditolak
+  Dibatalkan
+}
+
+model User {
+  id           String     @id @default(uuid())
+  name         String
+  username     String     @unique
+  email        String?
+  dept         String     // Biro / Unit Kerja, e.g. "Biro Keuangan dan BMN"
+  role         Role       @default(User)
+  status       UserStatus @default(Aktif)
+  passwordHash String?
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+
+  meetings     Meeting[]  @relation("BookedByUser")
+
+  @@map("users")
+}
+
+model Room {
+  id          Int        @id @default(autoincrement())
+  name        String     @unique
+  location    String
+  capacity    Int
+  status      RoomStatus @default(Tersedia)
+  category    String?    // e.g. "Ruang Besar", "Ruang Konsultasi"
+  desc        String?    @db.Text
+  img         String?    // URL or primary image path
+  images      Json?      // List of image paths (Multi-view)
+  facilities  Json?      // Array of [{ label, value, status }]
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+
+  meetings    Meeting[]
+  reviews     Review[]
+
+  @@map("rooms")
+}
+
+model Meeting {
+  id               String        @id // ID string atau numeric timestamp string
+  googleId         String?       @map("google_id")
+  title            String
+  agenda           String?       @db.Text
+  desc             String?       @db.Text
+  requester        String        // Bagian / Unit Pemohon (e.g. "TU", "AKLAP")
+  bookedById       String?       @map("booked_by_id")
+  bookedBy         User?         @relation("BookedByUser", fields: [bookedById], references: [id], onDelete: SetNull)
+  bookedByName     String?       @map("booked_by_name")
+  bookedByUsername String?       @map("booked_by_username")
+  roomId           Int           @map("room_id")
+  room             Room          @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  roomName         String?       @map("room_name")
+  date             String        // YYYY-MM-DD
+  start            String        // HH:mm
+  end              String        // HH:mm
+  status           MeetingStatus @default(Menunggu_Approval)
+  participants     Int           @default(0)
+  approvedBy       String?       @map("approved_by")
+  rejectionReason  String?       @map("rejection_reason") @db.Text
+  checkedInAt      DateTime?     @map("checked_in_at")
+  checkedOutAt     DateTime?     @map("checked_out_at")
+  attendees        Json?         // Array of [{ name, nip, unit, signedAt }]
+  materials        Json?         // Array of [{ id, title, type, url, fileName, uploadedAt, uploadedBy }]
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
+
+  review           Review?
+
+  @@index([roomId, date])
+  @@index([status])
+  @@map("meetings")
+}
+
+model Review {
+  id         String    @id @default(uuid())
+  meetingId  String?   @unique @map("meeting_id")
+  meeting    Meeting?  @relation(fields: [meetingId], references: [id], onDelete: SetNull)
+  roomId     Int       @map("room_id")
+  room       Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  userName   String    @map("user_name")
+  rating     Int       @default(5)
+  comment    String?   @db.Text
+  adminReply String?   @map("admin_reply") @db.Text
+  replyDate  DateTime? @map("reply_date")
+  replyBy    String?   @map("reply_by")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  @@index([roomId])
+  @@map("reviews")
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  meetingId String?  @map("meeting_id")
+  type      String?  // e.g. "NEW_REQUEST", "APPROVED", "REJECTED"
+  title     String
+  message   String   @db.Text
+  status    String   @default("UNREAD")
+  readBy    Json?    // Array of usernames
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("notifications")
+}
+
