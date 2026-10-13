@@ -194,6 +194,25 @@ router.post("/login", (req, res) => {
   }
 });
 
+// Perbarui password akun dengan verifikasi password saat ini.
+router.post("/users/change-password", (req, res) => {
+  try {
+    const { username, currentPassword, newPassword } = req.body || {};
+    if (!username || !currentPassword || !newPassword) {
+      return res.status(400).json({ success: false, message: "Semua kolom password wajib diisi." });
+    }
+    if (String(newPassword).length < 8) {
+      return res.status(400).json({ success: false, message: "Password baru minimal 8 karakter." });
+    }
+
+    const result = dashboardService.changeUserPassword(username, currentPassword, newPassword);
+    if (!result.success) return res.status(401).json(result);
+    return res.json(result);
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // Simpan / update pengguna
 router.post("/users", (req, res) => {
   try {

@@ -1076,9 +1076,9 @@ function authenticateUser(username, password) {
   const expectedPassword = envPasswords[uname];
 
   let isMatch = false;
-  if (expectedPassword && password === expectedPassword) {
-    isMatch = true;
-  } else if (user.passwordHash && verifyPassword(password, user.passwordHash)) {
+  if (user.passwordHash) {
+    isMatch = verifyPassword(password, user.passwordHash);
+  } else if (expectedPassword && password === expectedPassword) {
     isMatch = true;
   } else if (user.password && verifyPassword(password, user.password)) {
     isMatch = true;
@@ -1113,6 +1113,30 @@ function authenticateUser(username, password) {
       status: user.status || "Aktif",
     },
   };
+}
+
+function changeUserPassword(username, currentPassword, newPassword) {
+  const authentication = authenticateUser(username, currentPassword);
+  if (!authentication.success) return authentication;
+
+  const store = readStore();
+  const user = (store.users || []).find(
+    (entry) => (entry.username || "").toLowerCase() === String(username || "").trim().toLowerCase()
+  );
+  if (!user) return { success: false, message: "Akun tidak ditemukan." };
+
+  user.passwordHash = hashPassword(newPassword);
+  delete user.password;
+  writeStore(store);
+
+  if (getIsConnected()) {
+    query("UPDATE users SET password_hash = $1, updated_at = NOW() WHERE username = $2", [
+      user.passwordHash,
+      user.username,
+    ]).catch((err) => console.warn("[PostgreSQL] Gagal memperbarui password:", err.message));
+  }
+
+  return { success: true };
 }
 
 function saveUser(user) {
@@ -1211,6 +1235,7 @@ module.exports = {
   deleteUser,
   getUsers,
   authenticateUser,
+  changeUserPassword,
   readStore,
   writeStore,
   syncStoreFromDatabase,
