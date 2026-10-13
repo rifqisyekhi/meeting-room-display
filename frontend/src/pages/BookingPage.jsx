@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { CiClock2 } from "react-icons/ci";
 import {
@@ -16,6 +16,8 @@ import {
   FaPlug,
   FaSearchPlus,
   FaStar,
+  FaFileUpload,
+  FaTimes,
 } from "react-icons/fa";
 import { MdMic, MdOutlineCable } from "react-icons/md";
 import { TbAirConditioning } from "react-icons/tb";
@@ -243,6 +245,41 @@ export default function BookingPage() {
     }
   });
   const [peserta, setPeserta] = useState(suggestedBooking?.participants ? String(suggestedBooking.participants) : "");
+  const [bookingMaterials, setBookingMaterials] = useState([]);
+  const materialInputRef = useRef(null);
+
+  const handleBookingMaterialSelect = (event) => {
+    const selectedFiles = Array.from(event.target.files || []);
+    if (!selectedFiles.length) return;
+    const currentSize = bookingMaterials.reduce((total, item) => total + item.rawSize, 0);
+    const incomingSize = selectedFiles.reduce((total, file) => total + file.size, 0);
+    if (currentSize + incomingSize > 20 * 1024 * 1024) {
+      alert("Total ukuran file materi maksimal 20 MB.");
+      event.target.value = "";
+      return;
+    }
+
+    Promise.all(selectedFiles.map((file) => new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const extension = file.name.split(".").pop().toLowerCase();
+        const type = extension === "ppt" || extension === "pptx" ? "ppt" : extension === "doc" || extension === "docx" ? "doc" : extension === "xls" || extension === "xlsx" ? "excel" : "pdf";
+        resolve({
+          id: `mat_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+          name: file.name,
+          size: file.size < 1024 * 1024 ? `${(file.size / 1024).toFixed(1)} KB` : `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
+          rawSize: file.size,
+          type,
+          url: reader.result,
+          uploadedBy: currentUser.name || currentUser.username || "Pemesan",
+        });
+      };
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    }))).then((items) => setBookingMaterials((current) => [...current, ...items]))
+      .catch(() => alert("File materi gagal dibaca. Silakan pilih file kembali."));
+    event.target.value = "";
+  };
 
   // Modal notification state, facility modal state, review modal state & room detail modal state
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -576,6 +613,7 @@ export default function BookingPage() {
       status: "Menunggu Approval",
       participants: parseInt(peserta) || 0,
       desc: agenda,
+      materials: bookingMaterials.map(({ rawSize, ...material }) => material),
       createdAt: nowIso,
     };
     let currentMeetings = [];
@@ -1256,6 +1294,26 @@ export default function BookingPage() {
               />
               <span className="bk-peserta-suffix">Orang</span>
             </div>
+          </div>
+          <div className="bk-booking-materials">
+            <input
+              ref={materialInputRef}
+              type="file"
+              accept=".pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,application/pdf,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation"
+              multiple
+              onChange={handleBookingMaterialSelect}
+              hidden
+            />
+            <button type="button" className="bk-add-material-btn" onClick={() => materialInputRef.current?.click()}>
+              <FaFileUpload /> Tambah File Materi
+            </button>
+            <small>PDF, PowerPoint, Word, atau Excel · total maksimal 20 MB</small>
+            {bookingMaterials.length > 0 && <ul className="bk-selected-materials">
+              {bookingMaterials.map((material) => <li key={material.id}>
+                <span><FaFileUpload /> {material.name} <small>{material.size}</small></span>
+                <button type="button" aria-label={`Hapus ${material.name}`} onClick={() => setBookingMaterials((items) => items.filter((item) => item.id !== material.id))}><FaTimes /></button>
+              </li>)}
+            </ul>}
           </div>
           <button className="bk-submit-btn" onClick={handleBooking}>
             Booking Sekarang

@@ -25,7 +25,6 @@ import {
   FaLink,
   FaExternalLinkAlt,
   FaDownload,
-  FaTrashAlt,
   FaPlus,
   FaTimes,
 } from "react-icons/fa";
@@ -41,8 +40,24 @@ export default function MeetingPassPage() {
   const [copied, setCopied] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
 
-  // Field Perwakilan (Khusus PIC)
-  const [repName, setRepName] = useState("");
+  const [currentUser] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("currentUser") || "{}");
+    } catch {
+      return {};
+    }
+  });
+  const [isAuthenticated] = useState(
+    () => localStorage.getItem("isAuthenticated") === "true",
+  );
+  const [repName, setRepName] = useState(() => {
+    try {
+      const user = JSON.parse(localStorage.getItem("currentUser") || "{}");
+      return user.name || user.username || "";
+    } catch {
+      return "";
+    }
+  });
 
   // Form Presensi Peserta (Untuk Seluruh Peserta - Catatan telah ditiadakan sesuai arahan)
   const [attName, setAttName] = useState("");
@@ -93,12 +108,14 @@ export default function MeetingPassPage() {
           // Ambil meeting lokal dari localStorage sebagai referensi pembanding
           let localStored = null;
           try {
-            const stored = JSON.parse(localStorage.getItem("app_meetings") || "[]");
+            const stored = JSON.parse(
+              localStorage.getItem("app_meetings") || "[]",
+            );
             localStored = stored.find(
               (m) =>
                 String(m.id) === targetId ||
                 String(m.googleId) === targetId ||
-                String(m.originalId) === targetId
+                String(m.originalId) === targetId,
             );
           } catch (e) {}
 
@@ -111,7 +128,12 @@ export default function MeetingPassPage() {
               const sameTime = m.start === localStored.start;
               const mTitle = (m.title || "").toLowerCase().trim();
               const lsTitle = (localStored.title || "").toLowerCase().trim();
-              const sameTitle = mTitle && lsTitle && (mTitle === lsTitle || mTitle.includes(lsTitle) || lsTitle.includes(mTitle));
+              const sameTitle =
+                mTitle &&
+                lsTitle &&
+                (mTitle === lsTitle ||
+                  mTitle.includes(lsTitle) ||
+                  lsTitle.includes(mTitle));
               if (sameDate && sameTime && sameTitle) return true;
             }
             return false;
@@ -132,8 +154,12 @@ export default function MeetingPassPage() {
           (m) =>
             String(m.id) === String(id) ||
             String(m.id) === String(foundMeeting.id) ||
-            (m.googleId && (String(m.googleId) === String(id) || String(m.googleId) === String(foundMeeting.googleId))) ||
-            (m.originalId && (String(m.originalId) === String(id) || String(m.originalId) === String(foundMeeting.originalId)))
+            (m.googleId &&
+              (String(m.googleId) === String(id) ||
+                String(m.googleId) === String(foundMeeting.googleId))) ||
+            (m.originalId &&
+              (String(m.originalId) === String(id) ||
+                String(m.originalId) === String(foundMeeting.originalId))),
         );
         if (idx !== -1) {
           stored[idx] = { ...stored[idx], ...foundMeeting };
@@ -152,7 +178,7 @@ export default function MeetingPassPage() {
         (m) =>
           String(m.id) === String(id) ||
           String(m.googleId) === String(id) ||
-          String(m.originalId) === String(id)
+          String(m.originalId) === String(id),
       );
       if (found) {
         setMeeting(found);
@@ -172,18 +198,33 @@ export default function MeetingPassPage() {
   // Handle Check-In Perwakilan
   const handleCheckIn = async () => {
     if (!meeting) return;
+    if (!isMeetingBooker) {
+      showToast(
+        "Check-In hanya dapat dilakukan oleh pemesan ruangan.",
+        "error",
+      );
+      return;
+    }
     const norm = (meeting.status || "").toLowerCase();
     if (norm.includes("menunggu") || norm === "pending") {
       showToast("Rapat belum disetujui oleh Pimpinan.", "error");
       return;
     }
-    const actorName = repName.trim() || meeting.bookedBy || meeting.requester || "Perwakilan Rapat";
+    const actorName =
+      repName.trim() ||
+      currentUser.name ||
+      currentUser.username ||
+      "Pemesan Rapat";
     setActionLoading(true);
     try {
       const res = await fetch(`/api/dashboard/meetings/${meeting.id}/checkin`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ by: actorName, method: "barcode_qr" }),
+        body: JSON.stringify({
+          by: actorName,
+          username: currentUser.username,
+          method: "barcode_qr",
+        }),
       });
       const nowIso = new Date().toISOString();
       let updated = {
@@ -200,11 +241,21 @@ export default function MeetingPassPage() {
         if (data.meeting) {
           updated = { ...updated, ...data.meeting, status: "Berjalan" };
         }
+      } else {
+        const data = await res.json().catch(() => ({}));
+        showToast(
+          data.error ||
+            "Check-In ditolak. Pastikan Anda masuk dengan akun pemesan.",
+          "error",
+        );
+        return;
       }
       setMeeting(updated);
       try {
         const stored = JSON.parse(localStorage.getItem("app_meetings") || "[]");
-        const idx = stored.findIndex((m) => String(m.id) === String(meeting.id));
+        const idx = stored.findIndex(
+          (m) => String(m.id) === String(meeting.id),
+        );
         if (idx !== -1) {
           stored[idx] = updated;
         } else {
@@ -213,9 +264,17 @@ export default function MeetingPassPage() {
         localStorage.setItem("app_meetings", JSON.stringify(stored));
       } catch (e) {}
 
-      ["storage", "meeting_checkin", "meeting_status_changed", "app_meetings_updated"].forEach((ev) => {
+      [
+        "storage",
+        "meeting_checkin",
+        "meeting_status_changed",
+        "app_meetings_updated",
+      ].forEach((ev) => {
         window.dispatchEvent(new Event(ev));
-        try { if (window.parent && window.parent !== window) window.parent.dispatchEvent(new Event(ev)); } catch (e) {}
+        try {
+          if (window.parent && window.parent !== window)
+            window.parent.dispatchEvent(new Event(ev));
+        } catch (e) {}
       });
 
       showToast(`✓ Check-In berhasil! Sesi rapat kini berstatus Berjalan.`);
@@ -229,17 +288,39 @@ export default function MeetingPassPage() {
   // Handle Check-Out Perwakilan
   const handleCheckOut = async () => {
     if (!meeting) return;
-    if (!window.confirm("Apakah Anda yakin ingin menyelesaikan sesi rapat ini (Check-Out)?")) {
+    if (!isMeetingBooker) {
+      showToast(
+        "Check-Out hanya dapat dilakukan oleh pemesan ruangan.",
+        "error",
+      );
       return;
     }
-    const actorName = repName.trim() || meeting.bookedBy || meeting.requester || "Perwakilan Rapat";
+    if (
+      !window.confirm(
+        "Apakah Anda yakin ingin menyelesaikan sesi rapat ini (Check-Out)?",
+      )
+    ) {
+      return;
+    }
+    const actorName =
+      repName.trim() ||
+      currentUser.name ||
+      currentUser.username ||
+      "Pemesan Rapat";
     setActionLoading(true);
     try {
-      const res = await fetch(`/api/dashboard/meetings/${meeting.id}/checkout`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ by: actorName, method: "barcode_qr" }),
-      });
+      const res = await fetch(
+        `/api/dashboard/meetings/${meeting.id}/checkout`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            by: actorName,
+            username: currentUser.username,
+            method: "barcode_qr",
+          }),
+        },
+      );
       const nowIso = new Date().toISOString();
       let updated = {
         ...meeting,
@@ -255,11 +336,21 @@ export default function MeetingPassPage() {
         if (data.meeting) {
           updated = { ...updated, ...data.meeting, status: "Selesai" };
         }
+      } else {
+        const data = await res.json().catch(() => ({}));
+        showToast(
+          data.error ||
+            "Check-Out ditolak. Pastikan Anda masuk dengan akun pemesan.",
+          "error",
+        );
+        return;
       }
       setMeeting(updated);
       try {
         const stored = JSON.parse(localStorage.getItem("app_meetings") || "[]");
-        const idx = stored.findIndex((m) => String(m.id) === String(meeting.id));
+        const idx = stored.findIndex(
+          (m) => String(m.id) === String(meeting.id),
+        );
         if (idx !== -1) {
           stored[idx] = updated;
         } else {
@@ -268,9 +359,17 @@ export default function MeetingPassPage() {
         localStorage.setItem("app_meetings", JSON.stringify(stored));
       } catch (e) {}
 
-      ["storage", "meeting_checkout", "meeting_status_changed", "app_meetings_updated"].forEach((ev) => {
+      [
+        "storage",
+        "meeting_checkout",
+        "meeting_status_changed",
+        "app_meetings_updated",
+      ].forEach((ev) => {
         window.dispatchEvent(new Event(ev));
-        try { if (window.parent && window.parent !== window) window.parent.dispatchEvent(new Event(ev)); } catch (e) {}
+        try {
+          if (window.parent && window.parent !== window)
+            window.parent.dispatchEvent(new Event(ev));
+        } catch (e) {}
       });
 
       showToast("✓ Check-Out berhasil! Sesi rapat telah ditandai Selesai.");
@@ -287,7 +386,10 @@ export default function MeetingPassPage() {
     const norm = (meeting?.status || "").toLowerCase().trim();
     const hasApproved = !!(meeting?.approvedBy || meeting?.approvedAt);
     if (!hasApproved && (norm.includes("menunggu") || norm === "pending")) {
-      showToast("Presensi belum dapat diisi karena rapat belum disetujui Pimpinan.", "error");
+      showToast(
+        "Presensi belum dapat diisi karena rapat belum disetujui Pimpinan.",
+        "error",
+      );
       return;
     }
     if (!attName.trim()) {
@@ -303,11 +405,14 @@ export default function MeetingPassPage() {
     };
 
     try {
-      const res = await fetch(`/api/dashboard/meetings/${meeting.id}/attendees`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newAttendee),
-      });
+      const res = await fetch(
+        `/api/dashboard/meetings/${meeting.id}/attendees`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(newAttendee),
+        },
+      );
 
       if (res.ok) {
         const data = await res.json();
@@ -326,8 +431,12 @@ export default function MeetingPassPage() {
         };
         setMeeting(updatedMeeting);
         try {
-          const stored = JSON.parse(localStorage.getItem("app_meetings") || "[]");
-          const idx = stored.findIndex((m) => String(m.id) === String(meeting.id));
+          const stored = JSON.parse(
+            localStorage.getItem("app_meetings") || "[]",
+          );
+          const idx = stored.findIndex(
+            (m) => String(m.id) === String(meeting.id),
+          );
           if (idx !== -1) {
             stored[idx] = updatedMeeting;
             localStorage.setItem("app_meetings", JSON.stringify(stored));
@@ -396,20 +505,32 @@ export default function MeetingPassPage() {
     }
 
     const matPayload = {
-      name: materialName.trim() || (materialTab === "file" ? materialFileMeta?.name : "Tautan Materi Rapat") || "Materi Rapat",
-      type: materialTab === "link" ? "link" : (materialFileMeta?.type || "pdf"),
+      name:
+        materialName.trim() ||
+        (materialTab === "file"
+          ? materialFileMeta?.name
+          : "Tautan Materi Rapat") ||
+        "Materi Rapat",
+      type: materialTab === "link" ? "link" : materialFileMeta?.type || "pdf",
       url: materialUrl.trim(),
-      size: materialTab === "file" ? (materialFileMeta?.size || "") : "Link",
-      uploadedBy: materialUploader.trim() || meeting.bookedBy || meeting.requester || "Peserta Rapat",
+      size: materialTab === "file" ? materialFileMeta?.size || "" : "Link",
+      uploadedBy:
+        materialUploader.trim() ||
+        meeting.bookedBy ||
+        meeting.requester ||
+        "Peserta Rapat",
     };
 
     setUploadingMaterial(true);
     try {
-      const res = await fetch(`/api/dashboard/meetings/${meeting.id}/materials`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(matPayload),
-      });
+      const res = await fetch(
+        `/api/dashboard/meetings/${meeting.id}/materials`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(matPayload),
+        },
+      );
 
       if (res.ok) {
         const data = await res.json();
@@ -428,8 +549,12 @@ export default function MeetingPassPage() {
         };
         setMeeting(updated);
         try {
-          const stored = JSON.parse(localStorage.getItem("app_meetings") || "[]");
-          const idx = stored.findIndex((m) => String(m.id) === String(meeting.id));
+          const stored = JSON.parse(
+            localStorage.getItem("app_meetings") || "[]",
+          );
+          const idx = stored.findIndex(
+            (m) => String(m.id) === String(meeting.id),
+          );
           if (idx !== -1) {
             stored[idx] = updated;
             localStorage.setItem("app_meetings", JSON.stringify(stored));
@@ -453,18 +578,24 @@ export default function MeetingPassPage() {
 
   // Handle Hapus Materi Rapat
   const handleDeleteMaterial = async (matId) => {
-    if (!window.confirm("Apakah Anda yakin ingin menghapus materi ini?")) return;
+    if (!window.confirm("Apakah Anda yakin ingin menghapus materi ini?"))
+      return;
     try {
-      const res = await fetch(`/api/dashboard/meetings/${meeting.id}/materials/${matId}`, {
-        method: "DELETE",
-      });
+      const res = await fetch(
+        `/api/dashboard/meetings/${meeting.id}/materials/${matId}`,
+        {
+          method: "DELETE",
+        },
+      );
       if (res.ok) {
         const data = await res.json();
         if (data.meeting) setMeeting(data.meeting);
       } else {
         const updated = {
           ...meeting,
-          materials: (meeting.materials || []).filter((m) => String(m.id) !== String(matId)),
+          materials: (meeting.materials || []).filter(
+            (m) => String(m.id) !== String(matId),
+          ),
         };
         setMeeting(updated);
       }
@@ -498,7 +629,13 @@ export default function MeetingPassPage() {
   if (loading) {
     return (
       <div className="mp-wrapper">
-        <div style={{ padding: "80px 20px", textAlign: "center", color: "#64748b" }}>
+        <div
+          style={{
+            padding: "80px 20px",
+            textAlign: "center",
+            color: "#64748b",
+          }}
+        >
           <div className="mp-spinner" />
           <p style={{ fontSize: "15px", fontWeight: 600, marginTop: "12px" }}>
             Memuat Data Detil Rapat...
@@ -512,12 +649,24 @@ export default function MeetingPassPage() {
     return (
       <div className="mp-wrapper">
         <div className="mp-container">
-          <div className="mp-card" style={{ textAlign: "center", padding: "40px 24px" }}>
-            <h2 style={{ color: "#0c2d5e", margin: "0 0 10px" }}>Rapat Tidak Ditemukan</h2>
-            <p style={{ color: "#64748b", fontSize: "13px", margin: "0 0 20px" }}>
-              Kode QR atau ID Rapat (<code>{id}</code>) tidak terdaftar dalam sistem.
+          <div
+            className="mp-card"
+            style={{ textAlign: "center", padding: "40px 24px" }}
+          >
+            <h2 style={{ color: "#0c2d5e", margin: "0 0 10px" }}>
+              Rapat Tidak Ditemukan
+            </h2>
+            <p
+              style={{ color: "#64748b", fontSize: "13px", margin: "0 0 20px" }}
+            >
+              Kode QR atau ID Rapat (<code>{id}</code>) tidak terdaftar dalam
+              sistem.
             </p>
-            <Link to="/" className="mp-btn-action primary" style={{ textDecoration: "none", display: "inline-flex" }}>
+            <Link
+              to="/"
+              className="mp-btn-action primary"
+              style={{ textDecoration: "none", display: "inline-flex" }}
+            >
               <FaArrowLeft /> Kembali ke Beranda
             </Link>
           </div>
@@ -528,7 +677,10 @@ export default function MeetingPassPage() {
 
   const normStatus = (meeting.status || "").toLowerCase().trim();
   const hasApprovedTag = !!(meeting.approvedBy || meeting.approvedAt);
-  const isRunning = normStatus === "berjalan" || normStatus === "in_progress" || normStatus === "ongoing";
+  const isRunning =
+    normStatus === "berjalan" ||
+    normStatus === "in_progress" ||
+    normStatus === "ongoing";
   const isCompleted = normStatus === "selesai" || normStatus === "completed";
   const isUpcoming =
     normStatus === "akan datang" ||
@@ -536,7 +688,9 @@ export default function MeetingPassPage() {
     normStatus === "disetujui" ||
     normStatus === "approved" ||
     normStatus === "upcoming" ||
-    (hasApprovedTag && !normStatus.includes("tolak") && !normStatus.includes("batal"));
+    (hasApprovedTag &&
+      !normStatus.includes("tolak") &&
+      !normStatus.includes("batal"));
   const isPending =
     !hasApprovedTag &&
     (normStatus.includes("menunggu") || normStatus === "pending") &&
@@ -544,9 +698,23 @@ export default function MeetingPassPage() {
     !isUpcoming &&
     !isRunning;
 
-  const attendeesList = Array.isArray(meeting.attendees) ? meeting.attendees : [];
-  const materialsList = Array.isArray(meeting.materials) ? meeting.materials : [];
+  const attendeesList = Array.isArray(meeting.attendees)
+    ? meeting.attendees
+    : [];
+  const materialsList = Array.isArray(meeting.materials)
+    ? meeting.materials
+    : [];
   const currentUrl = typeof window !== "undefined" ? window.location.href : "";
+  const signedInUsername = (currentUser.username || "").trim().toLowerCase();
+  const bookerUsername = (meeting.bookedByUsername || "").trim().toLowerCase();
+  const signedInName = (currentUser.name || "").trim().toLowerCase();
+  const bookerName = (meeting.bookedBy || "").trim().toLowerCase();
+  const isMeetingBooker = Boolean(
+    isAuthenticated &&
+    (bookerUsername
+      ? signedInUsername && signedInUsername === bookerUsername
+      : signedInName && bookerName && signedInName === bookerName),
+  );
 
   return (
     <div className="mp-wrapper">
@@ -584,10 +752,22 @@ export default function MeetingPassPage() {
           <div className="mp-card-title-row">
             <h2 className="mp-detil-heading">Detil Rapat</h2>
             <div className="mp-live-pill-wrap">
-              {isRunning && <span className="mp-status-pill live"><span className="pulse-dot" /> Berjalan (LIVE)</span>}
-              {isUpcoming && <span className="mp-status-pill upcoming">⏳ Terjadwal</span>}
-              {isCompleted && <span className="mp-status-pill done">✓ Selesai</span>}
-              {isPending && <span className="mp-status-pill pending">Menunggu Approval</span>}
+              {isRunning && (
+                <span className="mp-status-pill live">
+                  <span className="pulse-dot" /> Berjalan (LIVE)
+                </span>
+              )}
+              {isUpcoming && (
+                <span className="mp-status-pill upcoming">⏳ Terjadwal</span>
+              )}
+              {isCompleted && (
+                <span className="mp-status-pill done">✓ Selesai</span>
+              )}
+              {isPending && (
+                <span className="mp-status-pill pending">
+                  Menunggu Approval
+                </span>
+              )}
             </div>
           </div>
 
@@ -607,7 +787,11 @@ export default function MeetingPassPage() {
                   <td className="mp-field-label">Judul Rapat</td>
                   <td className="mp-field-colon">:</td>
                   <td className="mp-field-value mp-field-title">
-                    {(meeting.title || meeting.agenda || "SHARING SESSION IMPLEMENTASI PEMBAYARAN GAJI TERPUSAT").toUpperCase()}
+                    {(
+                      meeting.title ||
+                      meeting.agenda ||
+                      "SHARING SESSION IMPLEMENTASI PEMBAYARAN GAJI TERPUSAT"
+                    ).toUpperCase()}
                   </td>
                 </tr>
 
@@ -625,7 +809,10 @@ export default function MeetingPassPage() {
                   <td className="mp-field-label">Pengelola Rapat</td>
                   <td className="mp-field-colon">:</td>
                   <td className="mp-field-value">
-                    {meeting.requester || meeting.bagian || meeting.bookedBy || "Subbagian Akuntansi dan Pelaporan Keuangan II"}
+                    {meeting.requester ||
+                      meeting.bagian ||
+                      meeting.bookedBy ||
+                      "Subbagian Akuntansi dan Pelaporan Keuangan II"}
                   </td>
                 </tr>
 
@@ -638,7 +825,9 @@ export default function MeetingPassPage() {
                 </tr>
 
                 <tr>
-                  <td className="mp-field-label mp-field-label-top">Tempat (Ruangan)</td>
+                  <td className="mp-field-label mp-field-label-top">
+                    Tempat (Ruangan)
+                  </td>
                   <td className="mp-field-colon mp-field-colon-top">:</td>
                   <td className="mp-field-value">
                     {/* Mini table: Tanggal | Waktu | Tempat */}
@@ -655,7 +844,8 @@ export default function MeetingPassPage() {
                           <tr>
                             <td className="nowrap">{meeting.date || "-"}</td>
                             <td className="nowrap">
-                              {meeting.start || "09:00"} s/d {meeting.end || "17:00"}
+                              {meeting.start || "09:00"} s/d{" "}
+                              {meeting.end || "17:00"}
                             </td>
                             <td>
                               <strong>{meeting.room || "Ruang Rapat"}</strong>
@@ -669,78 +859,86 @@ export default function MeetingPassPage() {
                 </tr>
 
                 <tr>
-                  <td className="mp-field-label mp-field-label-top">Materi Rapat</td>
+                  <td className="mp-field-label mp-field-label-top">
+                    Materi Rapat
+                  </td>
                   <td className="mp-field-colon mp-field-colon-top">:</td>
                   <td className="mp-field-value">
                     <div className="mp-materials-block">
                       {materialsList.length > 0 ? (
                         <div className="mp-materials-list">
                           {materialsList.map((mat, idx) => (
-                            <div key={mat.id || idx} className="mp-material-item">
+                            <div
+                              key={mat.id || idx}
+                              className="mp-material-item"
+                            >
                               <div className="mp-mat-icon-wrap">
                                 {mat.type === "pdf" ? (
                                   <FaFilePdf className="pdf" />
-                                ) : mat.type === "ppt" || mat.type === "pptx" ? (
+                                ) : mat.type === "ppt" ||
+                                  mat.type === "pptx" ? (
                                   <FaFilePowerpoint className="ppt" />
                                 ) : mat.type === "link" ? (
                                   <FaLink className="link" />
-                                ) : mat.type === "doc" || mat.type === "docx" ? (
+                                ) : mat.type === "doc" ||
+                                  mat.type === "docx" ? (
                                   <FaFileWord className="file" />
                                 ) : (
                                   <FaFileAlt className="file" />
                                 )}
                               </div>
                               <div className="mp-mat-info">
-                                <span className="mp-mat-name" title={mat.name}>{mat.name}</span>
+                                <span className="mp-mat-name" title={mat.name}>
+                                  {mat.name}
+                                </span>
                                 <span className="mp-mat-meta">
                                   {mat.size ? `${mat.size} · ` : ""}
-                                  {mat.uploadedBy ? `Oleh: ${mat.uploadedBy}` : "Materi Paparan"}
+                                  {mat.uploadedBy
+                                    ? `Oleh: ${mat.uploadedBy}`
+                                    : "Materi Paparan"}
                                 </span>
                               </div>
                               <div className="mp-mat-actions">
                                 <a
                                   href={mat.url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
+                                  target={
+                                    mat.type === "link" ? "_blank" : undefined
+                                  }
+                                  rel={
+                                    mat.type === "link"
+                                      ? "noopener noreferrer"
+                                      : undefined
+                                  }
                                   className="mp-mat-download-btn"
-                                  download={mat.type !== "link" ? mat.name : undefined}
-                                  title="Buka atau Unduh Dokumen"
+                                  download={
+                                    mat.type !== "link" ? mat.name : undefined
+                                  }
+                                  title={
+                                    mat.type === "link"
+                                      ? "Buka tautan materi"
+                                      : "Download file materi"
+                                  }
                                 >
-                                  {mat.type === "link" ? <FaExternalLinkAlt /> : <FaDownload />}
-                                  <span>{mat.type === "link" ? "Buka Tautan" : "Unduh / Buka"}</span>
+                                  {mat.type === "link" ? (
+                                    <FaExternalLinkAlt />
+                                  ) : (
+                                    <FaDownload />
+                                  )}
+                                  <span>
+                                    {mat.type === "link"
+                                      ? "Buka Tautan Materi"
+                                      : "Download File Materi"}
+                                  </span>
                                 </a>
-                                <button
-                                  type="button"
-                                  className="mp-mat-delete-btn"
-                                  onClick={() => handleDeleteMaterial(mat.id)}
-                                  title="Hapus materi ini"
-                                >
-                                  <FaTrashAlt />
-                                </button>
                               </div>
                             </div>
                           ))}
                         </div>
                       ) : (
                         <div className="mp-materials-empty-inline">
-                          Belum ada materi atau paparan rapat yang diunggah.
+                          File materi rapat belum tersedia untuk diunduh.
                         </div>
                       )}
-
-                      {/* Tombol Aksi Unggah Materi */}
-                      <div className="mp-materials-action-bar">
-                        <button
-                          type="button"
-                          className="mp-upload-trigger-btn"
-                          onClick={() => setShowMaterialModal(true)}
-                        >
-                          <FaFileUpload />
-                          <span>+ Unggah Materi (PDF / Paparan)</span>
-                        </button>
-                        <span className="mp-materials-note-hint">
-                          Materi berupa PDF atau paparan dapat diunggah langsung oleh pengguna atau diminta ke Admin untuk dimasukkan.
-                        </span>
-                      </div>
                     </div>
                   </td>
                 </tr>
@@ -755,39 +953,109 @@ export default function MeetingPassPage() {
         <section className="mp-card mp-control-card">
           <div className="mp-section-head">
             <div className="mp-section-badge-group">
-              <span className="mp-role-tag perwakilan" style={{ background: "#dbeafe", color: "#1e40af", borderColor: "#bfdbfe" }}>
+              <span
+                className="mp-role-tag perwakilan"
+                style={{
+                  background: "#dbeafe",
+                  color: "#1e40af",
+                  borderColor: "#bfdbfe",
+                }}
+              >
                 <FaQrcode style={{ marginRight: 4 }} /> QR Presensi Mandiri
               </span>
               <span className="mp-role-tag perwakilan">
-                <FaUserTie /> Khusus Perwakilan / PIC
+                <FaUserTie /> Khusus Pemesan
               </span>
-              <h3 className="mp-section-title">Check-In &amp; Check-Out Mandiri</h3>
+              <h3 className="mp-section-title">
+                Check-In &amp; Check-Out Mandiri
+              </h3>
             </div>
             <p className="mp-section-subtitle">
-              Sistem presensi mandiri berbasis QR Code: <strong>Admin tidak perlu lagi menekan tombol manual di dashboard</strong>. Perwakilan / PIC cukup menekan tombol <strong>Check-In</strong> dan <strong>Check-Out</strong> di bawah ini untuk membuka dan mengakhiri sesi rapat secara otomatis.
+              Sistem presensi mandiri berbasis QR Code: Tombol{" "}
+              <strong>Check-In</strong> dan <strong>Check-Out</strong> hanya
+              dapat digunakan oleh akun pemesan ruangan untuk membuka dan
+              mengakhiri sesi rapat secara otomatis.
             </p>
           </div>
 
-          {/* Banner Informasi Otomasi Sistem 1 */}
-          <div style={{ margin: "10px 0 16px", padding: "10px 14px", background: "rgba(16, 185, 129, 0.08)", border: "1px solid rgba(16, 185, 129, 0.25)", borderRadius: "10px", fontSize: "12px", color: "#065f46", display: "flex", alignItems: "center", gap: "8px" }}>
+          {/* Banner Informasi Otomasi Sistem */}
+          <div
+            style={{
+              margin: "10px 0 16px",
+              padding: "10px 14px",
+              background: "rgba(16, 185, 129, 0.08)",
+              border: "1px solid rgba(16, 185, 129, 0.25)",
+              borderRadius: "10px",
+              fontSize: "12px",
+              color: "#065f46",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+            }}
+          >
             <FaCheckCircle style={{ color: "#10b981", flexShrink: 0 }} />
-            <span><strong>Otomatis Tanpa Admin:</strong> Check-In dan Check-Out mandiri ini langsung menyinkronkan status display TV ruangan dan dasbor kalender secara real-time.</span>
+            <span>
+              <strong>Otomatis Tanpa Admin:</strong> Check-In dan Check-Out
+              mandiri ini langsung menyinkronkan status display TV ruangan dan
+              dasbor kalender secara real-time.
+            </span>
           </div>
-
-          {/* Form / Konfirmasi Identitas Perwakilan */}
           <div className="mp-rep-control-body">
+            <div className="mp-booker-identity">
+              <FaUserTie />
+              <span>
+                {isMeetingBooker ? (
+                  <>
+                    Login sebagai pemesan:{" "}
+                    <strong>{currentUser.name || currentUser.username}</strong>
+                  </>
+                ) : (
+                  <>
+                    Kontrol hanya untuk pemesan:{" "}
+                    <strong>
+                      {meeting.bookedBy ||
+                        meeting.bookedByUsername ||
+                        "Pemesan ruangan"}
+                    </strong>
+                  </>
+                )}
+              </span>
+            </div>
             {!isCompleted && (
               <div className="mp-rep-input-row">
-                <label htmlFor="repNameInput">Nama / Keterangan Perwakilan (PIC):</label>
+                <label htmlFor="repNameInput">
+                  Nama / Keterangan Perwakilan (PIC):
+                </label>
                 <input
                   id="repNameInput"
                   type="text"
                   className="mp-rep-input"
-                  placeholder={`Contoh: ${meeting.bookedBy || meeting.requester || "Budi Santoso"} (PIC)`}
-                  value={repName}
-                  onChange={(e) => setRepName(e.target.value)}
+                  value={isMeetingBooker ? repName : meeting.bookedBy || ""}
+                  readOnly
+                  aria-readonly="true"
                 />
               </div>
+            )}
+            {!isMeetingBooker && (
+              <div className="mp-control-locked-note">
+                {isAuthenticated
+                  ? "Akun ini bukan akun pemesan ruangan."
+                  : "Login sebagai pemesan untuk mengaktifkan Check-In dan Check-Out."}
+              </div>
+            )}
+            {!isMeetingBooker && (
+              <Link
+                to="/login"
+                state={{ from: { pathname: `/meeting/${id}` } }}
+                className="mp-booker-login-btn"
+                onClick={() =>
+                  isAuthenticated && localStorage.removeItem("isAuthenticated")
+                }
+              >
+                {isAuthenticated
+                  ? "Ganti ke Akun Pemesan"
+                  : "Login sebagai Pemesan"}
+              </Link>
             )}
 
             {/* Status Sesi Saat Ini */}
@@ -807,11 +1075,22 @@ export default function MeetingPassPage() {
               )}
 
               {isPending && (
-                <div className="mp-status-box waiting" style={{ borderColor: "#f59e0b", background: "rgba(245, 158, 11, 0.08)" }}>
+                <div
+                  className="mp-status-box waiting"
+                  style={{
+                    borderColor: "#f59e0b",
+                    background: "rgba(245, 158, 11, 0.08)",
+                  }}
+                >
                   <FaClock className="icon" style={{ color: "#d97706" }} />
                   <div>
-                    <strong style={{ color: "#b45309" }}>Menunggu Persetujuan Pimpinan</strong>
-                    <span>Pengajuan rapat ini belum disetujui. Check-in ruangan baru dapat dilakukan setelah disetujui oleh Pimpinan.</span>
+                    <strong style={{ color: "#b45309" }}>
+                      Menunggu Persetujuan Pimpinan
+                    </strong>
+                    <span>
+                      Pengajuan rapat ini belum disetujui. Check-in ruangan baru
+                      dapat dilakukan setelah disetujui oleh Pimpinan.
+                    </span>
                   </div>
                 </div>
               )}
@@ -821,7 +1100,10 @@ export default function MeetingPassPage() {
                   <FaClock className="icon" />
                   <div>
                     <strong>Sesi Rapat Siap Dimulai</strong>
-                    <span>Silakan perwakilan menekan tombol <strong>Check-In</strong> saat telah tiba di ruangan.</span>
+                    <span>
+                      Silakan perwakilan menekan tombol{" "}
+                      <strong>Check-In</strong> saat telah tiba di ruangan.
+                    </span>
                   </div>
                 </div>
               )}
@@ -847,22 +1129,58 @@ export default function MeetingPassPage() {
                 type="button"
                 className="mp-btn-action checkin-btn"
                 onClick={handleCheckIn}
-                disabled={actionLoading || isRunning || isCompleted || isPending}
-                title={isPending ? "Rapat belum disetujui oleh Pimpinan" : isRunning ? "Rapat sudah berstatus Berjalan" : "Mulai sesi rapat sekarang"}
+                disabled={
+                  !isMeetingBooker ||
+                  actionLoading ||
+                  isRunning ||
+                  isCompleted ||
+                  isPending
+                }
+                title={
+                  !isMeetingBooker
+                    ? "Hanya pemesan ruangan yang dapat Check-In"
+                    : isPending
+                      ? "Rapat belum disetujui oleh Pimpinan"
+                      : isRunning
+                        ? "Rapat sudah berstatus Berjalan"
+                        : "Mulai sesi rapat sekarang"
+                }
               >
                 <FaCheck />
-                <span>{actionLoading ? "Memproses..." : isPending ? "Menunggu Persetujuan" : isRunning ? "✓ Telah Check-In" : "Check-In (Mulai Rapat)"}</span>
+                <span>
+                  {actionLoading
+                    ? "Memproses..."
+                    : isPending
+                      ? "Menunggu Persetujuan"
+                      : isRunning
+                        ? "✓ Telah Check-In"
+                        : "Check-In (Mulai Rapat)"}
+                </span>
               </button>
 
               <button
                 type="button"
                 className="mp-btn-action checkout-btn"
                 onClick={handleCheckOut}
-                disabled={actionLoading || !isRunning || isCompleted}
-                title={!isRunning ? "Hanya aktif saat rapat sedang berjalan" : "Selesaikan sesi rapat"}
+                disabled={
+                  !isMeetingBooker || actionLoading || !isRunning || isCompleted
+                }
+                title={
+                  !isMeetingBooker
+                    ? "Hanya pemesan ruangan yang dapat Check-Out"
+                    : !isRunning
+                      ? "Hanya aktif saat rapat sedang berjalan"
+                      : "Selesaikan sesi rapat"
+                }
               >
                 <FaSignOutAlt />
-                <span>{actionLoading ? "Memproses..." : isCompleted ? "✓ Telah Selesai" : "Check-Out (Selesai Rapat)"}</span>
+                <span>
+                  {actionLoading
+                    ? "Memproses..."
+                    : isCompleted
+                      ? "✓ Telah Selesai"
+                      : "Check-Out (Selesai Rapat)"}
+                </span>
               </button>
             </div>
           </div>
@@ -877,15 +1195,21 @@ export default function MeetingPassPage() {
               <span className="mp-role-tag peserta">
                 <FaUsers /> Untuk Semua Peserta
               </span>
-              <h3 className="mp-section-title">Daftar Hadir / Presensi Rapat</h3>
+              <h3 className="mp-section-title">
+                Daftar Hadir / Presensi Rapat
+              </h3>
             </div>
             <p className="mp-section-subtitle">
-              Seluruh peserta yang mengikuti rapat wajib mengisi formulir presensi digital di bawah ini sebagai bukti kehadiran kegiatan.
+              Seluruh peserta yang mengikuti rapat wajib mengisi formulir
+              presensi digital di bawah ini sebagai bukti kehadiran kegiatan.
             </p>
           </div>
 
           {/* Form Input Presensi Peserta */}
-          <form onSubmit={handleSubmitAttendance} className="mp-attendance-form">
+          <form
+            onSubmit={handleSubmitAttendance}
+            className="mp-attendance-form"
+          >
             <div className="mp-form-header">
               <FaUserCheck className="form-icon" />
               <strong>Formulir Kehadiran Peserta</strong>
@@ -893,7 +1217,9 @@ export default function MeetingPassPage() {
 
             <div className="mp-form-grid">
               <div className="mp-input-group">
-                <label>Nama Lengkap <span className="req">*</span></label>
+                <label>
+                  Nama Lengkap <span className="req">*</span>
+                </label>
                 <input
                   type="text"
                   className="mp-text-input"
@@ -905,7 +1231,9 @@ export default function MeetingPassPage() {
               </div>
 
               <div className="mp-input-group">
-                <label>Unit Kerja / Instansi <span className="req">*</span></label>
+                <label>
+                  Unit Kerja / Instansi <span className="req">*</span>
+                </label>
                 <input
                   type="text"
                   className="mp-text-input"
@@ -933,10 +1261,24 @@ export default function MeetingPassPage() {
                 type="submit"
                 className="mp-submit-att-btn"
                 disabled={submittingAtt || isPending || isCompleted}
-                title={isPending ? "Presensi belum dibuka (Menunggu persetujuan pimpinan)" : isCompleted ? "Rapat telah selesai" : undefined}
+                title={
+                  isPending
+                    ? "Presensi belum dibuka (Menunggu persetujuan pimpinan)"
+                    : isCompleted
+                      ? "Rapat telah selesai"
+                      : undefined
+                }
               >
                 <FaCheck />
-                <span>{submittingAtt ? "Mencatat Kehadiran..." : isPending ? "Presensi Belum Dibuka" : isCompleted ? "Rapat Selesai" : "Kirim Presensi Kehadiran"}</span>
+                <span>
+                  {submittingAtt
+                    ? "Mencatat Kehadiran..."
+                    : isPending
+                      ? "Presensi Belum Dibuka"
+                      : isCompleted
+                        ? "Rapat Selesai"
+                        : "Kirim Presensi Kehadiran"}
+                </span>
               </button>
             </div>
           </form>
@@ -944,9 +1286,7 @@ export default function MeetingPassPage() {
           {/* Tabel / Daftar Peserta yang Sudah Hadir */}
           <div className="mp-attendance-list-section">
             <div className="mp-att-header-row">
-              <h4 className="mp-att-list-title">
-                Daftar Peserta Hadir
-              </h4>
+              <h4 className="mp-att-list-title">Daftar Peserta Hadir</h4>
               <span className="mp-att-counter-badge">
                 Total Hadir: {attendeesList.length} Orang
               </span>
@@ -956,7 +1296,9 @@ export default function MeetingPassPage() {
               <div className="mp-att-empty-box">
                 <FaFileAlt size={28} className="empty-icon" />
                 <p>Belum ada peserta yang mengisi presensi.</p>
-                <small>Silakan isi formulir di atas untuk mencatatkan kehadiran Anda.</small>
+                <small>
+                  Silakan isi formulir di atas untuk mencatatkan kehadiran Anda.
+                </small>
               </div>
             ) : (
               <div className="mp-att-table-wrapper">
@@ -967,25 +1309,44 @@ export default function MeetingPassPage() {
                       <th>Nama Peserta</th>
                       <th>Unit Kerja / Instansi</th>
                       <th>NIP / Jabatan</th>
-                      <th style={{ width: "100px", textAlign: "center" }}>Waktu Hadir</th>
-                      <th style={{ width: "80px", textAlign: "center" }}>Status</th>
+                      <th style={{ width: "100px", textAlign: "center" }}>
+                        Waktu Hadir
+                      </th>
+                      <th style={{ width: "80px", textAlign: "center" }}>
+                        Status
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
                     {attendeesList.map((att, idx) => {
                       const timeStr = att.signedAt
-                        ? new Date(att.signedAt).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })
+                        ? new Date(att.signedAt).toLocaleTimeString("id-ID", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })
                         : "-";
                       return (
                         <tr key={att.id || idx}>
-                          <td style={{ textAlign: "center", color: "#64748b" }}>{idx + 1}</td>
+                          <td style={{ textAlign: "center", color: "#64748b" }}>
+                            {idx + 1}
+                          </td>
                           <td>
                             <strong className="att-name">{att.name}</strong>
-                            {att.notes ? <div className="att-notes">{att.notes}</div> : null}
+                            {att.notes ? (
+                              <div className="att-notes">{att.notes}</div>
+                            ) : null}
                           </td>
                           <td className="att-dept">{att.dept || "-"}</td>
                           <td className="att-nip">{att.nip || "-"}</td>
-                          <td style={{ textAlign: "center", fontSize: "12px", color: "#475569" }}>{timeStr} WIB</td>
+                          <td
+                            style={{
+                              textAlign: "center",
+                              fontSize: "12px",
+                              color: "#475569",
+                            }}
+                          >
+                            {timeStr} WIB
+                          </td>
                           <td style={{ textAlign: "center" }}>
                             <span className="att-badge-done">✓ Hadir</span>
                           </td>
@@ -1002,18 +1363,31 @@ export default function MeetingPassPage() {
         {/* Footer & Share Bar */}
         <footer className="mp-footer-bar">
           <div className="mp-footer-links">
-            <button type="button" className="mp-footer-btn" onClick={handleShare}>
+            <button
+              type="button"
+              className="mp-footer-btn"
+              onClick={handleShare}
+            >
               <FaShareAlt /> Bagikan Presensi
             </button>
-            <button type="button" className="mp-footer-btn" onClick={handleCopyLink}>
+            <button
+              type="button"
+              className="mp-footer-btn"
+              onClick={handleCopyLink}
+            >
               {copied ? "✓ Link Disalin" : "Salin Link"}
             </button>
-            <button type="button" className="mp-footer-btn" onClick={() => setShowQRModal(true)}>
+            <button
+              type="button"
+              className="mp-footer-btn"
+              onClick={() => setShowQRModal(true)}
+            >
               <FaQrcode /> QR Rapat
             </button>
           </div>
           <p className="mp-footer-credit">
-            Kementerian Ketenagakerjaan Republik Indonesia · Biro Keuangan dan BMN
+            Kementerian Ketenagakerjaan Republik Indonesia · Biro Keuangan dan
+            BMN
           </p>
         </footer>
       </div>
@@ -1027,7 +1401,10 @@ export default function MeetingPassPage() {
 
       {/* Modal QR Code Pop-up */}
       {showQRModal && (
-        <div className="mp-modal-backdrop" onClick={() => setShowQRModal(false)}>
+        <div
+          className="mp-modal-backdrop"
+          onClick={() => setShowQRModal(false)}
+        >
           <div className="mp-modal-box" onClick={(e) => e.stopPropagation()}>
             <button
               type="button"
@@ -1040,7 +1417,8 @@ export default function MeetingPassPage() {
 
             <h3 className="mp-modal-title">QR Code Presensi Rapat</h3>
             <p className="mp-modal-subtitle">
-              Pindai dengan kamera smartphone untuk Check-In &amp; Check-Out otomatis tanpa perlu bantuan admin secara manual.
+              Pindai dengan kamera smartphone untuk Check-In &amp; Check-Out
+              otomatis tanpa perlu bantuan admin secara manual.
             </p>
 
             <div className="mp-modal-qr-wrap">
@@ -1056,7 +1434,9 @@ export default function MeetingPassPage() {
 
             <div className="mp-modal-meeting-info">
               <strong>{meeting.title || "Rapat"}</strong>
-              <span>{meeting.room} · {meeting.date} ({meeting.start}–{meeting.end})</span>
+              <span>
+                {meeting.room} · {meeting.date} ({meeting.start}–{meeting.end})
+              </span>
             </div>
 
             <div className="mp-modal-actions">
@@ -1081,20 +1461,26 @@ export default function MeetingPassPage() {
 
       {/* Modal Unggah Materi Rapat (PDF / PPT / Paparan) */}
       {showMaterialModal && (
-        <div className="mp-modal-backdrop" onClick={() => setShowMaterialModal(false)}>
-          <div className="mp-modal-box" style={{ maxWidth: "520px" }} onClick={(e) => e.stopPropagation()}>
+        <div
+          className="mp-modal-backdrop"
+          onClick={() => setShowMaterialModal(false)}
+        >
+          <div
+            className="mp-modal-box"
+            style={{ maxWidth: "520px" }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <button
               type="button"
               className="mp-modal-close-btn"
               onClick={() => setShowMaterialModal(false)}
               aria-label="Tutup Modal"
-            >
-              ×
-            </button>
+            ></button>
 
             <h3 className="mp-modal-title">Unggah Materi Rapat</h3>
             <p className="mp-modal-subtitle">
-              Lampirkan dokumen PDF, materi paparan (PPT), atau tautan presentasi untuk seluruh peserta rapat.
+              Lampirkan dokumen PDF, materi paparan (PPT), atau tautan
+              presentasi untuk seluruh peserta rapat.
             </p>
 
             <div className="mp-modal-tabs">
@@ -1103,7 +1489,8 @@ export default function MeetingPassPage() {
                 className={`mp-modal-tab-btn ${materialTab === "file" ? "active" : ""}`}
                 onClick={() => setMaterialTab("file")}
               >
-                <FaFileUpload style={{ marginRight: 6 }} /> Upload Dokumen / Slide
+                <FaFileUpload style={{ marginRight: 6 }} /> Upload Dokumen /
+                Slide
               </button>
               <button
                 type="button"
@@ -1117,8 +1504,17 @@ export default function MeetingPassPage() {
             <form onSubmit={handleSaveMaterial}>
               {materialTab === "file" ? (
                 <div style={{ marginBottom: 16 }}>
-                  <label style={{ display: "block", fontSize: "12.5px", fontWeight: 600, color: "#334155", marginBottom: 6 }}>
-                    Pilih File Dokumen (PDF, PPT, PPTX, Word) <span style={{ color: "#dc2626" }}>*</span>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: "12.5px",
+                      fontWeight: 600,
+                      color: "#334155",
+                      marginBottom: 6,
+                    }}
+                  >
+                    Pilih File Dokumen (PDF, PPT, PPTX, Word){" "}
+                    <span style={{ color: "#dc2626" }}>*</span>
                   </label>
                   <input
                     ref={fileInputRef}
@@ -1137,15 +1533,32 @@ export default function MeetingPassPage() {
                     required={!materialUrl}
                   />
                   {materialFileMeta && (
-                    <div style={{ marginTop: 8, fontSize: "12px", color: "#16a34a", fontWeight: 600 }}>
-                      ✓ File terpilih: {materialFileMeta.name} ({materialFileMeta.size})
+                    <div
+                      style={{
+                        marginTop: 8,
+                        fontSize: "12px",
+                        color: "#16a34a",
+                        fontWeight: 600,
+                      }}
+                    >
+                      ✓ File terpilih: {materialFileMeta.name} (
+                      {materialFileMeta.size})
                     </div>
                   )}
                 </div>
               ) : (
                 <div style={{ marginBottom: 16 }}>
-                  <label style={{ display: "block", fontSize: "12.5px", fontWeight: 600, color: "#334155", marginBottom: 6 }}>
-                    Tautan / URL Dokumen (Google Drive, OneDrive, Web) <span style={{ color: "#dc2626" }}>*</span>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: "12.5px",
+                      fontWeight: 600,
+                      color: "#334155",
+                      marginBottom: 6,
+                    }}
+                  >
+                    Tautan / URL Dokumen (Google Drive, OneDrive, Web){" "}
+                    <span style={{ color: "#dc2626" }}>*</span>
                   </label>
                   <input
                     type="url"
@@ -1159,7 +1572,15 @@ export default function MeetingPassPage() {
               )}
 
               <div style={{ marginBottom: 16 }}>
-                <label style={{ display: "block", fontSize: "12.5px", fontWeight: 600, color: "#334155", marginBottom: 6 }}>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "12.5px",
+                    fontWeight: 600,
+                    color: "#334155",
+                    marginBottom: 6,
+                  }}
+                >
                   Judul / Nama Dokumen
                 </label>
                 <input
@@ -1172,7 +1593,15 @@ export default function MeetingPassPage() {
               </div>
 
               <div style={{ marginBottom: 20 }}>
-                <label style={{ display: "block", fontSize: "12.5px", fontWeight: 600, color: "#334155", marginBottom: 6 }}>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "12.5px",
+                    fontWeight: 600,
+                    color: "#334155",
+                    marginBottom: 6,
+                  }}
+                >
                   Nama Pengunggah (Opsional)
                 </label>
                 <input
@@ -1198,7 +1627,9 @@ export default function MeetingPassPage() {
                   disabled={uploadingMaterial}
                 >
                   <FaFileUpload />
-                  <span>{uploadingMaterial ? "Menyimpan..." : "Simpan Materi"}</span>
+                  <span>
+                    {uploadingMaterial ? "Menyimpan..." : "Simpan Materi"}
+                  </span>
                 </button>
               </div>
             </form>

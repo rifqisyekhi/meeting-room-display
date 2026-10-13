@@ -15,11 +15,11 @@ app.use("/api/events", calendarRoutes);
 app.use("/api/prayer", prayerRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 
-app.post("/api/auth/login", (req, res) => {
+app.post("/api/auth/login", async (req, res) => {
   try {
     const dashboardService = require("./services/dashboard.service");
     const { username, password } = req.body;
-    const result = dashboardService.authenticateUser(username, password);
+    const result = await dashboardService.authenticateUser(username, password);
     if (result.success) {
       res.json(result);
     } else {

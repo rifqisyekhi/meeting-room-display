@@ -97,12 +97,26 @@ async function initDatabase() {
           approved_by VARCHAR(150),
           rejection_reason TEXT,
           checked_in_at TIMESTAMPTZ,
+          checked_in_by VARCHAR(150),
+          check_in_method VARCHAR(50),
+          check_in_method_label VARCHAR(100),
           checked_out_at TIMESTAMPTZ,
+          checked_out_by VARCHAR(150),
+          check_out_method VARCHAR(50),
+          check_out_method_label VARCHAR(100),
           attendees JSONB DEFAULT '[]'::jsonb,
           materials JSONB DEFAULT '[]'::jsonb,
           created_at TIMESTAMPTZ DEFAULT NOW(),
           updated_at TIMESTAMPTZ DEFAULT NOW()
         );
+
+        -- Migrasi kolom tambahan otomatis jika tabel meetings sudah ada sebelumnya
+        ALTER TABLE meetings ADD COLUMN IF NOT EXISTS checked_in_by VARCHAR(150);
+        ALTER TABLE meetings ADD COLUMN IF NOT EXISTS check_in_method VARCHAR(50);
+        ALTER TABLE meetings ADD COLUMN IF NOT EXISTS check_in_method_label VARCHAR(100);
+        ALTER TABLE meetings ADD COLUMN IF NOT EXISTS checked_out_by VARCHAR(150);
+        ALTER TABLE meetings ADD COLUMN IF NOT EXISTS check_out_method VARCHAR(50);
+        ALTER TABLE meetings ADD COLUMN IF NOT EXISTS check_out_method_label VARCHAR(100);
       `);
 
       // Index untuk optimasi pencarian jadwal dan bentrok
@@ -230,6 +244,23 @@ async function initDatabase() {
             }
           }
         }
+      }
+
+      // Pastikan akun-akun default selalu terdaftar di database
+      const defaultAppUsers = [
+        { id: "admin", name: "Admin Utama", username: process.env.ADMIN_USERNAME || "admin", email: "admin@kemnaker.go.id", dept: "Biro Keuangan dan BMN", role: "Admin", status: "Aktif" },
+        { id: "approval1", name: "Pimpinan", username: process.env.APPROVAL1_USERNAME || "approval1", email: "pimpinan@kemnaker.go.id", dept: "Biro Keuangan dan BMN", role: "Pimpinan", status: "Aktif" },
+        { id: "approval2", name: "Wakil Pimpinan", username: process.env.APPROVAL2_USERNAME || "approval2", email: "wakil.pimpinan@kemnaker.go.id", dept: "Biro Keuangan dan BMN", role: "Pimpinan", status: "Aktif" },
+        { id: "andipratama", name: "Andi Pratama", username: process.env.USER_USERNAME || "andipratama", email: "andi@kemnaker.go.id", dept: "Biro Keuangan dan BMN", role: "User", status: "Aktif" },
+      ];
+      for (const u of defaultAppUsers) {
+        await client.query(`
+          INSERT INTO users (id, name, username, email, dept, role, status)
+          VALUES ($1, $2, $3, $4, $5, $6, $7)
+          ON CONFLICT (username) DO NOTHING;
+        `, [
+          u.id, u.name, u.username, u.email, u.dept, u.role, u.status
+        ]);
       }
 
       console.log("[PostgreSQL] Skema tabel siap dan sinkron.");
