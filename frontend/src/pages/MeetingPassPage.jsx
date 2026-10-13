@@ -9,6 +9,7 @@ import {
   FaUsers,
   FaUserCheck,
   FaQrcode,
+  FaBarcode,
   FaShareAlt,
   FaArrowLeft,
   FaCheck,
@@ -182,31 +183,41 @@ export default function MeetingPassPage() {
       const res = await fetch(`/api/dashboard/meetings/${meeting.id}/checkin`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ by: actorName }),
+        body: JSON.stringify({ by: actorName, method: "barcode_qr" }),
       });
+      const nowIso = new Date().toISOString();
+      let updated = {
+        ...meeting,
+        status: "Berjalan",
+        checkInAt: nowIso,
+        checkedInBy: actorName,
+        checkInMethod: "barcode_qr",
+        checkInMethodLabel: "Scan Barcode / QR Mandiri",
+      };
+
       if (res.ok) {
         const data = await res.json();
         if (data.meeting) {
-          setMeeting(data.meeting);
+          updated = { ...updated, ...data.meeting, status: "Berjalan" };
         }
-      } else {
-        const nowIso = new Date().toISOString();
-        const updated = {
-          ...meeting,
-          status: "Berjalan",
-          checkInAt: nowIso,
-          checkedInBy: actorName,
-        };
-        setMeeting(updated);
-        try {
-          const stored = JSON.parse(localStorage.getItem("app_meetings") || "[]");
-          const idx = stored.findIndex((m) => String(m.id) === String(meeting.id));
-          if (idx !== -1) {
-            stored[idx] = updated;
-            localStorage.setItem("app_meetings", JSON.stringify(stored));
-          }
-        } catch (e) {}
       }
+      setMeeting(updated);
+      try {
+        const stored = JSON.parse(localStorage.getItem("app_meetings") || "[]");
+        const idx = stored.findIndex((m) => String(m.id) === String(meeting.id));
+        if (idx !== -1) {
+          stored[idx] = updated;
+        } else {
+          stored.unshift(updated);
+        }
+        localStorage.setItem("app_meetings", JSON.stringify(stored));
+      } catch (e) {}
+
+      ["storage", "meeting_checkin", "meeting_status_changed", "app_meetings_updated"].forEach((ev) => {
+        window.dispatchEvent(new Event(ev));
+        try { if (window.parent && window.parent !== window) window.parent.dispatchEvent(new Event(ev)); } catch (e) {}
+      });
+
       showToast(`✓ Check-In berhasil! Sesi rapat kini berstatus Berjalan.`);
     } catch (err) {
       showToast("Gagal melakukan Check-In server, coba lagi.", "error");
@@ -227,31 +238,41 @@ export default function MeetingPassPage() {
       const res = await fetch(`/api/dashboard/meetings/${meeting.id}/checkout`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ by: actorName }),
+        body: JSON.stringify({ by: actorName, method: "barcode_qr" }),
       });
+      const nowIso = new Date().toISOString();
+      let updated = {
+        ...meeting,
+        status: "Selesai",
+        checkOutAt: nowIso,
+        checkedOutBy: actorName,
+        checkOutMethod: "barcode_qr",
+        checkOutMethodLabel: "Scan Barcode / QR Mandiri",
+      };
+
       if (res.ok) {
         const data = await res.json();
         if (data.meeting) {
-          setMeeting(data.meeting);
+          updated = { ...updated, ...data.meeting, status: "Selesai" };
         }
-      } else {
-        const nowIso = new Date().toISOString();
-        const updated = {
-          ...meeting,
-          status: "Selesai",
-          checkOutAt: nowIso,
-          checkedOutBy: actorName,
-        };
-        setMeeting(updated);
-        try {
-          const stored = JSON.parse(localStorage.getItem("app_meetings") || "[]");
-          const idx = stored.findIndex((m) => String(m.id) === String(meeting.id));
-          if (idx !== -1) {
-            stored[idx] = updated;
-            localStorage.setItem("app_meetings", JSON.stringify(stored));
-          }
-        } catch (e) {}
       }
+      setMeeting(updated);
+      try {
+        const stored = JSON.parse(localStorage.getItem("app_meetings") || "[]");
+        const idx = stored.findIndex((m) => String(m.id) === String(meeting.id));
+        if (idx !== -1) {
+          stored[idx] = updated;
+        } else {
+          stored.unshift(updated);
+        }
+        localStorage.setItem("app_meetings", JSON.stringify(stored));
+      } catch (e) {}
+
+      ["storage", "meeting_checkout", "meeting_status_changed", "app_meetings_updated"].forEach((ev) => {
+        window.dispatchEvent(new Event(ev));
+        try { if (window.parent && window.parent !== window) window.parent.dispatchEvent(new Event(ev)); } catch (e) {}
+      });
+
       showToast("✓ Check-Out berhasil! Sesi rapat telah ditandai Selesai.");
     } catch (err) {
       showToast("Gagal melakukan Check-Out server, coba lagi.", "error");
@@ -729,19 +750,28 @@ export default function MeetingPassPage() {
         </section>
 
         {/* ============================================================== */}
-        {/* CARD 2: KONTROL RAPAT (CHECK-IN & CHECK-OUT UNTUK PERWAKILAN)    */}
+        {/* CARD 2: KONTROL RAPAT (SISTEM 1: BARCODE & QR PRESENSI MANDIRI) */}
         {/* ============================================================== */}
         <section className="mp-card mp-control-card">
           <div className="mp-section-head">
             <div className="mp-section-badge-group">
+              <span className="mp-role-tag perwakilan" style={{ background: "#dbeafe", color: "#1e40af", borderColor: "#bfdbfe" }}>
+                <FaQrcode style={{ marginRight: 4 }} /> QR Presensi Mandiri
+              </span>
               <span className="mp-role-tag perwakilan">
                 <FaUserTie /> Khusus Perwakilan / PIC
               </span>
-              <h3 className="mp-section-title">Kontrol Sesi Rapat</h3>
+              <h3 className="mp-section-title">Check-In &amp; Check-Out Mandiri</h3>
             </div>
             <p className="mp-section-subtitle">
-              Tombol <strong>Check-In</strong> dan <strong>Check-Out</strong> di bawah ini digunakan oleh <em>perwakilan rapat / penanggung jawab</em> untuk membuka dan mengakhiri sesi pemakaian ruangan secara resmi.
+              Sistem presensi mandiri berbasis QR Code: <strong>Admin tidak perlu lagi menekan tombol manual di dashboard</strong>. Perwakilan / PIC cukup menekan tombol <strong>Check-In</strong> dan <strong>Check-Out</strong> di bawah ini untuk membuka dan mengakhiri sesi rapat secara otomatis.
             </p>
+          </div>
+
+          {/* Banner Informasi Otomasi Sistem 1 */}
+          <div style={{ margin: "10px 0 16px", padding: "10px 14px", background: "rgba(16, 185, 129, 0.08)", border: "1px solid rgba(16, 185, 129, 0.25)", borderRadius: "10px", fontSize: "12px", color: "#065f46", display: "flex", alignItems: "center", gap: "8px" }}>
+            <FaCheckCircle style={{ color: "#10b981", flexShrink: 0 }} />
+            <span><strong>Otomatis Tanpa Admin:</strong> Check-In dan Check-Out mandiri ini langsung menyinkronkan status display TV ruangan dan dasbor kalender secara real-time.</span>
           </div>
 
           {/* Form / Konfirmasi Identitas Perwakilan */}
@@ -1010,7 +1040,7 @@ export default function MeetingPassPage() {
 
             <h3 className="mp-modal-title">QR Code Presensi Rapat</h3>
             <p className="mp-modal-subtitle">
-              Pindai dengan kamera smartphone untuk membuka halaman presensi &amp; detil rapat ini.
+              Pindai dengan kamera smartphone untuk Check-In &amp; Check-Out otomatis tanpa perlu bantuan admin secara manual.
             </p>
 
             <div className="mp-modal-qr-wrap">

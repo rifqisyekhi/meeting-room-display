@@ -92,29 +92,43 @@ router.get("/meetings/:id", async (req, res) => {
   }
 });
 
-// Check-in rapat via QR / Web
+// Check-in rapat (Sistem 1: Barcode / QR Scan Otomatis, atau Sistem 2: Manual Admin)
 router.post("/meetings/:id/checkin", async (req, res) => {
   try {
-    const checkedInBy = req.body?.by || "Peserta via QR";
-    const updated = await dashboardService.checkInMeeting(req.params.id, checkedInBy);
+    const method = req.body?.method || (req.body?.by && req.body.by.toLowerCase().includes("admin") ? "manual_admin" : "barcode_qr");
+    const defaultActor = method === "manual_admin" ? "Admin (Manual)" : "Peserta (Barcode / QR)";
+    const checkedInBy = req.body?.by || defaultActor;
+    const updated = await dashboardService.checkInMeeting(req.params.id, checkedInBy, method);
     if (!updated) {
       return res.status(404).json({ success: false, error: "Rapat tidak ditemukan" });
     }
-    res.json({ success: true, meeting: updated, message: "Berhasil Check-In" });
+    res.json({
+      success: true,
+      meeting: updated,
+      method: updated.checkInMethod,
+      message: `Berhasil Check-In via ${updated.checkInMethodLabel || method}`
+    });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// Check-out rapat via QR / Web
+// Check-out rapat (Sistem 1: Barcode / QR Scan Otomatis, atau Sistem 2: Manual Admin)
 router.post("/meetings/:id/checkout", async (req, res) => {
   try {
-    const checkedOutBy = req.body?.by || "Peserta via QR";
-    const updated = await dashboardService.checkOutMeeting(req.params.id, checkedOutBy);
+    const method = req.body?.method || (req.body?.by && req.body.by.toLowerCase().includes("admin") ? "manual_admin" : "barcode_qr");
+    const defaultActor = method === "manual_admin" ? "Admin (Manual)" : "Peserta (Barcode / QR)";
+    const checkedOutBy = req.body?.by || defaultActor;
+    const updated = await dashboardService.checkOutMeeting(req.params.id, checkedOutBy, method);
     if (!updated) {
       return res.status(404).json({ success: false, error: "Rapat tidak ditemukan" });
     }
-    res.json({ success: true, meeting: updated, message: "Berhasil Check-Out" });
+    res.json({
+      success: true,
+      meeting: updated,
+      method: updated.checkOutMethod,
+      message: `Berhasil Check-Out via ${updated.checkOutMethodLabel || method}`
+    });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
