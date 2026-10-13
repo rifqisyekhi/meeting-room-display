@@ -5,6 +5,7 @@ import LoginPage from "./pages/LoginPage";
 import BookingPage from "./pages/BookingPage";
 import BookingHistoryPage from "./pages/BookingHistoryPage";
 import MeetingPassPage from "./pages/MeetingPassPage";
+import UserDashboardPage from "./pages/UserDashboardPage";
 
 // eslint-disable-next-line react/prop-types
 const ProtectedRoute = ({ children }) => {
@@ -40,9 +41,8 @@ const DashboardRoute = ({ children }) => {
     uname.includes("approval") ||
     uname.includes("pimpinan");
 
-  // Jika akun adalah User biasa (bukan Admin dan bukan Pimpinan), dilarang masuk dashboard, alihkan ke /booking
   if (currentUser && !isAdminOrPimpinan) {
-    return <Navigate to="/booking" replace />;
+    return <UserDashboardPage />;
   }
 
   return children;

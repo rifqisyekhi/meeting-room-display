@@ -48,19 +48,7 @@ export default function LoginPage() {
     const isAdding = sessionStorage.getItem("isAddingAccount") === "true";
     const isAuth = localStorage.getItem("isAuthenticated") === "true";
     if (isAuth && !isAdding) {
-      try {
-        const u = JSON.parse(localStorage.getItem("currentUser") || "{}");
-        const role = (u.role || "").toLowerCase();
-        const uname = (u.username || "").toLowerCase();
-        const isAdminOrPimpinan =
-          role.includes("admin") ||
-          role.includes("pimpinan") ||
-          role.includes("approval") ||
-          uname === "admin" ||
-          uname.includes("approval") ||
-          uname.includes("pimpinan");
-        navigate(isAdminOrPimpinan ? "/dashboard" : "/booking", { replace: true });
-      } catch (e) {}
+      navigate("/dashboard", { replace: true });
     }
   }, [navigate]);
 
@@ -232,21 +220,7 @@ export default function LoginPage() {
       }
       localStorage.setItem("savedAccounts", JSON.stringify(saved));
 
-      // Penentuan rute STRICT sesuai role:
-      // - Admin & Pimpinan -> SELALU ke /dashboard
-      // - User             -> SELALU ke /booking
-      const userRole = (userData.role || "").toLowerCase();
-      const uname = (userData.username || "").toLowerCase();
-      const isAdminOrPimpinan =
-        userRole.includes("admin") ||
-        userRole.includes("pimpinan") ||
-        userRole.includes("approval") ||
-        uname === "admin" ||
-        uname.includes("approval") ||
-        uname.includes("pimpinan");
-
-      const destination = isAdminOrPimpinan ? "/dashboard" : "/booking";
-      navigate(destination, { replace: true });
+      navigate("/dashboard", { replace: true });
     } else {
       alert("Username atau password salah!");
     }
