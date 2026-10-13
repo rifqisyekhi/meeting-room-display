@@ -589,6 +589,16 @@ export default function BookingPage() {
     currentMeetings.push(newMeeting);
     localStorage.setItem("app_meetings", JSON.stringify(currentMeetings));
 
+    // Picu event sinkronisasi agar Dashboard langsung terupdate
+    window.dispatchEvent(new Event("storage"));
+    window.dispatchEvent(new Event("app_meetings_updated"));
+    try {
+      if (window.parent && window.parent !== window) {
+        window.parent.dispatchEvent(new Event("storage"));
+        window.parent.dispatchEvent(new Event("app_meetings_updated"));
+      }
+    } catch (err) {}
+
     // Kirim ke backend & Google Calendar
     try {
       fetch("/api/dashboard/meetings", {
@@ -610,6 +620,12 @@ export default function BookingPage() {
                     : m
                 );
                 localStorage.setItem("app_meetings", JSON.stringify(updated));
+                window.dispatchEvent(new Event("storage"));
+                window.dispatchEvent(new Event("app_meetings_updated"));
+                if (window.parent && window.parent !== window) {
+                  window.parent.dispatchEvent(new Event("storage"));
+                  window.parent.dispatchEvent(new Event("app_meetings_updated"));
+                }
               } catch (e) {}
             }
           }

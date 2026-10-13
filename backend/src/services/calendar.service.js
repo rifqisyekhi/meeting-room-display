@@ -87,6 +87,7 @@ function getEventStatus(start, end, now = new Date(), customStatus = "") {
 
   if (customStatus) {
     const s = customStatus.toLowerCase().trim();
+    if (s.includes("menunggu") || s === "pending") return "AVAILABLE";
     if (s === "berjalan" || s === "in_progress") return "IN_PROGRESS";
     if (s === "selesai" || s === "available") return "AVAILABLE";
     if (s === "akan datang" || s === "upcoming") return "UPCOMING";
@@ -115,10 +116,13 @@ function formatDate(date, timeZone) {
 }
 
 function getRoomKey(room = "") {
-  const normalized = room.trim().toLowerCase();
-  if (normalized.includes("rapat besar") || normalized.includes("besar")) return "ruangRapatBesar";
-  if (normalized.includes("konsultasi")) return "ruangKonsultasi";
-  return null;
+  if (typeof room === "number") room = String(room);
+  const normalized = (room || "").trim().toLowerCase();
+  if (normalized.includes("konsultasi") || normalized === "2") return "ruangKonsultasi";
+  if (normalized.includes("rapat besar") || normalized.includes("besar") || normalized.includes("rapat") || normalized === "1") {
+    return "ruangRapatBesar";
+  }
+  return "ruangRapatBesar";
 }
 
 function getRoomFromEvent(event, fields) {
@@ -131,6 +135,54 @@ function getRoomFromEvent(event, fields) {
 function isoDate(date, timeZone) {
   const { year, month, day } = getDateParts(date, timeZone);
   return year + "-" + month + "-" + day;
+}
+
+function isMeetingActive(status = "") {
+  const s = String(status || "").toLowerCase().trim();
+  if (!s) return false;
+  if (
+    s === "dibatalkan" ||
+    s === "ditolak" ||
+    s === "rejected" ||
+    s.includes("batal") ||
+    s.includes("menunggu") ||
+    s === "pending"
+  ) {
+    return false;
+  }
+  return true;
+}
+
+function meetingToDashboardEvent(meeting, now = new Date(), timeZone = DEFAULT_TIME_ZONE) {
+  if (!meeting || !meeting.date || !meeting.start || !meeting.end) return null;
+  if (!isMeetingActive(meeting.status)) return null;
+
+  const roomKey = getRoomKey(meeting.room || "");
+  if (!roomKey) return null;
+
+  const start = new Date(`${meeting.date}T${meeting.start}:00+07:00`);
+  const end = new Date(`${meeting.date}T${meeting.end}:00+07:00`);
+
+  const sLower = String(meeting.status || "").toLowerCase();
+  const isPending = sLower.includes("menunggu") || sLower === "pending";
+  const displayAgenda = isPending
+    ? `${meeting.title || meeting.agenda || "Rapat"} (Menunggu Persetujuan)`
+    : meeting.title || meeting.agenda || "Rapat";
+
+  return {
+    roomKey,
+    event: {
+      id: meeting.googleId || String(meeting.id),
+      originalMeetingId: String(meeting.id),
+      agenda: displayAgenda,
+      bagian: meeting.requester || meeting.bookedBy || "-",
+      tanggal: formatDate(start, timeZone),
+      tanggalIso: meeting.date,
+      mulai: meeting.start,
+      selesai: meeting.end,
+      status: getEventStatus(start, end, now, meeting.status),
+    },
+  };
 }
 
 function toDashboardEvent(event, now, timeZone) {
@@ -154,10 +206,6 @@ function toDashboardEvent(event, now, timeZone) {
       agenda: fields.agenda || cleanSummary || rawSummary,
       bagian: fields.bagian || fields.pemesan || fields.nama || "-",
       tanggal: formatDate(start, timeZone),
-      /* Bentuk yang bisa diolah mesin. "tanggal" di atas sudah dipakai papan
-         TV untuk ditampilkan apa adanya, jadi dibiarkan; dashboard butuh
-         tanggal yang bisa diurutkan dan disaring per rentang. Penambahan
-         murni: tidak ada yang lama berubah bentuk. */
       tanggalIso: isoDate(start, timeZone),
       mulai: formatTime(start, timeZone),
       selesai: formatTime(end, timeZone),
@@ -170,24 +218,65 @@ async function getUpcomingEvents(calendarId, options = {}) {
   const now = options.now || new Date();
   const timeZone = options.timeZone || process.env.CALENDAR_TIME_ZONE || DEFAULT_TIME_ZONE;
   const end = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
-  const response = await calendar.events.list({
-    calendarId,
-    timeMin: now.toISOString(),
-    timeMax: end.toISOString(),
-    singleEvents: true,
-    orderBy: "startTime",
-    timeZone,
-  });
-  const items = response.data.items || [];
+  const todayIsoStr = isoDate(now, timeZone);
 
-  console.info("Google Calendar upcoming response", {
-    timeZone,
-    timeMin: now.toISOString(),
-    timeMax: end.toISOString(),
-    totalItems: items.length,
-  });
+  let items = [];
+  if (calendarId) {
+    try {
+      const response = await calendar.events.list({
+        calendarId,
+        timeMin: now.toISOString(),
+        timeMax: end.toISOString(),
+        singleEvents: true,
+        orderBy: "startTime",
+        timeZone,
+      });
+      items = response.data.items || [];
+    } catch (gcalErr) {
+      console.warn("[Calendar Service] Google Calendar upcoming error:", gcalErr.message);
+    }
+  }
 
-  return groupEventsForDashboard(items, now, timeZone);
+  const rooms = groupEventsForDashboard(items, now, timeZone);
+
+  // Merge rapat yang SUDAH DISETUJUI dari database/store lokal agar langsung tampil di Display TV
+  try {
+    const dashboardService = require("./dashboard.service");
+    const store = dashboardService.readStore();
+    const localMeetings = store.meetings || [];
+
+    localMeetings.forEach((m) => {
+      if (m.date >= todayIsoStr) {
+        const parsed = meetingToDashboardEvent(m, now, timeZone);
+        if (parsed && (parsed.event.status === "UPCOMING" || parsed.event.status === "IN_PROGRESS")) {
+          const list = rooms[parsed.roomKey];
+          const exists = list.findIndex(
+            (e) =>
+              String(e.id) === String(parsed.event.id) ||
+              String(e.id) === String(m.googleId) ||
+              (e.tanggalIso === parsed.event.tanggalIso && e.mulai === parsed.event.mulai)
+          );
+          if (exists !== -1) {
+            list[exists] = { ...list[exists], ...parsed.event };
+          } else {
+            list.push(parsed.event);
+          }
+        }
+      }
+    });
+
+    Object.keys(rooms).forEach((key) => {
+      rooms[key] = rooms[key].filter((e) => e.status === "UPCOMING" || e.status === "IN_PROGRESS");
+      rooms[key].sort((a, b) => {
+        if (a.tanggalIso !== b.tanggalIso) return (a.tanggalIso || "").localeCompare(b.tanggalIso || "");
+        return (a.mulai || "").localeCompare(b.mulai || "");
+      });
+    });
+  } catch (err) {
+    console.warn("[Calendar Service] Gagal merge upcoming local events:", err.message);
+  }
+
+  return rooms;
 }
 
 function groupEventsForDashboard(events, now = new Date(), timeZone = DEFAULT_TIME_ZONE) {
@@ -220,31 +309,61 @@ async function getTodayEvents(calendarId, options = {}) {
   const now = options.now || new Date();
   const timeZone = options.timeZone || process.env.CALENDAR_TIME_ZONE || DEFAULT_TIME_ZONE;
   const { start, end } = getTodayRange(now, timeZone);
+  const todayIsoStr = isoDate(now, timeZone);
 
-  const response = await calendar.events.list({
-    calendarId,
-    timeMin: start.toISOString(),
-    timeMax: end.toISOString(),
-    singleEvents: true,
-    orderBy: "startTime",
-    timeZone,
-  });
+  let items = [];
+  if (calendarId) {
+    try {
+      const response = await calendar.events.list({
+        calendarId,
+        timeMin: start.toISOString(),
+        timeMax: end.toISOString(),
+        singleEvents: true,
+        orderBy: "startTime",
+        timeZone,
+      });
+      items = response.data.items || [];
+    } catch (gcalErr) {
+      console.warn("[Calendar Service] Google Calendar today error:", gcalErr.message);
+    }
+  }
 
-  const items = response.data.items || [];
-  console.info("Google Calendar response", {
-    timeZone,
-    timeMin: start.toISOString(),
-    timeMax: end.toISOString(),
-    totalItems: items.length,
-    events: items.map((event) => ({
-      id: event.id,
-      summary: event.summary,
-      start: event.start,
-      end: event.end,
-    })),
-  });
+  const rooms = groupEventsForDashboard(items, now, timeZone);
 
-  return groupEventsForDashboard(items, now, timeZone);
+  // Merge rapat yang SUDAH DISETUJUI hari ini dari database/store lokal agar langsung tampil di Display TV
+  try {
+    const dashboardService = require("./dashboard.service");
+    const store = dashboardService.readStore();
+    const localMeetings = store.meetings || [];
+
+    localMeetings.forEach((m) => {
+      if (m.date === todayIsoStr) {
+        const parsed = meetingToDashboardEvent(m, now, timeZone);
+        if (parsed) {
+          const list = rooms[parsed.roomKey];
+          const exists = list.findIndex(
+            (e) =>
+              String(e.id) === String(parsed.event.id) ||
+              String(e.id) === String(m.googleId) ||
+              (e.tanggalIso === parsed.event.tanggalIso && e.mulai === parsed.event.mulai)
+          );
+          if (exists !== -1) {
+            list[exists] = { ...list[exists], ...parsed.event };
+          } else {
+            list.push(parsed.event);
+          }
+        }
+      }
+    });
+
+    Object.keys(rooms).forEach((key) => {
+      rooms[key].sort((a, b) => (a.mulai || "").localeCompare(b.mulai || ""));
+    });
+  } catch (err) {
+    console.warn("[Calendar Service] Gagal merge today local events:", err.message);
+  }
+
+  return rooms;
 }
 
 async function getYearSummary(calendarId, options = {}) {

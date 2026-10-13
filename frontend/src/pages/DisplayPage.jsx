@@ -185,9 +185,70 @@ function Timeline({ events, now }) {
   )
 }
 
+function isEventFinished(event, nowMoment) {
+  if (!event) return true
+  const s = String(event.status || '').toLowerCase().trim()
+  if (s === 'selesai' || s === 'available' || s === 'completed' || s === 'done' || s.includes('batal') || s === 'dibatalkan') {
+    return true
+  }
+  if (event.selesai) {
+    const dateStr = event.tanggalIso || nowMoment.format('YYYY-MM-DD')
+    const endMoment = dayjs(`${dateStr}T${event.selesai}:00`)
+    if (nowMoment.isAfter(endMoment)) {
+      return true
+    }
+  }
+  return false
+}
+
 function RoomPanel({ room, todayEvents, upcomingEvents, now }) {
-  const current = todayEvents.find((event) => event.status === 'IN_PROGRESS')
-  const queue = upcomingEvents.filter((event) => event.status === 'UPCOMING')
+  // 1. Rapat yang SEDANG BERJALAN saat ini (belum selesai & waktu belum lewat & SUDAH DISETUJUI)
+  const current = (todayEvents || []).find((event) => {
+    if (isEventFinished(event, now)) return false
+    const s = String(event.status || '').toLowerCase().trim()
+    if (s.includes('menunggu') || s === 'pending') return false
+    if (event.status === 'IN_PROGRESS') return true
+
+    const dateStr = event.tanggalIso || now.format('YYYY-MM-DD')
+    if (event.mulai && event.selesai) {
+      const startMoment = dayjs(`${dateStr}T${event.mulai}:00`)
+      const endMoment = dayjs(`${dateStr}T${event.selesai}:00`)
+      if (now.isAfter(startMoment) && now.isBefore(endMoment)) {
+        if (s !== 'selesai' && s !== 'available') return true
+      }
+    }
+    return false
+  })
+
+  // 2. Rapat berikutnya: HANYA yang masih akan datang dan BELUM selesai dan SUDAH DISETUJUI
+  const isUpcomingValid = (event) => {
+    if (!event) return false
+    if (isEventFinished(event, now)) return false
+    if (current && String(event.id) === String(current.id)) return false
+
+    const s = String(event.status || '').toLowerCase().trim()
+    if (s.includes('menunggu') || s === 'pending') return false
+    const isStatusUpcoming = s === 'upcoming' || s === 'akan datang' || s === 'disetujui' || s === 'segera'
+    if (!isStatusUpcoming) return false
+
+    const dateStr = event.tanggalIso || now.format('YYYY-MM-DD')
+    if (event.selesai) {
+      const endMoment = dayjs(`${dateStr}T${event.selesai}:00`)
+      if (now.isAfter(endMoment)) return false
+    }
+    return true
+  }
+
+  const todayUpcoming = (todayEvents || []).filter(isUpcomingValid)
+  const otherUpcoming = (upcomingEvents || []).filter(
+    (event) => isUpcomingValid(event) && !todayUpcoming.some((t) => String(t.id) === String(event.id))
+  )
+  const queue = [...todayUpcoming, ...otherUpcoming].sort((a, b) => {
+    const dateA = a.tanggalIso || now.format('YYYY-MM-DD')
+    const dateB = b.tanggalIso || now.format('YYYY-MM-DD')
+    if (dateA !== dateB) return dateA.localeCompare(dateB)
+    return (a.mulai || '').localeCompare(b.mulai || '')
+  })
   const next = queue[0]
 
   return (
@@ -226,13 +287,7 @@ function RoomPanel({ room, todayEvents, upcomingEvents, now }) {
                 <Countdown end={current.selesai} now={now} />
               </div>
               {current.id && (
-                <a
-                  href={`/meeting/${current.id}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="slot__qr-pass"
-                  title="Sistem 1: Pindai Barcode / QR untuk Check-In &amp; Check-Out Mandiri (Otomatis tanpa admin)"
-                >
+                <div className="slot__qr-pass">
                   <div className="slot__qr-pass-code">
                     <QRCodeSVG
                       value={`${typeof window !== 'undefined' ? window.location.origin : ''}/meeting/${current.id}`}
@@ -244,10 +299,9 @@ function RoomPanel({ room, todayEvents, upcomingEvents, now }) {
                     />
                   </div>
                   <div className="slot__qr-pass-label">
-                    <span>📱 Scan QR / Barcode</span>
-                    <small>Presensi Mandiri (Tanpa Admin)</small>
+                    <span>Presensi Mandiri</span>
                   </div>
-                </a>
+                </div>
               )}
             </div>
           ) : (
@@ -264,13 +318,7 @@ function RoomPanel({ room, todayEvents, upcomingEvents, now }) {
                 )}
               </div>
               {next?.id && (
-                <a
-                  href={`/meeting/${next.id}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="slot__qr-pass"
-                  title="Sistem 1: Pindai Barcode / QR untuk Check-In &amp; Check-Out Mandiri (Otomatis tanpa admin)"
-                >
+                <div className="slot__qr-pass">
                   <div className="slot__qr-pass-code">
                     <QRCodeSVG
                       value={`${typeof window !== 'undefined' ? window.location.origin : ''}/meeting/${next.id}`}
@@ -282,10 +330,9 @@ function RoomPanel({ room, todayEvents, upcomingEvents, now }) {
                     />
                   </div>
                   <div className="slot__qr-pass-label">
-                    <span>📱 Scan QR / Barcode</span>
-                    <small>Presensi Mandiri (Tanpa Admin)</small>
+                    <span>Presensi Mandiri</span>
                   </div>
-                </a>
+                </div>
               )}
             </div>
           )}
@@ -356,26 +403,154 @@ function DisplayPage() {
 
   useEffect(() => {
     const load = async () => {
+      let tData = { ...EMPTY_DATA }
+      let uData = { ...EMPTY_DATA }
+      let fetchedDashboardMeetings = []
+
+      // 1. Fetch jadwal hari ini & mendatang dari backend
       try {
-        const [todayResponse, upcomingResponse, yearResponse] = await Promise.all([
-          axios.get('/api/events/today'),
-          axios.get('/api/events/upcoming'),
-          axios.get('/api/events/summary/year'),
-        ])
-        setToday({ ...EMPTY_DATA, ...todayResponse.data })
-        setUpcoming({ ...EMPTY_DATA, ...upcomingResponse.data })
-        setYearSummary(yearResponse.data)
-        setLastSync(dayjs())
-        setFailures(0)
-      } catch (loadError) {
-        console.error(loadError)
-        setFailures((count) => count + 1)
+        const res = await axios.get('/api/events/today')
+        if (res?.data) tData = { ...EMPTY_DATA, ...res.data }
+      } catch (e) {}
+
+      try {
+        const res = await axios.get('/api/events/upcoming')
+        if (res?.data) uData = { ...EMPTY_DATA, ...res.data }
+      } catch (e) {}
+
+      try {
+        const res = await axios.get('/api/events/summary/year')
+        if (res?.data) setYearSummary(res.data)
+      } catch (e) {}
+
+      // 2. Fetch rapat dari endpoint dashboard untuk sinkronisasi menyeluruh
+      try {
+        const res = await axios.get('/api/dashboard/meetings')
+        if (Array.isArray(res?.data)) {
+          fetchedDashboardMeetings = res.data
+        }
+      } catch (e) {
+        try {
+          const res = await axios.get('/api/dashboard/data')
+          if (Array.isArray(res?.data?.meetings)) {
+            fetchedDashboardMeetings = res.data.meetings
+          }
+        } catch (e2) {}
       }
+
+      // 3. Gabungkan rapat lokal dari localStorage dan dashboard database
+      try {
+        let storedMeetings = []
+        try {
+          storedMeetings = JSON.parse(localStorage.getItem('app_meetings') || '[]')
+        } catch (e) {}
+
+        const combinedList = [...fetchedDashboardMeetings, ...storedMeetings]
+        const todayIso = dayjs().format('YYYY-MM-DD')
+
+        combinedList.forEach((m) => {
+          if (!m || !m.date || !m.start || !m.end) return
+          const sLower = String(m.status || '').toLowerCase().trim()
+          const isPending = sLower.includes('menunggu') || sLower === 'pending'
+          const isCancelled = sLower === 'dibatalkan' || sLower === 'ditolak' || sLower === 'rejected' || sLower.includes('batal')
+          
+          // Abaikan rapat yang belum disetujui (Menunggu Approval) atau dibatalkan dari Display TV
+          if (isPending || isCancelled) {
+            return
+          }
+
+          const rNorm = String(m.room || '').toLowerCase()
+          const rKey = rNorm.includes('konsultasi') || rNorm === '2' ? 'ruangKonsultasi' : 'ruangRapatBesar'
+
+          const mStart = dayjs(`${m.date}T${m.start}:00`)
+          const mEnd = dayjs(`${m.date}T${m.end}:00`)
+          const isNow = dayjs().isAfter(mStart) && dayjs().isBefore(mEnd)
+          const isDone = sLower === 'selesai' || sLower === 'available' || sLower === 'completed' || dayjs().isAfter(mEnd) || !!m.checkOutAt
+
+          let evStatus = 'UPCOMING'
+          if (isDone) {
+            evStatus = 'AVAILABLE' // Selesai / Ruangan kembali tersedia
+          } else if (sLower === 'berjalan' || isNow) {
+            evStatus = 'IN_PROGRESS'
+          }
+
+          const displayAgenda = m.title || m.agenda || 'Rapat'
+
+          const ev = {
+            id: m.googleId || String(m.id),
+            originalMeetingId: String(m.id),
+            agenda: displayAgenda,
+            bagian: m.requester || m.bookedBy || '-',
+            tanggal: m.date,
+            tanggalIso: m.date,
+            mulai: m.start,
+            selesai: m.end,
+            status: evStatus,
+          }
+
+          if (m.date === todayIso && tData[rKey]) {
+            const list = tData[rKey]
+            const idx = list.findIndex(
+              (x) => String(x.id) === String(ev.id) || (x.tanggalIso === ev.tanggalIso && x.mulai === ev.mulai)
+            )
+            if (idx !== -1) list[idx] = { ...list[idx], ...ev }
+            else list.push(ev)
+          }
+
+          // HANYA masukkan ke upcoming jika rapat belum selesai dan belum lewat
+          if (m.date >= todayIso && uData[rKey] && !isDone && (evStatus === 'UPCOMING' || evStatus === 'IN_PROGRESS')) {
+            const list = uData[rKey]
+            const idx = list.findIndex(
+              (x) => String(x.id) === String(ev.id) || (x.tanggalIso === ev.tanggalIso && x.mulai === ev.mulai)
+            )
+            if (idx !== -1) list[idx] = { ...list[idx], ...ev }
+            else list.push(ev)
+          }
+        })
+
+        ROOMS.forEach((r) => {
+          if (tData[r.key]) {
+            tData[r.key].sort((a, b) => (a.mulai || '').localeCompare(b.mulai || ''))
+          }
+          if (uData[r.key]) {
+            // Bersihkan setiap rapat selesai dari uData agar tidak muncul di booking berikutnya
+            uData[r.key] = uData[r.key].filter((ev) => {
+              const s = String(ev.status || '').toLowerCase()
+              if (s === 'available' || s === 'selesai' || s === 'completed') return false
+              if (ev.tanggalIso && ev.selesai) {
+                const endM = dayjs(`${ev.tanggalIso}T${ev.selesai}:00`)
+                if (dayjs().isAfter(endM)) return false
+              }
+              return true
+            })
+            uData[r.key].sort((a, b) => {
+              if (a.tanggalIso !== b.tanggalIso) return (a.tanggalIso || '').localeCompare(b.tanggalIso || '')
+              return (a.mulai || '').localeCompare(b.mulai || '')
+            })
+          }
+        })
+      } catch (syncErr) {
+        console.warn('Sync error:', syncErr)
+      }
+
+      setToday(tData)
+      setUpcoming(uData)
+      setLastSync(dayjs())
+      setFailures(0)
     }
 
     load()
-    const id = window.setInterval(load, 60_000)
-    return () => window.clearInterval(id)
+    // Polling setiap 4 detik agar jadwal rapat yang baru dipesan/disetujui/selesai langsung sinkron di display TV
+    const id = window.setInterval(load, 4_000)
+
+    const handleSync = () => load()
+    const syncEvents = ['storage', 'meeting_approved', 'meeting_checkout', 'meeting_checkin', 'meeting_status_changed', 'app_meetings_updated', 'focus']
+    syncEvents.forEach((ev) => window.addEventListener(ev, handleSync))
+
+    return () => {
+      window.clearInterval(id)
+      syncEvents.forEach((ev) => window.removeEventListener(ev, handleSync))
+    }
   }, [])
 
   /* Deliberately separate from the schedule poll: a prayer-times outage must

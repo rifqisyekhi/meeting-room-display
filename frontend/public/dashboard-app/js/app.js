@@ -653,11 +653,11 @@ function layout(content) {
       )
       .join("")}</nav>
     <div class="sidebar-footer">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:0;">
         <a href="/" target="_top" style="flex:1.2;display:flex;align-items:center;justify-content:center;padding:7px 6px;background:rgba(255,255,255,0.14);color:#fff;text-decoration:none;border-radius:6px;font-size:11px;font-weight:600;letter-spacing:0.3px;text-align:center;white-space:nowrap;transition:background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.24)'" onmouseout="this.style.background='rgba(255,255,255,0.14)'">Display TV</a>
         <button onclick="logout()" style="flex:1;display:flex;align-items:center;justify-content:center;padding:7px 6px;background:rgba(220,38,38,0.75);color:#fff;border:none;cursor:pointer;border-radius:6px;font-size:11px;font-weight:600;letter-spacing:0.3px;text-align:center;white-space:nowrap;transition:background 0.2s;" onmouseover="this.style.background='rgba(220,38,38,0.95)'" onmouseout="this.style.background='rgba(220,38,38,0.75)'">Keluar</button>
       </div>
-      Bekerja Bersama<br>untuk Tenaga Kerja<br>yang Lebih Baik
+
     </div>
   </aside><main class="main">
     ${
@@ -1062,12 +1062,12 @@ function getDashboardNotifPanelHTML(currentUser) {
   }
 
   return `
-    <div class="dash-section-header dash-notif-header" style="margin-bottom:12px;padding-bottom:10px;">
-      <div class="dash-notif-header-title">
-        <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#0c2d5e" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
-        <div>
-          <h2 style="font-size:15px;margin:0;line-height:1.2;">Notifikasi</h2>
-          <small style="font-size:11px;color:#64748b;font-weight:500;display:block;">Permintaan terbaru</small>
+    <div class="dash-section-header dash-notif-header" style="margin-bottom:12px;padding-bottom:10px;align-items:flex-start;text-align:left;width:100%;">
+      <div class="dash-notif-header-title" style="display:flex;align-items:flex-start;gap:8px;width:100%;text-align:left;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#0c2d5e" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:2px;"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+        <div style="text-align:left;">
+          <h2 style="font-size:15px;margin:0;line-height:1.2;text-align:left;">Notifikasi</h2>
+          <small style="font-size:11px;color:#64748b;font-weight:500;display:block;text-align:left;">Permintaan terbaru</small>
         </div>
       </div>
       <div class="dash-notif-header-actions">
@@ -3754,6 +3754,8 @@ function approveMeeting(id) {
 
   try {
     getAppStorage().setItem("app_meetings", JSON.stringify(state.meetings));
+    window.dispatchEvent(new Event("meeting_approved"));
+    window.dispatchEvent(new Event("storage"));
   } catch (e) {}
 
   // Update notification item status
@@ -3827,6 +3829,11 @@ function checkInMeetingManual(id) {
     getAppStorage().setItem("app_meetings", JSON.stringify(state.meetings));
   } catch (e) {}
 
+  ["storage", "meeting_checkin", "meeting_status_changed", "app_meetings_updated"].forEach((ev) => {
+    window.dispatchEvent(new Event(ev));
+    try { if (window.parent && window.parent !== window) window.parent.dispatchEvent(new Event(ev)); } catch (e) {}
+  });
+
   fetch(`/api/dashboard/meetings/${id}/checkin`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -3871,6 +3878,11 @@ function checkOutMeetingManual(id) {
   try {
     getAppStorage().setItem("app_meetings", JSON.stringify(state.meetings));
   } catch (e) {}
+
+  ["storage", "meeting_checkout", "meeting_status_changed", "app_meetings_updated"].forEach((ev) => {
+    window.dispatchEvent(new Event(ev));
+    try { if (window.parent && window.parent !== window) window.parent.dispatchEvent(new Event(ev)); } catch (e) {}
+  });
 
   fetch(`/api/dashboard/meetings/${id}/checkout`, {
     method: "POST",
@@ -4760,89 +4772,70 @@ function openMeetingQRModal(id) {
   const meetingUrl = `${window.location.origin}/meeting/${m.id}`;
   const qrImgUrl = `https://api.qrserver.com/v1/create-qr-code/?size=260x260&margin=10&data=${encodeURIComponent(meetingUrl)}`;
 
-  // Generate visual barcode representation (Code128 style)
-  const barcodeStr = `KMNKR-${String(m.id).padStart(6, '0')}`;
-  let barcodeBars = '';
-  let bx = 10;
-  for (let i = 0; i < barcodeStr.length; i++) {
-    const c = barcodeStr.charCodeAt(i);
-    const w1 = (c % 2) + 1.2;
-    const w2 = ((c >> 1) % 2) + 1.4;
-    const w3 = ((c >> 2) % 3) + 1.2;
-    barcodeBars += `<rect x="${bx}" y="0" width="${w1}" height="36" fill="#0c2d5e" />`;
-    bx += w1 + 1.4;
-    barcodeBars += `<rect x="${bx}" y="0" width="${w2}" height="36" fill="#0c2d5e" />`;
-    bx += w2 + 1.8;
-    barcodeBars += `<rect x="${bx}" y="0" width="${w3}" height="36" fill="#0c2d5e" />`;
-    bx += w3 + 1.4;
-  }
-  const barcodeSvg = `<svg viewBox="0 0 ${bx + 10} 52" style="width:100%;max-width:240px;height:46px;display:block;margin:0 auto;" xmlns="http://www.w3.org/2000/svg">
-    ${barcodeBars}
-    <text x="${(bx + 10) / 2}" y="48" text-anchor="middle" font-family="monospace" font-size="10.5" font-weight="700" fill="#334155" letter-spacing="2.5">${barcodeStr}</text>
-  </svg>`;
-
   const modalBackdrop = document.getElementById("modal");
   if (!modalBackdrop) return;
 
   modalBackdrop.innerHTML = `
-    <div class="modal-content" style="max-width:480px;text-align:center;padding:26px 24px;border-radius:20px;font-family:'Poppins',sans-serif;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-        <span style="font-size:11.5px;font-weight:700;color:#0369a1;background:#e0f2fe;padding:4px 12px;border-radius:12px;display:inline-flex;align-items:center;gap:5px;border:1px solid #bae6fd;">
-          <span>📱</span> SISTEM 1: Barcode &amp; QR Presensi Mandiri
+    <div class="modal" style="max-width:440px;width:92%;margin:auto;max-height:calc(100vh - 40px);overflow-y:auto;text-align:center;padding:22px 24px;border-radius:20px;font-family:'Poppins',sans-serif;box-sizing:border-box;box-shadow:0 18px 40px rgba(12,45,94,0.18);">
+      <!-- Header Bar -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <span style="font-size:11px;font-weight:700;color:#0369a1;background:#e0f2fe;padding:4px 12px;border-radius:20px;display:inline-flex;align-items:center;gap:6px;border:1px solid #bae6fd;">
+          <span style="font-size:13px;">📱</span> QR Presensi Mandiri
         </span>
-        <button type="button" onclick="closeModal()" style="background:none;border:none;font-size:24px;color:#94a3b8;cursor:pointer;line-height:1;" title="Tutup">&times;</button>
+        <button type="button" onclick="closeModal()" style="background:#f1f5f9;border:none;width:28px;height:28px;border-radius:50%;font-size:18px;color:#64748b;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;line-height:1;transition:all 0.15s;" onmouseover="this.style.background='#e2e8f0';this.style.color='#0f172a'" onmouseout="this.style.background='#f1f5f9';this.style.color='#64748b'" title="Tutup">&times;</button>
       </div>
 
-      <h3 style="margin:0 0 4px;font-size:16.5px;font-weight:800;color:#0c2d5e;">${esc(m.title)}</h3>
-      <p style="margin:0 0 14px;font-size:12px;color:#64748b;">
-        📍 ${esc(m.room)} · 📅 ${formatDate(m.date)} (${m.start} - ${m.end} WIB)
+      <!-- Agenda Title & Details -->
+      <h3 style="margin:6px 0 3px;font-size:17px;font-weight:800;color:#0c2d5e;letter-spacing:-0.2px;">${esc(m.title)}</h3>
+      <p style="margin:0 0 10px;font-size:11.5px;color:#64748b;display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap;">
+        <span>📍 <b>${esc(m.room)}</b></span>
+        <span style="color:#cbd5e1;">•</span>
+        <span>📅 ${formatDate(m.date)} (${m.start} - ${m.end} WIB)</span>
       </p>
 
-      <!-- Alert Card: Sistem 1 Mandiri Tanpa Admin -->
-      <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:12px;padding:10px 14px;margin-bottom:14px;text-align:left;display:flex;align-items:flex-start;gap:8px;">
-        <span style="font-size:18px;line-height:1;">💡</span>
-        <div style="font-size:11.5px;color:#166534;line-height:1.45;">
-          <strong>Otomatis Tanpa Tindakan Manual Admin:</strong><br />
-          Peserta / PIC cukup scan kode di bawah ini dengan smartphone untuk melakukan <strong>Check-In</strong> dan <strong>Check-Out</strong> mandiri. Status display dan sistem kalender akan terbarui otomatis.
+      <!-- Alert: Sistem Presensi Mandiri Otomatis -->
+      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:8px 12px;margin-bottom:12px;text-align:left;display:flex;align-items:center;gap:8px;">
+        <span style="font-size:16px;flex-shrink:0;">💡</span>
+        <div style="font-size:11px;color:#166534;line-height:1.4;">
+          <strong>Presensi Otomatis:</strong> Peserta/PIC cukup scan QR di bawah ini untuk <strong>Check-In</strong> &amp; <strong>Check-Out</strong> mandiri tanpa perlu tindakan admin.
         </div>
       </div>
 
-      <div style="background:#f8fafc;border:1.5px dashed #cbd5e1;border-radius:18px;padding:16px 14px;display:flex;flex-direction:column;align-items:center;margin-bottom:14px;">
-        <!-- QR Code -->
-        <div style="background:#ffffff;padding:10px;border-radius:14px;box-shadow:0 4px 16px rgba(12,45,94,0.06);margin-bottom:12px;">
-          <img src="${qrImgUrl}" alt="QR Code Rapat" style="width:180px;height:180px;display:block;" />
+      <!-- Single QR Code Container -->
+      <div style="background:#ffffff;border:1.5px solid #e2e8f0;border-radius:16px;padding:16px;display:flex;flex-direction:column;align-items:center;margin-bottom:12px;box-shadow:0 4px 16px rgba(12,45,94,0.04);">
+        <div style="background:#ffffff;padding:10px;border-radius:14px;box-shadow:0 6px 20px rgba(12,45,94,0.08);border:1px solid #edf2f7;margin-bottom:10px;">
+          <img src="${qrImgUrl}" alt="QR Code Rapat" style="width:185px;height:185px;display:block;border-radius:6px;" />
         </div>
 
-        <!-- Barcode Representation -->
-        <div style="background:#ffffff;padding:8px 12px;border-radius:10px;width:100%;box-sizing:border-box;margin-bottom:10px;box-shadow:0 2px 8px rgba(0,0,0,0.03);">
-          ${barcodeSvg}
+        <div style="font-size:11px;color:#475569;font-weight:600;display:flex;align-items:center;gap:5px;margin-bottom:6px;">
+          <span>🎯</span> Pindai dengan Kamera Smartphone:
         </div>
-
-        <div style="font-size:11.5px;color:#334155;font-weight:600;display:flex;align-items:center;gap:5px;">
-          <span>🎯</span> Fitur Mandiri via Scan Smartphone:
-        </div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-top:6px;">
-          <span style="background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:8px;font-size:10.5px;font-weight:700;">✓ Check-In Mandiri</span>
-          <span style="background:#e0f2fe;color:#0369a1;padding:2px 8px;border-radius:8px;font-size:10.5px;font-weight:700;">✍️ Isi Daftar Hadir</span>
-          <span style="background:#fee2e2;color:#b91c1c;padding:2px 8px;border-radius:8px;font-size:10.5px;font-weight:700;">Check-Out Mandiri</span>
-          <span style="background:#f1f5f9;color:#475569;padding:2px 8px;border-radius:8px;font-size:10.5px;font-weight:700;">📎 Materi Paparan</span>
+        <div style="display:flex;gap:5px;flex-wrap:wrap;justify-content:center;">
+          <span style="background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700;">✓ Check-In</span>
+          <span style="background:#e0f2fe;color:#0369a1;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700;">✍️ Daftar Hadir</span>
+          <span style="background:#fee2e2;color:#b91c1c;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700;">Check-Out</span>
+          <span style="background:#f1f5f9;color:#475569;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700;">📎 Materi</span>
         </div>
       </div>
 
-      <div style="background:#f1f5f9;border-radius:10px;padding:8px 12px;font-size:11px;color:#334155;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:8px;">
-        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:monospace;flex:1;text-align:left;">${meetingUrl}</span>
-        <button type="button" onclick="navigator.clipboard.writeText('${meetingUrl}'); toast('✓ Link QR Pass berhasil disalin!');" style="background:#0c2d5e;color:#fff;border:none;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:600;cursor:pointer;flex-shrink:0;">Salin</button>
+      <!-- URL Link & Copy Button -->
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:6px 10px;font-size:11px;color:#334155;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:8px;">
+        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:monospace;flex:1;text-align:left;color:#475569;">${meetingUrl}</span>
+        <button type="button" onclick="navigator.clipboard.writeText('${meetingUrl}'); toast('✓ Link QR Pass berhasil disalin!');" style="background:#0c2d5e;color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:11px;font-weight:600;cursor:pointer;flex-shrink:0;">Salin</button>
       </div>
 
+      <!-- Action Buttons -->
       <div style="display:flex;gap:8px;">
-        <a href="${meetingUrl}" target="_blank" style="flex:1.2;background:#16a34a;color:#fff;border:none;border-radius:10px;padding:11px 12px;font-size:12.5px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:6px;transition:background 0.15s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
+        <a href="${meetingUrl}" target="_blank" style="flex:1.2;background:#16a34a;color:#fff;border:none;border-radius:10px;padding:10px 14px;font-size:12px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:6px;transition:background 0.15s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
           <span>Buka Pass Rapat</span>
           <span>↗</span>
         </a>
-        <button type="button" onclick="window.open('${meetingUrl}', '_blank')" style="flex:1;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:10px;padding:11px 10px;font-size:12px;font-weight:700;cursor:pointer;">
+        <button type="button" onclick="window.open('${meetingUrl}', '_blank')" style="flex:1;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:10px;padding:10px 12px;font-size:12px;font-weight:700;cursor:pointer;">
           Cetak Pass
         </button>
-        <button type="button" onclick="closeModal()" style="flex:0.8;background:#e2e8f0;color:#334155;border:none;border-radius:10px;padding:11px 12px;font-size:12.5px;font-weight:600;cursor:pointer;">Tutup</button>
+        <button type="button" onclick="closeModal()" style="flex:0.8;background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:10px;padding:10px 12px;font-size:12px;font-weight:600;cursor:pointer;">
+          Tutup
+        </button>
       </div>
     </div>
   `;

@@ -471,9 +471,11 @@ async function getDashboardData() {
         const [eh, em] = (m.end || "").split(":").map(Number);
         const start = new Date(y, mth - 1, d, sh, sm);
         const end = new Date(y, mth - 1, d, eh, em);
+        const sLower = String(m.status || "").toLowerCase().trim();
         let s = m.status;
-        if (s === "Menunggu Approval" || s === "Dibatalkan") {
-          // Tetap status aslinya
+        if (sLower.includes("menunggu") || sLower === "pending" || sLower === "dibatalkan" || sLower === "ditolak") {
+          // Tetap status aslinya, tidak boleh diubah otomatis menjadi Berjalan/Segera/Akan Datang
+          s = m.status;
         } else if (now >= end) {
           s = "Selesai";
         } else if (s !== "Berjalan") {
@@ -531,12 +533,10 @@ async function saveMeeting(meeting) {
 
   const originalId = meeting.id;
   const normStatus = (meeting.status || "").toLowerCase().trim();
-  const isPending = normStatus.includes("menunggu") || normStatus === "pending";
+  const isPending = normStatus.includes("menunggu") || normStatus === "pending" || !meeting.status;
   const isCancelled = normStatus === "dibatalkan" || normStatus === "ditolak" || normStatus === "cancelled";
   if (isPending) {
     meeting.status = "Menunggu Approval";
-  } else if (!isCancelled && (!meeting.status || isPending)) {
-    meeting.status = "Akan Datang";
   }
   const gcal = getGoogleCalendarClient();
   let googleEvent = null;

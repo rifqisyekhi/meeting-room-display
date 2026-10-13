@@ -373,16 +373,11 @@
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid var(--line);
   border-radius: 0.5vw;
-  text-decoration: none;
   color: inherit;
-  transition: all 0.2s ease;
   flex-shrink: 0;
-}
-
-.slot__qr-pass:hover {
-  background: rgba(255, 255, 255, 0.12);
-  border-color: var(--tone);
-  transform: translateY(-1px);
+  cursor: default;
+  pointer-events: none;
+  user-select: none;
 }
 
 .slot__qr-pass-code {
@@ -397,19 +392,14 @@
 
 .slot__qr-pass-label {
   display: flex;
-  flex-direction: column;
+  align-items: center;
 }
 
 .slot__qr-pass-label span {
-  font-size: 0.72vw;
-  font-weight: 700;
+  font-size: 0.75vw;
+  font-weight: 600;
   color: var(--text);
-  white-space: nowrap;
-}
-
-.slot__qr-pass-label small {
-  font-size: 0.58vw;
-  color: var(--text-muted);
+  letter-spacing: 0.01em;
   white-space: nowrap;
 }
 
