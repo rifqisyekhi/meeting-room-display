@@ -95,7 +95,19 @@ router.get("/meetings/:id", async (req, res) => {
 // Check-in rapat via QR / Web
 router.post("/meetings/:id/checkin", async (req, res) => {
   try {
-    const checkedInBy = req.body?.by || "Peserta via QR";
+    const meeting = await dashboardService.getMeetingById(req.params.id);
+    if (!meeting) {
+      return res.status(404).json({ success: false, error: "Rapat tidak ditemukan" });
+    }
+    const username = String(req.body?.username || "").trim().toLowerCase();
+    const bookerUsername = String(meeting.bookedByUsername || "").trim().toLowerCase();
+    const actorName = String(req.body?.by || "").trim().toLowerCase();
+    const bookerName = String(meeting.bookedBy || "").trim().toLowerCase();
+    const isBooker = bookerUsername ? username && username === bookerUsername : bookerName && actorName === bookerName;
+    if (!isBooker) {
+      return res.status(403).json({ success: false, error: "Check-In hanya dapat dilakukan oleh akun pemesan ruangan." });
+    }
+    const checkedInBy = req.body?.by || meeting.bookedBy || username;
     const updated = await dashboardService.checkInMeeting(req.params.id, checkedInBy);
     if (!updated) {
       return res.status(404).json({ success: false, error: "Rapat tidak ditemukan" });
@@ -109,7 +121,19 @@ router.post("/meetings/:id/checkin", async (req, res) => {
 // Check-out rapat via QR / Web
 router.post("/meetings/:id/checkout", async (req, res) => {
   try {
-    const checkedOutBy = req.body?.by || "Peserta via QR";
+    const meeting = await dashboardService.getMeetingById(req.params.id);
+    if (!meeting) {
+      return res.status(404).json({ success: false, error: "Rapat tidak ditemukan" });
+    }
+    const username = String(req.body?.username || "").trim().toLowerCase();
+    const bookerUsername = String(meeting.bookedByUsername || "").trim().toLowerCase();
+    const actorName = String(req.body?.by || "").trim().toLowerCase();
+    const bookerName = String(meeting.bookedBy || "").trim().toLowerCase();
+    const isBooker = bookerUsername ? username && username === bookerUsername : bookerName && actorName === bookerName;
+    if (!isBooker) {
+      return res.status(403).json({ success: false, error: "Check-Out hanya dapat dilakukan oleh akun pemesan ruangan." });
+    }
+    const checkedOutBy = req.body?.by || meeting.bookedBy || username;
     const updated = await dashboardService.checkOutMeeting(req.params.id, checkedOutBy);
     if (!updated) {
       return res.status(404).json({ success: false, error: "Rapat tidak ditemukan" });

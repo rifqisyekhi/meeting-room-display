@@ -24,7 +24,6 @@ import {
   FaLink,
   FaExternalLinkAlt,
   FaDownload,
-  FaTrashAlt,
   FaPlus,
   FaTimes,
 } from "react-icons/fa";
@@ -40,8 +39,17 @@ export default function MeetingPassPage() {
   const [copied, setCopied] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
 
-  // Field Perwakilan (Khusus PIC)
-  const [repName, setRepName] = useState("");
+  const [currentUser] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("currentUser") || "{}"); }
+    catch { return {}; }
+  });
+  const [isAuthenticated] = useState(() => localStorage.getItem("isAuthenticated") === "true");
+  const [repName, setRepName] = useState(() => {
+    try {
+      const user = JSON.parse(localStorage.getItem("currentUser") || "{}");
+      return user.name || user.username || "";
+    } catch { return ""; }
+  });
 
   // Form Presensi Peserta (Untuk Seluruh Peserta - Catatan telah ditiadakan sesuai arahan)
   const [attName, setAttName] = useState("");
@@ -171,18 +179,22 @@ export default function MeetingPassPage() {
   // Handle Check-In Perwakilan
   const handleCheckIn = async () => {
     if (!meeting) return;
+    if (!isMeetingBooker) {
+      showToast("Check-In hanya dapat dilakukan oleh pemesan ruangan.", "error");
+      return;
+    }
     const norm = (meeting.status || "").toLowerCase();
     if (norm.includes("menunggu") || norm === "pending") {
       showToast("Rapat belum disetujui oleh Pimpinan.", "error");
       return;
     }
-    const actorName = repName.trim() || meeting.bookedBy || meeting.requester || "Perwakilan Rapat";
+    const actorName = repName.trim() || currentUser.name || currentUser.username || "Pemesan Rapat";
     setActionLoading(true);
     try {
       const res = await fetch(`/api/dashboard/meetings/${meeting.id}/checkin`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ by: actorName }),
+        body: JSON.stringify({ by: actorName, username: currentUser.username }),
       });
       if (res.ok) {
         const data = await res.json();
@@ -190,22 +202,9 @@ export default function MeetingPassPage() {
           setMeeting(data.meeting);
         }
       } else {
-        const nowIso = new Date().toISOString();
-        const updated = {
-          ...meeting,
-          status: "Berjalan",
-          checkInAt: nowIso,
-          checkedInBy: actorName,
-        };
-        setMeeting(updated);
-        try {
-          const stored = JSON.parse(localStorage.getItem("app_meetings") || "[]");
-          const idx = stored.findIndex((m) => String(m.id) === String(meeting.id));
-          if (idx !== -1) {
-            stored[idx] = updated;
-            localStorage.setItem("app_meetings", JSON.stringify(stored));
-          }
-        } catch (e) {}
+        const data = await res.json().catch(() => ({}));
+        showToast(data.error || "Check-In ditolak. Pastikan Anda masuk dengan akun pemesan.", "error");
+        return;
       }
       showToast(`✓ Check-In berhasil! Sesi rapat kini berstatus Berjalan.`);
     } catch (err) {
@@ -218,16 +217,20 @@ export default function MeetingPassPage() {
   // Handle Check-Out Perwakilan
   const handleCheckOut = async () => {
     if (!meeting) return;
+    if (!isMeetingBooker) {
+      showToast("Check-Out hanya dapat dilakukan oleh pemesan ruangan.", "error");
+      return;
+    }
     if (!window.confirm("Apakah Anda yakin ingin menyelesaikan sesi rapat ini (Check-Out)?")) {
       return;
     }
-    const actorName = repName.trim() || meeting.bookedBy || meeting.requester || "Perwakilan Rapat";
+    const actorName = repName.trim() || currentUser.name || currentUser.username || "Pemesan Rapat";
     setActionLoading(true);
     try {
       const res = await fetch(`/api/dashboard/meetings/${meeting.id}/checkout`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ by: actorName }),
+        body: JSON.stringify({ by: actorName, username: currentUser.username }),
       });
       if (res.ok) {
         const data = await res.json();
@@ -235,22 +238,9 @@ export default function MeetingPassPage() {
           setMeeting(data.meeting);
         }
       } else {
-        const nowIso = new Date().toISOString();
-        const updated = {
-          ...meeting,
-          status: "Selesai",
-          checkOutAt: nowIso,
-          checkedOutBy: actorName,
-        };
-        setMeeting(updated);
-        try {
-          const stored = JSON.parse(localStorage.getItem("app_meetings") || "[]");
-          const idx = stored.findIndex((m) => String(m.id) === String(meeting.id));
-          if (idx !== -1) {
-            stored[idx] = updated;
-            localStorage.setItem("app_meetings", JSON.stringify(stored));
-          }
-        } catch (e) {}
+        const data = await res.json().catch(() => ({}));
+        showToast(data.error || "Check-Out ditolak. Pastikan Anda masuk dengan akun pemesan.", "error");
+        return;
       }
       showToast("✓ Check-Out berhasil! Sesi rapat telah ditandai Selesai.");
     } catch (err) {
@@ -526,6 +516,13 @@ export default function MeetingPassPage() {
   const attendeesList = Array.isArray(meeting.attendees) ? meeting.attendees : [];
   const materialsList = Array.isArray(meeting.materials) ? meeting.materials : [];
   const currentUrl = typeof window !== "undefined" ? window.location.href : "";
+  const signedInUsername = (currentUser.username || "").trim().toLowerCase();
+  const bookerUsername = (meeting.bookedByUsername || "").trim().toLowerCase();
+  const signedInName = (currentUser.name || "").trim().toLowerCase();
+  const bookerName = (meeting.bookedBy || "").trim().toLowerCase();
+  const isMeetingBooker = Boolean(isAuthenticated && (
+    bookerUsername ? signedInUsername && signedInUsername === bookerUsername : signedInName && bookerName && signedInName === bookerName
+  ));
 
   return (
     <div className="mp-wrapper">
@@ -679,47 +676,24 @@ export default function MeetingPassPage() {
                               <div className="mp-mat-actions">
                                 <a
                                   href={mat.url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
+                                  target={mat.type === "link" ? "_blank" : undefined}
+                                  rel={mat.type === "link" ? "noopener noreferrer" : undefined}
                                   className="mp-mat-download-btn"
                                   download={mat.type !== "link" ? mat.name : undefined}
-                                  title="Buka atau Unduh Dokumen"
+                                  title={mat.type === "link" ? "Buka tautan materi" : "Download file materi"}
                                 >
                                   {mat.type === "link" ? <FaExternalLinkAlt /> : <FaDownload />}
-                                  <span>{mat.type === "link" ? "Buka Tautan" : "Unduh / Buka"}</span>
+                                  <span>{mat.type === "link" ? "Buka Tautan Materi" : "Download File Materi"}</span>
                                 </a>
-                                <button
-                                  type="button"
-                                  className="mp-mat-delete-btn"
-                                  onClick={() => handleDeleteMaterial(mat.id)}
-                                  title="Hapus materi ini"
-                                >
-                                  <FaTrashAlt />
-                                </button>
                               </div>
                             </div>
                           ))}
                         </div>
                       ) : (
                         <div className="mp-materials-empty-inline">
-                          Belum ada materi atau paparan rapat yang diunggah.
+                          File materi rapat belum tersedia untuk diunduh.
                         </div>
                       )}
-
-                      {/* Tombol Aksi Unggah Materi */}
-                      <div className="mp-materials-action-bar">
-                        <button
-                          type="button"
-                          className="mp-upload-trigger-btn"
-                          onClick={() => setShowMaterialModal(true)}
-                        >
-                          <FaFileUpload />
-                          <span>+ Unggah Materi (PDF / Paparan)</span>
-                        </button>
-                        <span className="mp-materials-note-hint">
-                          Materi berupa PDF atau paparan dapat diunggah langsung oleh pengguna atau diminta ke Admin untuk dimasukkan.
-                        </span>
-                      </div>
                     </div>
                   </td>
                 </tr>
@@ -735,30 +709,31 @@ export default function MeetingPassPage() {
           <div className="mp-section-head">
             <div className="mp-section-badge-group">
               <span className="mp-role-tag perwakilan">
-                <FaUserTie /> Khusus Perwakilan / PIC
+                <FaUserTie /> Khusus Pemesan
               </span>
               <h3 className="mp-section-title">Kontrol Sesi Rapat</h3>
             </div>
             <p className="mp-section-subtitle">
-              Tombol <strong>Check-In</strong> dan <strong>Check-Out</strong> di bawah ini digunakan oleh <em>perwakilan rapat / penanggung jawab</em> untuk membuka dan mengakhiri sesi pemakaian ruangan secara resmi.
+              Tombol <strong>Check-In</strong> dan <strong>Check-Out</strong> hanya dapat digunakan oleh akun yang memesan ruangan.
             </p>
           </div>
 
-          {/* Form / Konfirmasi Identitas Perwakilan */}
+          {/* Identitas pengelola mengikuti akun yang membuat pemesanan. */}
           <div className="mp-rep-control-body">
-            {!isCompleted && (
-              <div className="mp-rep-input-row">
-                <label htmlFor="repNameInput">Nama / Keterangan Perwakilan (PIC):</label>
-                <input
-                  id="repNameInput"
-                  type="text"
-                  className="mp-rep-input"
-                  placeholder={`Contoh: ${meeting.bookedBy || meeting.requester || "Budi Santoso"} (PIC)`}
-                  value={repName}
-                  onChange={(e) => setRepName(e.target.value)}
-                />
-              </div>
-            )}
+            <div className="mp-booker-identity"><FaUserTie /><span>{isMeetingBooker ? <>Login sebagai pemesan: <strong>{currentUser.name || currentUser.username}</strong></> : <>Kontrol hanya untuk pemesan: <strong>{meeting.bookedBy || meeting.bookedByUsername || "Pemesan ruangan"}</strong></>}</span></div>
+            {!isCompleted && <div className="mp-rep-input-row">
+              <label htmlFor="repNameInput">Nama / Keterangan Perwakilan (PIC):</label>
+              <input id="repNameInput" type="text" className="mp-rep-input" value={isMeetingBooker ? repName : (meeting.bookedBy || "")} readOnly aria-readonly="true" />
+            </div>}
+            {!isMeetingBooker && <div className="mp-control-locked-note">{isAuthenticated ? "Akun ini bukan akun pemesan ruangan." : "Login sebagai pemesan untuk mengaktifkan Check-In dan Check-Out."}</div>}
+            {!isMeetingBooker && <Link
+              to="/login"
+              state={{ from: { pathname: `/meeting/${id}` } }}
+              className="mp-booker-login-btn"
+              onClick={() => isAuthenticated && localStorage.removeItem("isAuthenticated")}
+            >
+              {isAuthenticated ? "Ganti ke Akun Pemesan" : "Login sebagai Pemesan"}
+            </Link>}
 
             {/* Status Sesi Saat Ini */}
             <div className="mp-session-status-banner">
@@ -817,8 +792,8 @@ export default function MeetingPassPage() {
                 type="button"
                 className="mp-btn-action checkin-btn"
                 onClick={handleCheckIn}
-                disabled={actionLoading || isRunning || isCompleted || isPending}
-                title={isPending ? "Rapat belum disetujui oleh Pimpinan" : isRunning ? "Rapat sudah berstatus Berjalan" : "Mulai sesi rapat sekarang"}
+                disabled={!isMeetingBooker || actionLoading || isRunning || isCompleted || isPending}
+                title={!isMeetingBooker ? "Hanya pemesan ruangan yang dapat Check-In" : isPending ? "Rapat belum disetujui oleh Pimpinan" : isRunning ? "Rapat sudah berstatus Berjalan" : "Mulai sesi rapat sekarang"}
               >
                 <FaCheck />
                 <span>{actionLoading ? "Memproses..." : isPending ? "Menunggu Persetujuan" : isRunning ? "✓ Telah Check-In" : "Check-In (Mulai Rapat)"}</span>
@@ -828,8 +803,8 @@ export default function MeetingPassPage() {
                 type="button"
                 className="mp-btn-action checkout-btn"
                 onClick={handleCheckOut}
-                disabled={actionLoading || !isRunning || isCompleted}
-                title={!isRunning ? "Hanya aktif saat rapat sedang berjalan" : "Selesaikan sesi rapat"}
+                disabled={!isMeetingBooker || actionLoading || !isRunning || isCompleted}
+                title={!isMeetingBooker ? "Hanya pemesan ruangan yang dapat Check-Out" : !isRunning ? "Hanya aktif saat rapat sedang berjalan" : "Selesaikan sesi rapat"}
               >
                 <FaSignOutAlt />
                 <span>{actionLoading ? "Memproses..." : isCompleted ? "✓ Telah Selesai" : "Check-Out (Selesai Rapat)"}</span>

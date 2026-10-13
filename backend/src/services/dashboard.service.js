@@ -839,12 +839,16 @@ async function getMeetingById(id) {
 async function checkInMeeting(id, checkedInBy = "Peserta (QR Code)") {
   const store = readStore();
   const target = String(id).trim();
-  const meeting = (store.meetings || []).find(
+  let meeting = (store.meetings || []).find(
     (m) =>
       String(m.id) === target ||
       (m.googleId && String(m.googleId) === target) ||
       (m.originalId && String(m.originalId) === target)
   );
+  if (!meeting) {
+    meeting = await getMeetingById(id);
+    if (meeting) store.meetings.unshift(meeting);
+  }
   if (!meeting) return null;
 
   meeting.status = "Berjalan";
@@ -857,12 +861,16 @@ async function checkInMeeting(id, checkedInBy = "Peserta (QR Code)") {
 async function checkOutMeeting(id, checkedOutBy = "Peserta (QR Code)") {
   const store = readStore();
   const target = String(id).trim();
-  const meeting = (store.meetings || []).find(
+  let meeting = (store.meetings || []).find(
     (m) =>
       String(m.id) === target ||
       (m.googleId && String(m.googleId) === target) ||
       (m.originalId && String(m.originalId) === target)
   );
+  if (!meeting) {
+    meeting = await getMeetingById(id);
+    if (meeting) store.meetings.unshift(meeting);
+  }
   if (!meeting) return null;
 
   meeting.status = "Selesai";

@@ -41,7 +41,7 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const returnTo = location.state?.from?.pathname || "/dashboard";
-  const isBookingLogin = returnTo.startsWith("/booking");
+  const isBookingLogin = returnTo.startsWith("/booking") || returnTo.startsWith("/meeting/");
 
   // Jika sudah login dan tidak dalam mode tambah akun, langsung arahkan strictly sesuai role
   useEffect(() => {
@@ -245,7 +245,9 @@ export default function LoginPage() {
         uname.includes("approval") ||
         uname.includes("pimpinan");
 
-      const destination = isAdminOrPimpinan ? "/dashboard" : "/booking";
+      const destination = returnTo.startsWith("/meeting/")
+        ? returnTo
+        : isAdminOrPimpinan ? "/dashboard" : "/booking";
       navigate(destination, { replace: true });
     } else {
       alert("Username atau password salah!");

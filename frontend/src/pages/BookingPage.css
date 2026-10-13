@@ -1252,6 +1252,40 @@ body {
   user-select: none;
 }
 
+.bk-booking-materials {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+  margin-top: -1px;
+}
+
+.bk-add-material-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 34px;
+  padding: 7px 12px;
+  border: 1px solid #b9d4ef;
+  border-radius: 7px;
+  color: #155a97;
+  background: #eff7ff;
+  font: 600 10px "Poppins", sans-serif;
+  cursor: pointer;
+  transition: background .15s ease, border-color .15s ease;
+}
+
+.bk-add-material-btn:hover { background: #e0efff; border-color: #8db9e6; }
+.bk-booking-materials > small { color: #78889c; font-size: 9px; }
+.bk-selected-materials { display: flex; flex-direction: column; gap: 5px; width: 100%; margin: 3px 0 0; padding: 0; list-style: none; }
+.bk-selected-materials li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 8px; border: 1px solid #e1eaf3; border-radius: 6px; background: #f8fbff; color: #3e5875; font-size: 9px; }
+.bk-selected-materials li > span { display: flex; align-items: center; gap: 6px; min-width: 0; overflow-wrap: anywhere; }
+.bk-selected-materials li > span svg { flex: 0 0 auto; color: #397bb7; }
+.bk-selected-materials li small { color: #8291a3; white-space: nowrap; }
+.bk-selected-materials li button { display: grid; flex: 0 0 22px; width: 22px; height: 22px; place-items: center; border: 0; border-radius: 5px; color: #b34f58; background: transparent; cursor: pointer; }
+.bk-selected-materials li button:hover { background: #ffeded; }
+
 .bk-submit-btn {
   margin-top: auto;
   background: #1769aa;
