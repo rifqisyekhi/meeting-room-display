@@ -3505,6 +3505,7 @@ window.addEventListener("hashchange", () => {
 function openModal(title, body) {
   document.getElementById("modal").innerHTML =
     `<div class="modal"><div class="modal-head"><h2>${title}</h2><button class="btn-icon" onclick="closeModal()">×</button></div>${body}</div>`;
+  if (title === "Detail Rapat") document.querySelector("#modal .modal")?.classList.add("meeting-detail-modal");
   document.getElementById("modal").classList.add("show");
 }
 
@@ -4151,6 +4152,25 @@ function editMeeting(id) {
   openMeetingModal(id);
 }
 
+function formatMeetingDetailDate(value) {
+  if (!value) return "";
+  const date = new Date(String(value).includes("T") ? value : String(value) + "T00:00:00");
+  return Number.isNaN(date.getTime()) ? formatDate(value) : date.toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" });
+}
+
+function meetingDetailIcon(name) {
+  const icons = {
+    calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 17h.01M12 17h.01"/>',
+    pin: '<path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/>',
+    users: '<path d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M10 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM20 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
+    file: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h8"/>',
+    person: '<path d="M20 21a8 8 0 0 0-16 0M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/>',
+    attendance: '<path d="M8 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9M16 2h2a2 2 0 0 1 2 2v8M8 9h8M8 13h5M8 17h4M15 18l2 2 4-5"/>',
+    download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>'
+  };
+  return '<svg class="meeting-detail-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (icons[name] || icons.file) + '</svg>';
+}
+
 function viewMeeting(id) {
   let m = state.meetings.find((x) => String(x.id) === String(id));
   if (!m) {
@@ -4188,6 +4208,7 @@ function viewMeeting(id) {
     } catch (e) {}
   }
   if (!m) return;
+  const roomLocation = m.location || m.roomLocation || state.rooms.find((room) => room.name === m.room)?.location || "";
   const user = getCurrentUser();
   const isAtasan = isAtasanRole(user);
   const isAdmin = isAdminRole(user);
@@ -4262,97 +4283,35 @@ function viewMeeting(id) {
   }
 
   const materialsList = Array.isArray(m.materials) ? m.materials : [];
-  let materialsHtml = "";
-  if (materialsList.length > 0) {
-    materialsHtml = materialsList
-      .map((mat) => {
-        const isLink = mat.type === "link";
-        const icon = mat.type === "pdf" ? "📄" : mat.type === "ppt" ? "📊" : isLink ? "🔗" : "📁";
-        return `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;background:#fff;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:6px;">
-          <div style="display:flex;align-items:center;gap:8px;min-width:0;">
-            <span style="font-size:16px;">${icon}</span>
-            <div style="min-width:0;">
-              <div style="font-size:12.5px;font-weight:600;color:#0c2d5e;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(mat.name)}</div>
-              <div style="font-size:11px;color:#64748b;">${mat.size ? `${esc(mat.size)} · ` : ""}${esc(mat.uploadedBy || "Materi")}</div>
-            </div>
-          </div>
-          <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
-            <a href="${esc(mat.url)}" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:6px;font-size:11.5px;font-weight:600;text-decoration:none;" download="${!isLink ? esc(mat.name) : ""}">
-              <span>${isLink ? "Buka Link" : "Unduh / Buka"}</span>
-            </a>
-            <button type="button" onclick="deleteMaterialFromMeeting('${esc(m.id)}', '${esc(mat.id)}')" style="border:none;background:transparent;color:#ef4444;cursor:pointer;padding:4px 6px;border-radius:4px;font-size:12px;" title="Hapus materi">🗑️</button>
-          </div>
-        </div>`;
-      })
-      .join("");
-  } else {
-    materialsHtml = `<div style="font-size:12px;color:#64748b;font-style:italic;padding:6px 0;">Belum ada dokumen materi atau paparan yang diunggah.</div>`;
-  }
+  const materialsHtml = materialsList.length ? materialsList.map((mat) => {
+    const isLink = mat.type === "link";
+    return `<div class="meeting-detail-material-row">${meetingDetailIcon("file")}<div class="meeting-detail-material-info"><strong>${esc(mat.name)}</strong><span>${mat.size ? `${esc(mat.size)} &middot; ` : ""}${esc(mat.uploadedBy || "Materi Rapat")}</span></div><div class="meeting-detail-material-actions"><a href="${esc(mat.url)}" target="_blank" rel="noopener noreferrer" ${!isLink ? `download="${esc(mat.name)}"` : ""}>${meetingDetailIcon("download")}<span>${isLink ? "Buka" : "Unduh"}</span></a><button type="button" onclick="deleteMaterialFromMeeting('${esc(m.id)}', '${esc(mat.id)}')" aria-label="Hapus materi">&times;</button></div></div>`;
+  }).join("") : `<p class="meeting-detail-empty-material">Belum ada dokumen materi atau paparan yang diunggah.</p>`;
+  const materialsBox = `<section class="meeting-detail-materials"><div class="meeting-detail-material-heading">${meetingDetailIcon("file")}<strong>Materi Rapat (PDF &amp; Paparan)</strong><button type="button" onclick="openAddMaterialModal('${esc(m.id)}')">+ Tambah Materi</button></div>${materialsHtml}</section>`;
 
-  const materialsBox = `
-    <div style="margin:16px 0;padding:12px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-        <b style="color:#0c2d5e;font-size:13px;display:flex;align-items:center;gap:6px;">📎 Materi Rapat (PDF &amp; Paparan)</b>
-        <button type="button" onclick="openAddMaterialModal('${esc(m.id)}')" style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;background:#0c2d5e;color:#fff;border:none;border-radius:6px;font-size:11.5px;font-weight:600;cursor:pointer;">
-          + Tambah Materi
-        </button>
-      </div>
-      <div>${materialsHtml}</div>
-    </div>
-  `;
-
-  // Info Audit Presensi: Sistem 1 (Barcode/QR Mandiri) vs Sistem 2 (Manual Admin)
   let presensiAuditBox = "";
   if (m.checkInAt || m.checkOutAt) {
-    presensiAuditBox = `
-      <div style="margin:14px 0;padding:12px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;font-size:12.5px;">
-        <div style="font-weight:700;color:#0c2d5e;margin-bottom:8px;display:flex;align-items:center;gap:6px;">
-          <span>📋</span> Riwayat Presensi &amp; Metode Check-In/Out
-        </div>
-        ${m.checkInAt ? `
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;flex-wrap:wrap;">
-            <div>
-              <span style="color:#15803d;font-weight:600;">✓ Check-In:</span>
-              <span style="color:#334155;">${formatDate(m.checkInAt)} · ${new Date(m.checkInAt).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} WIB</span>
-              ${m.checkedInBy ? `<small style="color:#64748b;">(${esc(m.checkedInBy)})</small>` : ""}
-            </div>
-            <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;background:${m.checkInMethod === 'barcode_qr' ? '#e0f2fe;color:#0369a1;border:1px solid #bae6fd;' : '#fef3c7;color:#b45309;border:1px solid #fde68a;'}">
-              ${m.checkInMethod === 'barcode_qr' ? '📱 [Sistem 1] Barcode / QR Mandiri' : '👤 [Sistem 2] Manual Admin'}
-            </span>
-          </div>` : ""}
-        ${m.checkOutAt ? `
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
-            <div>
-              <span style="color:#b91c1c;font-weight:600;">✓ Check-Out:</span>
-              <span style="color:#334155;">${formatDate(m.checkOutAt)} · ${new Date(m.checkOutAt).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} WIB</span>
-              ${m.checkedOutBy ? `<small style="color:#64748b;">(${esc(m.checkedOutBy)})</small>` : ""}
-            </div>
-            <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;background:${m.checkOutMethod === 'barcode_qr' ? '#e0f2fe;color:#0369a1;border:1px solid #bae6fd;' : '#fef3c7;color:#b45309;border:1px solid #fde68a;'}">
-              ${m.checkOutMethod === 'barcode_qr' ? '📱 [Sistem 1] Barcode / QR Mandiri' : '👤 [Sistem 2] Manual Admin'}
-            </span>
-          </div>` : ""}
-      </div>
-    `;
+    const attendanceRow = (kind, value, by, color) => value ? `<div class="meeting-detail-attendance-row"><span class="meeting-detail-attendance-check" style="--attendance-color:${color}">&#10003;</span><strong>${kind}</strong><span>${formatDate(value)}</span><span>${new Date(value).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} WIB</span><span>${esc(by || "Admin (Utama)")}</span></div>` : "";
+    presensiAuditBox = `<section class="meeting-detail-attendance"><h4>${meetingDetailIcon("attendance")}<span>Riwayat Kehadiran</span><b class="meeting-detail-chevron">&#8963;</b></h4><div class="meeting-detail-attendance-list">${attendanceRow("Check-in", m.checkInAt, m.checkedInBy, "#20ad84")}${attendanceRow("Check-out", m.checkOutAt, m.checkedOutBy, "#ff4b55")}</div></section>`;
   }
 
   openModal(
     "Detail Rapat",
-    `<p style="font-size:16px;color:#0c2d5e;"><b>${esc(m.title)}</b></p>
-    ${cancelBox}
-    ${reviewBox}
-    <p class="muted" style="margin:12px 0">${formatDate(m.date)} · ${m.start}-${m.end}</p>
-    <p>📍 ${esc(m.room)}</p>
-    <p>👤 <b>Pemesan:</b> ${esc(m.requester)}</p>
-    <p>👥 ${m.participants} peserta</p>
-    <p>🏷️ <b>Status:</b> ${badge(m.status)}</p>
-    ${m.approvedBy ? `<p>✓ <b>Disetujui Oleh:</b> <span style="color:#15803d;font-weight:600;">${esc(m.approvedBy)}</span></p>` : ""}
-    ${m.rejectedBy ? `<p style="color:#dc2626;">✕ <b>Ditolak Oleh:</b> ${esc(m.rejectedBy)}</p>` : ""}
-    ${presensiAuditBox}
-    <p style="margin-top:15px;color:#334155;white-space:pre-line;">${esc(m.desc)}</p>
-    ${materialsBox}
-    <div class="modal-actions" style="margin-top:20px;display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;align-items:center;">
-      <button class="btn btn-light" style="display:inline-flex;align-items:center;gap:6px;background:#fff8e6;color:#d97706;border:1px solid #fde68a;font-weight:700;" onclick="closeModal(); openMeetingReviewModal('${m.id}')">★ <span>Rating & Review</span></button>
-      ${actionBtns}
+    `<div class="meeting-detail-content">
+      ${cancelBox}${reviewBox}
+      <div class="meeting-detail-intro"><h3>${esc(m.title)}</h3>${m.desc ? `<p>${esc(m.desc)}</p>` : ""}</div>
+      <div class="meeting-detail-schedule">${meetingDetailIcon("calendar")}<div><strong>${formatMeetingDetailDate(m.date)}</strong><span>${m.start} - ${m.end} WIB</span></div></div>
+      <div class="meeting-detail-facts">
+        <div class="meeting-detail-fact">${meetingDetailIcon("pin")}<div><strong>${esc(m.room)}</strong>${roomLocation ? `<span>${esc(roomLocation)}</span>` : ""}</div></div>
+        <div class="meeting-detail-fact">${meetingDetailIcon("users")}<div><strong>Peserta</strong><span>${m.participants} Orang</span></div></div>
+        <div class="meeting-detail-fact">${meetingDetailIcon("file")}<div><strong>Pemesan</strong><span>${esc(m.requester)}</span></div></div>
+        <div class="meeting-detail-fact meeting-detail-status-row"><span class="meeting-detail-status-dot"></span><strong>Status</strong><span class="meeting-detail-status-pill ${isCompleted ? "is-completed" : isRunning ? "is-running" : isCanceled || isRejected ? "is-canceled" : "is-upcoming"}">${esc(m.status)}</span></div>
+      </div>
+      ${m.approvedBy ? `<div class="meeting-detail-approval">${meetingDetailIcon("person")}<strong>Disetujui Oleh</strong><div><b>${esc(m.approvedBy)}</b>${m.approvedAt ? `<span>${formatMeetingDetailDate(m.approvedAt)}, ${new Date(m.approvedAt).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} WIB</span>` : ""}</div></div>` : ""}
+      ${m.rejectedBy ? `<p class="meeting-detail-rejected">&#10005; Ditolak Oleh: ${esc(m.rejectedBy)}</p>` : ""}
+      ${presensiAuditBox}
+      ${materialsBox}
+      <div class="modal-actions meeting-detail-actions"><button class="btn btn-light meeting-detail-review-btn" onclick="closeModal(); openMeetingReviewModal('${m.id}')">&#9733; <span>Rating &amp; Review</span></button>${actionBtns}</div>
     </div>`,
   );
 }
