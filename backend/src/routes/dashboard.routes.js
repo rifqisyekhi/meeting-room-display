@@ -3,6 +3,23 @@ const router = express.Router();
 const dashboardService = require("../services/dashboard.service");
 const whatsappService = require("../services/whatsapp.service");
 
+function isMeetingBooker(meeting, username, submittedName) {
+  const normalizedUsername = String(username || "").trim().toLowerCase();
+  const bookedUsername = String(meeting.bookedByUsername || "").trim().toLowerCase();
+  const bookedName = String(meeting.bookedBy || "").trim().toLowerCase();
+  const normalizedSubmittedName = String(submittedName || "").trim().toLowerCase();
+  const user = dashboardService.getUsers().find(
+    (candidate) =>
+      String(candidate.username || "").trim().toLowerCase() === normalizedUsername,
+  );
+  const accountName = String(user?.name || "").trim().toLowerCase();
+
+  return Boolean(
+    (normalizedUsername && bookedUsername && normalizedUsername === bookedUsername) ||
+    (bookedName && (accountName === bookedName || normalizedSubmittedName === bookedName)),
+  );
+}
+
 // Ambil seluruh data dashboard (Google Calendar + Ruangan + Pengguna)
 router.get("/data", async (req, res) => {
   try {
@@ -101,15 +118,10 @@ router.post("/meetings/:id/checkin", async (req, res) => {
     }
 
     const method = req.body?.method || (req.body?.by && req.body.by.toLowerCase().includes("admin") ? "manual_admin" : "barcode_qr");
-    const isAdmin = method === "manual_admin" || (req.body?.by && req.body.by.toLowerCase().includes("admin")) || (req.body?.role && req.body.role.toLowerCase().includes("admin"));
-
     const username = String(req.body?.username || "").trim().toLowerCase();
-    const bookerUsername = String(meeting.bookedByUsername || "").trim().toLowerCase();
-    const actorName = String(req.body?.by || "").trim().toLowerCase();
-    const bookerName = String(meeting.bookedBy || "").trim().toLowerCase();
-    const isBooker = bookerUsername ? username && username === bookerUsername : bookerName && actorName === bookerName;
+    const isBooker = isMeetingBooker(meeting, username, req.body?.by);
 
-    if (!isAdmin && !isBooker && req.body?.enforceBooker) {
+    if (method !== "manual_admin" && !isBooker) {
       return res.status(403).json({ success: false, error: "Check-In hanya dapat dilakukan oleh akun pemesan ruangan atau Admin." });
     }
 
@@ -140,15 +152,10 @@ router.post("/meetings/:id/checkout", async (req, res) => {
     }
 
     const method = req.body?.method || (req.body?.by && req.body.by.toLowerCase().includes("admin") ? "manual_admin" : "barcode_qr");
-    const isAdmin = method === "manual_admin" || (req.body?.by && req.body.by.toLowerCase().includes("admin")) || (req.body?.role && req.body.role.toLowerCase().includes("admin"));
-
     const username = String(req.body?.username || "").trim().toLowerCase();
-    const bookerUsername = String(meeting.bookedByUsername || "").trim().toLowerCase();
-    const actorName = String(req.body?.by || "").trim().toLowerCase();
-    const bookerName = String(meeting.bookedBy || "").trim().toLowerCase();
-    const isBooker = bookerUsername ? username && username === bookerUsername : bookerName && actorName === bookerName;
+    const isBooker = isMeetingBooker(meeting, username, req.body?.by);
 
-    if (!isAdmin && !isBooker && req.body?.enforceBooker) {
+    if (method !== "manual_admin" && !isBooker) {
       return res.status(403).json({ success: false, error: "Check-Out hanya dapat dilakukan oleh akun pemesan ruangan atau Admin." });
     }
 

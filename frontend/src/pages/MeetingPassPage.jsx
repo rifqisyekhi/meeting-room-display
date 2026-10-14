@@ -224,6 +224,7 @@ export default function MeetingPassPage() {
           by: actorName,
           username: currentUser.username,
           method: "barcode_qr",
+          enforceBooker: true,
         }),
       });
       const nowIso = new Date().toISOString();
@@ -318,6 +319,7 @@ export default function MeetingPassPage() {
             by: actorName,
             username: currentUser.username,
             method: "barcode_qr",
+            enforceBooker: true,
           }),
         },
       );
@@ -711,9 +713,8 @@ export default function MeetingPassPage() {
   const bookerName = (meeting.bookedBy || "").trim().toLowerCase();
   const isMeetingBooker = Boolean(
     isAuthenticated &&
-    (bookerUsername
-      ? signedInUsername && signedInUsername === bookerUsername
-      : signedInName && bookerName && signedInName === bookerName),
+    ((signedInUsername && bookerUsername && signedInUsername === bookerUsername) ||
+      (signedInName && bookerName && signedInName === bookerName)),
   );
 
   return (
