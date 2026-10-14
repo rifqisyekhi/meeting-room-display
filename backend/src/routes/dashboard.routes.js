@@ -1,5 +1,23 @@
 const express = require("express");
 const router = express.Router();
+const fs = require("fs/promises");
+const path = require("path");
+const crypto = require("crypto");
+
+router.get("/materials/files/:fileName", (req, res) => {
+  const safeFileName = String(req.params.fileName || "");
+  if (!/^[0-9a-f-]{36}\.(pdf|ppt|pptx|doc|docx|xls|xlsx)$/i.test(safeFileName)) {
+    return res.status(404).json({ success: false, error: "File tidak ditemukan." });
+  }
+  return res.sendFile(path.join(__dirname, "../../data/materials", safeFileName), (err) => {
+    if (err && !res.headersSent) {
+      res.status(err.statusCode === 404 ? 404 : 500).json({
+        success: false,
+        error: err.statusCode === 404 ? "File tidak ditemukan." : "Gagal membaca file materi.",
+      });
+    }
+  });
+});
 const dashboardService = require("../services/dashboard.service");
 const whatsappService = require("../services/whatsapp.service");
 
@@ -101,9 +119,12 @@ router.post("/whatsapp/notify/:id", async (req, res) => {
 router.delete("/meetings/:id", async (req, res) => {
   try {
     const ok = await dashboardService.deleteMeeting(req.params.id);
-    res.json({ success: ok });
+    if (!ok) {
+      return res.status(404).json({ success: false, error: "Rapat tidak ditemukan di database maupun Google Calendar." });
+    }
+    res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(err.statusCode || 500).json({ success: false, error: err.message });
   }
 });
 
@@ -214,6 +235,58 @@ router.post("/meetings/:id/materials", async (req, res) => {
   }
 });
 
+// Unggah file biner langsung agar tidak dikonversi menjadi Base64 di JSON.
+router.post(
+  "/meetings/:id/materials/file",
+  express.raw({ type: "application/octet-stream", limit: "20mb" }),
+  async (req, res) => {
+    let storedFilePath = null;
+    try {
+      if (!Buffer.isBuffer(req.body) || req.body.length === 0) {
+        return res.status(400).json({ success: false, error: "File kosong atau tidak terbaca." });
+      }
+
+      const decodeHeader = (value, fallback = "") => {
+        try { return decodeURIComponent(value || fallback); } catch { return fallback; }
+      };
+      const originalName = path.basename(decodeHeader(req.get("X-File-Name"), "materi"));
+      const ext = path.extname(originalName).toLowerCase();
+      const allowedExtensions = new Set([".pdf", ".ppt", ".pptx", ".doc", ".docx", ".xls", ".xlsx"]);
+      if (!allowedExtensions.has(ext)) {
+        return res.status(415).json({ success: false, error: "Format file tidak didukung." });
+      }
+
+      const fileName = `${crypto.randomUUID()}${ext}`;
+      const uploadDir = path.join(__dirname, "../../data/materials");
+      storedFilePath = path.join(uploadDir, fileName);
+      await fs.mkdir(uploadDir, { recursive: true });
+      await fs.writeFile(storedFilePath, req.body, { flag: "wx" });
+
+      const result = await dashboardService.addMeetingMaterial(req.params.id, {
+        name: decodeHeader(req.get("X-Material-Name"), originalName),
+        type: ext.slice(1),
+        url: `/api/dashboard/materials/files/${fileName}`,
+        size: req.body.length < 1024 * 1024
+          ? `${(req.body.length / 1024).toFixed(1)} KB`
+          : `${(req.body.length / (1024 * 1024)).toFixed(1)} MB`,
+        uploadedBy: decodeHeader(req.get("X-Uploaded-By"), "Pengguna"),
+      });
+      if (!result) {
+        await fs.unlink(storedFilePath).catch(() => {});
+        return res.status(404).json({ success: false, error: "Rapat tidak ditemukan." });
+      }
+      return res.json({ success: true, ...result });
+    } catch (err) {
+      if (storedFilePath) await fs.unlink(storedFilePath).catch(() => {});
+      const tooLarge = err.type === "entity.too.large" || err.status === 413;
+      return res.status(tooLarge ? 413 : 500).json({
+        success: false,
+        error: tooLarge ? "Ukuran file maksimal 20 MB." : err.message,
+      });
+    }
+  },
+);
+
 // Hapus materi rapat
 router.delete("/meetings/:id/materials/:materialId", async (req, res) => {
   try {
@@ -228,12 +301,49 @@ router.delete("/meetings/:id/materials/:materialId", async (req, res) => {
 });
 
 // Simpan / update ruangan
-router.post("/rooms", (req, res) => {
+router.post("/rooms", async (req, res) => {
   try {
-    const saved = dashboardService.saveRoom(req.body);
+    const saved = await dashboardService.saveRoom(req.body);
     res.json({ success: true, room: saved });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+router.delete("/rooms/:id", async (req, res) => {
+  try {
+    const ok = await dashboardService.deleteRoom(req.params.id);
+    if (!ok) return res.status(404).json({ success: false, error: "Ruangan tidak ditemukan." });
+    return res.json({ success: true });
+  } catch (err) {
+    return res.status(err.statusCode || 500).json({ success: false, error: err.message });
+  }
+});
+
+router.get("/roles", async (req, res) => {
+  try {
+    return res.json(await dashboardService.getRoles());
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.post("/roles", async (req, res) => {
+  try {
+    const role = await dashboardService.saveRole(req.body || {});
+    return res.json({ success: true, role });
+  } catch (err) {
+    return res.status(err.statusCode || 400).json({ success: false, error: err.message });
+  }
+});
+
+router.delete("/roles/:name", async (req, res) => {
+  try {
+    const ok = await dashboardService.deleteRole(req.params.name);
+    if (!ok) return res.status(404).json({ success: false, error: "Role tidak ditemukan." });
+    return res.json({ success: true });
+  } catch (err) {
+    return res.status(err.statusCode || 409).json({ success: false, error: err.message });
   }
 });
 
@@ -282,9 +392,9 @@ router.post("/users/change-password", async (req, res) => {
 });
 
 // Simpan / update pengguna
-router.post("/users", (req, res) => {
+router.post("/users", async (req, res) => {
   try {
-    const saved = dashboardService.saveUser(req.body);
+    const saved = await dashboardService.saveUser(req.body);
     res.json({ success: true, user: saved });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -292,9 +402,9 @@ router.post("/users", (req, res) => {
 });
 
 // Hapus pengguna
-router.delete("/users/:id", (req, res) => {
+router.delete("/users/:id", async (req, res) => {
   try {
-    const ok = dashboardService.deleteUser(req.params.id);
+    const ok = await dashboardService.deleteUser(req.params.id);
     res.json({ success: ok });
   } catch (err) {
     res.status(500).json({ error: err.message });

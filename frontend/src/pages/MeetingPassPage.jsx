@@ -70,6 +70,7 @@ export default function MeetingPassPage() {
   const [materialTab, setMaterialTab] = useState("file"); // "file" | "link"
   const [materialName, setMaterialName] = useState("");
   const [materialUrl, setMaterialUrl] = useState("");
+  const [materialFile, setMaterialFile] = useState(null);
   const [materialFileMeta, setMaterialFileMeta] = useState(null);
   const [materialUploader, setMaterialUploader] = useState("");
   const [uploadingMaterial, setUploadingMaterial] = useState(false);
@@ -469,6 +470,13 @@ export default function MeetingPassPage() {
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (file.size > 20 * 1024 * 1024) {
+      e.target.value = "";
+      setMaterialFile(null);
+      setMaterialFileMeta(null);
+      showToast("Ukuran file maksimal 20 MB.", "error");
+      return;
+    }
 
     const ext = file.name.split(".").pop().toLowerCase();
     let type = "file";
@@ -477,19 +485,12 @@ export default function MeetingPassPage() {
     else if (ext === "doc" || ext === "docx") type = "doc";
     else if (ext === "xls" || ext === "xlsx") type = "excel";
 
-    const reader = new FileReader();
-    reader.onload = (loadEvent) => {
-      setMaterialUrl(loadEvent.target?.result || "");
-      setMaterialFileMeta({
-        name: file.name,
-        size: formatFileSize(file.size),
-        type,
-      });
-      if (!materialName.trim()) {
-        setMaterialName(file.name.replace(/\.[^/.]+$/, ""));
-      }
-    };
-    reader.readAsDataURL(file);
+    setMaterialFile(file);
+    setMaterialUrl("");
+    setMaterialFileMeta({ name: file.name, size: formatFileSize(file.size), type });
+    if (!materialName.trim()) {
+      setMaterialName(file.name.replace(/\.[^/.]+$/, ""));
+    }
   };
 
   // Handle Simpan & Unggah Materi Rapat
@@ -497,7 +498,7 @@ export default function MeetingPassPage() {
     e.preventDefault();
     if (!meeting) return;
 
-    if (materialTab === "file" && !materialUrl) {
+    if (materialTab === "file" && !materialFile) {
       alert("Mohon pilih file materi yang ingin diunggah.");
       return;
     }
@@ -514,7 +515,7 @@ export default function MeetingPassPage() {
           : "Tautan Materi Rapat") ||
         "Materi Rapat",
       type: materialTab === "link" ? "link" : materialFileMeta?.type || "pdf",
-      url: materialUrl.trim(),
+      url: materialTab === "link" ? materialUrl.trim() : "",
       size: materialTab === "file" ? materialFileMeta?.size || "" : "Link",
       uploadedBy:
         materialUploader.trim() ||
@@ -525,54 +526,40 @@ export default function MeetingPassPage() {
 
     setUploadingMaterial(true);
     try {
+      const headers = materialTab === "file"
+        ? {
+            "Content-Type": "application/octet-stream",
+            "X-File-Name": encodeURIComponent(materialFile.name),
+            "X-Material-Name": encodeURIComponent(matPayload.name),
+            "X-Uploaded-By": encodeURIComponent(matPayload.uploadedBy),
+          }
+        : { "Content-Type": "application/json" };
       const res = await fetch(
-        `/api/dashboard/meetings/${meeting.id}/materials`,
+        materialTab === "file"
+          ? `/api/dashboard/meetings/${meeting.id}/materials/file`
+          : `/api/dashboard/meetings/${meeting.id}/materials`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(matPayload),
+          headers,
+          body: materialTab === "file" ? materialFile : JSON.stringify(matPayload),
         },
       );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Gagal menyimpan materi.");
+      if (data.meeting) setMeeting(data.meeting);
 
-      if (res.ok) {
-        const data = await res.json();
-        if (data.meeting) {
-          setMeeting(data.meeting);
-        }
-      } else {
-        const localMat = {
-          id: "mat_" + Date.now(),
-          ...matPayload,
-          uploadedAt: new Date().toISOString(),
-        };
-        const updated = {
-          ...meeting,
-          materials: [...(meeting.materials || []), localMat],
-        };
-        setMeeting(updated);
-        try {
-          const stored = JSON.parse(
-            localStorage.getItem("app_meetings") || "[]",
-          );
-          const idx = stored.findIndex(
-            (m) => String(m.id) === String(meeting.id),
-          );
-          if (idx !== -1) {
-            stored[idx] = updated;
-            localStorage.setItem("app_meetings", JSON.stringify(stored));
-          }
-        } catch (e) {}
-      }
-
-      showToast("✓ Materi rapat berhasil ditambahkan!");
+      showToast(data.storage === "database"
+        ? "✓ Data materi tersimpan di database; file tersimpan di server."
+        : "✓ Materi tersimpan di penyimpanan lokal server.");
       setShowMaterialModal(false);
       setMaterialName("");
       setMaterialUrl("");
+      setMaterialFile(null);
       setMaterialFileMeta(null);
       setMaterialUploader("");
       if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (err) {
-      showToast("Gagal mengunggah materi, silakan coba lagi.", "error");
+      showToast(err.message || "Gagal mengunggah materi, silakan coba lagi.", "error");
     } finally {
       setUploadingMaterial(false);
     }

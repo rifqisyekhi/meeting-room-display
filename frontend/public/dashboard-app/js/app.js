@@ -12,7 +12,8 @@ function getRoleLabel(role) {
     return "Admin";
   if (r === "pimpinan" || r.includes("approval") || r === "atasan")
     return "Pimpinan";
-  return "User";
+  if (r === "user" || r === "staff") return "User";
+  return String(role).trim();
 }
 
 function isAtasanRole(user) {
@@ -68,6 +69,7 @@ const PERMISSIONS = {
   manageRoom: ["admin"],
   manageUsers: ["admin"],
   manageSettings: ["admin"],
+  viewReports: ["admin"],
 };
 
 function getRoleGroup(user) {
@@ -79,6 +81,10 @@ function getRoleGroup(user) {
 function can(action, user) {
   const u =
     user || (typeof getCurrentUser === "function" ? getCurrentUser() : null);
+  const customRole = (state.roles || []).find((role) =>
+    String(role.name).toLowerCase() === String(u?.role || "").toLowerCase() && !role.isSystem,
+  );
+  if (customRole) return (customRole.permissions || []).includes(action);
   const allowed = PERMISSIONS[action] || [];
   return allowed.includes(getRoleGroup(u));
 }
@@ -89,7 +95,7 @@ function denyAccess(message) {
 }
 
 function isPageAllowed(page, user) {
-  if (page === "reports") return isAdminRole(user);
+  if (page === "reports") return can("viewReports", user);
   if (page === "users") return can("manageUsers", user);
   if (page === "settings") return can("manageSettings", user);
   return true;
@@ -500,71 +506,14 @@ const state = {
     } catch (e) {}
     return defaultRooms;
   })(),
-  users: (() => {
-    const defaultUsers = [
-      {
-        id: "admin",
-        name: "Admin Utama",
-        username: "admin",
-        password: "",
-        email: "admin@kemnaker.go.id",
-        dept: "Biro Keuangan dan BMN",
-        role: "Admin",
-        status: "Aktif",
-      },
-      {
-        id: "approval1",
-        name: "Pimpinan",
-        username: "approval1",
-        password: "",
-        email: "pimpinan@kemnaker.go.id",
-        dept: "Biro Keuangan dan BMN",
-        role: "Pimpinan",
-        status: "Aktif",
-      },
-      {
-        id: "approval2",
-        name: "Wakil Pimpinan",
-        username: "approval2",
-        password: "",
-        email: "wakil.pimpinan@kemnaker.go.id",
-        dept: "Biro Keuangan dan BMN",
-        role: "Pimpinan",
-        status: "Aktif",
-      },
-    ];
+  roles: (() => {
     try {
-      const storage = getAppStorage();
-      const saved = storage.getItem("app_users");
-      let list = saved ? JSON.parse(saved) : defaultUsers;
-      const loginUsers = JSON.parse(storage.getItem("app_login_users") || "[]");
-      loginUsers.forEach((lu) => {
-        if (
-          !list.some(
-            (u) =>
-              u.id === lu.id ||
-              (u.username &&
-                lu.username &&
-                u.username.toLowerCase() === lu.username.toLowerCase()),
-          )
-        ) {
-          list.push(lu);
-        }
-      });
-      // Filter out Andi Pratama and normalize roles to Admin, Pimpinan, User
-      list = list
-        .filter(
-          (u) =>
-            (u.name || "").toLowerCase() !== "andi pratama" &&
-            (u.username || "").toLowerCase() !== "andipratama",
-        )
-        .map((u) => {
-          return { ...u, role: getRoleLabel(u.role) };
-        });
-      return list;
+      const saved = JSON.parse(getAppStorage().getItem("app_roles") || "null");
+      if (Array.isArray(saved)) return saved;
     } catch (e) {}
-    return defaultUsers;
+    return [];
   })(),
+  users: [],
 };
 
 // SVG icons — path data extracted directly from installed react-icons package
@@ -1305,54 +1254,9 @@ function getDashboardNotifPanelHTML(currentUser) {
 }
 
 function getAllAvailableAccounts() {
-  const defaultAccounts = [
-    { username: "admin", name: "Admin Utama", role: "Admin" },
-    { username: "approval1", name: "Pimpinan", role: "Pimpinan" },
-    { username: "approval2", name: "Wakil Pimpinan", role: "Pimpinan" },
-  ];
-  const map = new Map();
-  defaultAccounts.forEach((u) => map.set(u.username.toLowerCase(), { ...u }));
-
-  const readFromStorage = (s) => {
-    if (!s) return;
-    ["savedAccounts", "app_login_users", "app_users"].forEach((key) => {
-      try {
-        const raw = s.getItem(key);
-        if (raw) {
-          const arr = JSON.parse(raw);
-          if (Array.isArray(arr)) {
-            arr.forEach((u) => {
-              if (u && u.username) {
-                const uname = u.username.toLowerCase();
-                if (
-                  uname !== "andipratama" &&
-                  (u.name || "").toLowerCase() !== "andi pratama"
-                ) {
-                  map.set(uname, {
-                    ...map.get(uname),
-                    ...u,
-                    role: getRoleLabel(u.role),
-                  });
-                }
-              }
-            });
-          }
-        }
-      } catch (e) {}
-    });
-  };
-
-  try {
-    readFromStorage(getAppStorage());
-    readFromStorage(window.localStorage);
-    readFromStorage(window.sessionStorage);
-    if (window.parent) {
-      readFromStorage(window.parent.localStorage);
-      readFromStorage(window.parent.sessionStorage);
-    }
-  } catch (e) {}
-
-  return Array.from(map.values());
+  return (state.users || [])
+    .filter((user) => user?.username && user.status !== "Nonaktif")
+    .map((user) => ({ ...user, role: getRoleLabel(user.role) }));
 }
 
 function getProfileHTML() {
@@ -2230,6 +2134,10 @@ function meetingTable(data, actions = true, allowDelete = true) {
               : "";
 
             let actionButtons = `<button style="background-color:#f4f6f9;color:#0c2d5e;border:none;border-radius:10px;width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;margin-right:8px;box-shadow:0 2px 5px rgba(0,0,0,0.03);" title="Lihat Detail Rapat" onclick="viewMeeting('${m.id}')">${faEye}</button>${qrBtn}${reviewBtn}`;
+            if (actions && allowDelete && can("manageMeeting", user)) {
+              const safeDeleteId = String(m.id).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+              actionButtons += `<button type="button" style="border:1px solid #fecaca;border-radius:8px;background:#fff1f2;color:#be123c;padding:7px 10px;cursor:pointer;font-size:11px;font-weight:700" onclick="deleteMeeting('${safeDeleteId}')">Hapus</button>`;
+            }
 
             if (isAdmin) {
               const safeMeetingId = String(m.id).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
@@ -2630,14 +2538,16 @@ function roomCards(data) {
           : r.image
             ? 1
             : 0;
+      const safeId = String(r.id).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
       return `
-        <div class="custom-room-card" onclick="editRoom(${r.id})">
+        <div class="custom-room-card" onclick="editRoom('${safeId}')">
           <div class="crc-img-wrap" style="position:relative;">
             <img src="${getRoomImage(r)}" alt="${esc(r.name)}" class="crc-img">
             ${count > 1 ? `<span style="position:absolute;bottom:10px;right:10px;background:rgba(12,45,94,0.85);color:#fff;padding:4px 8px;border-radius:6px;font-size:11px;font-weight:700;letter-spacing:0.3px;display:flex;align-items:center;gap:4px;backdrop-filter:blur(4px);box-shadow:0 2px 6px rgba(0,0,0,0.25);">${count} View</span>` : ""}
           </div>
           <div class="crc-footer">
             <span>${esc(r.name)}</span>
+            ${can("manageRoom") ? `<button type="button" class="btn btn-light" onclick="event.stopPropagation(); deleteRoom('${safeId}')" title="Hapus ruangan">Hapus</button>` : ""}
           </div>
         </div>
       `;
@@ -3920,33 +3830,22 @@ function settings() {
   const userAktif = (state.users || []).filter(
     (u) => !isAdminRole(u) && !isAtasanRole(u),
   ).length;
-  const totalRoles = 3;
+  const totalRoles = (state.roles || []).length;
   const totalUsers = (state.users || []).length;
   const aksesBermasalah = 0;
 
-  const rolesData = [
-    {
-      no: 1,
-      name: "Admin",
-      access:
-        "Operasional Rapat, Kelola Fasilitas Ruangan, Quick Check-In/Out, Manajemen Pengguna",
-      usersCount: adminAktif,
-    },
-    {
-      no: 2,
-      name: "Pimpinan",
-      access:
-        "Otorisasi Persetujuan/Penolakan Booking Rapat, Pembatalan Darurat",
-      usersCount: pimpinanAktif,
-    },
-    {
-      no: 3,
-      name: "User",
-      access:
-        "Pengajuan Booking Ruang Rapat, Presensi Daftar Hadir Digital, Review Kepuasan",
-      usersCount: userAktif,
-    },
-  ];
+  const permissionLabels = {
+    approve: "Persetujuan rapat", manageMeeting: "Kelola rapat", checkInOut: "Check-in/out",
+    emergencyCancel: "Pembatalan darurat", manageRoom: "Kelola ruangan", manageUsers: "Kelola pengguna",
+    manageSettings: "Kelola role", viewReports: "Lihat laporan",
+  };
+  const rolesData = (state.roles || []).map((role, index) => ({
+    no: index + 1,
+    name: role.name,
+    access: (role.permissions || []).map((permission) => permissionLabels[permission] || permission).join(", ") || "Tidak ada hak akses khusus",
+    usersCount: (state.users || []).filter((user) => String(user.role).toLowerCase() === String(role.name).toLowerCase()).length,
+    role,
+  }));
 
   return `
     <div class="settings-wrapper">
@@ -4006,7 +3905,7 @@ function settings() {
 
       <!-- Main Panel: Daftar Role Sistem -->
       <div class="settings-panel">
-        <h2>Daftar Role Sistem</h2>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:16px"><h2 style="margin:0">Daftar Role</h2><button class="btn btn-primary" onclick="openRoleModal()">Tambah Role</button></div>
         <div class="settings-table-wrap">
           <table class="settings-table">
             <thead>
@@ -4015,6 +3914,7 @@ function settings() {
                 <th class="td-role">Nama Role</th>
                 <th class="td-access">Hak Akses Utama</th>
                 <th class="td-count" style="text-align: center;">Jumlah Pengguna</th>
+                <th>Aksi</th>
               </tr>
             </thead>
             <tbody>
@@ -4028,6 +3928,7 @@ function settings() {
                   <td class="td-count" style="text-align: center;">
                     <span class="role-pill">${r.usersCount} Pengguna</span>
                   </td>
+                  <td>${r.role.isSystem ? "Bawaan sistem" : `<button class="btn btn-light" onclick="openRoleModal(decodeURIComponent('${encodeURIComponent(r.name)}'))">Edit</button> <button class="btn btn-light" onclick="deleteRole(decodeURIComponent('${encodeURIComponent(r.name)}'))">Hapus</button>`}</td>
                 </tr>
               `,
                 )
@@ -4038,6 +3939,61 @@ function settings() {
       </div>
     </div>
   `;
+}
+
+const ROLE_PERMISSION_OPTIONS = [
+  ["approve", "Menyetujui / menolak rapat"], ["manageMeeting", "Mengelola data rapat"],
+  ["checkInOut", "Check-in / check-out manual"], ["emergencyCancel", "Pembatalan darurat"],
+  ["manageRoom", "Mengelola ruangan"], ["manageUsers", "Mengelola pengguna"],
+  ["manageSettings", "Mengelola role"], ["viewReports", "Melihat laporan"],
+];
+
+function openRoleModal(name = "") {
+  if (!can("manageSettings")) return denyAccess();
+  const role = (state.roles || []).find((item) => item.name === name);
+  if (role?.isSystem) return toast("Role bawaan sistem tidak dapat diubah.");
+  const modalBackdrop = document.getElementById("modal");
+  if (!modalBackdrop) return;
+  const selected = new Set(role?.permissions || []);
+  modalBackdrop.innerHTML = `<div class="modal-content" onclick="event.stopPropagation()" style="max-width:650px"><div class="modal-header"><h3>${role ? "Edit Role" : "Tambah Role"}</h3><button onclick="closeModal()">×</button></div><div class="modal-body"><label>Nama role</label><input id="roleName" maxlength="80" value="${esc(role?.name || "")}" ${role ? "readonly" : ""} placeholder="Contoh: Operator Ruangan"><label style="display:block;margin-top:14px">Deskripsi</label><input id="roleDescription" maxlength="300" value="${esc(role?.description || "")}" placeholder="Tugas role"><div style="margin-top:18px;font-weight:700">Hak akses</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">${ROLE_PERMISSION_OPTIONS.map(([key, label]) => `<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" value="${key}" class="role-permission" ${selected.has(key) ? "checked" : ""}>${label}</label>`).join("")}</div><div style="display:flex;justify-content:flex-end;gap:8px;margin-top:22px"><button class="btn btn-light" onclick="closeModal()">Batal</button><button class="btn btn-primary" onclick="saveRole('${encodeURIComponent(role?.name || "")}')">Simpan</button></div></div></div>`;
+  modalBackdrop.onclick = (event) => { if (event.target === modalBackdrop) closeModal(); };
+  modalBackdrop.classList.add("show");
+}
+
+async function saveRole(encodedOriginalName = "") {
+  if (!can("manageSettings")) return denyAccess();
+  const name = document.getElementById("roleName")?.value.trim();
+  if (!name) return toast("Nama role wajib diisi.");
+  const payload = {
+    name,
+    originalName: decodeURIComponent(encodedOriginalName || "") || name,
+    description: document.getElementById("roleDescription")?.value.trim() || "",
+    permissions: [...document.querySelectorAll(".role-permission:checked")].map((checkbox) => checkbox.value),
+  };
+  try {
+    const response = await fetch("/api/dashboard/roles", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || !result.success) throw new Error(result.error || "Role gagal disimpan.");
+    const oldName = payload.originalName;
+    state.roles = (state.roles || []).filter((role) => role.name !== oldName);
+    state.roles.push(result.role);
+    if (oldName !== name) state.users = (state.users || []).map((user) => user.role === oldName ? { ...user, role: name } : user);
+    getAppStorage().setItem("app_roles", JSON.stringify(state.roles));
+    closeModal(); render(); toast("Role berhasil disimpan.");
+  } catch (error) { toast(error.message); }
+}
+
+async function deleteRole(name) {
+  if (!can("manageSettings")) return denyAccess();
+  if (!confirm(`Hapus role "${name}"? Role yang masih dipakai akun tidak dapat dihapus.`)) return;
+  try {
+    const response = await fetch(`/api/dashboard/roles/${encodeURIComponent(name)}`, { method: "DELETE" });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || !result.success) throw new Error(result.error || "Role gagal dihapus.");
+    state.roles = state.roles.filter((role) => role.name !== name);
+    getAppStorage().setItem("app_roles", JSON.stringify(state.roles));
+    render(); toast("Role berhasil dihapus.");
+  } catch (error) { toast(error.message); }
 }
 
 function render() {
@@ -4061,7 +4017,25 @@ function render() {
     if (location.hash !== "#dashboard") location.hash = "#dashboard";
   }
   const page = pages[state.page] || dashboard;
+  const modal = document.getElementById("modal");
+  if (modal?.classList.contains("show")) {
+    // Keep an open form or detail modal mounted while background sync runs.
+    window._dashboardRenderPending = true;
+    return;
+  }
+  const preservedControls = {};
+  ["meetingSearch", "meetingRoom", "meetingStatus", "roomSearch", "roomStatus"].forEach((id) => {
+    const control = document.getElementById(id);
+    if (control) preservedControls[id] = control.value;
+  });
   document.getElementById("app").innerHTML = layout(page());
+  Object.entries(preservedControls).forEach(([id, value]) => {
+    const control = document.getElementById(id);
+    if (control) control.value = value;
+  });
+  if (document.getElementById("meetingTable")) filterMeetingTable();
+  if (document.getElementById("roomGrid")) filterRooms();
+  window._dashboardRenderPending = false;
 }
 
 window.addEventListener("hashchange", () => {
@@ -4090,6 +4064,7 @@ function openModal(title, body) {
 
 function closeModal() {
   document.getElementById("modal").classList.remove("show");
+  if (window._dashboardRenderPending) render();
 }
 
 const ICON_FA_CHECK = `<svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 512 512" style="width:16px;height:16px;display:block;" xmlns="http://www.w3.org/2000/svg"><path d="M173.898 439.404l-166.4-166.4c-9.997-9.997-9.997-26.206 0-36.204l36.203-36.204c9.997-9.998 26.207-9.998 36.204 0L192 312.69 432.095 72.596c9.997-9.997 26.207-9.997 36.204 0l36.203 36.204c9.997 9.997 9.997 26.206 0 36.204l-294.4 294.401c-9.998 9.997-26.207 9.997-36.205-.001z"></path></svg>`;
@@ -6188,17 +6163,29 @@ window.submitMeetingReview = submitMeetingReview;
 async function deleteMeeting(id) {
   if (!can("manageMeeting"))
     return denyAccess("Penghapusan rapat dilakukan oleh Admin.");
-  if (confirm("Hapus rapat ini?")) {
-    state.meetings = state.meetings.filter((x) => x.id !== id);
-    render();
-    toast("Rapat berhasil dihapus");
+  if (!confirm("Hapus rapat ini dari database? Tindakan ini tidak dapat dibatalkan.")) return;
+  try {
+    const response = await fetch(`/api/dashboard/meetings/${encodeURIComponent(id)}`, { method: "DELETE" });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || !result.success) throw new Error(result.error || "Rapat gagal dihapus.");
+    state.meetings = state.meetings.filter((meeting) => String(meeting.id) !== String(id));
+    getAppStorage().setItem("app_meetings", JSON.stringify(state.meetings));
+    render(); toast("Rapat berhasil dihapus.");
+  } catch (error) { toast(error.message || "Gagal menghapus rapat."); }
+}
 
-    try {
-      await fetch(`/api/dashboard/meetings/${id}`, { method: "DELETE" });
-    } catch (err) {
-      console.error("Gagal menghapus di backend:", err);
-    }
-  }
+async function deleteRoom(id) {
+  if (!can("manageRoom")) return denyAccess("Penghapusan ruangan dilakukan oleh Admin.");
+  const room = state.rooms.find((item) => String(item.id) === String(id));
+  if (!room || !confirm(`Hapus ruangan "${room.name}"? Ruangan yang masih memiliki rapat tidak dapat dihapus.`)) return;
+  try {
+    const response = await fetch(`/api/dashboard/rooms/${encodeURIComponent(id)}`, { method: "DELETE" });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || !result.success) throw new Error(result.error || "Ruangan gagal dihapus.");
+    state.rooms = state.rooms.filter((item) => String(item.id) !== String(id));
+    getAppStorage().setItem("app_rooms", JSON.stringify(state.rooms));
+    render(); toast("Ruangan berhasil dihapus.");
+  } catch (error) { toast(error.message || "Gagal menghapus ruangan."); }
 }
 
 // State foto ruangan saat modal dibuka
@@ -6541,7 +6528,7 @@ function openRoomModal(id = null) {
     return denyAccess("Pengelolaan ruangan dilakukan oleh Admin.");
   const isEdit = id !== null && id !== undefined;
   const r = isEdit
-    ? state.rooms.find((x) => x.id === id)
+    ? state.rooms.find((x) => String(x.id) === String(id))
     : {
         name: "",
         location: "",
@@ -6779,7 +6766,7 @@ async function saveRoom(id) {
     window._currentRoomImages && window._currentRoomImages.length > 0
       ? [...window._currentRoomImages]
       : id
-        ? state.rooms.find((x) => x.id === id)?.images || [
+        ? state.rooms.find((x) => String(x.id) === String(id))?.images || [
             getRoomImage({ name }),
           ]
         : [getRoomImage({ name })];
@@ -6817,32 +6804,29 @@ async function saveRoom(id) {
     images: images,
   };
 
-  if (id) {
-    state.rooms = state.rooms.map((x) => (x.id === id ? { ...x, ...obj } : x));
-  } else {
-    state.rooms.push(obj);
-  }
-
   try {
-    getAppStorage().setItem("app_rooms", JSON.stringify(state.rooms));
-  } catch (e) {}
-
-  try {
-    localStorage.setItem("app_rooms", JSON.stringify(state.rooms));
-  } catch (e) {}
-
-  closeModal();
-  render();
-  toast("Data ruangan & fasilitas berhasil disimpan");
-
-  try {
-    await fetch("/api/dashboard/rooms", {
+    const response = await fetch("/api/dashboard/rooms", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(obj),
     });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || "Gagal menyimpan ruangan ke database.");
+
+    const savedRoom = result.room || obj;
+    if (id) {
+      state.rooms = state.rooms.map((x) => (String(x.id) === String(id) ? { ...x, ...savedRoom } : x));
+    } else {
+      state.rooms.push(savedRoom);
+    }
+    getAppStorage().setItem("app_rooms", JSON.stringify(state.rooms));
+    localStorage.setItem("app_rooms", JSON.stringify(state.rooms));
+    closeModal();
+    render();
+    toast("Data ruangan & fasilitas berhasil disimpan");
   } catch (err) {
     console.error("Gagal menyimpan ruangan ke backend:", err);
+    toast(err.message || "Gagal menyimpan data ruangan");
   }
 }
 
@@ -6983,14 +6967,12 @@ function openUserModal(id = null) {
         <div class="crm-field">
           <label>Role Akun</label>
           <select id="uRole" ${isEditingAdmin ? "disabled style='background:#e2e8f0; cursor:not-allowed;'" : ""}>
-            ${[
-              { value: "User", label: "User" },
-              { value: "Admin", label: "Admin" },
-              { value: "Pimpinan", label: "Pimpinan" },
-            ]
+            ${(state.roles || [
+              { name: "User" }, { name: "Admin" }, { name: "Pimpinan" },
+            ])
               .map(
                 (r) =>
-                  `<option value="${r.value}" ${getRoleLabel(u.role) === r.value ? "selected" : ""}>${r.label}</option>`,
+                  `<option value="${esc(r.name)}" ${String(u.role).toLowerCase() === String(r.name).toLowerCase() ? "selected" : ""}>${esc(r.name)}</option>`,
               )
               .join("")}
           </select>
@@ -7072,7 +7054,7 @@ async function saveUser(id) {
         (id ? u.id !== id : true) &&
         (u.username || "").toLowerCase() === lowerUsername,
     );
-    const defaultReserved = ["admin", "approval1", "approval2"];
+    const defaultReserved = ["admin", "approval1"];
     if (
       isDuplicateInState ||
       isDuplicateInLogin ||
@@ -7097,6 +7079,20 @@ async function saveUser(id) {
   };
   if (password) {
     userObj.password = password;
+  }
+
+  try {
+    const response = await fetch("/api/dashboard/users", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(userObj),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || "Gagal menyimpan pengguna.");
+  } catch (err) {
+    console.warn("Gagal simpan pengguna ke database server:", err);
+    toast(err.message || "Gagal menyimpan pengguna.");
+    return;
   }
 
   if (id) {
@@ -7152,19 +7148,6 @@ async function saveUser(id) {
     getAppStorage().setItem("savedAccounts", JSON.stringify(savedAcc));
   } catch (e) {}
 
-  try {
-    const res = await fetch("/api/dashboard/users", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(userObj),
-    });
-    if (res.ok) {
-      await fetchDashboardData(false);
-    }
-  } catch (err) {
-    console.warn("Gagal simpan pengguna ke database server:", err);
-  }
-
   closeModal();
   render();
   toast(
@@ -7200,6 +7183,18 @@ async function deleteUser(id) {
       `Hapus pengguna "${target.name}"? Pengguna ini tidak akan dapat login lagi.`,
     )
   ) {
+    try {
+      const response = await fetch(`/api/dashboard/users/${id}`, { method: "DELETE" });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || result.success === false) {
+        throw new Error(result.error || "Gagal menghapus pengguna.");
+      }
+    } catch (err) {
+      console.warn("Gagal hapus pengguna dari backend:", err);
+      toast(err.message || "Gagal menghapus pengguna.");
+      return;
+    }
+
     state.users = state.users.filter((x) => x.id !== id);
 
     try {
@@ -7230,13 +7225,6 @@ async function deleteUser(id) {
       );
       getAppStorage().setItem("savedAccounts", JSON.stringify(savedAcc));
     } catch (e) {}
-
-    try {
-      await fetch(`/api/dashboard/users/${id}`, { method: "DELETE" });
-      await fetchDashboardData(false);
-    } catch (err) {
-      console.warn("Gagal hapus pengguna dari backend:", err);
-    }
 
     render();
     toast("Pengguna berhasil dihapus");
@@ -7612,27 +7600,41 @@ async function fetchDashboardData(showToast = false) {
     const res = await fetch("/api/dashboard/data");
     if (!res.ok) throw new Error("Gagal mengambil data dari backend");
     const data = await res.json();
+    let changed = false;
     if (Array.isArray(data.meetings)) {
-      state.meetings = sanitizeMeetings(data.meetings);
+      const meetings = sanitizeMeetings(data.meetings);
+      changed ||= JSON.stringify(meetings) !== JSON.stringify(state.meetings);
+      state.meetings = meetings;
       getAppStorage().setItem("app_meetings", JSON.stringify(state.meetings));
     }
-    if (Array.isArray(data.rooms) && data.rooms.length > 0) {
-      state.rooms = data.rooms.filter((r) => {
+    if (Array.isArray(data.rooms)) {
+      const rooms = data.rooms.filter((r) => {
         const n = (r.name || "").toLowerCase();
         return !n.includes("nusantara") && !n.includes("garuda");
       });
+      changed ||= JSON.stringify(rooms) !== JSON.stringify(state.rooms);
+      state.rooms = rooms;
       getAppStorage().setItem("app_rooms", JSON.stringify(state.rooms));
     }
-    if (Array.isArray(data.users) && data.users.length > 0) {
+    if (Array.isArray(data.users)) {
+      changed ||= JSON.stringify(data.users) !== JSON.stringify(state.users);
       state.users = data.users;
       try {
         getAppStorage().setItem("app_users", JSON.stringify(state.users));
         getAppStorage().setItem("app_login_users", JSON.stringify(state.users));
       } catch (e) {}
     }
-    state.googleCalendarConnected = !!data.googleCalendarConnected;
-    state.calendarMessage = data.message || "";
-    render();
+    if (Array.isArray(data.roles)) {
+      changed ||= JSON.stringify(data.roles) !== JSON.stringify(state.roles);
+      state.roles = data.roles;
+      getAppStorage().setItem("app_roles", JSON.stringify(state.roles));
+    }
+    const connected = !!data.googleCalendarConnected;
+    const message = data.message || "";
+    changed ||= connected !== state.googleCalendarConnected || message !== state.calendarMessage;
+    state.googleCalendarConnected = connected;
+    state.calendarMessage = message;
+    if (changed) render();
     if (showToast) {
       if (data.googleCalendarConnected) {
         toast(

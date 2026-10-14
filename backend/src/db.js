@@ -1,7 +1,4 @@
 const { Pool } = require("pg");
-const fs = require("fs");
-const path = require("path");
-
 let pool = null;
 let isConnected = false;
 
@@ -75,6 +72,17 @@ async function initDatabase() {
         );
       `);
 
+      // 2b. Definisi role sistem dan role kustom
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS roles (
+          name VARCHAR(80) PRIMARY KEY,
+          description TEXT NOT NULL DEFAULT '',
+          permissions JSONB NOT NULL DEFAULT '[]'::jsonb,
+          is_system BOOLEAN NOT NULL DEFAULT FALSE,
+          created_at TIMESTAMPTZ DEFAULT NOW(),
+          updated_at TIMESTAMPTZ DEFAULT NOW()
+        );
+      `);
       // 3. Tabel Meetings
       await client.query(`
         CREATE TABLE IF NOT EXISTS meetings (
@@ -154,114 +162,6 @@ async function initDatabase() {
           created_at TIMESTAMPTZ DEFAULT NOW()
         );
       `);
-
-      // Cek apakah data awal perlu disinkronkan (Auto-seed)
-      const roomCountRes = await client.query(`SELECT COUNT(*) FROM rooms`);
-      const roomCount = parseInt(roomCountRes.rows[0].count, 10);
-
-      if (roomCount === 0) {
-        console.log("[PostgreSQL] Tabel rooms kosong. Melakukan auto-seeding dari file data...");
-        const storePath = path.join(__dirname, "../data/dashboard-store.json");
-        const examplePath = path.join(__dirname, "../data/dashboard-store.example.json");
-        let seedData = null;
-        if (fs.existsSync(storePath)) {
-          try { seedData = JSON.parse(fs.readFileSync(storePath, "utf8")); } catch (e) {}
-        }
-        if (!seedData && fs.existsSync(examplePath)) {
-          try { seedData = JSON.parse(fs.readFileSync(examplePath, "utf8")); } catch (e) {}
-        }
-
-        if (seedData) {
-          // Seed Rooms
-          if (Array.isArray(seedData.rooms)) {
-            for (const r of seedData.rooms) {
-              await client.query(`
-                INSERT INTO rooms (name, location, capacity, status, category, description, facilities, images)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-                ON CONFLICT (name) DO NOTHING;
-              `, [
-                r.name,
-                r.location || "-",
-                r.capacity || 10,
-                r.status || "Tersedia",
-                r.category || null,
-                r.desc || null,
-                JSON.stringify(r.facilities || []),
-                JSON.stringify(r.images || (r.img ? [r.img] : []))
-              ]);
-            }
-          }
-
-          // Seed Users
-          if (Array.isArray(seedData.users)) {
-            for (const u of seedData.users) {
-              await client.query(`
-                INSERT INTO users (id, name, username, email, dept, role, status, password_hash)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-                ON CONFLICT (username) DO NOTHING;
-              `, [
-                String(u.id || u.username),
-                u.name,
-                u.username,
-                u.email || null,
-                u.dept || "Biro Keuangan dan BMN",
-                u.role || "User",
-                u.status || "Aktif",
-                u.passwordHash || null
-              ]);
-            }
-          }
-
-          // Seed Meetings jika ada
-          if (Array.isArray(seedData.meetings) && seedData.meetings.length > 0) {
-            for (const m of seedData.meetings) {
-              await client.query(`
-                INSERT INTO meetings (
-                  id, google_id, title, agenda, requester, booked_by_name, booked_by_username,
-                  room_name, date, start_time, end_time, status, participants, approved_by,
-                  attendees, materials, created_at
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
-                ON CONFLICT (id) DO NOTHING;
-              `, [
-                String(m.id),
-                m.googleId || null,
-                m.title || m.agenda || "Rapat",
-                m.agenda || m.desc || "",
-                m.requester || "Umum",
-                m.bookedBy || m.bookedByName || "",
-                m.bookedByUsername || "",
-                m.room || m.roomName || "",
-                m.date,
-                m.start,
-                m.end,
-                m.status || "Akan Datang",
-                m.participants || 0,
-                m.approvedBy || null,
-                JSON.stringify(m.attendees || []),
-                JSON.stringify(m.materials || []),
-                m.createdAt ? new Date(m.createdAt) : new Date()
-              ]);
-            }
-          }
-        }
-      }
-
-      // Pastikan akun-akun default selalu terdaftar di database
-      const defaultAppUsers = [
-        { id: "admin", name: "Admin Utama", username: process.env.ADMIN_USERNAME || "admin", email: "admin@kemnaker.go.id", dept: "Biro Keuangan dan BMN", role: "Admin", status: "Aktif" },
-        { id: "approval1", name: "Pimpinan", username: process.env.APPROVAL1_USERNAME || "approval1", email: "pimpinan@kemnaker.go.id", dept: "Biro Keuangan dan BMN", role: "Pimpinan", status: "Aktif" },
-        { id: "approval2", name: "Wakil Pimpinan", username: process.env.APPROVAL2_USERNAME || "approval2", email: "wakil.pimpinan@kemnaker.go.id", dept: "Biro Keuangan dan BMN", role: "Pimpinan", status: "Aktif" },
-        { id: "andipratama", name: "Andi Pratama", username: process.env.USER_USERNAME || "andipratama", email: "andi@kemnaker.go.id", dept: "Biro Keuangan dan BMN", role: "User", status: "Aktif" },
-      ];
-      for (const u of defaultAppUsers) {
-        await client.query(`
-          INSERT INTO users (id, name, username, email, dept, role, status)
-          VALUES ($1, $2, $3, $4, $5, $6, $7)
-          ON CONFLICT (username) DO NOTHING;
-        `, [
-          u.id, u.name, u.username, u.email, u.dept, u.role, u.status
-        ]);
-      }
 
       console.log("[PostgreSQL] Skema tabel siap dan sinkron.");
       isConnected = true;

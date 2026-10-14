@@ -117,15 +117,6 @@ async function main() {
       role: "Pimpinan",
       status: "Aktif",
     },
-    {
-      id: "approval2",
-      name: "Wakil Pimpinan",
-      username: "approval2",
-      email: "wakil.pimpinan@kemnaker.go.id",
-      dept: "Biro Keuangan dan BMN",
-      role: "Pimpinan",
-      status: "Aktif",
-    },
   ];
 
   for (const u of usersToSeed) {

@@ -9,12 +9,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum Role {
-  Admin
-  Pimpinan
-  User
-}
-
 enum UserStatus {
   Aktif
   Nonaktif
@@ -40,7 +34,7 @@ model User {
   username     String     @unique
   email        String?
   dept         String     // Biro / Unit Kerja, e.g. "Biro Keuangan dan BMN"
-  role         Role       @default(User)
+  role         String     @default("User")
   status       UserStatus @default(Aktif)
   passwordHash String?
   createdAt    DateTime   @default(now()) @map("created_at")
@@ -49,6 +43,17 @@ model User {
   meetings     Meeting[]  @relation("BookedByUser")
 
   @@map("users")
+}
+
+model RoleDefinition {
+  name        String   @id
+  description String   @default("")
+  permissions Json     @default("[]")
+  isSystem    Boolean  @default(false) @map("is_system")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("roles")
 }
 
 model Room {

@@ -3,36 +3,6 @@ import { useLocation, useNavigate } from "react-router-dom";
 import "./LoginPage.css";
 import logoKemnaker from "../assets/Logo Kemenaker White.png";
 
-const dummyDB = [
-  {
-    username: import.meta.env.VITE_ADMIN_USERNAME || "admin",
-    password: import.meta.env.VITE_ADMIN_PASSWORD || "admin123",
-    role: "Admin",
-    name: "Admin Utama",
-  },
-  {
-    username: import.meta.env.VITE_APPROVAL1_USERNAME || "approval1",
-    password: import.meta.env.VITE_APPROVAL1_PASSWORD || "approval123",
-    role: "Pimpinan",
-    name: "Pimpinan",
-  },
-  {
-    username: import.meta.env.VITE_APPROVAL2_USERNAME || "approval2",
-    password: import.meta.env.VITE_APPROVAL2_PASSWORD || "approval234",
-    role: "Pimpinan",
-    name: "Wakil Pimpinan",
-  },
-  {
-    username: import.meta.env.VITE_USER_USERNAME || "andipratama",
-    password: import.meta.env.VITE_USER_PASSWORD || "user123",
-    role: "User",
-    name: "Andi Pratama",
-    email: "andi@kemnaker.go.id",
-    dept: "Biro Keuangan",
-    status: "Aktif",
-  },
-];
-
 export default function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -126,7 +96,7 @@ export default function LoginPage() {
         const res = await fetch("/api/dashboard/users");
         if (res.ok) {
           const remoteUsers = await res.json();
-          if (Array.isArray(remoteUsers) && remoteUsers.length > 0) {
+          if (Array.isArray(remoteUsers)) {
             let localLogin = [];
             try {
               localLogin = JSON.parse(
@@ -134,26 +104,18 @@ export default function LoginPage() {
               );
             } catch (e) {}
 
-            const map = new Map();
-            dummyDB.forEach((u) => map.set(u.username.toLowerCase(), u));
+            const localByUsername = new Map();
             localLogin.forEach((u) => {
               if (u && u.username) {
-                map.set(u.username.toLowerCase(), {
-                  ...map.get(u.username.toLowerCase()),
-                  ...u,
-                });
+                localByUsername.set(u.username.toLowerCase(), u);
               }
             });
-            remoteUsers.forEach((u) => {
-              if (u && u.username) {
-                map.set(u.username.toLowerCase(), {
-                  ...map.get(u.username.toLowerCase()),
-                  ...u,
-                });
-              }
-            });
-
-            const merged = Array.from(map.values());
+            const merged = remoteUsers
+              .filter((user) => user?.username)
+              .map((user) => ({
+                ...localByUsername.get(user.username.toLowerCase()),
+                ...user,
+              }));
             localStorage.setItem("app_login_users", JSON.stringify(merged));
             localStorage.setItem("app_users", JSON.stringify(merged));
           }
@@ -173,17 +135,7 @@ export default function LoginPage() {
     } catch (e) {
       stored = [];
     }
-    const map = new Map();
-    dummyDB.forEach((u) => map.set(u.username.toLowerCase(), u));
-    stored.forEach((u) => {
-      if (u && u.username) {
-        map.set(u.username.toLowerCase(), {
-          ...map.get(u.username.toLowerCase()),
-          ...u,
-        });
-      }
-    });
-    return Array.from(map.values());
+    return stored.filter((user) => user?.username);
   };
 
   const handleLogin = async (e) => {
@@ -296,17 +248,6 @@ export default function LoginPage() {
         } catch (e) {
           saved = [];
         }
-
-        const defaultAccounts = [
-          { username: "admin", name: "Admin Utama", role: "Admin" },
-          { username: "approval1", name: "Pimpinan", role: "Pimpinan" },
-          { username: "approval2", name: "Wakil Pimpinan", role: "Pimpinan" },
-        ];
-        defaultAccounts.forEach((da) => {
-          if (!saved.some((s) => (s.username || "").toLowerCase() === da.username.toLowerCase())) {
-            saved.push(da);
-          }
-        });
 
         saved = saved
           .filter(

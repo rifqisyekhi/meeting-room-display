@@ -5,9 +5,9 @@ const { google } = require("googleapis");
 const { query, getIsConnected } = require("../db");
 
 const STORE_PATH = path.join(__dirname, "../../data/dashboard-store.json");
-const EXAMPLE_STORE_PATH = path.join(__dirname, "../../data/dashboard-store.example.json");
 const CREDENTIALS_PATH = path.join(__dirname, "../../credentials/google-service-account.json");
 const DEFAULT_TIME_ZONE = process.env.CALENDAR_TIME_ZONE || "Asia/Jakarta";
+const SYSTEM_ROLE_NAMES = new Set(["admin", "pimpinan", "user"]);
 
 function hashPassword(password) {
   if (!password) return "";
@@ -30,53 +30,8 @@ function verifyPassword(password, storedHash) {
   }
 }
 
-const DEFAULT_USERS = [
-  {
-    id: "admin",
-    name: "Admin Utama",
-    username: process.env.ADMIN_USERNAME || "admin",
-    email: "admin@kemnaker.go.id",
-    dept: "Biro Keuangan dan BMN",
-    role: "Admin",
-    status: "Aktif",
-  },
-  {
-    id: "approval1",
-    name: "Pimpinan",
-    username: process.env.APPROVAL1_USERNAME || "approval1",
-    email: "pimpinan@kemnaker.go.id",
-    dept: "Biro Keuangan dan BMN",
-    role: "Pimpinan",
-    status: "Aktif",
-  },
-  {
-    id: "approval2",
-    name: "Wakil Pimpinan",
-    username: process.env.APPROVAL2_USERNAME || "approval2",
-    email: "wakil.pimpinan@kemnaker.go.id",
-    dept: "Biro Keuangan dan BMN",
-    role: "Pimpinan",
-    status: "Aktif",
-  },
-  {
-    id: "andipratama",
-    name: "Andi Pratama",
-    username: process.env.USER_USERNAME || "andipratama",
-    email: "andi@kemnaker.go.id",
-    dept: "Biro Keuangan dan BMN",
-    role: "User",
-    status: "Aktif",
-  },
-];
-
 function readStore() {
   try {
-    if (!fs.existsSync(STORE_PATH) && fs.existsSync(EXAMPLE_STORE_PATH)) {
-      try {
-        fs.copyFileSync(EXAMPLE_STORE_PATH, STORE_PATH);
-      } catch (e) {}
-    }
-
     if (fs.existsSync(STORE_PATH)) {
       const data = fs.readFileSync(STORE_PATH, "utf8");
       const parsed = JSON.parse(data);
@@ -85,6 +40,10 @@ function readStore() {
       if (!parsed.users) parsed.users = [];
 
       let storeNeedsUpdate = false;
+      if (!Array.isArray(parsed.roles)) {
+        parsed.roles = [];
+        storeNeedsUpdate = true;
+      }
 
       // Hapus seluruh password plaintext dari file JSON dan migrasikan user custom ke passwordHash
       parsed.users.forEach((u) => {
@@ -95,27 +54,6 @@ function readStore() {
           }
           delete u.password;
           storeNeedsUpdate = true;
-        }
-      });
-
-      DEFAULT_USERS.forEach((defUser) => {
-        const existingIdx = parsed.users.findIndex(
-          (u) =>
-            String(u.id) === String(defUser.id) ||
-            (u.username && u.username.toLowerCase() === defUser.username.toLowerCase())
-        );
-        if (existingIdx === -1) {
-          parsed.users.unshift({ ...defUser });
-          storeNeedsUpdate = true;
-        } else {
-          if (!parsed.users[existingIdx].username) {
-            parsed.users[existingIdx].username = defUser.username;
-            storeNeedsUpdate = true;
-          }
-          if (parsed.users[existingIdx].password) {
-            delete parsed.users[existingIdx].password;
-            storeNeedsUpdate = true;
-          }
         }
       });
 
@@ -130,7 +68,7 @@ function readStore() {
   } catch (err) {
     console.error("Gagal membaca dashboard store:", err);
   }
-  return { rooms: [], users: [...DEFAULT_USERS], meetings: [] };
+  return { rooms: [], users: [], meetings: [], roles: [] };
 }
 
 function writeStore(data) {
@@ -310,14 +248,14 @@ async function syncStoreFromDatabase() {
   try {
     const roomsRes = await query("SELECT * FROM rooms ORDER BY id ASC");
     const usersRes = await query("SELECT * FROM users ORDER BY created_at ASC");
+    const rolesRes = await query("SELECT * FROM roles ORDER BY is_system DESC, name ASC");
     const meetingsRes = await query("SELECT * FROM meetings ORDER BY date DESC, start_time DESC");
     const reviewsRes = await query("SELECT * FROM reviews ORDER BY created_at DESC");
 
     const store = readStore();
     const beforeStr = JSON.stringify(store);
 
-    if (roomsRes.rows && roomsRes.rows.length > 0) {
-      store.rooms = roomsRes.rows.map((r) => ({
+    store.rooms = roomsRes.rows.map((r) => ({
         id: r.id,
         name: r.name,
         location: r.location,
@@ -329,9 +267,7 @@ async function syncStoreFromDatabase() {
         images: r.images || [],
         img: r.img || (r.images && r.images[0]) || "",
       }));
-    }
-    if (usersRes.rows && usersRes.rows.length > 0) {
-      store.users = usersRes.rows.map((u) => ({
+    store.users = usersRes.rows.map((u) => ({
         id: u.id,
         name: u.name,
         username: u.username,
@@ -341,9 +277,13 @@ async function syncStoreFromDatabase() {
         status: u.status,
         passwordHash: u.password_hash,
       }));
-    }
-    if (meetingsRes.rows && meetingsRes.rows.length > 0) {
-      store.meetings = meetingsRes.rows.map((m) => ({
+    store.roles = rolesRes.rows.map((role) => ({
+        name: role.name,
+        description: role.description || "",
+        permissions: Array.isArray(role.permissions) ? role.permissions : [],
+        isSystem: !!role.is_system,
+      }));
+    store.meetings = meetingsRes.rows.map((m) => ({
         id: m.id,
         googleId: m.google_id,
         title: m.title,
@@ -371,7 +311,6 @@ async function syncStoreFromDatabase() {
         checkOutMethodLabel: m.check_out_method_label,
         createdAt: m.created_at,
       }));
-    }
     if (reviewsRes.rows && reviewsRes.rows.length > 0) {
       reviewsRes.rows.forEach((rev) => {
         const m = (store.meetings || []).find((meet) => String(meet.id) === String(rev.meeting_id));
@@ -562,6 +501,7 @@ async function getDashboardData() {
     meetings,
     rooms,
     users,
+    roles: store.roles || [],
     stats: {
       totalMeetings: total,
       runningMeetings: running,
@@ -864,6 +804,7 @@ async function saveMeeting(meeting) {
       }
     } catch (dbErr) {
       console.warn("[PostgreSQL] Gagal sync meeting ke DB:", dbErr.message);
+      throw dbErr;
     }
   }
 
@@ -874,26 +815,36 @@ async function saveMeeting(meeting) {
 async function deleteMeeting(id) {
   const store = readStore();
   const gcal = getGoogleCalendarClient();
+  const target = String(id).trim();
+  const storedMeeting = (store.meetings || []).find((meeting) =>
+    [meeting.id, meeting.googleId, meeting.originalId].some((value) => String(value || "") === target),
+  );
+  const identifiers = [...new Set(
+    [target, storedMeeting?.id, storedMeeting?.googleId, storedMeeting?.originalId]
+      .filter(Boolean)
+      .map(String),
+  )];
+  let deletedFromDatabase = false;
+  let deletedFromCalendar = false;
+  let calendarError = null;
 
   if (getIsConnected()) {
     try {
-      await query("DELETE FROM meetings WHERE id = $1 OR google_id = $1", [String(id)]);
+      const deleted = await query(
+        "DELETE FROM meetings WHERE id = ANY($1::text[]) OR google_id = ANY($1::text[])",
+        [identifiers],
+      );
+      deletedFromDatabase = deleted.rowCount > 0;
     } catch (dbErr) {
       console.warn("[PostgreSQL] Gagal delete meeting dari DB:", dbErr.message);
+      throw dbErr;
     }
   }
 
   if (gcal) {
     try {
-      const target = String(id).trim();
-      const meetingInStore = (store.meetings || []).find(
-        (m) =>
-          String(m.id) === target ||
-          (m.googleId && String(m.googleId) === target) ||
-          (m.originalId && String(m.originalId) === target)
-      );
       const targetGoogleId =
-        meetingInStore?.googleId ||
+        storedMeeting?.googleId ||
         (typeof id === "string" && !/^\d+$/.test(id) ? id : null);
 
       if (targetGoogleId) {
@@ -901,23 +852,35 @@ async function deleteMeeting(id) {
           calendarId: gcal.calendarId,
           eventId: targetGoogleId,
         });
+        deletedFromCalendar = true;
         console.log(`🗑️ [Google Calendar] Event ${targetGoogleId} berhasil dihapus.`);
       }
     } catch (gcalErr) {
+      if ([404, 410].includes(Number(gcalErr.code || gcalErr.response?.status))) {
+        deletedFromCalendar = true;
+      } else {
+        calendarError = gcalErr;
+      }
       console.warn("⚠️ [Google Calendar] Gagal hapus event:", gcalErr.message);
     }
   }
 
+  const meetingWasFound = Boolean(storedMeeting || deletedFromDatabase || deletedFromCalendar || calendarError);
+  if (!meetingWasFound) return false;
+
   if (store.meetings) {
-    const target = String(id).trim();
     store.meetings = store.meetings.filter(
-      (m) =>
-        String(m.id) !== target &&
-        String(m.googleId) !== target &&
-        String(m.originalId) !== target
+      (m) => ![m.id, m.googleId, m.originalId].some((value) => identifiers.includes(String(value || "")))
     );
     writeStore(store);
   }
+
+  if (calendarError) {
+    const error = new Error(`Rapat terhapus dari database, tetapi Google Calendar gagal menghapus event: ${calendarError.message}`);
+    error.statusCode = 502;
+    throw error;
+  }
+
   return true;
 }
 
@@ -1039,15 +1002,16 @@ async function addMeetingAttendee(id, attendeeData) {
   };
 
   meeting.attendees.push(attendee);
-  writeStore(store);
-
   if (getIsConnected()) {
-    query(
-      "UPDATE meetings SET attendees = $1, updated_at = NOW() WHERE id = $2 OR google_id = $2",
-      [JSON.stringify(meeting.attendees), target]
-    ).catch((err) => console.warn("[PostgreSQL] Gagal sync attendees ke DB:", err.message));
+    const meetingIds = [...new Set([target, meeting.id, meeting.googleId, meeting.originalId].filter(Boolean).map(String))];
+    const dbResult = await query(
+      "UPDATE meetings SET attendees = $1, updated_at = NOW() WHERE id = ANY($2::text[]) OR google_id = ANY($2::text[])",
+      [JSON.stringify(meeting.attendees), meetingIds]
+    );
+    if (!dbResult.rowCount) throw new Error("Rapat belum tersimpan di database.");
   }
 
+  writeStore(store);
   return { meeting, attendee };
 }
 
@@ -1091,16 +1055,24 @@ async function addMeetingMaterial(id, materialData) {
   };
 
   meeting.materials.push(newMaterial);
-  writeStore(store);
-
+  const persistedInDatabase = getIsConnected();
   if (getIsConnected()) {
-    query(
-      "UPDATE meetings SET materials = $1, updated_at = NOW() WHERE id = $2 OR google_id = $2",
-      [JSON.stringify(meeting.materials), target]
-    ).catch((err) => console.warn("[PostgreSQL] Gagal sync materials ke DB:", err.message));
+    const meetingIds = [...new Set([target, meeting.id, meeting.googleId, meeting.originalId].filter(Boolean).map(String))];
+    const dbResult = await query(
+      "UPDATE meetings SET materials = $1, updated_at = NOW() WHERE id = ANY($2::text[]) OR google_id = ANY($2::text[])",
+      [JSON.stringify(meeting.materials), meetingIds]
+    );
+    if (!dbResult.rowCount) {
+      throw new Error("Rapat belum tersimpan di database; materi tidak disimpan.");
+    }
   }
 
-  return { meeting, material: newMaterial };
+  writeStore(store);
+  return {
+    meeting,
+    material: newMaterial,
+    storage: persistedInDatabase ? "database" : "file",
+  };
 }
 
 async function deleteMeetingMaterial(id, materialId) {
@@ -1116,19 +1088,22 @@ async function deleteMeetingMaterial(id, materialId) {
 
   if (Array.isArray(meeting.materials)) {
     meeting.materials = meeting.materials.filter((mat) => String(mat.id) !== String(materialId));
-    writeStore(store);
-
     if (getIsConnected()) {
-      query(
-        "UPDATE meetings SET materials = $1, updated_at = NOW() WHERE id = $2 OR google_id = $2",
-        [JSON.stringify(meeting.materials), target]
-      ).catch((err) => console.warn("[PostgreSQL] Gagal sync delete materials ke DB:", err.message));
+      const meetingIds = [...new Set([target, meeting.id, meeting.googleId, meeting.originalId].filter(Boolean).map(String))];
+      const dbResult = await query(
+        "UPDATE meetings SET materials = $1, updated_at = NOW() WHERE id = ANY($2::text[]) OR google_id = ANY($2::text[])",
+        [JSON.stringify(meeting.materials), meetingIds]
+      );
+      if (!dbResult.rowCount) {
+        throw new Error("Rapat belum tersimpan di database; materi tidak dihapus.");
+      }
     }
+    writeStore(store);
   }
   return { meeting };
 }
 
-function saveRoom(room) {
+async function saveRoom(room) {
   const store = readStore();
   if (!store.rooms) store.rooms = [];
 
@@ -1145,7 +1120,7 @@ function saveRoom(room) {
   }
 
   if (getIsConnected()) {
-    query(`
+    await query(`
       INSERT INTO rooms (name, location, capacity, status, category, description, facilities, images, updated_at)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
       ON CONFLICT (name) DO UPDATE SET
@@ -1166,16 +1141,140 @@ function saveRoom(room) {
       room.desc || null,
       JSON.stringify(room.facilities || []),
       JSON.stringify(room.images || (room.img ? [room.img] : [])),
-    ]).catch((err) => console.warn("[PostgreSQL] Gagal sync room ke DB:", err.message));
+    ]);
   }
 
   writeStore(store);
   return room;
 }
 
+async function deleteRoom(id) {
+  const store = readStore();
+  const room = (store.rooms || []).find((item) => String(item.id) === String(id) || item.name === String(id));
+  if (!room) return false;
+  if ((store.meetings || []).some((meeting) => String(meeting.room || meeting.roomName || "") === room.name)) {
+    const error = new Error("Ruangan masih digunakan rapat. Hapus atau pindahkan rapat terlebih dahulu.");
+    error.statusCode = 409;
+    throw error;
+  }
+  if (getIsConnected()) {
+    const usage = await query(
+      "SELECT COUNT(*)::int AS count FROM meetings m LEFT JOIN rooms r ON r.id = m.room_id WHERE m.room_name = $1 OR r.name = $1",
+      [room.name],
+    );
+    if (usage.rows[0]?.count > 0) {
+      const error = new Error("Ruangan masih digunakan rapat. Hapus atau pindahkan rapat terlebih dahulu.");
+      error.statusCode = 409;
+      throw error;
+    }
+    const result = await query("DELETE FROM rooms WHERE name = $1", [room.name]);
+    if (!result.rowCount) return false;
+  }
+  store.rooms = (store.rooms || []).filter((item) => item.name !== room.name);
+  writeStore(store);
+  return true;
+}
+
 function getUsers() {
   const store = readStore();
   return (store.users || []).map(({ password, passwordHash, ...safeUser }) => safeUser);
+}
+
+async function saveRole(roleData = {}) {
+  const store = readStore();
+  const name = String(roleData.name || "").trim();
+  const originalName = String(roleData.originalName || name).trim();
+  const description = String(roleData.description || "").trim();
+  const allowedPermissions = new Set([
+    "approve", "manageMeeting", "checkInOut", "emergencyCancel",
+    "manageRoom", "manageUsers", "manageSettings", "viewReports",
+  ]);
+  const permissions = [...new Set(
+    (Array.isArray(roleData.permissions) ? roleData.permissions : [])
+      .filter((permission) => allowedPermissions.has(permission)),
+  )];
+  if (!name || name.length > 80) throw new Error("Nama role wajib diisi (maksimal 80 karakter).");
+  if (SYSTEM_ROLE_NAMES.has(originalName.toLowerCase())) {
+    throw new Error("Role bawaan tidak dapat diubah.");
+  }
+  if (SYSTEM_ROLE_NAMES.has(name.toLowerCase())) {
+    throw new Error("Nama tersebut sudah digunakan role bawaan.");
+  }
+  const roles = Array.isArray(store.roles) ? store.roles : [];
+  const conflict = roles.find((role) => role.name.toLowerCase() === name.toLowerCase());
+  if (conflict && conflict.name !== originalName) throw new Error("Nama role sudah digunakan.");
+
+  const savedRole = { name, description, permissions, isSystem: false };
+  if (getIsConnected()) {
+    if (originalName !== name) {
+      await query(
+        "INSERT INTO roles (name, description, permissions, is_system) VALUES ($1, $2, $3, FALSE)",
+        [name, description, JSON.stringify(permissions)],
+      );
+      await query("UPDATE users SET role = $1, updated_at = NOW() WHERE role = $2", [name, originalName]);
+      await query("DELETE FROM roles WHERE name = $1 AND is_system = FALSE", [originalName]);
+    } else {
+      await query(
+        `INSERT INTO roles (name, description, permissions, is_system)
+         VALUES ($1, $2, $3, FALSE)
+         ON CONFLICT (name) DO UPDATE SET description = EXCLUDED.description,
+           permissions = EXCLUDED.permissions, updated_at = NOW()
+         WHERE roles.is_system = FALSE`,
+        [name, description, JSON.stringify(permissions)],
+      );
+    }
+  }
+
+  if (originalName !== name) {
+    store.users = (store.users || []).map((user) =>
+      user.role === originalName ? { ...user, role: name } : user,
+    );
+  }
+  const index = roles.findIndex((role) => role.name === originalName);
+  if (index < 0) roles.push(savedRole);
+  else roles[index] = savedRole;
+  store.roles = roles;
+  writeStore(store);
+  return savedRole;
+}
+
+async function deleteRole(name) {
+  const target = String(name || "").trim();
+  const store = readStore();
+  const role = (store.roles || []).find((item) => item.name === target);
+  if (!role) return false;
+  if (role.isSystem || SYSTEM_ROLE_NAMES.has(target.toLowerCase())) {
+    throw new Error("Role bawaan sistem tidak dapat dihapus.");
+  }
+  if ((store.users || []).some((user) => user.role === target)) {
+    throw new Error("Role masih digunakan pengguna. Pindahkan pengguna ke role lain terlebih dahulu.");
+  }
+  if (getIsConnected()) {
+    const usage = await query("SELECT COUNT(*)::int AS count FROM users WHERE role = $1", [target]);
+    if (usage.rows[0]?.count > 0) {
+      throw new Error("Role masih digunakan pengguna. Pindahkan pengguna ke role lain terlebih dahulu.");
+    }
+    const result = await query("DELETE FROM roles WHERE name = $1 AND is_system = FALSE", [target]);
+    if (!result.rowCount) return false;
+  }
+  store.roles = (store.roles || []).filter((item) => item.name !== target);
+  writeStore(store);
+  return true;
+}
+
+async function getRoles() {
+  if (!getIsConnected()) return readStore().roles || [];
+  const result = await query("SELECT name, description, permissions, is_system FROM roles ORDER BY is_system DESC, name ASC");
+  const roles = result.rows.map((role) => ({
+    name: role.name,
+    description: role.description || "",
+    permissions: Array.isArray(role.permissions) ? role.permissions : [],
+    isSystem: !!role.is_system,
+  }));
+  const store = readStore();
+  store.roles = roles;
+  writeStore(store);
+  return roles;
 }
 
 async function authenticateUser(username, password) {
@@ -1187,14 +1286,6 @@ async function authenticateUser(username, password) {
     };
   }
 
-  const envPasswords = {
-    admin: process.env.ADMIN_PASSWORD || "admin123",
-    approval1: process.env.APPROVAL1_PASSWORD || "approval123",
-    approval2: process.env.APPROVAL2_PASSWORD || "approval234",
-    andipratama: process.env.USER_PASSWORD || "user123",
-  };
-  const expectedPassword = envPasswords[uname];
-
   // 1. Prioritaskan pengecekan langsung ke basis data PostgreSQL
   if (getIsConnected()) {
     try {
@@ -1204,8 +1295,6 @@ async function authenticateUser(username, password) {
         let isMatch = false;
         if (dbUser.password_hash) {
           isMatch = verifyPassword(password, dbUser.password_hash);
-        } else if (expectedPassword && password === expectedPassword) {
-          isMatch = true;
         }
 
         if (!isMatch) {
@@ -1258,8 +1347,6 @@ async function authenticateUser(username, password) {
   let isMatch = false;
   if (user.passwordHash) {
     isMatch = verifyPassword(password, user.passwordHash);
-  } else if (expectedPassword && password === expectedPassword) {
-    isMatch = true;
   } else if (user.password && verifyPassword(password, user.password)) {
     isMatch = true;
     user.passwordHash = hashPassword(password);
@@ -1307,19 +1394,20 @@ async function changeUserPassword(username, currentPassword, newPassword) {
 
   user.passwordHash = hashPassword(newPassword);
   delete user.password;
-  writeStore(store);
 
   if (getIsConnected()) {
-    query("UPDATE users SET password_hash = $1, updated_at = NOW() WHERE username = $2", [
+    const dbResult = await query("UPDATE users SET password_hash = $1, updated_at = NOW() WHERE username = $2", [
       user.passwordHash,
       user.username,
-    ]).catch((err) => console.warn("[PostgreSQL] Gagal memperbarui password:", err.message));
+    ]);
+    if (!dbResult.rowCount) throw new Error("Akun belum tersimpan di database.");
   }
 
+  writeStore(store);
   return { success: true };
 }
 
-function saveUser(user) {
+async function saveUser(user) {
   const store = readStore();
   if (!store.users) store.users = [];
 
@@ -1354,7 +1442,7 @@ function saveUser(user) {
   }
 
   if (getIsConnected()) {
-    query(`
+    await query(`
       INSERT INTO users (id, name, username, email, dept, role, status, password_hash, updated_at)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
       ON CONFLICT (username) DO UPDATE SET
@@ -1374,7 +1462,7 @@ function saveUser(user) {
       normalized.role || "User",
       normalized.status || "Aktif",
       normalized.passwordHash || null,
-    ]).catch((err) => console.warn("[PostgreSQL] Gagal sync user ke DB:", err.message));
+    ]);
   }
 
   writeStore(store);
@@ -1382,13 +1470,12 @@ function saveUser(user) {
   return safeUser;
 }
 
-function deleteUser(id) {
+async function deleteUser(id) {
   const store = readStore();
   if (!store.users) return false;
 
   if (getIsConnected()) {
-    query("DELETE FROM users WHERE id = $1 OR username = $1", [String(id)])
-      .catch((err) => console.warn("[PostgreSQL] Gagal delete user dari DB:", err.message));
+    await query("DELETE FROM users WHERE id = $1 OR username = $1", [String(id)]);
   }
 
   store.users = store.users.filter(
@@ -1411,9 +1498,13 @@ module.exports = {
   addMeetingMaterial,
   deleteMeetingMaterial,
   saveRoom,
+  deleteRoom,
   saveUser,
   deleteUser,
   getUsers,
+  getRoles,
+  saveRole,
+  deleteRole,
   authenticateUser,
   changeUserPassword,
   readStore,
