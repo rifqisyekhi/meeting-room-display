@@ -165,17 +165,58 @@ export default function UserDashboardPage() {
     <div className="user-dashboard-shell">
       <aside className="user-dashboard-sidebar">
         <div className="user-dashboard-brand">
-          <img src="/dashboard-app/assets/kemenaker-white.jpeg" alt="" />
-          <span><strong>MEETING DISPLAY ROOM</strong><small>BIRO KEUANGAN DAN BMN</small></span>
+          <img
+            src="/dashboard-app/assets/kemenaker-white.png"
+            alt="Logo Kemenaker"
+            className="user-dashboard-brand-logo"
+          />
+          <div>
+            <b>MEETING DISPLAY ROOM</b>
+            <small>BIRO KEUANGAN DAN BMN</small>
+          </div>
         </div>
         <nav className="user-dashboard-nav" aria-label="Navigasi pengguna">
-          <button className={!profileOpen ? "active" : ""} onClick={() => { setProfileOpen(false); navigate("/dashboard"); }}><IoMdHome />Dashboard</button>
-          <button onClick={() => navigate("/booking")}><FaCalendarAlt />Booking Ruangan</button>
-          <button onClick={() => navigate("/booking/history")}><FaHistory />Riwayat Pemesanan</button>
-          <button className={profileOpen ? "active" : ""} onClick={openProfile}><FaUser />Profil</button>
+          <button
+            type="button"
+            className={!profileOpen ? "active" : ""}
+            onClick={() => {
+              setProfileOpen(false);
+              navigate("/dashboard");
+            }}
+          >
+            <IoMdHome />
+            <span>Dashboard</span>
+          </button>
+          <button type="button" onClick={() => navigate("/booking")}>
+            <FaCalendarAlt />
+            <span>Booking Ruangan</span>
+          </button>
+          <button type="button" onClick={() => navigate("/booking/history")}>
+            <FaHistory />
+            <span>Riwayat Pemesanan</span>
+          </button>
+          <button
+            type="button"
+            className={profileOpen ? "active" : ""}
+            onClick={openProfile}
+          >
+            <FaUser />
+            <span>Profil</span>
+          </button>
         </nav>
-        <button className="user-dashboard-logout" onClick={logout}><FaSignOutAlt />Keluar</button>
-        <div className="user-dashboard-sidebar-user"><span>{(user.name || user.username || "U").charAt(0).toUpperCase()}</span><div><strong>{user.name || user.username || "Pengguna"}</strong><small>{user.role || "User"}</small></div></div>
+        <div className="user-dashboard-sidebar-footer">
+          <button type="button" className="user-dashboard-logout" onClick={logout}>
+            <FaSignOutAlt />
+            <span>Keluar</span>
+          </button>
+          <div className="user-dashboard-sidebar-user">
+            <span>{(user.name || user.username || "U").charAt(0).toUpperCase()}</span>
+            <div>
+              <strong>{user.name || user.username || "Pengguna"}</strong>
+              <small>{user.role || "User"}</small>
+            </div>
+          </div>
+        </div>
       </aside>
 
       <main className="user-dashboard-main">

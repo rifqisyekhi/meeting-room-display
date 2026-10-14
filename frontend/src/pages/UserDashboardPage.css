@@ -9,33 +9,216 @@
 }
 
 .user-dashboard-sidebar {
-  position: fixed;
-  inset: 0 auto 0 0;
-  z-index: 20;
-  display: flex;
-  width: 250px;
-  flex-direction: column;
-  padding: 18px 14px;
+  background: linear-gradient(175deg, #0a2448 0%, #0d2d5e 40%, #133672 100%);
   color: #fff;
-  background: linear-gradient(175deg, #0a2448, #0d2d5e 48%, #133672);
+  padding: 0;
+  position: fixed;
+  width: 250px;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  z-index: 20;
   box-sizing: border-box;
 }
 
-.user-dashboard-brand { display: flex; align-items: center; gap: 11px; padding: 6px 5px 22px; border-bottom: 1px solid rgba(255,255,255,.12); }
-.user-dashboard-brand img { width: 42px; height: 42px; border: 1px solid rgba(255,255,255,.3); border-radius: 9px; object-fit: cover; }
-.user-dashboard-brand span, .user-dashboard-sidebar-user div { display: grid; gap: 3px; min-width: 0; }
-.user-dashboard-brand strong { font-size: 10px; letter-spacing: .04em; }
-.user-dashboard-brand small { color: #b9c9dd; font-size: 9px; }
-.user-dashboard-nav { display: grid; gap: 6px; padding-top: 18px; }
-.user-dashboard-nav button, .user-dashboard-logout { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 13px; border: 0; border-radius: 9px; color: #d0dced; background: transparent; font: 500 12px "Poppins", sans-serif; text-align: left; cursor: pointer; transition: .18s ease; }
-.user-dashboard-nav button:hover, .user-dashboard-logout:hover { color: #fff; background: rgba(255,255,255,.1); }
-.user-dashboard-nav button.active { color: #fff; background: #1769aa; box-shadow: 0 5px 16px rgba(0,0,0,.12); }
-.user-dashboard-nav svg, .user-dashboard-logout svg { flex: 0 0 auto; font-size: 16px; }
-.user-dashboard-logout { margin-top: auto; color: #f5caca; }
-.user-dashboard-sidebar-user { display: flex; align-items: center; gap: 10px; margin-top: 8px; padding: 11px 9px; border-top: 1px solid rgba(255,255,255,.12); }
-.user-dashboard-sidebar-user > span { display: grid; width: 34px; height: 34px; flex: 0 0 auto; place-items: center; border-radius: 50%; color: #fff; background: #2879be; font-weight: 700; }
-.user-dashboard-sidebar-user strong { overflow: hidden; color: #fff; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
-.user-dashboard-sidebar-user small { color: #b9c9dd; font-size: 9px; }
+/* Building background overlay (Persis Dashboard Admin) */
+.user-dashboard-sidebar::before {
+  content: "";
+  position: absolute;
+  top: 45%;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: url("/dashboard-app/assets/gedung-kemnaker.png") center bottom / 100% auto no-repeat;
+  opacity: 1;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.user-dashboard-brand {
+  padding: 22px 20px 20px;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+  box-sizing: border-box;
+}
+
+.user-dashboard-brand-logo,
+.user-dashboard-brand img {
+  width: 42px;
+  height: 42px;
+  object-fit: contain;
+  flex-shrink: 0;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.12);
+  padding: 5px;
+  border: none;
+}
+
+.user-dashboard-brand > div {
+  line-height: 1.2;
+}
+
+.user-dashboard-brand b,
+.user-dashboard-brand strong {
+  font-size: 13px;
+  font-weight: 700;
+  display: block;
+  letter-spacing: 0.3px;
+  color: #fff;
+  line-height: 1.2;
+}
+
+.user-dashboard-brand small {
+  font-size: 9.5px;
+  font-weight: 400;
+  opacity: 0.75;
+  display: block;
+  letter-spacing: 0.2px;
+  color: #fff;
+  margin-top: 3px;
+}
+
+.user-dashboard-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 16px 12px;
+  flex: 1;
+  position: relative;
+  z-index: 1;
+  overflow-y: auto;
+}
+
+.user-dashboard-nav button {
+  color: rgba(255, 255, 255, 0.72);
+  text-decoration: none;
+  padding: 11px 14px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  font-size: 13.5px;
+  font-weight: 500;
+  font-family: "Poppins", Inter, sans-serif;
+  background: transparent;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.user-dashboard-nav button svg {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  font-size: 18px;
+}
+
+.user-dashboard-nav button:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.user-dashboard-nav button.active {
+  background: #1769aa;
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 4px 14px rgba(23, 105, 170, 0.45);
+}
+
+.user-dashboard-sidebar-footer {
+  position: relative;
+  z-index: 1;
+  padding: 14px 16px 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.user-dashboard-logout {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(220, 38, 38, 0.75);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  text-align: center;
+  white-space: nowrap;
+  transition: background 0.2s;
+  width: 100%;
+  box-sizing: border-box;
+  font-family: "Poppins", Inter, sans-serif;
+}
+
+.user-dashboard-logout:hover {
+  background: rgba(220, 38, 38, 0.95);
+  color: #fff;
+}
+
+.user-dashboard-logout svg {
+  font-size: 14px;
+}
+
+.user-dashboard-sidebar-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-top: 2px;
+}
+
+.user-dashboard-sidebar-user > span {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+  background: #1769aa;
+  font-weight: 700;
+  font-size: 13px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+
+.user-dashboard-sidebar-user div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  line-height: 1.2;
+}
+
+.user-dashboard-sidebar-user strong {
+  overflow: hidden;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-dashboard-sidebar-user small {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 10px;
+}
 
 .user-dashboard-main { width: calc(100% - 250px); min-height: 100vh; margin-left: 250px; }
 .user-dashboard-topbar { position: sticky; top: 0; z-index: 10; display: flex; min-height: 66px; align-items: center; justify-content: space-between; gap: 16px; padding: 0 32px; border-bottom: 1px solid #e6edf5; background: rgba(255,255,255,.94); backdrop-filter: blur(12px); }
