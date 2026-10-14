@@ -1,14 +1,32 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 
 export default function DashboardPage() {
+  const [iframeSrc] = useState(() => `/dashboard-app/index.html?v=${Date.now()}`);
   useEffect(() => {
     document.title = "Dashboard - Booking Ruang Rapat";
+    try {
+      const stored =
+        sessionStorage.getItem("dashboard_currentUser") ||
+        sessionStorage.getItem("currentUser") ||
+        localStorage.getItem("dashboard_currentUser") ||
+        localStorage.getItem("currentUser");
+      if (stored) {
+        sessionStorage.setItem("dashboard_currentUser", stored);
+        sessionStorage.setItem("dashboard_isAuthenticated", "true");
+        sessionStorage.setItem("currentUser", stored);
+        sessionStorage.setItem("isAuthenticated", "true");
+      }
+    } catch (e) {}
   }, []);
 
   let currentUser = null;
   try {
-    const stored = localStorage.getItem("currentUser");
+    const stored =
+      sessionStorage.getItem("dashboard_currentUser") ||
+      sessionStorage.getItem("currentUser") ||
+      localStorage.getItem("dashboard_currentUser") ||
+      localStorage.getItem("currentUser");
     if (stored) currentUser = JSON.parse(stored);
   } catch (e) {}
 
@@ -23,7 +41,7 @@ export default function DashboardPage() {
     uname.includes("pimpinan");
 
   if (currentUser && !isAdminOrPimpinan) {
-    return <Navigate to="/booking" replace />;
+    return <Navigate to="/login?portal=dashboard" replace />;
   }
 
   return (
@@ -38,7 +56,7 @@ export default function DashboardPage() {
       }}
     >
       <iframe
-        src="/dashboard-app/index.html"
+        src={iframeSrc}
         title="Dashboard Booking Ruang Rapat"
         style={{
           width: "100%",

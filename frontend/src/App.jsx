@@ -8,25 +8,47 @@ import MeetingPassPage from "./pages/MeetingPassPage";
 
 // eslint-disable-next-line react/prop-types
 const ProtectedRoute = ({ children }) => {
-  const isAuthenticated = localStorage.getItem("isAuthenticated");
+  const isAuthenticated =
+    sessionStorage.getItem("booking_isAuthenticated") === "true" ||
+    localStorage.getItem("booking_isAuthenticated") === "true";
   const location = useLocation();
   if (!isAuthenticated) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
+    return (
+      <Navigate
+        to="/login?portal=booking"
+        state={{ from: location, fromPortal: "booking" }}
+        replace
+      />
+    );
   }
   return children;
 };
 
 // eslint-disable-next-line react/prop-types
 const DashboardRoute = ({ children }) => {
-  const isAuthenticated = localStorage.getItem("isAuthenticated");
+  const isAuthenticated =
+    sessionStorage.getItem("dashboard_isAuthenticated") === "true" ||
+    localStorage.getItem("dashboard_isAuthenticated") === "true" ||
+    sessionStorage.getItem("isAuthenticated") === "true" ||
+    localStorage.getItem("isAuthenticated") === "true";
   const location = useLocation();
   if (!isAuthenticated) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
+    return (
+      <Navigate
+        to="/login?portal=dashboard"
+        state={{ from: location, fromPortal: "dashboard" }}
+        replace
+      />
+    );
   }
 
   let currentUser = null;
   try {
-    const stored = localStorage.getItem("currentUser");
+    const stored =
+      sessionStorage.getItem("dashboard_currentUser") ||
+      sessionStorage.getItem("currentUser") ||
+      localStorage.getItem("dashboard_currentUser") ||
+      localStorage.getItem("currentUser");
     if (stored) currentUser = JSON.parse(stored);
   } catch (e) {}
 
@@ -40,9 +62,15 @@ const DashboardRoute = ({ children }) => {
     uname.includes("approval") ||
     uname.includes("pimpinan");
 
-  // Jika akun adalah User biasa (bukan Admin dan bukan Pimpinan), dilarang masuk dashboard, alihkan ke /booking
+  // Jika akun adalah User biasa (bukan Admin dan bukan Pimpinan), dilarang masuk dashboard, arahkan ke login dashboard
   if (currentUser && !isAdminOrPimpinan) {
-    return <Navigate to="/booking" replace />;
+    return (
+      <Navigate
+        to="/login?portal=dashboard"
+        state={{ from: location, fromPortal: "dashboard" }}
+        replace
+      />
+    );
   }
 
   return children;

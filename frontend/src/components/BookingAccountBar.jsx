@@ -11,17 +11,20 @@ export default function BookingAccountBar({ currentUser, historyPage = false, sh
   const role = currentUser?.role || "User";
 
   const logout = () => {
-    localStorage.removeItem("isAuthenticated");
-    localStorage.removeItem("currentUser");
-    sessionStorage.removeItem("isAddingAccount");
-    navigate("/login");
+    sessionStorage.removeItem("booking_isAuthenticated");
+    sessionStorage.removeItem("booking_currentUser");
+    sessionStorage.removeItem("booking_isAddingAccount");
+    localStorage.removeItem("booking_isAuthenticated");
+    localStorage.removeItem("booking_currentUser");
+    navigate("/login?portal=booking", { state: { from: { pathname: "/booking" }, fromPortal: "booking" } });
   };
 
   const switchAccount = () => {
     setMenuOpen(false);
-    sessionStorage.setItem("isAddingAccount", "true");
-    localStorage.removeItem("isAuthenticated");
-    navigate("/login");
+    sessionStorage.setItem("booking_isAddingAccount", "true");
+    sessionStorage.removeItem("booking_isAuthenticated");
+    sessionStorage.removeItem("booking_currentUser");
+    navigate("/login?portal=booking", { state: { from: { pathname: "/booking" }, fromPortal: "booking" } });
   };
 
   return (

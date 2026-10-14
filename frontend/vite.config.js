@@ -30,8 +30,24 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://localhost:3001',
+        target: 'http://127.0.0.1:3001',
         changeOrigin: true,
+        configure: (proxy) => {
+          proxy.on('error', (err, req, res) => {
+            // Mencegah AggregateError [ECONNREFUSED] mengotori terminal jika backend belum menyala
+            if (res && !res.headersSent && typeof res.writeHead === 'function') {
+              try {
+                res.writeHead(502, { 'Content-Type': 'application/json' });
+                res.end(
+                  JSON.stringify({
+                    error: 'Backend server offline atau belum berjalan di port 3001',
+                    code: err.code || 'ECONNREFUSED',
+                  })
+                );
+              } catch (e) {}
+            }
+          });
+        },
       },
     },
   },

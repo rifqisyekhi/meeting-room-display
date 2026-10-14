@@ -1028,51 +1028,102 @@ export default function MeetingPassPage() {
       {/* Modal QR Code Pop-up */}
       {showQRModal && (
         <div className="mp-modal-backdrop" onClick={() => setShowQRModal(false)}>
-          <div className="mp-modal-box" onClick={(e) => e.stopPropagation()}>
-            <button
-              type="button"
-              className="mp-modal-close-btn"
-              onClick={() => setShowQRModal(false)}
-              aria-label="Tutup Modal"
-            >
-              ×
-            </button>
-
-            <h3 className="mp-modal-title">QR Code Presensi Rapat</h3>
-            <p className="mp-modal-subtitle">
-              Pindai dengan kamera smartphone untuk Check-In &amp; Check-Out otomatis tanpa perlu bantuan admin secara manual.
-            </p>
-
-            <div className="mp-modal-qr-wrap">
-              <QRCodeSVG
-                value={currentUrl}
-                size={220}
-                level="H"
-                marginSize={2}
-                bgColor="#ffffff"
-                fgColor="#0c2d5e"
-              />
-            </div>
-
-            <div className="mp-modal-meeting-info">
-              <strong>{meeting.title || "Rapat"}</strong>
-              <span>{meeting.room} · {meeting.date} ({meeting.start}–{meeting.end})</span>
-            </div>
-
-            <div className="mp-modal-actions">
+          <div style={{ maxWidth: 440, width: "92%", padding: "22px 24px", borderRadius: 24, background: "#ffffff", boxShadow: "0 20px 48px rgba(12,45,94,0.16)", textAlign: "center", position: "relative", boxSizing: "border-box", margin: "auto" }} onClick={(e) => e.stopPropagation()}>
+            {/* Header Bar */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <span style={{ fontSize: "11.5px", fontWeight: 700, color: "#0369a1", background: "#e0f2fe", padding: "4px 12px", borderRadius: 20, display: "inline-flex", alignItems: "center", gap: 6, border: "1px solid #bae6fd" }}>
+                <span style={{ fontSize: "13px" }}>📱</span> QR Presensi Mandiri
+              </span>
               <button
                 type="button"
-                className="mp-btn-action primary"
-                onClick={handleCopyLink}
+                style={{ background: "#f1f5f9", border: "none", width: 30, height: 30, borderRadius: "50%", fontSize: 15, color: "#64748b", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s ease" }}
+                onClick={() => setShowQRModal(false)}
+                aria-label="Tutup Modal"
               >
-                {copied ? "✓ Link Tersalin!" : "Salin Tautan Presensi"}
+                ✕
+              </button>
+            </div>
+
+            {/* Agenda Title & Details */}
+            <h3 style={{ margin: "6px 0 3px", fontSize: 18, fontWeight: 800, color: "#0c2d5e", letterSpacing: "-0.2px", lineHeight: 1.3 }}>
+              {meeting.title || "Rapat"}
+            </h3>
+            <p style={{ margin: "0 0 14px", fontSize: "11.5px", color: "#64748b", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, flexWrap: "wrap" }}>
+              <span>📍 <b>{meeting.room}</b></span>
+              <span style={{ color: "#cbd5e1" }}>·</span>
+              <span>📅 {meeting.date} ({meeting.start} - {meeting.end} WIB)</span>
+            </p>
+
+            {/* Alert: Sistem Presensi Mandiri Otomatis */}
+            <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 12, padding: "10px 14px", marginBottom: 14, textAlign: "left", display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 18, flexShrink: 0 }}>💡</span>
+              <div style={{ fontSize: "11.5px", color: "#166534", lineHeight: 1.45 }}>
+                <strong>Presensi Otomatis:</strong> Scan QR di bawah untuk Check-In &amp; Check-Out mandiri.
+              </div>
+            </div>
+
+            {/* Single QR Code Container */}
+            <div style={{ background: "#ffffff", border: "1.5px solid #e2e8f0", borderRadius: 20, padding: "18px 16px", display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 14, boxShadow: "0 4px 16px rgba(12,45,94,0.04)" }}>
+              <div style={{ background: "#ffffff", padding: 10, borderRadius: 16, boxShadow: "0 6px 20px rgba(12,45,94,0.06)", border: "1px solid #edf2f7", marginBottom: 12 }}>
+                <QRCodeSVG
+                  value={currentUrl}
+                  size={210}
+                  level="H"
+                  marginSize={2}
+                  bgColor="#ffffff"
+                  fgColor="#000000"
+                />
+              </div>
+
+              <div style={{ fontSize: "11.5px", color: "#64748b", fontWeight: 500, display: "flex", alignItems: "center", gap: 5, marginBottom: 8 }}>
+                <span>📷</span> Pindai dengan Kamera Smartphone:
+              </div>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "center" }}>
+                <span style={{ background: "#dcfce7", color: "#15803d", padding: "3px 10px", borderRadius: 8, fontSize: 11, fontWeight: 600 }}>✓ Check-In</span>
+                <span style={{ background: "#e0f2fe", color: "#0284c7", padding: "3px 10px", borderRadius: 8, fontSize: 11, fontWeight: 600 }}>👤 Daftar Hadir</span>
+                <span style={{ background: "#fee2e2", color: "#dc2626", padding: "3px 10px", borderRadius: 8, fontSize: 11, fontWeight: 600 }}>Check-Out</span>
+                <span style={{ background: "#f1f5f9", color: "#475569", padding: "3px 10px", borderRadius: 8, fontSize: 11, fontWeight: 600 }}>📱 Materi</span>
+              </div>
+            </div>
+
+            {/* URL Link & Copy Button */}
+            <div style={{ background: "#f8fafc", border: "1px solid #cbd5e1", borderRadius: 10, padding: "6px 8px 6px 12px", fontSize: 12, color: "#334155", marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontFamily: "monospace", flex: 1, textAlign: "left", color: "#64748b", fontSize: "11.5px" }}>
+                {currentUrl}
+              </span>
+              <button
+                type="button"
+                onClick={handleCopyLink}
+                style={{ background: "#2563eb", color: "#fff", border: "none", borderRadius: 8, padding: "6px 16px", fontSize: 12, fontWeight: 700, cursor: "pointer", flexShrink: 0, transition: "background 0.15s" }}
+              >
+                {copied ? "Tersalin!" : "Salin"}
+              </button>
+            </div>
+
+            {/* Action Buttons */}
+            <div style={{ display: "flex", gap: 10, width: "100%" }}>
+              <a
+                href={currentUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ flex: 1.2, background: "#16a34a", color: "#fff", border: "none", borderRadius: 10, padding: "10px 14px", fontSize: "12.5px", fontWeight: 700, textDecoration: "none", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, transition: "background 0.15s" }}
+              >
+                <span>Buka Pass Rapat</span>
+                <span>↗</span>
+              </a>
+              <button
+                type="button"
+                onClick={() => window.print()}
+                style={{ flex: 1, background: "#ffffff", color: "#1e293b", border: "1px solid #cbd5e1", borderRadius: 10, padding: "10px 12px", fontSize: "12.5px", fontWeight: 600, cursor: "pointer", transition: "background 0.15s" }}
+              >
+                Cetak Pass
               </button>
               <button
                 type="button"
-                className="mp-btn-action light"
-                onClick={() => window.print()}
+                onClick={() => setShowQRModal(false)}
+                style={{ flex: 0.9, background: "#f1f5f9", color: "#475569", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 14px", fontSize: "12.5px", fontWeight: 600, cursor: "pointer", transition: "background 0.15s" }}
               >
-                Cetak Halaman
+                Tutup
               </button>
             </div>
           </div>

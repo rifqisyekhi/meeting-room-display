@@ -128,10 +128,25 @@ export default function BookingPage() {
   const suggestedBooking = location.state?.bookingRecommendation;
   const currentUser = useMemo(() => {
     try {
-      return JSON.parse(localStorage.getItem("currentUser") || "{}");
+      const s =
+        sessionStorage.getItem("booking_currentUser") ||
+        localStorage.getItem("booking_currentUser");
+      return s ? JSON.parse(s) : {};
     } catch {
       return {};
     }
+  }, []);
+
+  useEffect(() => {
+    try {
+      const stored =
+        sessionStorage.getItem("booking_currentUser") ||
+        localStorage.getItem("booking_currentUser");
+      if (stored && !sessionStorage.getItem("booking_currentUser")) {
+        sessionStorage.setItem("booking_currentUser", stored);
+        sessionStorage.setItem("booking_isAuthenticated", "true");
+      }
+    } catch (e) {}
   }, []);
   const [selectedCategory, setSelectedCategory] = useState("Semua");
   const [selectedRoom, setSelectedRoom] = useState(() => {
@@ -222,7 +237,10 @@ export default function BookingPage() {
   const [agenda, setAgenda] = useState(suggestedBooking?.title || "");
   const [bagian, setBagian] = useState(() => {
     try {
-      const user = JSON.parse(localStorage.getItem("currentUser") || "{}");
+      const s =
+        sessionStorage.getItem("booking_currentUser") ||
+        localStorage.getItem("booking_currentUser");
+      const user = JSON.parse(s || "{}");
       const department = (user.dept || "").trim().toUpperCase();
       return ["TU", "AKLAP", "BMN", "PA", "PTUK"].includes(department)
         ? department
@@ -233,7 +251,10 @@ export default function BookingPage() {
   });
   const [customBagian, setCustomBagian] = useState(() => {
     try {
-      const user = JSON.parse(localStorage.getItem("currentUser") || "{}");
+      const s =
+        sessionStorage.getItem("booking_currentUser") ||
+        localStorage.getItem("booking_currentUser");
+      const user = JSON.parse(s || "{}");
       const department = (user.dept || "").trim();
       return department && !["TU", "AKLAP", "BMN", "PA", "PTUK"].includes(department.toUpperCase())
         ? department

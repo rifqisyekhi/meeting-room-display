@@ -6,25 +6,25 @@ import logoKemnaker from "../assets/Logo Kemenaker White.png";
 const dummyDB = [
   {
     username: import.meta.env.VITE_ADMIN_USERNAME || "admin",
-    password: import.meta.env.VITE_ADMIN_PASSWORD || "",
+    password: import.meta.env.VITE_ADMIN_PASSWORD || "admin123",
     role: "Admin",
     name: "Admin Utama",
   },
   {
     username: import.meta.env.VITE_APPROVAL1_USERNAME || "approval1",
-    password: import.meta.env.VITE_APPROVAL1_PASSWORD || "",
+    password: import.meta.env.VITE_APPROVAL1_PASSWORD || "approval123",
     role: "Pimpinan",
     name: "Pimpinan",
   },
   {
     username: import.meta.env.VITE_APPROVAL2_USERNAME || "approval2",
-    password: import.meta.env.VITE_APPROVAL2_PASSWORD || "",
+    password: import.meta.env.VITE_APPROVAL2_PASSWORD || "approval234",
     role: "Pimpinan",
     name: "Wakil Pimpinan",
   },
   {
     username: import.meta.env.VITE_USER_USERNAME || "andipratama",
-    password: import.meta.env.VITE_USER_PASSWORD || "",
+    password: import.meta.env.VITE_USER_PASSWORD || "user123",
     role: "User",
     name: "Andi Pratama",
     email: "andi@kemnaker.go.id",
@@ -40,29 +40,58 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const returnTo = location.state?.from?.pathname || "/dashboard";
-  const isBookingLogin = returnTo.startsWith("/booking");
 
-  // Jika sudah login dan tidak dalam mode tambah akun, langsung arahkan strictly sesuai role
+  const queryPortal = new URLSearchParams(location.search).get("portal");
+  const statePortal = location.state?.fromPortal;
+  const returnTo = location.state?.from?.pathname || "";
+  const isBookingLogin =
+    queryPortal === "booking" ||
+    statePortal === "booking" ||
+    returnTo.startsWith("/booking");
+
+  // Jika sudah login dan tidak dalam mode tambah akun, langsung arahkan ke tujuan atau role yang sesuai
   useEffect(() => {
-    const isAdding = sessionStorage.getItem("isAddingAccount") === "true";
-    const isAuth = localStorage.getItem("isAuthenticated") === "true";
-    if (isAuth && !isAdding) {
-      try {
-        const u = JSON.parse(localStorage.getItem("currentUser") || "{}");
-        const role = (u.role || "").toLowerCase();
-        const uname = (u.username || "").toLowerCase();
-        const isAdminOrPimpinan =
-          role.includes("admin") ||
-          role.includes("pimpinan") ||
-          role.includes("approval") ||
-          uname === "admin" ||
-          uname.includes("approval") ||
-          uname.includes("pimpinan");
-        navigate(isAdminOrPimpinan ? "/dashboard" : "/booking", { replace: true });
-      } catch (e) {}
+    if (isBookingLogin) {
+      const isAdding = sessionStorage.getItem("booking_isAddingAccount") === "true";
+      const isAuth =
+        sessionStorage.getItem("booking_isAuthenticated") === "true" ||
+        localStorage.getItem("booking_isAuthenticated") === "true";
+      if (isAuth && !isAdding) {
+        const dest = returnTo && returnTo.startsWith("/booking") ? returnTo : "/booking";
+        navigate(dest, { replace: true });
+      }
+    } else {
+      const isAdding = sessionStorage.getItem("isAddingAccount") === "true";
+      const isAuth =
+        sessionStorage.getItem("dashboard_isAuthenticated") === "true" ||
+        localStorage.getItem("dashboard_isAuthenticated") === "true" ||
+        sessionStorage.getItem("isAuthenticated") === "true" ||
+        localStorage.getItem("isAuthenticated") === "true";
+      if (isAuth && !isAdding) {
+        try {
+          const u = JSON.parse(
+            sessionStorage.getItem("dashboard_currentUser") ||
+              sessionStorage.getItem("currentUser") ||
+              localStorage.getItem("dashboard_currentUser") ||
+              localStorage.getItem("currentUser") ||
+              "{}",
+          );
+          const role = (u.role || "").toLowerCase();
+          const uname = (u.username || "").toLowerCase();
+          const isAdminOrPimpinan =
+            role.includes("admin") ||
+            role.includes("pimpinan") ||
+            role.includes("approval") ||
+            uname === "admin" ||
+            uname.includes("approval") ||
+            uname.includes("pimpinan");
+          if (isAdminOrPimpinan) {
+            navigate("/dashboard", { replace: true });
+          }
+        } catch (e) {}
+      }
     }
-  }, [navigate]);
+  }, [navigate, returnTo, isBookingLogin]);
 
   // Sinkronkan seluruh data akun dari backend database saat halaman login dibuka
   useEffect(() => {
@@ -196,45 +225,7 @@ export default function LoginPage() {
         email: authenticatedUser.email || "",
         dept: authenticatedUser.dept || "",
       };
-      localStorage.setItem("isAuthenticated", "true");
-      localStorage.setItem("currentUser", JSON.stringify(userData));
 
-      // Sinkronkan savedAccounts: jika bukan tambah akun lain, simpan akun yang login saat ini
-      const isAdding = sessionStorage.getItem("isAddingAccount") === "true";
-      sessionStorage.removeItem("isAddingAccount");
-
-      let saved = isAdding
-        ? JSON.parse(localStorage.getItem("savedAccounts") || "[]")
-        : [];
-
-      // Filter nama Andi Pratama dan normalisasi role Approval
-      saved = saved
-        .filter(
-          (u) =>
-            (u.name || "").toLowerCase() !== "andi pratama" &&
-            (u.username || "").toLowerCase() !== "andipratama",
-        )
-        .map((u) => {
-          let r = u.role || "User";
-          if (r === "Administrator") r = "Admin";
-          if (r.startsWith("Approval")) r = "Pimpinan";
-          return { ...u, role: r };
-        });
-
-      const existingIdx = saved.findIndex(
-        (u) =>
-          (u.username || "").toLowerCase() === userData.username.toLowerCase(),
-      );
-      if (existingIdx >= 0) {
-        saved[existingIdx] = userData;
-      } else {
-        saved.push(userData);
-      }
-      localStorage.setItem("savedAccounts", JSON.stringify(saved));
-
-      // Penentuan rute STRICT sesuai role:
-      // - Admin & Pimpinan -> SELALU ke /dashboard
-      // - User             -> SELALU ke /booking
       const userRole = (userData.role || "").toLowerCase();
       const uname = (userData.username || "").toLowerCase();
       const isAdminOrPimpinan =
@@ -245,8 +236,114 @@ export default function LoginPage() {
         uname.includes("approval") ||
         uname.includes("pimpinan");
 
-      const destination = isAdminOrPimpinan ? "/dashboard" : "/booking";
-      navigate(destination, { replace: true });
+      if (isBookingLogin) {
+        // ----------------------------------------------------
+        // SESI LOGIN KHUSUS PORTAL BOOKING
+        // ----------------------------------------------------
+        sessionStorage.setItem("booking_isAuthenticated", "true");
+        sessionStorage.setItem("booking_currentUser", JSON.stringify(userData));
+        localStorage.setItem("booking_isAuthenticated", "true");
+        localStorage.setItem("booking_currentUser", JSON.stringify(userData));
+        sessionStorage.removeItem("booking_isAddingAccount");
+
+        let bookingSaved = [];
+        try {
+          bookingSaved = JSON.parse(
+            localStorage.getItem("booking_savedAccounts") ||
+              sessionStorage.getItem("booking_savedAccounts") ||
+              "[]",
+          );
+        } catch (e) {
+          bookingSaved = [];
+        }
+
+        const existingIdx = bookingSaved.findIndex(
+          (u) =>
+            (u.username || "").toLowerCase() === userData.username.toLowerCase(),
+        );
+        if (existingIdx >= 0) {
+          bookingSaved[existingIdx] = userData;
+        } else {
+          bookingSaved.push(userData);
+        }
+        localStorage.setItem("booking_savedAccounts", JSON.stringify(bookingSaved));
+        sessionStorage.setItem("booking_savedAccounts", JSON.stringify(bookingSaved));
+
+        const destination =
+          returnTo && returnTo.startsWith("/booking") ? returnTo : "/booking";
+        navigate(destination, { replace: true });
+      } else {
+        // ----------------------------------------------------
+        // SESI LOGIN KHUSUS PORTAL DASHBOARD (ADMIN & PIMPINAN)
+        // ----------------------------------------------------
+        if (!isAdminOrPimpinan) {
+          alert(
+            `Akses Ditolak:\nAkun "${userData.name}" (${userData.role || "User"}) tidak memiliki hak akses ke Dashboard Admin/Pimpinan.\n\nSilakan masuk melalui halaman Login Booking (http://localhost:5173/booking).`,
+          );
+          return;
+        }
+
+        sessionStorage.setItem("dashboard_isAuthenticated", "true");
+        sessionStorage.setItem("dashboard_currentUser", JSON.stringify(userData));
+        localStorage.setItem("dashboard_isAuthenticated", "true");
+        localStorage.setItem("dashboard_currentUser", JSON.stringify(userData));
+
+        // Sinkronisasi untuk dashboard app internal iframe
+        sessionStorage.setItem("isAuthenticated", "true");
+        sessionStorage.setItem("currentUser", JSON.stringify(userData));
+        localStorage.setItem("isAuthenticated", "true");
+        localStorage.setItem("currentUser", JSON.stringify(userData));
+        sessionStorage.removeItem("isAddingAccount");
+
+        let saved = [];
+        try {
+          saved = JSON.parse(
+            localStorage.getItem("savedAccounts") ||
+              sessionStorage.getItem("savedAccounts") ||
+              "[]",
+          );
+        } catch (e) {
+          saved = [];
+        }
+
+        const defaultAccounts = [
+          { username: "admin", name: "Admin Utama", role: "Admin" },
+          { username: "approval1", name: "Pimpinan", role: "Pimpinan" },
+          { username: "approval2", name: "Wakil Pimpinan", role: "Pimpinan" },
+        ];
+        defaultAccounts.forEach((da) => {
+          if (!saved.some((s) => (s.username || "").toLowerCase() === da.username.toLowerCase())) {
+            saved.push(da);
+          }
+        });
+
+        saved = saved
+          .filter(
+            (u) =>
+              (u.name || "").toLowerCase() !== "andi pratama" &&
+              (u.username || "").toLowerCase() !== "andipratama",
+          )
+          .map((u) => {
+            let r = u.role || "User";
+            if (r === "Administrator") r = "Admin";
+            if (r.startsWith("Approval")) r = "Pimpinan";
+            return { ...u, role: r };
+          });
+
+        const existingIdx = saved.findIndex(
+          (u) =>
+            (u.username || "").toLowerCase() === userData.username.toLowerCase(),
+        );
+        if (existingIdx >= 0) {
+          saved[existingIdx] = userData;
+        } else {
+          saved.push(userData);
+        }
+        localStorage.setItem("savedAccounts", JSON.stringify(saved));
+        sessionStorage.setItem("savedAccounts", JSON.stringify(saved));
+
+        navigate("/dashboard", { replace: true });
+      }
     } else {
       alert("Username atau password salah!");
     }
@@ -292,9 +389,13 @@ export default function LoginPage() {
       {/* Right Login Form Panel */}
       <div className="login-right-panel">
         <div className="login-card">
-          <h2 className="login-title">{isBookingLogin ? "Login Booking" : "Login Dashboard"}</h2>
+          <h2 className="login-title">
+            {isBookingLogin ? "Login Booking" : "Login Dashboard"}
+          </h2>
           <p className="login-subtitle">
-            {isBookingLogin ? "Masuk untuk memesan Ruang Rapat" : "Masuk untuk kelola Ruang Rapat"}
+            {isBookingLogin
+              ? "Masuk untuk memesan Ruang Rapat"
+              : "Masuk untuk kelola Ruang Rapat"}
           </p>
 
           <form onSubmit={handleLogin} className="login-form">
@@ -387,92 +488,6 @@ export default function LoginPage() {
             <button type="submit" className="login-submit-btn">
               Masuk
             </button>
-
-
-            <div style={{ marginTop: "24px", paddingTop: "18px", borderTop: "1px dashed #cbd5e1" }}>
-              <div style={{ fontSize: "12px", fontWeight: "700", color: "#475569", marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                Pilih Akun Cepat (Testing):
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const uname = import.meta.env.VITE_APPROVAL1_USERNAME || "approval1";
-                    const pwd = import.meta.env.VITE_APPROVAL1_PASSWORD || "";
-                    setUsername(uname);
-                    setPassword(pwd);
-                  }}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    padding: "8px 12px",
-                    background: "#f0fdf4",
-                    border: "1px solid #bbf7d0",
-                    borderRadius: "8px",
-                    cursor: "pointer",
-                    textAlign: "left",
-                    color: "#166534",
-                    fontSize: "12px",
-                  }}
-                >
-                  <span><b>Atasan (Pimpinan)</b> - <code>{import.meta.env.VITE_APPROVAL1_USERNAME || "approval1"}</code></span>
-                  <span style={{ fontWeight: 600, fontSize: "11px", background: "#dcfce7", padding: "2px 6px", borderRadius: "4px" }}>Bisa Approve</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    const uname = import.meta.env.VITE_APPROVAL2_USERNAME || "approval2";
-                    const pwd = import.meta.env.VITE_APPROVAL2_PASSWORD || "";
-                    setUsername(uname);
-                    setPassword(pwd);
-                  }}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    padding: "8px 12px",
-                    background: "#f0fdf4",
-                    border: "1px solid #bbf7d0",
-                    borderRadius: "8px",
-                    cursor: "pointer",
-                    textAlign: "left",
-                    color: "#166534",
-                    fontSize: "12px",
-                  }}
-                >
-                  <span><b>Atasan (Wakil Pimpinan)</b> - <code>{import.meta.env.VITE_APPROVAL2_USERNAME || "approval2"}</code></span>
-                  <span style={{ fontWeight: 600, fontSize: "11px", background: "#dcfce7", padding: "2px 6px", borderRadius: "4px" }}>Bisa Approve</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    const uname = import.meta.env.VITE_ADMIN_USERNAME || "admin";
-                    const pwd = import.meta.env.VITE_ADMIN_PASSWORD || "";
-                    setUsername(uname);
-                    setPassword(pwd);
-                  }}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    padding: "8px 12px",
-                    background: "#eff6ff",
-                    border: "1px solid #bfdbfe",
-                    borderRadius: "8px",
-                    cursor: "pointer",
-                    textAlign: "left",
-                    color: "#1e40af",
-                    fontSize: "12px",
-                  }}
-                >
-                  <span><b>Admin Utama</b> - <code>{import.meta.env.VITE_ADMIN_USERNAME || "admin"}</code></span>
-                  <span style={{ fontWeight: 600, fontSize: "11px", background: "#dbeafe", padding: "2px 6px", borderRadius: "4px" }}>Monitoring & Check-In</span>
-                </button>
-              </div>
-            </div>
           </form>
         </div>
       </div>
