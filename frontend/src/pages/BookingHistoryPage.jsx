@@ -526,9 +526,9 @@ export default function BookingHistoryPage() {
                       <small>{key === "completed" ? `${formatDate(meeting.date, { day: "2-digit", month: "short", year: "numeric" })} ${end}` : "-"}</small>
                     </span>
                   </span>
-                  <span className={`booking-history-status ${key}`}>{statusText}</span>
                 </div>
                 <div className="booking-history-row-actions">
+                  <span className={`booking-history-status ${key}`}>{statusText}</span>
                   {canShowQr && (
                     <button type="button" className="booking-history-qr-button"
                       title="Buka QR Pass Rapat & Presensi"
