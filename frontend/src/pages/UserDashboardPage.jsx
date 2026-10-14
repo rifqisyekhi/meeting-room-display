@@ -5,21 +5,38 @@ import { IoMdHome } from "react-icons/io";
 import "./UserDashboardPage.css";
 
 const readUser = () => {
-  try { return JSON.parse(localStorage.getItem("currentUser") || "{}"); }
-  catch { return {}; }
+  try {
+    const raw =
+      sessionStorage.getItem("booking_currentUser") ||
+      localStorage.getItem("booking_currentUser") ||
+      sessionStorage.getItem("dashboard_currentUser") ||
+      localStorage.getItem("dashboard_currentUser") ||
+      sessionStorage.getItem("currentUser") ||
+      localStorage.getItem("currentUser") ||
+      "{}";
+    return JSON.parse(raw);
+  } catch {
+    return {};
+  }
 };
 
 const readMeetings = () => {
   try {
-    const records = JSON.parse(localStorage.getItem("app_meetings") || "[]");
+    const records = JSON.parse(
+      localStorage.getItem("app_meetings") ||
+        sessionStorage.getItem("app_meetings") ||
+        "[]",
+    );
     return Array.isArray(records) ? records : [];
-  } catch { return []; }
+  } catch {
+    return [];
+  }
 };
 
 export default function UserDashboardPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [user] = useState(readUser);
+  const [user, setUser] = useState(readUser);
   const [meetings, setMeetings] = useState(readMeetings);
   const [profileOpen, setProfileOpen] = useState(location.pathname.endsWith("/profile"));
   const [currentPassword, setCurrentPassword] = useState("");
@@ -38,9 +55,29 @@ export default function UserDashboardPage() {
   }, [location.pathname]);
 
   useEffect(() => {
-    const refresh = () => setMeetings(readMeetings());
+    const refresh = () => {
+      setMeetings(readMeetings());
+      setUser(readUser());
+    };
     window.addEventListener("storage", refresh);
     window.addEventListener("app_meetings_updated", refresh);
+
+    const fetchMeetings = async () => {
+      try {
+        const res = await fetch("/api/dashboard/meetings");
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data) && data.length > 0) {
+            setMeetings(data);
+            try {
+              localStorage.setItem("app_meetings", JSON.stringify(data));
+            } catch (e) {}
+          }
+        }
+      } catch (e) {}
+    };
+    fetchMeetings();
+
     return () => {
       window.removeEventListener("storage", refresh);
       window.removeEventListener("app_meetings_updated", refresh);
@@ -107,10 +144,21 @@ export default function UserDashboardPage() {
   };
 
   const logout = () => {
+    sessionStorage.removeItem("booking_isAuthenticated");
+    sessionStorage.removeItem("booking_currentUser");
+    sessionStorage.removeItem("booking_isAddingAccount");
+    localStorage.removeItem("booking_isAuthenticated");
+    localStorage.removeItem("booking_currentUser");
+    sessionStorage.removeItem("dashboard_isAuthenticated");
+    sessionStorage.removeItem("dashboard_currentUser");
+    localStorage.removeItem("dashboard_isAuthenticated");
+    localStorage.removeItem("dashboard_currentUser");
     localStorage.removeItem("isAuthenticated");
     localStorage.removeItem("currentUser");
+    sessionStorage.removeItem("isAuthenticated");
+    sessionStorage.removeItem("currentUser");
     sessionStorage.removeItem("isAddingAccount");
-    navigate("/login", { replace: true });
+    navigate("/login?portal=booking", { replace: true });
   };
 
   return (

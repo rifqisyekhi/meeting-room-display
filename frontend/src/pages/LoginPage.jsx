@@ -267,6 +267,15 @@ export default function LoginPage() {
         localStorage.setItem("currentUser", JSON.stringify(userData));
         sessionStorage.removeItem("isAddingAccount");
 
+        // Jika user biasa login melalui form dashboard, sinkronkan juga booking session
+        // agar fitur booking dan riwayat dapat diakses dari User Dashboard
+        if (!isAdminOrPimpinan) {
+          sessionStorage.setItem("booking_isAuthenticated", "true");
+          sessionStorage.setItem("booking_currentUser", JSON.stringify(userData));
+          localStorage.setItem("booking_isAuthenticated", "true");
+          localStorage.setItem("booking_currentUser", JSON.stringify(userData));
+        }
+
         let saved = [];
         try {
           saved = JSON.parse(
