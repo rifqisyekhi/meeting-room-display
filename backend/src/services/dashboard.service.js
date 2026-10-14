@@ -58,6 +58,15 @@ const DEFAULT_USERS = [
     role: "Pimpinan",
     status: "Aktif",
   },
+  {
+    id: "andipratama",
+    name: "Andi Pratama",
+    username: process.env.USER_USERNAME || "andipratama",
+    email: "andi@kemnaker.go.id",
+    dept: "Biro Keuangan dan BMN",
+    role: "User",
+    status: "Aktif",
+  },
 ];
 
 function readStore() {
@@ -352,6 +361,14 @@ async function syncStoreFromDatabase() {
         approvedBy: m.approved_by,
         attendees: m.attendees || [],
         materials: m.materials || [],
+        checkInAt: m.checked_in_at,
+        checkedInBy: m.checked_in_by,
+        checkInMethod: m.check_in_method,
+        checkInMethodLabel: m.check_in_method_label,
+        checkOutAt: m.checked_out_at,
+        checkedOutBy: m.checked_out_by,
+        checkOutMethod: m.check_out_method,
+        checkOutMethodLabel: m.check_out_method_label,
         createdAt: m.created_at,
       }));
     }
@@ -698,8 +715,11 @@ async function saveMeeting(meeting) {
         INSERT INTO meetings (
           id, google_id, title, agenda, requester, booked_by_name, booked_by_username,
           room_name, date, start_time, end_time, status, participants, approved_by,
-          attendees, materials, created_at, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, NOW())
+          attendees, materials,
+          checked_in_at, checked_in_by, check_in_method, check_in_method_label,
+          checked_out_at, checked_out_by, check_out_method, check_out_method_label,
+          created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, NOW())
         ON CONFLICT (id) DO UPDATE SET
           google_id = EXCLUDED.google_id,
           title = EXCLUDED.title,
@@ -716,6 +736,14 @@ async function saveMeeting(meeting) {
           approved_by = EXCLUDED.approved_by,
           attendees = EXCLUDED.attendees,
           materials = EXCLUDED.materials,
+          checked_in_at = COALESCE(EXCLUDED.checked_in_at, meetings.checked_in_at),
+          checked_in_by = COALESCE(EXCLUDED.checked_in_by, meetings.checked_in_by),
+          check_in_method = COALESCE(EXCLUDED.check_in_method, meetings.check_in_method),
+          check_in_method_label = COALESCE(EXCLUDED.check_in_method_label, meetings.check_in_method_label),
+          checked_out_at = COALESCE(EXCLUDED.checked_out_at, meetings.checked_out_at),
+          checked_out_by = COALESCE(EXCLUDED.checked_out_by, meetings.checked_out_by),
+          check_out_method = COALESCE(EXCLUDED.check_out_method, meetings.check_out_method),
+          check_out_method_label = COALESCE(EXCLUDED.check_out_method_label, meetings.check_out_method_label),
           updated_at = NOW();
       `, [
         String(meeting.id),
@@ -734,6 +762,14 @@ async function saveMeeting(meeting) {
         meeting.approvedBy || null,
         JSON.stringify(meeting.attendees || []),
         JSON.stringify(meeting.materials || []),
+        meeting.checkInAt ? new Date(meeting.checkInAt) : null,
+        meeting.checkedInBy || null,
+        meeting.checkInMethod || null,
+        meeting.checkInMethodLabel || null,
+        meeting.checkOutAt ? new Date(meeting.checkOutAt) : null,
+        meeting.checkedOutBy || null,
+        meeting.checkOutMethod || null,
+        meeting.checkOutMethodLabel || null,
         meeting.createdAt ? new Date(meeting.createdAt) : new Date(),
       ]);
 
@@ -843,12 +879,16 @@ async function getMeetingById(id) {
 async function checkInMeeting(id, checkedInBy = "Peserta (Barcode / QR)", method = "barcode_qr") {
   const store = readStore();
   const target = String(id).trim();
-  const meeting = (store.meetings || []).find(
+  let meeting = (store.meetings || []).find(
     (m) =>
       String(m.id) === target ||
       (m.googleId && String(m.googleId) === target) ||
       (m.originalId && String(m.originalId) === target)
   );
+  if (!meeting) {
+    meeting = await getMeetingById(id);
+    if (meeting) store.meetings.unshift(meeting);
+  }
   if (!meeting) return null;
 
   const isManual = method === "manual_admin" || (checkedInBy && checkedInBy.toLowerCase().includes("admin"));
@@ -864,12 +904,16 @@ async function checkInMeeting(id, checkedInBy = "Peserta (Barcode / QR)", method
 async function checkOutMeeting(id, checkedOutBy = "Peserta (Barcode / QR)", method = "barcode_qr") {
   const store = readStore();
   const target = String(id).trim();
-  const meeting = (store.meetings || []).find(
+  let meeting = (store.meetings || []).find(
     (m) =>
       String(m.id) === target ||
       (m.googleId && String(m.googleId) === target) ||
       (m.originalId && String(m.originalId) === target)
   );
+  if (!meeting) {
+    meeting = await getMeetingById(id);
+    if (meeting) store.meetings.unshift(meeting);
+  }
   if (!meeting) return null;
 
   const isManual = method === "manual_admin" || (checkedOutBy && checkedOutBy.toLowerCase().includes("admin"));
@@ -1061,10 +1105,71 @@ function getUsers() {
   return (store.users || []).map(({ password, passwordHash, ...safeUser }) => safeUser);
 }
 
-function authenticateUser(username, password) {
+async function authenticateUser(username, password) {
+  const uname = (username || "").trim().toLowerCase();
+  if (!uname || !password) {
+    return {
+      success: false,
+      message: "Username dan password wajib diisi!",
+    };
+  }
+
+  const envPasswords = {
+    admin: process.env.ADMIN_PASSWORD || "admin123",
+    approval1: process.env.APPROVAL1_PASSWORD || "approval123",
+    approval2: process.env.APPROVAL2_PASSWORD || "approval234",
+    andipratama: process.env.USER_PASSWORD || "user123",
+  };
+  const expectedPassword = envPasswords[uname];
+
+  // 1. Prioritaskan pengecekan langsung ke basis data PostgreSQL
+  if (getIsConnected()) {
+    try {
+      const dbRes = await query("SELECT * FROM users WHERE LOWER(username) = LOWER($1)", [uname]);
+      if (dbRes.rows && dbRes.rows.length > 0) {
+        const dbUser = dbRes.rows[0];
+        let isMatch = false;
+        if (dbUser.password_hash) {
+          isMatch = verifyPassword(password, dbUser.password_hash);
+        } else if (expectedPassword && password === expectedPassword) {
+          isMatch = true;
+        }
+
+        if (!isMatch) {
+          return {
+            success: false,
+            message: "Username atau password salah!",
+          };
+        }
+
+        if (dbUser.status === "Nonaktif") {
+          return {
+            success: false,
+            message: "Akun ini sedang dinonaktifkan. Silakan hubungi Admin Utama.",
+          };
+        }
+
+        return {
+          success: true,
+          user: {
+            id: dbUser.id,
+            username: dbUser.username,
+            name: dbUser.name,
+            role: dbUser.role,
+            email: dbUser.email || "",
+            dept: dbUser.dept || "",
+            status: dbUser.status || "Aktif",
+          },
+        };
+      }
+    } catch (dbErr) {
+      console.warn("[PostgreSQL] Gagal autentikasi via database:", dbErr.message);
+    }
+  }
+
+  // 2. Fallback ke memory store lokal
   const store = readStore();
   const users = store.users || [];
-  const uname = (username || "").trim().toLowerCase();
 
   const user = users.find(
     (u) => (u.username || "").toLowerCase() === uname
@@ -1077,18 +1182,10 @@ function authenticateUser(username, password) {
     };
   }
 
-  const envPasswords = {
-    admin: process.env.ADMIN_PASSWORD || "admin123",
-    approval1: process.env.APPROVAL1_PASSWORD || "approval123",
-    approval2: process.env.APPROVAL2_PASSWORD || "approval234",
-    andipratama: process.env.USER_PASSWORD || "user123",
-  };
-  const expectedPassword = envPasswords[uname];
-
   let isMatch = false;
-  if (expectedPassword && password === expectedPassword) {
-    isMatch = true;
-  } else if (user.passwordHash && verifyPassword(password, user.passwordHash)) {
+  if (user.passwordHash) {
+    isMatch = verifyPassword(password, user.passwordHash);
+  } else if (expectedPassword && password === expectedPassword) {
     isMatch = true;
   } else if (user.password && verifyPassword(password, user.password)) {
     isMatch = true;
@@ -1123,6 +1220,30 @@ function authenticateUser(username, password) {
       status: user.status || "Aktif",
     },
   };
+}
+
+async function changeUserPassword(username, currentPassword, newPassword) {
+  const authentication = await authenticateUser(username, currentPassword);
+  if (!authentication.success) return authentication;
+
+  const store = readStore();
+  const user = (store.users || []).find(
+    (entry) => (entry.username || "").toLowerCase() === String(username || "").trim().toLowerCase()
+  );
+  if (!user) return { success: false, message: "Akun tidak ditemukan." };
+
+  user.passwordHash = hashPassword(newPassword);
+  delete user.password;
+  writeStore(store);
+
+  if (getIsConnected()) {
+    query("UPDATE users SET password_hash = $1, updated_at = NOW() WHERE username = $2", [
+      user.passwordHash,
+      user.username,
+    ]).catch((err) => console.warn("[PostgreSQL] Gagal memperbarui password:", err.message));
+  }
+
+  return { success: true };
 }
 
 function saveUser(user) {
@@ -1221,6 +1342,7 @@ module.exports = {
   deleteUser,
   getUsers,
   authenticateUser,
+  changeUserPassword,
   readStore,
   writeStore,
   syncStoreFromDatabase,

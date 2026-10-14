@@ -9,6 +9,8 @@ export default function BookingAccountBar({ currentUser, historyPage = false, sh
   const navigate = useNavigate();
   const name = currentUser?.name || "Pengguna";
   const role = currentUser?.role || "User";
+  const normalizedRole = role.toLowerCase();
+  const isRegularUser = !["admin", "pimpinan", "approval"].some((value) => normalizedRole.includes(value));
 
   const logout = () => {
     sessionStorage.removeItem("booking_isAuthenticated");
@@ -40,6 +42,11 @@ export default function BookingAccountBar({ currentUser, historyPage = false, sh
           </a>
         )}
         <nav className="booking-section-nav" aria-label="Navigasi booking">
+          {isRegularUser && (
+            <button type="button" onClick={() => navigate("/dashboard")}>
+              Dashboard
+            </button>
+          )}
           <button
             type="button"
             className={!historyPage ? "active" : ""}
@@ -74,6 +81,11 @@ export default function BookingAccountBar({ currentUser, historyPage = false, sh
                 <strong>{name}</strong>
                 <small>Role: {role}</small>
               </div>
+              {isRegularUser && (
+                <button type="button" onClick={() => { setMenuOpen(false); navigate("/dashboard/profile"); }}>
+                  Profil &amp; Ganti Password
+                </button>
+              )}
               <button type="button" onClick={switchAccount}>Tambah Akun Lain</button>
               <button type="button" className="booking-account-logout" onClick={logout}>Log Out</button>
             </div>

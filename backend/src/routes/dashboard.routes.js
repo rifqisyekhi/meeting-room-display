@@ -95,10 +95,28 @@ router.get("/meetings/:id", async (req, res) => {
 // Check-in rapat (Sistem 1: Barcode / QR Scan Otomatis, atau Sistem 2: Manual Admin)
 router.post("/meetings/:id/checkin", async (req, res) => {
   try {
+    const meeting = await dashboardService.getMeetingById(req.params.id);
+    if (!meeting) {
+      return res.status(404).json({ success: false, error: "Rapat tidak ditemukan" });
+    }
+
     const method = req.body?.method || (req.body?.by && req.body.by.toLowerCase().includes("admin") ? "manual_admin" : "barcode_qr");
-    const defaultActor = method === "manual_admin" ? "Admin (Manual)" : "Peserta (Barcode / QR)";
+    const isAdmin = method === "manual_admin" || (req.body?.by && req.body.by.toLowerCase().includes("admin")) || (req.body?.role && req.body.role.toLowerCase().includes("admin"));
+
+    const username = String(req.body?.username || "").trim().toLowerCase();
+    const bookerUsername = String(meeting.bookedByUsername || "").trim().toLowerCase();
+    const actorName = String(req.body?.by || "").trim().toLowerCase();
+    const bookerName = String(meeting.bookedBy || "").trim().toLowerCase();
+    const isBooker = bookerUsername ? username && username === bookerUsername : bookerName && actorName === bookerName;
+
+    if (!isAdmin && !isBooker && req.body?.enforceBooker) {
+      return res.status(403).json({ success: false, error: "Check-In hanya dapat dilakukan oleh akun pemesan ruangan atau Admin." });
+    }
+
+    const defaultActor = method === "manual_admin" ? "Admin (Manual)" : (meeting.bookedBy || "Peserta (Barcode / QR)");
     const checkedInBy = req.body?.by || defaultActor;
     const updated = await dashboardService.checkInMeeting(req.params.id, checkedInBy, method);
+
     if (!updated) {
       return res.status(404).json({ success: false, error: "Rapat tidak ditemukan" });
     }
@@ -116,10 +134,28 @@ router.post("/meetings/:id/checkin", async (req, res) => {
 // Check-out rapat (Sistem 1: Barcode / QR Scan Otomatis, atau Sistem 2: Manual Admin)
 router.post("/meetings/:id/checkout", async (req, res) => {
   try {
+    const meeting = await dashboardService.getMeetingById(req.params.id);
+    if (!meeting) {
+      return res.status(404).json({ success: false, error: "Rapat tidak ditemukan" });
+    }
+
     const method = req.body?.method || (req.body?.by && req.body.by.toLowerCase().includes("admin") ? "manual_admin" : "barcode_qr");
-    const defaultActor = method === "manual_admin" ? "Admin (Manual)" : "Peserta (Barcode / QR)";
+    const isAdmin = method === "manual_admin" || (req.body?.by && req.body.by.toLowerCase().includes("admin")) || (req.body?.role && req.body.role.toLowerCase().includes("admin"));
+
+    const username = String(req.body?.username || "").trim().toLowerCase();
+    const bookerUsername = String(meeting.bookedByUsername || "").trim().toLowerCase();
+    const actorName = String(req.body?.by || "").trim().toLowerCase();
+    const bookerName = String(meeting.bookedBy || "").trim().toLowerCase();
+    const isBooker = bookerUsername ? username && username === bookerUsername : bookerName && actorName === bookerName;
+
+    if (!isAdmin && !isBooker && req.body?.enforceBooker) {
+      return res.status(403).json({ success: false, error: "Check-Out hanya dapat dilakukan oleh akun pemesan ruangan atau Admin." });
+    }
+
+    const defaultActor = method === "manual_admin" ? "Admin (Manual)" : (meeting.bookedBy || "Peserta (Barcode / QR)");
     const checkedOutBy = req.body?.by || defaultActor;
     const updated = await dashboardService.checkOutMeeting(req.params.id, checkedOutBy, method);
+
     if (!updated) {
       return res.status(404).json({ success: false, error: "Rapat tidak ditemukan" });
     }
@@ -194,10 +230,10 @@ router.get("/users", (req, res) => {
 });
 
 // Otentikasi login pengguna
-router.post("/login", (req, res) => {
+router.post("/login", async (req, res) => {
   try {
     const { username, password } = req.body;
-    const result = dashboardService.authenticateUser(username, password);
+    const result = await dashboardService.authenticateUser(username, password);
     if (result.success) {
       res.json(result);
     } else {
@@ -205,6 +241,25 @@ router.post("/login", (req, res) => {
     }
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// Perbarui password akun dengan verifikasi password saat ini.
+router.post("/users/change-password", async (req, res) => {
+  try {
+    const { username, currentPassword, newPassword } = req.body || {};
+    if (!username || !currentPassword || !newPassword) {
+      return res.status(400).json({ success: false, message: "Semua kolom password wajib diisi." });
+    }
+    if (String(newPassword).length < 8) {
+      return res.status(400).json({ success: false, message: "Password baru minimal 8 karakter." });
+    }
+
+    const result = await dashboardService.changeUserPassword(username, currentPassword, newPassword);
+    if (!result.success) return res.status(401).json(result);
+    return res.json(result);
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
   }
 });
 

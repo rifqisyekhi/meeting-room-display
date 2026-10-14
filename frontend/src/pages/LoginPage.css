@@ -334,3 +334,47 @@
     margin-bottom: 24px;
   }
 }
+
+/* Desktop branding uses the supplied Meeting Display Room artwork. */
+@media (min-width: 769px) {
+  .login-layout {
+    height: 100vh;
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .login-left-panel {
+    background: #142f5d url("/dashboard-app/assets/login-brand-background.png") center / cover no-repeat;
+  }
+
+  .login-right-panel {
+    min-width: 0;
+    min-height: 0;
+    padding: clamp(12px, 3vh, 32px);
+    overflow: hidden;
+  }
+
+  .login-card {
+    max-height: 100%;
+    padding: clamp(16px, 3vh, 32px) 42px;
+  }
+
+  .login-title { font-size: clamp(19px, 2.6vh, 24px); }
+  .login-subtitle { margin-bottom: clamp(14px, 2.5vh, 28px); }
+  .login-form { gap: clamp(10px, 1.8vh, 18px); }
+  .login-input-wrapper input { padding-top: 10px; padding-bottom: 10px; }
+  .login-submit-btn { padding: 10px; }
+
+  .login-form > div[style] {
+    margin-top: 14px !important;
+    padding-top: 12px !important;
+  }
+
+  .login-left-panel::before,
+  .login-left-panel .login-watermark-emblem,
+  .login-left-panel .login-watermark-text,
+  .login-left-panel .login-brand-content {
+    display: none;
+  }
+}

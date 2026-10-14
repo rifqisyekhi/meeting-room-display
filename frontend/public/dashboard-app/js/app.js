@@ -1994,6 +1994,126 @@ function dashboard() {
 // BAGIAN YANG DIUBAH: Penambahan parameter "allowDelete" agar tombol
 // hapus bisa disembunyikan secara kondisional
 // ----------------------------------------------------------------------
+function excelXmlEscape(value) {
+  return String(value ?? "-")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
+function downloadAttendanceExcel(meetingId) {
+  const meeting = (state.meetings || []).find((item) => String(item.id) === String(meetingId));
+  if (!meeting) {
+    alert("Data rapat tidak ditemukan.");
+    return;
+  }
+
+  const attendees = Array.isArray(meeting.attendees) ? meeting.attendees : [];
+  const cell = (value, type = "String", style = "") =>
+    "<Cell" + (style ? " ss:StyleID=\"" + style + "\"" : "") + "><Data ss:Type=\"" + type + "\">" + excelXmlEscape(value) + "</Data></Cell>";
+  const row = (cells, style = "") =>
+    "<Row" + (style ? " ss:StyleID=\"" + style + "\"" : "") + ">" + cells.join("") + "</Row>";
+  const rows = [
+    row([cell("DAFTAR HADIR RAPAT")], "Title"),
+    row([cell("Kementerian Ketenagakerjaan - Biro Keuangan dan BMN")]),
+    row([cell("Judul Rapat"), cell(meeting.title || meeting.agenda || "Rapat")]),
+    row([cell("Ruangan"), cell(meeting.room || "-")]),
+    row([cell("Tanggal"), cell(meeting.date || "-")]),
+    row([cell("Waktu"), cell((meeting.start || "-") + " - " + (meeting.end || "-"))]),
+    row([cell("Pemesan"), cell(meeting.bookedBy || meeting.requester || "-")]),
+    row([cell("Jumlah Peserta Rapat"), cell(meeting.participants || 0, "Number")]),
+    row([cell("Total Hadir"), cell(attendees.length, "Number")]),
+    row([cell("")]),
+    row(["No", "Nama Peserta", "Unit Kerja / Instansi", "NIP / Jabatan", "Waktu Hadir", "Status"].map((value) => cell(value)), "Header"),
+  ];
+
+  attendees.forEach((attendee, index) => {
+    const attendedAt = attendee.signedAt
+      ? new Date(attendee.signedAt).toLocaleString("id-ID", { timeZone: "Asia/Jakarta" }) + " WIB"
+      : "-";
+    rows.push(row([
+      cell(index + 1, "Number"),
+      cell(attendee.name || "-"),
+      cell(attendee.dept || "-"),
+      cell(attendee.nip || "-"),
+      cell(attendedAt),
+      cell("Hadir"),
+    ]));
+  });
+
+  if (!attendees.length) {
+    rows.push(row([cell("Belum ada peserta yang mengisi presensi.")]));
+  }
+
+  const workbook = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
+    "<?mso-application progid=\"Excel.Sheet\"?>\n" +
+    "<Workbook xmlns=\"urn:schemas-microsoft-com:office:spreadsheet\" xmlns:o=\"urn:schemas-microsoft-com:office:office\" xmlns:x=\"urn:schemas-microsoft-com:office:excel\" xmlns:ss=\"urn:schemas-microsoft-com:office:spreadsheet\">" +
+    "<Styles>" +
+    "<Style ss:ID=\"Title\"><Font ss:Bold=\"1\" ss:Size=\"16\" ss:Color=\"#0C2D5E\"/></Style>" +
+    "<Style ss:ID=\"Header\"><Font ss:Bold=\"1\" ss:Color=\"#FFFFFF\"/><Interior ss:Color=\"#155A97\" ss:Pattern=\"Solid\"/></Style>" +
+    "</Styles>" +
+    "<Worksheet ss:Name=\"Daftar Hadir\"><Table ss:ExpandedColumnCount=\"6\" ss:ExpandedRowCount=\"" + rows.length + "\" x:FullColumns=\"1\" x:FullRows=\"1\">" + rows.join("") + "</Table></Worksheet></Workbook>";
+  const blob = new Blob(["\uFEFF", workbook], { type: "application/vnd.ms-excel;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  const filename = (meeting.title || meeting.agenda || "rapat").replace(/[^a-z0-9-_]+/gi, "-").replace(/^-|-$/g, "").toLowerCase();
+  anchor.href = url;
+  anchor.download = "daftar-hadir-" + (filename || "rapat") + ".xls";
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
+function viewMeetingAttendance(meetingId) {
+  if (!isAdminRole(getCurrentUser())) return denyAccess("Hasil presensi hanya dapat dilihat oleh Admin.");
+  const meeting = (state.meetings || []).find((item) => String(item.id) === String(meetingId));
+  if (!meeting) return alert("Data rapat tidak ditemukan.");
+
+  const attendees = Array.isArray(meeting.attendees) ? meeting.attendees : [];
+  const rows = attendees.length
+    ? attendees.map((attendee, index) => {
+        const attendedAt = attendee.signedAt
+          ? new Date(attendee.signedAt).toLocaleString("id-ID", { timeZone: "Asia/Jakarta" }) + " WIB"
+          : "-";
+        return `<tr>
+          <td>${index + 1}</td>
+          <td><strong>${esc(attendee.name || "-")}</strong></td>
+          <td>${esc(attendee.dept || "-")}</td>
+          <td>${esc(attendee.nip || "-")}</td>
+          <td>${esc(attendedAt)}</td>
+          <td><span style="display:inline-block;padding:4px 9px;border-radius:20px;background:#e8f8ef;color:#16804d;font-size:11px;font-weight:700;">Hadir</span></td>
+        </tr>`;
+      }).join("")
+    : `<tr><td colspan="6" style="padding:28px;text-align:center;color:#8191a5;">Belum ada peserta yang mengisi presensi rapat ini.</td></tr>`;
+  const safeMeetingId = String(meeting.id).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+  const content = `<div style="padding:4px 2px 2px;">
+    <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-bottom:16px;padding:13px 15px;border:1px solid #e1e9f2;border-radius:10px;background:#f7faff;">
+      <div><small style="display:block;color:#77879b;font-size:10px;">Judul Rapat</small><strong style="color:#15365c;font-size:12px;">${esc(meeting.title || meeting.agenda || "Rapat")}</strong></div>
+      <div><small style="display:block;color:#77879b;font-size:10px;">Ruangan</small><strong style="color:#15365c;font-size:12px;">${esc(meeting.room || "-")}</strong></div>
+      <div><small style="display:block;color:#77879b;font-size:10px;">Tanggal &amp; Waktu</small><strong style="color:#15365c;font-size:12px;">${esc(meeting.date || "-")} · ${esc(meeting.start || "-")}–${esc(meeting.end || "-")}</strong></div>
+      <div><small style="display:block;color:#77879b;font-size:10px;">Jumlah Hadir</small><strong style="color:#15365c;font-size:12px;">${attendees.length} orang dari ${Number(meeting.participants) || 0} peserta</strong></div>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 9px;">
+      <strong style="color:#15365c;font-size:13px;">Daftar Peserta Hadir</strong>
+      <span style="color:#2462a4;font-size:11px;font-weight:700;">Total Hadir: ${attendees.length} orang</span>
+    </div>
+    <div style="max-height:48vh;overflow:auto;border:1px solid #e1e8f0;border-radius:9px;">
+      <table style="width:100%;border-collapse:collapse;text-align:left;font-size:11px;">
+        <thead style="position:sticky;top:0;background:#f1f5f9;color:#53657a;"><tr>
+          <th style="padding:10px 9px;">No</th><th style="padding:10px 9px;">Nama Peserta</th><th style="padding:10px 9px;">Unit Kerja / Instansi</th><th style="padding:10px 9px;">NIP / Jabatan</th><th style="padding:10px 9px;">Waktu Hadir</th><th style="padding:10px 9px;">Status</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    <div style="display:flex;justify-content:flex-end;margin-top:15px;">
+      <button type="button" onclick="downloadAttendanceExcel('${safeMeetingId}')" style="display:inline-flex;align-items:center;gap:7px;padding:9px 14px;border:0;border-radius:8px;color:#fff;background:#1769aa;font-size:11px;font-weight:700;cursor:pointer;">Export Excel</button>
+    </div>
+  </div>`;
+  openModal("Hasil Presensi Rapat", content);
+}
+
 function meetingTable(data, actions = true, allowDelete = true) {
   const user = getCurrentUser();
   const isAtasan = isAtasanRole(user);
@@ -2050,6 +2170,12 @@ function meetingTable(data, actions = true, allowDelete = true) {
               : "";
 
             let actionButtons = `<button style="background-color:#f4f6f9;color:#0c2d5e;border:none;border-radius:10px;width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;margin-right:8px;box-shadow:0 2px 5px rgba(0,0,0,0.03);" title="Lihat Detail Rapat" onclick="viewMeeting('${m.id}')">${faEye}</button>${qrBtn}${reviewBtn}`;
+
+            if (isAdmin) {
+              const safeMeetingId = String(m.id).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+              const attendeeCount = Array.isArray(m.attendees) ? m.attendees.length : 0;
+              actionButtons += `<button type="button" style="background:#eaf3ff;color:#155a97;border:1px solid #c8def5;border-radius:9px;height:34px;padding:0 9px;display:inline-flex;align-items:center;gap:5px;cursor:pointer;margin-right:8px;font-size:10.5px;font-weight:700;white-space:nowrap;" title="Lihat hasil presensi dan export Excel" onclick="viewMeetingAttendance('${safeMeetingId}')">Daftar Hadir (${attendeeCount})</button>`;
+            }
 
             if (actions) {
               if (isPending) {

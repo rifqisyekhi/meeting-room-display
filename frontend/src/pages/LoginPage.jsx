@@ -40,7 +40,6 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-
   const queryPortal = new URLSearchParams(location.search).get("portal");
   const statePortal = location.state?.fromPortal;
   const returnTo = location.state?.from?.pathname || "";
@@ -68,27 +67,7 @@ export default function LoginPage() {
         sessionStorage.getItem("isAuthenticated") === "true" ||
         localStorage.getItem("isAuthenticated") === "true";
       if (isAuth && !isAdding) {
-        try {
-          const u = JSON.parse(
-            sessionStorage.getItem("dashboard_currentUser") ||
-              sessionStorage.getItem("currentUser") ||
-              localStorage.getItem("dashboard_currentUser") ||
-              localStorage.getItem("currentUser") ||
-              "{}",
-          );
-          const role = (u.role || "").toLowerCase();
-          const uname = (u.username || "").toLowerCase();
-          const isAdminOrPimpinan =
-            role.includes("admin") ||
-            role.includes("pimpinan") ||
-            role.includes("approval") ||
-            uname === "admin" ||
-            uname.includes("approval") ||
-            uname.includes("pimpinan");
-          if (isAdminOrPimpinan) {
-            navigate("/dashboard", { replace: true });
-          }
-        } catch (e) {}
+        navigate("/dashboard", { replace: true });
       }
     }
   }, [navigate, returnTo, isBookingLogin]);
@@ -276,13 +255,6 @@ export default function LoginPage() {
         // ----------------------------------------------------
         // SESI LOGIN KHUSUS PORTAL DASHBOARD (ADMIN & PIMPINAN)
         // ----------------------------------------------------
-        if (!isAdminOrPimpinan) {
-          alert(
-            `Akses Ditolak:\nAkun "${userData.name}" (${userData.role || "User"}) tidak memiliki hak akses ke Dashboard Admin/Pimpinan.\n\nSilakan masuk melalui halaman Login Booking (http://localhost:5173/booking).`,
-          );
-          return;
-        }
-
         sessionStorage.setItem("dashboard_isAuthenticated", "true");
         sessionStorage.setItem("dashboard_currentUser", JSON.stringify(userData));
         localStorage.setItem("dashboard_isAuthenticated", "true");
@@ -342,7 +314,8 @@ export default function LoginPage() {
         localStorage.setItem("savedAccounts", JSON.stringify(saved));
         sessionStorage.setItem("savedAccounts", JSON.stringify(saved));
 
-        navigate("/dashboard", { replace: true });
+        const destination = returnTo && returnTo !== "/login" ? returnTo : "/dashboard";
+        navigate(destination, { replace: true });
       }
     } else {
       alert("Username atau password salah!");

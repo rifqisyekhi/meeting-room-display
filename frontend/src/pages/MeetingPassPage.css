@@ -1,7 +1,12 @@
 /* MeetingPassPage.css - Layout Detil Rapat & Presensi Kemnaker */
 
 .mp-wrapper {
-  min-height: 100vh;
+  flex: 1 1 auto;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
   background-color: #f8fafc;
   background-image: radial-gradient(#cbd5e1 0.75px, transparent 0.75px);
   background-size: 20px 20px;
@@ -112,6 +117,7 @@
   border: 1px solid #e2e8f0;
   box-sizing: border-box;
 }
+
 
 .mp-card-title-row {
   display: flex;
@@ -371,6 +377,31 @@
   border-top: 4px solid #b91c1c;
   background: #ffffff;
 }
+
+.mp-booker-identity {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #475569;
+  font-size: 12px;
+}
+
+.mp-booker-identity svg { color: #b91c1c; }
+.mp-booker-identity strong { color: #0c2d5e; }
+.mp-control-locked { border-top-color: #94a3b8; }
+.mp-control-locked-note { margin-top: 14px; color: #64748b; font-size: 12px; }
+.mp-booker-login-btn {
+  display: inline-flex;
+  margin-top: 12px;
+  padding: 9px 14px;
+  border-radius: 7px;
+  color: #fff;
+  background: #0c2d5e;
+  text-decoration: none;
+  font-size: 12px;
+  font-weight: 600;
+}
+.mp-booker-login-btn:hover { background: #123d7a; }
 
 .mp-rep-control-body {
   display: flex;
