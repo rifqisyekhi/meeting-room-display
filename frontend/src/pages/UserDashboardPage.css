@@ -19,13 +19,16 @@
   color: #fff;
   background: linear-gradient(175deg, #0a2448, #0d2d5e 48%, #133672);
   box-sizing: border-box;
+  overflow: hidden;
 }
 
-.user-dashboard-brand { display: flex; align-items: center; gap: 11px; padding: 6px 5px 22px; border-bottom: 1px solid rgba(255,255,255,.12); }
-.user-dashboard-brand img { width: 42px; height: 42px; border: 1px solid rgba(255,255,255,.3); border-radius: 9px; object-fit: cover; }
+.user-dashboard-sidebar::before { position: absolute; z-index: 0; top: 42%; right: 0; bottom: 0; left: 0; background: linear-gradient(180deg, rgba(13,45,94,.04), rgba(8,34,71,.42)), url("/dashboard-app/assets/gedung-kemnaker.png") center bottom / 100% auto no-repeat; content: ""; pointer-events: none; }
+.user-dashboard-sidebar > * { position: relative; z-index: 1; }
+.user-dashboard-brand { display: flex; align-items: center; gap: 11px; padding: 4px 6px 18px; border-bottom: 1px solid rgba(255,255,255,.12); }
+.user-dashboard-brand img { width: 42px; height: 42px; flex: 0 0 auto; padding: 5px; border-radius: 8px; background: rgba(255,255,255,.12); object-fit: contain; }
 .user-dashboard-brand span, .user-dashboard-sidebar-user div { display: grid; gap: 3px; min-width: 0; }
-.user-dashboard-brand strong { font-size: 10px; letter-spacing: .04em; }
-.user-dashboard-brand small { color: #b9c9dd; font-size: 9px; }
+.user-dashboard-brand strong { font-size: 13px; letter-spacing: .3px; line-height: 1.2; }
+.user-dashboard-brand small { color: #b9c9dd; font-size: 9.5px; }
 .user-dashboard-nav { display: grid; gap: 6px; padding-top: 18px; }
 .user-dashboard-nav button, .user-dashboard-logout { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 13px; border: 0; border-radius: 9px; color: #d0dced; background: transparent; font: 500 12px "Poppins", sans-serif; text-align: left; cursor: pointer; transition: .18s ease; }
 .user-dashboard-nav button:hover, .user-dashboard-logout:hover { color: #fff; background: rgba(255,255,255,.1); }
@@ -42,8 +45,11 @@
 .user-dashboard-topbar > div { display: grid; gap: 2px; }
 .user-dashboard-topbar small { color: #8797aa; font-size: 10px; }
 .user-dashboard-topbar strong { color: var(--user-navy); font-size: 13px; }
-.user-dashboard-profile-button { display: flex; align-items: center; gap: 8px; border: 0; color: #19385e; background: transparent; font: 600 11px "Poppins", sans-serif; cursor: pointer; }
-.user-dashboard-profile-button svg { color: #2465a2; font-size: 27px; }
+.user-dashboard-profile-button { display: flex; align-items: center; gap: 9px; border: 0; color: #19385e; background: transparent; text-align: left; cursor: pointer; }
+.user-dashboard-topbar-avatar { display: grid; width: 38px; height: 38px; flex: 0 0 auto; place-items: center; border: 2px solid #d4e6f6; border-radius: 50%; color: #fff; background: #0c2d5e; font-size: 14px; font-weight: 700; }
+.user-dashboard-topbar-account { display: grid; gap: 1px; }
+.user-dashboard-topbar-account strong { color: #0c2d5e; font-size: 14px; line-height: 1.2; }
+.user-dashboard-topbar-account small { color: #4b6a90; font-size: 12px; font-weight: 600; }
 .user-dashboard-content { width: min(1440px, 100%); margin: 0 auto; padding: 26px 32px 38px; box-sizing: border-box; }
 .user-welcome-banner { position: relative; overflow: hidden; min-height: 185px; padding: 28px 34px; border-radius: 15px; color: #fff; background: radial-gradient(circle at 82% 18%, rgba(65,151,224,.7), transparent 30%), linear-gradient(110deg, #0c2d5e, #1769aa); box-shadow: 0 10px 24px rgba(12,45,94,.15); box-sizing: border-box; }
 .user-welcome-banner::after { position: absolute; right: -35px; bottom: -145px; width: 360px; height: 260px; border: 1px solid rgba(255,255,255,.14); border-radius: 50%; content: ""; box-shadow: 0 0 0 30px rgba(255,255,255,.035), 0 0 0 70px rgba(255,255,255,.025); }
@@ -78,13 +84,13 @@
 .user-page-heading { margin: 4px 0 22px; }
 .user-page-heading h1 { margin: 3px 0 5px; color: #123760; font-size: 25px; }
 .user-page-heading p { margin: 0; color: #71839a; font-size: 11px; }
-.user-profile-grid { display: grid; grid-template-columns: minmax(250px,.8fr) minmax(360px,1.2fr); align-items: start; gap: 16px; }
+.user-profile-grid { display: grid; grid-template-columns: minmax(250px,.8fr) minmax(360px,1.2fr); align-items: stretch; gap: 16px; }
 .user-profile-card, .user-password-card { padding: 22px; border: 1px solid #e5edf6; border-radius: 13px; background: #fff; box-shadow: 0 4px 14px rgba(24,56,95,.035); }
-.user-profile-card { text-align: center; }
+.user-profile-card { display: flex; flex-direction: column; text-align: center; }
 .user-profile-avatar { display: grid; width: 66px; height: 66px; margin: 0 auto 12px; place-items: center; border-radius: 50%; color: #fff; background: linear-gradient(135deg,#1769aa,#0c2d5e); font-size: 25px; font-weight: 700; }
 .user-profile-card h2 { margin: 0; color: #123760; font-size: 16px; }
 .user-profile-card > p { margin: 3px 0 18px; color: #7b8da3; font-size: 10px; }
-.user-profile-card dl { display: grid; gap: 0; margin: 0; text-align: left; }
+.user-profile-card dl { display: grid; flex: 1; align-content: space-evenly; gap: 0; margin: 0; text-align: left; }
 .user-profile-card dl div { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid #edf1f6; font-size: 10px; }
 .user-profile-card dt { color: #7789a0; }
 .user-profile-card dd { overflow: hidden; margin: 0; color: #18385f; font-weight: 600; text-align: right; text-overflow: ellipsis; }
@@ -94,8 +100,11 @@
 .user-card-heading p { margin: 0; color: #8392a4; font-size: 10px; }
 .user-password-card { display: grid; gap: 12px; }
 .user-password-card label { display: grid; gap: 6px; color: #526a85; font-size: 10px; font-weight: 600; }
-.user-password-card input { width: 100%; min-height: 39px; box-sizing: border-box; padding: 8px 11px; border: 1px solid #d9e3ef; border-radius: 7px; color: #173b67; background: #f8fafd; font: 400 11px "Poppins", sans-serif; outline: none; }
+.user-password-input-wrap { position: relative; display: flex; align-items: center; }
+.user-password-card input { width: 100%; min-height: 39px; box-sizing: border-box; padding: 8px 40px 8px 11px; border: 1px solid #d9e3ef; border-radius: 7px; color: #173b67; background: #f8fafd; font: 400 11px "Poppins", sans-serif; outline: none; }
 .user-password-card input:focus { border-color: #3983c7; box-shadow: 0 0 0 3px rgba(23,105,170,.1); background: #fff; }
+.user-password-input-wrap > button { position: absolute; right: 5px; display: grid; width: 30px; height: 30px; place-items: center; border: 0; border-radius: 6px; color: #71839a; background: transparent; cursor: pointer; }
+.user-password-input-wrap > button:hover { color: #1769aa; background: #eaf3ff; }
 .user-password-card > button { justify-self: end; min-height: 38px; padding: 0 17px; border: 0; border-radius: 7px; color: #fff; background: #1769aa; font: 600 11px "Poppins", sans-serif; cursor: pointer; }
 .user-password-card > button:hover { background: #0c2d5e; }
 .user-password-card > button:disabled { opacity: .6; cursor: wait; }
@@ -115,8 +124,9 @@
 @media (max-width: 640px) {
   .user-dashboard-shell { display: block; }
   .user-dashboard-sidebar { position: static; width: 100%; min-height: auto; padding: 10px 12px; }
+  .user-dashboard-sidebar::before { display: none; }
   .user-dashboard-brand { padding: 2px 4px 10px; }
-  .user-dashboard-brand img { width: 34px; height: 34px; }
+  .user-dashboard-brand img { width: 38px; height: 38px; padding: 7px; }
   .user-dashboard-nav { grid-template-columns: repeat(4,minmax(0,1fr)); gap: 4px; padding-top: 9px; }
   .user-dashboard-nav button { min-height: 48px; flex-direction: column; justify-content: center; gap: 3px; padding: 5px 2px; font-size: 8px; text-align: center; }
   .user-dashboard-nav svg { font-size: 14px; }

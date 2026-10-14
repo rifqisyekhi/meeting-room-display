@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { FaCalendarAlt, FaDoorOpen, FaHistory, FaLock, FaSignOutAlt, FaUser, FaUserCircle } from "react-icons/fa";
+import { FaCalendarAlt, FaDoorOpen, FaEye, FaEyeSlash, FaHistory, FaLock, FaSignOutAlt, FaUser } from "react-icons/fa";
 import { IoMdHome } from "react-icons/io";
 import "./UserDashboardPage.css";
 
@@ -25,6 +25,7 @@ export default function UserDashboardPage() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [visiblePasswords, setVisiblePasswords] = useState({ current: false, next: false, confirm: false });
   const [passwordMessage, setPasswordMessage] = useState("");
   const [passwordError, setPasswordError] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
@@ -117,7 +118,7 @@ export default function UserDashboardPage() {
     <div className="user-dashboard-shell">
       <aside className="user-dashboard-sidebar">
         <div className="user-dashboard-brand">
-          <img src="/dashboard-app/assets/kemenaker-white.jpeg" alt="" />
+          <img src="/dashboard-app/assets/kemenaker-white.png" alt="" />
           <span><strong>MEETING DISPLAY ROOM</strong><small>BIRO KEUANGAN DAN BMN</small></span>
         </div>
         <nav className="user-dashboard-nav" aria-label="Navigasi pengguna">
@@ -133,7 +134,10 @@ export default function UserDashboardPage() {
       <main className="user-dashboard-main">
         <header className="user-dashboard-topbar">
           <div><small>Portal Pengguna</small><strong>{profileOpen ? "Profil Saya" : "Dashboard"}</strong></div>
-          <button className="user-dashboard-profile-button" onClick={openProfile}><FaUserCircle /><span>{user.name || user.username || "Pengguna"}</span></button>
+          <button className="user-dashboard-profile-button" onClick={openProfile}>
+            <span className="user-dashboard-topbar-avatar">{(user.name || user.username || "U").charAt(0).toUpperCase()}</span>
+            <span className="user-dashboard-topbar-account"><strong>{user.name || user.username || "Pengguna"}</strong><small>{user.role || "User"}</small></span>
+          </button>
         </header>
 
         {profileOpen ? (
@@ -147,9 +151,9 @@ export default function UserDashboardPage() {
               </article>
               <form className="user-password-card" onSubmit={handlePasswordChange}>
                 <div className="user-card-heading"><span><FaLock /></span><div><h2>Ganti Password</h2><p>Gunakan password minimal 8 karakter.</p></div></div>
-                <label>Password saat ini<input type="password" autoComplete="current-password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} required /></label>
-                <label>Password baru<input type="password" autoComplete="new-password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} minLength={8} required /></label>
-                <label>Konfirmasi password baru<input type="password" autoComplete="new-password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} minLength={8} required /></label>
+                <label>Password saat ini<div className="user-password-input-wrap"><input type={visiblePasswords.current ? "text" : "password"} autoComplete="current-password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} required /><button type="button" aria-label={visiblePasswords.current ? "Sembunyikan password saat ini" : "Tampilkan password saat ini"} onClick={() => setVisiblePasswords((state) => ({ ...state, current: !state.current }))}>{visiblePasswords.current ? <FaEyeSlash /> : <FaEye />}</button></div></label>
+                <label>Password baru<div className="user-password-input-wrap"><input type={visiblePasswords.next ? "text" : "password"} autoComplete="new-password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} minLength={8} required /><button type="button" aria-label={visiblePasswords.next ? "Sembunyikan password baru" : "Tampilkan password baru"} onClick={() => setVisiblePasswords((state) => ({ ...state, next: !state.next }))}>{visiblePasswords.next ? <FaEyeSlash /> : <FaEye />}</button></div></label>
+                <label>Konfirmasi password baru<div className="user-password-input-wrap"><input type={visiblePasswords.confirm ? "text" : "password"} autoComplete="new-password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} minLength={8} required /><button type="button" aria-label={visiblePasswords.confirm ? "Sembunyikan konfirmasi password" : "Tampilkan konfirmasi password"} onClick={() => setVisiblePasswords((state) => ({ ...state, confirm: !state.confirm }))}>{visiblePasswords.confirm ? <FaEyeSlash /> : <FaEye />}</button></div></label>
                 {passwordMessage && <p className={`user-password-message ${passwordError ? "error" : "success"}`} role="status">{passwordMessage}</p>}
                 <button type="submit" disabled={savingPassword}>{savingPassword ? "Menyimpan..." : "Simpan Password"}</button>
               </form>
