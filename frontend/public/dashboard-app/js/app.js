@@ -4,8 +4,14 @@
 function getRoleLabel(role) {
   if (!role) return "User";
   const r = String(role).trim().toLowerCase();
-  if (r === "admin" || r === "administrator" || (r.includes("admin") && !r.includes("approval") && !r.includes("pimpinan"))) return "Admin";
-  if (r === "pimpinan" || r.includes("approval") || r === "atasan") return "Pimpinan";
+  if (
+    r === "admin" ||
+    r === "administrator" ||
+    (r.includes("admin") && !r.includes("approval") && !r.includes("pimpinan"))
+  )
+    return "Admin";
+  if (r === "pimpinan" || r.includes("approval") || r === "atasan")
+    return "Pimpinan";
   return "User";
 }
 
@@ -14,7 +20,14 @@ function isAtasanRole(user) {
   const role = (user.role || "").toLowerCase();
   const uname = (user.username || "").toLowerCase();
   const name = (user.name || "").toLowerCase();
-  if (role === "admin" || role === "administrator" || uname === "admin" || (role.includes("admin") && !role.includes("approval") && !role.includes("pimpinan"))) {
+  if (
+    role === "admin" ||
+    role === "administrator" ||
+    uname === "admin" ||
+    (role.includes("admin") &&
+      !role.includes("approval") &&
+      !role.includes("pimpinan"))
+  ) {
     return false;
   }
   return (
@@ -33,7 +46,10 @@ function isAdminRole(user) {
   const role = (user.role || "").toLowerCase();
   const uname = (user.username || "").toLowerCase();
   return (
-    role === "admin" || role === "administrator" || role.includes("admin") || uname === "admin"
+    role === "admin" ||
+    role === "administrator" ||
+    role.includes("admin") ||
+    uname === "admin"
   );
 }
 
@@ -61,7 +77,8 @@ function getRoleGroup(user) {
 }
 
 function can(action, user) {
-  const u = user || (typeof getCurrentUser === "function" ? getCurrentUser() : null);
+  const u =
+    user || (typeof getCurrentUser === "function" ? getCurrentUser() : null);
   const allowed = PERMISSIONS[action] || [];
   return allowed.includes(getRoleGroup(u));
 }
@@ -94,7 +111,7 @@ function getMeetingStatistics() {
       const [sh, sm] = m.start.split(":").map(Number);
       const [eh, em] = m.end.split(":").map(Number);
       if (!isNaN(sh) && !isNaN(eh)) {
-        const diff = (eh * 60 + (em || 0)) - (sh * 60 + (sm || 0));
+        const diff = eh * 60 + (em || 0) - (sh * 60 + (sm || 0));
         if (diff > 0) totalMinutes += diff;
       }
     }
@@ -106,22 +123,32 @@ function getMeetingStatistics() {
     if (m.bookedBy) requesters.add(m.bookedBy);
     else if (m.requester) requesters.add(m.requester);
   });
-  const totalUsers = Math.max(state.users ? state.users.length : 0, requesters.size, 1);
+  const totalUsers = Math.max(
+    state.users ? state.users.length : 0,
+    requesters.size,
+    1,
+  );
 
-  const runningCount = meetings.filter((m) => (m.status || "").toLowerCase() === "berjalan").length;
+  const runningCount = meetings.filter(
+    (m) => (m.status || "").toLowerCase() === "berjalan",
+  ).length;
   const pendingCount = meetings.filter(isPendingApproval).length;
   const soonCount = meetings.filter((m) => {
     const s = (m.status || "").toLowerCase();
     return s === "akan datang" || s === "segera";
   }).length;
-  const doneCount = meetings.filter((m) => (m.status || "").toLowerCase() === "selesai").length;
+  const doneCount = meetings.filter(
+    (m) => (m.status || "").toLowerCase() === "selesai",
+  ).length;
 
   const totalRooms = rooms.length || 1;
   const occupiedRooms = rooms.filter((r) => {
     const s = (r.status || "").toLowerCase();
     return s.includes("guna") || s.includes("pakai");
   }).length;
-  const roomUtilization = Math.round(((occupiedRooms || (runningCount > 0 ? 1 : 0)) / totalRooms) * 100);
+  const roomUtilization = Math.round(
+    ((occupiedRooms || (runningCount > 0 ? 1 : 0)) / totalRooms) * 100,
+  );
 
   return {
     totalMeetings,
@@ -131,7 +158,10 @@ function getMeetingStatistics() {
     pendingCount,
     soonCount,
     doneCount,
-    roomUtilization: Math.min(100, Math.max(0, roomUtilization || (totalMeetings > 0 ? 50 : 0))),
+    roomUtilization: Math.min(
+      100,
+      Math.max(0, roomUtilization || (totalMeetings > 0 ? 50 : 0)),
+    ),
   };
 }
 
@@ -637,11 +667,7 @@ function rapatHariIni() {
 }
 
 function layout(content) {
-  let currentUser = { role: "Admin" };
-  try {
-    const stored = window.parent.localStorage.getItem("currentUser");
-    if (stored) currentUser = JSON.parse(stored);
-  } catch (e) {}
+  let currentUser = getCurrentUser();
 
   return `<div class="app-shell"><aside class="sidebar">
     <div class="brand"><img src="/dashboard-app/assets/kemenaker-white.png" alt="Logo Kemenaker" class="brand-logo"><div><b>MEETING DISPLAY ROOM</b><small>BIRO KEUANGAN DAN BMN</small></div></div>
@@ -697,19 +723,70 @@ function getNotifications() {
   if (!Array.isArray(notifs)) notifs = [];
 
   let changed = false;
-  // Bersihkan notifikasi yang rapatnya sudah dihapus dari state.meetings
+
+  // 1. Deduplikasi awal pada notifikasi tersimpan agar tidak ada notifikasi kembar
+  const seenKeys = new Set();
+  const deduped = [];
+  for (const n of notifs) {
+    const mid = String(n.meetingId || n.id || "");
+    const room = (n.room || "").trim().toLowerCase();
+    const date = (n.date || "").trim();
+    const startTime = (n.time || "").split("-")[0].trim();
+    const key = n.type === "MEETING_REVIEW"
+      ? `review_${mid}_${n.createdAt}`
+      : mid
+        ? `meeting_${mid}`
+        : `slot_${room}_${date}_${startTime}`;
+
+    if (!seenKeys.has(key)) {
+      seenKeys.add(key);
+      deduped.push(n);
+    } else {
+      changed = true;
+    }
+  }
+  notifs = deduped;
+
+  // 2. Bersihkan notifikasi yang rapatnya sudah dihapus dari state.meetings
   if (Array.isArray(state.meetings)) {
     const validMeetingIds = new Set(state.meetings.map((m) => String(m.id)));
+    state.meetings.forEach((m) => {
+      if (m.originalId) validMeetingIds.add(String(m.originalId));
+    });
     const beforeCount = notifs.length;
-    notifs = notifs.filter((n) => !n.meetingId || validMeetingIds.has(String(n.meetingId)));
+    notifs = notifs.filter((n) => {
+      if (!n.meetingId) return true;
+      const nid = String(n.meetingId);
+      if (validMeetingIds.has(nid)) return true;
+      return state.meetings.some((m) =>
+        (m.room || "").trim().toLowerCase() === (n.room || "").trim().toLowerCase() &&
+        (m.date || "").trim() === (n.date || "").trim() &&
+        (n.time || "").includes(m.start || "")
+      );
+    });
     if (notifs.length !== beforeCount) changed = true;
   }
 
-  // Sinkronisasi otomatis dengan state.meetings:
+  // 3. Sinkronisasi otomatis dengan state.meetings:
   // Setiap meeting dengan status "Menunggu Approval" yang belum ada di notifikasi otomatis didaftarkan
   if (Array.isArray(state.meetings)) {
     state.meetings.forEach((m) => {
-      const existing = notifs.find((n) => n.meetingId === m.id && n.type !== "MEETING_REVIEW");
+      const midStr = String(m.id);
+      const origIdStr = m.originalId ? String(m.originalId) : null;
+      const mRoom = (m.room || "").trim().toLowerCase();
+      const mDate = (m.date || "").trim();
+      const mStart = (m.start || "").trim();
+
+      const existing = notifs.find((n) => {
+        if (n.type === "MEETING_REVIEW") return false;
+        const nidStr = String(n.meetingId || n.id || "");
+        if (nidStr && (nidStr === midStr || (origIdStr && nidStr === origIdStr))) return true;
+        const nRoom = (n.room || "").trim().toLowerCase();
+        const nDate = (n.date || "").trim();
+        const nTime = (n.time || "").trim();
+        return nRoom === mRoom && nDate === mDate && nTime.includes(mStart);
+      });
+
       if (!existing) {
         if (
           m.status === "Menunggu Approval" ||
@@ -718,8 +795,8 @@ function getNotifications() {
         ) {
           const isCancelPri = m.status === "Dibatalkan" && m.cancellationReason;
           notifs.push({
-            id: m.id,
-            meetingId: m.id,
+            id: midStr,
+            meetingId: midStr,
             type: isCancelPri ? "CANCELED_PRIORITY" : "NEW_REQUEST",
             title: isCancelPri
               ? "⚠️ Pembatalan Ruang Rapat (Prioritas Kepala Biro)"
@@ -742,6 +819,11 @@ function getNotifications() {
           changed = true;
         }
       } else {
+        if (String(existing.meetingId) !== midStr) {
+          existing.meetingId = midStr;
+          existing.id = midStr;
+          changed = true;
+        }
         if (
           existing.status !== m.status ||
           existing.approvedBy !== (m.approvedBy || "") ||
@@ -763,28 +845,34 @@ function getNotifications() {
           changed = true;
         }
       }
-    if (m.review && !notifs.some((n) => n.type === "MEETING_REVIEW" && String(n.meetingId) === String(m.id))) {
-      const review = m.review;
-      const submittedAt = review.submittedAt || new Date().toISOString();
-      notifs.unshift({
-        id: `review-${m.id}-${submittedAt}`,
-        meetingId: m.id,
-        type: "MEETING_REVIEW",
-        title: `Ulasan Baru — ${m.room || "Ruang Rapat"}`,
-        message: `${review.reviewer || m.bookedBy || "User"} memberi rating ${review.rating || 0}/5${review.text ? `: ${review.text}` : "."}`,
-        room: m.room || "-",
-        requester: review.reviewer || m.bookedBy || m.requester || "User",
-        date: m.date || "-",
-        time: `${m.start || ""} - ${m.end || ""}`,
-        rating: review.rating || 0,
-        review: review.text || "",
-        status: "Ulasan Baru",
-        targetRoles: ["Administrator", "Approval 1", "Approval 2"],
-        createdAt: submittedAt,
-        readBy: [],
-      });
-      changed = true;
-    }
+      if (
+        m.review &&
+        !notifs.some(
+          (n) =>
+            n.type === "MEETING_REVIEW" && String(n.meetingId) === midStr,
+        )
+      ) {
+        const review = m.review;
+        const submittedAt = review.submittedAt || new Date().toISOString();
+        notifs.unshift({
+          id: `review-${midStr}-${submittedAt}`,
+          meetingId: midStr,
+          type: "MEETING_REVIEW",
+          title: `Ulasan Baru — ${m.room || "Ruang Rapat"}`,
+          message: `${review.reviewer || m.bookedBy || "User"} memberi rating ${review.rating || 0}/5${review.text ? `: ${review.text}` : "."}`,
+          room: m.room || "-",
+          requester: review.reviewer || m.bookedBy || m.requester || "User",
+          date: m.date || "-",
+          time: `${m.start || ""} - ${m.end || ""}`,
+          rating: review.rating || 0,
+          review: review.text || "",
+          status: "Ulasan Baru",
+          targetRoles: ["Administrator", "Approval 1", "Approval 2"],
+          createdAt: submittedAt,
+          readBy: [],
+        });
+        changed = true;
+      }
     });
   }
 
@@ -798,19 +886,43 @@ function getNotifications() {
 }
 
 function saveNotifications(notifs) {
+  const json = JSON.stringify(notifs);
   try {
-    getAppStorage().setItem("app_notifications", JSON.stringify(notifs));
+    getAppStorage().setItem("app_notifications", json);
+  } catch (e) {}
+  try {
+    window.localStorage.setItem("app_notifications", json);
+  } catch (e) {}
+  try {
+    if (window.parent && window.parent.localStorage && window.parent !== window) {
+      window.parent.localStorage.setItem("app_notifications", json);
+    }
+  } catch (e) {}
+  try {
+    window.dispatchEvent(new Event("app_notifications_updated"));
+  } catch (e) {}
+  try {
+    if (window.parent && window.parent !== window) {
+      window.parent.dispatchEvent(new Event("app_notifications_updated"));
+    }
   } catch (e) {}
 }
 
 function getUnreadNotifCount(currentUser) {
   const notifs = getNotifications();
-  const username = currentUser?.username || "admin";
+  const username = (currentUser?.username || "admin").toLowerCase();
   return notifs.filter(
     (n) =>
-      (n.status === "Menunggu Approval" || n.type === "CANCELED_PRIORITY" || n.type === "MEETING_REVIEW") &&
-      (!n.readBy || !n.readBy.includes(username)) &&
-      (!Array.isArray(n.targetRoles) || n.targetRoles.includes(currentUser?.role)),
+      (!n.readBy ||
+        !Array.isArray(n.readBy) ||
+        !n.readBy.some((u) => String(u).toLowerCase() === username)) &&
+      (!Array.isArray(n.targetRoles) ||
+        n.targetRoles.some(
+          (tr) =>
+            tr.toLowerCase() === (currentUser?.role || "").toLowerCase() ||
+            ((currentUser?.role || "").toLowerCase().includes("approval") &&
+              tr.toLowerCase().includes("approval")),
+        )),
   ).length;
 }
 
@@ -869,32 +981,104 @@ function closeNotifDropdown(e) {
 }
 
 function markAllNotifsRead(e) {
-  if (e) e.stopPropagation();
+  if (e) {
+    if (typeof e.preventDefault === "function") e.preventDefault();
+    if (typeof e.stopPropagation === "function") e.stopPropagation();
+    if (e.currentTarget && e.currentTarget.style) {
+      e.currentTarget.style.display = "none";
+    }
+  }
   const currentUser = getCurrentUser();
-  const username = currentUser?.username || "admin";
+  const rawUsername = currentUser?.username || "admin";
+  const username = rawUsername.toLowerCase();
   const notifs = getNotifications();
+  let updated = false;
   notifs.forEach((n) => {
-    if (!n.readBy) n.readBy = [];
-    if (!n.readBy.includes(username)) {
-      n.readBy.push(username);
+    if (!Array.isArray(n.readBy)) n.readBy = [];
+    const hasRead = n.readBy.some((u) => String(u).toLowerCase() === username);
+    if (!hasRead) {
+      n.readBy.push(rawUsername);
+      updated = true;
     }
   });
-  saveNotifications(notifs);
+  if (updated) {
+    saveNotifications(notifs);
+  }
   render();
 }
 
 function approveMeetingFromNotif(e, id) {
-  if (e) e.stopPropagation();
+  if (e) {
+    if (typeof e.preventDefault === "function") e.preventDefault();
+    if (typeof e.stopPropagation === "function") e.stopPropagation();
+  }
+  try {
+    const currentUser = getCurrentUser();
+    const rawUsername = currentUser?.username || "admin";
+    const username = rawUsername.toLowerCase();
+    const notifs = getNotifications();
+    let updated = false;
+    notifs.forEach((n) => {
+      if (String(n.meetingId) === String(id) || String(n.id) === String(id)) {
+        if (!Array.isArray(n.readBy)) n.readBy = [];
+        if (!n.readBy.some((u) => String(u).toLowerCase() === username)) {
+          n.readBy.push(rawUsername);
+          updated = true;
+        }
+      }
+    });
+    if (updated) saveNotifications(notifs);
+  } catch (err) {}
   approveMeeting(id);
 }
 
 function rejectMeetingFromNotif(e, id) {
-  if (e) e.stopPropagation();
+  if (e) {
+    if (typeof e.preventDefault === "function") e.preventDefault();
+    if (typeof e.stopPropagation === "function") e.stopPropagation();
+  }
+  try {
+    const currentUser = getCurrentUser();
+    const rawUsername = currentUser?.username || "admin";
+    const username = rawUsername.toLowerCase();
+    const notifs = getNotifications();
+    let updated = false;
+    notifs.forEach((n) => {
+      if (String(n.meetingId) === String(id) || String(n.id) === String(id)) {
+        if (!Array.isArray(n.readBy)) n.readBy = [];
+        if (!n.readBy.some((u) => String(u).toLowerCase() === username)) {
+          n.readBy.push(rawUsername);
+          updated = true;
+        }
+      }
+    });
+    if (updated) saveNotifications(notifs);
+  } catch (err) {}
   rejectMeeting(id);
 }
 
 function viewMeetingFromNotif(e, id) {
-  if (e) e.stopPropagation();
+  if (e) {
+    if (typeof e.preventDefault === "function") e.preventDefault();
+    if (typeof e.stopPropagation === "function") e.stopPropagation();
+  }
+  try {
+    const currentUser = getCurrentUser();
+    const rawUsername = currentUser?.username || "admin";
+    const username = rawUsername.toLowerCase();
+    const notifs = getNotifications();
+    let updated = false;
+    notifs.forEach((n) => {
+      if (String(n.meetingId) === String(id) || String(n.id) === String(id)) {
+        if (!Array.isArray(n.readBy)) n.readBy = [];
+        if (!n.readBy.some((u) => String(u).toLowerCase() === username)) {
+          n.readBy.push(rawUsername);
+          updated = true;
+        }
+      }
+    });
+    if (updated) saveNotifications(notifs);
+  } catch (err) {}
   if (state.page !== "meetings") {
     state.page = "meetings";
     location.hash = "meetings";
@@ -966,8 +1150,12 @@ function getDashboardNotifPanelHTML(currentUser) {
 
   // Prioritaskan yang Menunggu Persetujuan di urutan teratas, lalu urutkan waktu terbaru
   notifs.sort((a, b) => {
-    const aPending = (a.status || "").toLowerCase().includes("menunggu") ? 1 : 0;
-    const bPending = (b.status || "").toLowerCase().includes("menunggu") ? 1 : 0;
+    const aPending = (a.status || "").toLowerCase().includes("menunggu")
+      ? 1
+      : 0;
+    const bPending = (b.status || "").toLowerCase().includes("menunggu")
+      ? 1
+      : 0;
     if (aPending !== bPending) return bPending - aPending;
     return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
   });
@@ -975,6 +1163,13 @@ function getDashboardNotifPanelHTML(currentUser) {
   const pendingCount = notifs.filter((n) =>
     (n.status || "").toLowerCase().includes("menunggu"),
   ).length;
+
+  const currentUsername = (currentUser?.username || "admin").toLowerCase();
+  const unreadNotifs = notifs.filter((n) => {
+    if (!Array.isArray(n.readBy) || n.readBy.length === 0) return true;
+    return !n.readBy.some((u) => String(u).toLowerCase() === currentUsername);
+  });
+  const hasUnread = unreadNotifs.length > 0;
 
   let itemsHTML = "";
   if (notifs.length === 0) {
@@ -998,6 +1193,9 @@ function getDashboardNotifPanelHTML(currentUser) {
           m.status === "Akan Datang" ||
           (!isPending && m.status !== "Dibatalkan" && m.approvedBy);
         const isRejected = m.status === "Dibatalkan";
+        const isUnread =
+          !Array.isArray(n.readBy) ||
+          !n.readBy.some((u) => String(u).toLowerCase() === currentUsername);
 
         let statusBadge = "";
         if (isReview) {
@@ -1013,16 +1211,18 @@ function getDashboardNotifPanelHTML(currentUser) {
         }
 
         const title = esc(n.title || m.title || "Booking Ruang Rapat");
-        const requester = esc(isReview ? n.requester || "User" : m.requester || m.bookedBy || "TU");
+        const requester = esc(
+          isReview ? n.requester || "User" : m.requester || m.bookedBy || "TU",
+        );
         const roomName = esc(m.room || "Ruang Rapat");
         const dateStr = formatDate(m.date);
         const timeStr = `${m.start || "09:00"}–${m.end || "10:00"}`;
 
         return `
-          <div class="dash-notif-item ${isPending ? "highlight-pending" : ""}" style="padding:10px 12px;border-radius:10px;background:#fff;border:1px solid ${isPending ? "#fed7aa" : "#e2e8f0"};${isPending ? "border-left:4px solid #ea580c;background:#fffaf5;" : ""}">
+          <div class="dash-notif-item ${isPending ? "highlight-pending" : ""}" style="padding:10px 12px;border-radius:10px;background:#fff;border:1px solid ${isPending ? "#fed7aa" : isUnread ? "#bfdbfe" : "#e2e8f0"};${isPending ? "border-left:4px solid #ea580c;background:#fffaf5;" : isUnread ? "border-left:4px solid #2563eb;background:#f8faff;" : ""}">
             <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:4px;">
               <strong style="font-size:12.5px;font-weight:700;color:#0c2d5e;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;" title="${title}">
-                ${title}
+                ${isUnread && !isPending ? `<span style="display:inline-block;width:6px;height:6px;background:#2563eb;border-radius:50%;margin-right:6px;vertical-align:middle;" title="Belum dibaca"></span>` : ""}${title}
               </strong>
               <span style="font-size:10.5px;color:#94a3b8;white-space:nowrap;flex-shrink:0;">
                 ${getTimeAgo(n.createdAt)}
@@ -1071,18 +1271,26 @@ function getDashboardNotifPanelHTML(currentUser) {
         </div>
       </div>
       <div class="dash-notif-header-actions">
-        ${pendingCount > 0 ? `
+        ${
+          pendingCount > 0
+            ? `
           <span class="notif-pending-pill" title="${pendingCount} Permintaan Perlu Persetujuan">
             <span class="notif-pending-dot"></span>
             <span>${pendingCount} Menunggu</span>
           </span>
-        ` : ""}
-        ${notifs.length > 0 ? `
+        `
+            : ""
+        }
+        ${
+          hasUnread
+            ? `
           <button type="button" class="notif-mark-read-btn" title="Tandai semua notifikasi telah dibaca" onclick="markAllNotifsRead(event)">
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
             <span>Tandai Semua Dibaca</span>
           </button>
-        ` : ""}
+        `
+            : ""
+        }
       </div>
     </div>
     <div id="dashNotifBody" class="dash-notif-body" style="display:flex;flex-direction:column;gap:10px;max-height:400px;overflow-y:auto;">
@@ -1096,39 +1304,61 @@ function getDashboardNotifPanelHTML(currentUser) {
   `;
 }
 
-function getProfileHTML() {
-  let currentUser = {
-    username: "admin",
-    name: "Admin Utama",
-    role: "Admin",
+function getAllAvailableAccounts() {
+  const defaultAccounts = [
+    { username: "admin", name: "Admin Utama", role: "Admin" },
+    { username: "approval1", name: "Pimpinan", role: "Pimpinan" },
+    { username: "approval2", name: "Wakil Pimpinan", role: "Pimpinan" },
+  ];
+  const map = new Map();
+  defaultAccounts.forEach((u) => map.set(u.username.toLowerCase(), { ...u }));
+
+  const readFromStorage = (s) => {
+    if (!s) return;
+    ["savedAccounts", "app_login_users", "app_users"].forEach((key) => {
+      try {
+        const raw = s.getItem(key);
+        if (raw) {
+          const arr = JSON.parse(raw);
+          if (Array.isArray(arr)) {
+            arr.forEach((u) => {
+              if (u && u.username) {
+                const uname = u.username.toLowerCase();
+                if (
+                  uname !== "andipratama" &&
+                  (u.name || "").toLowerCase() !== "andi pratama"
+                ) {
+                  map.set(uname, {
+                    ...map.get(uname),
+                    ...u,
+                    role: getRoleLabel(u.role),
+                  });
+                }
+              }
+            });
+          }
+        }
+      } catch (e) {}
+    });
   };
-  try {
-    const stored = getAppStorage().getItem("currentUser");
-    if (stored) currentUser = JSON.parse(stored);
-  } catch (e) {}
 
-  currentUser.role = getRoleLabel(currentUser.role);
-
-  let savedAccounts = [];
   try {
-    const storedSaved = getAppStorage().getItem("savedAccounts");
-    if (storedSaved) {
-      const parsed = JSON.parse(storedSaved);
-      if (Array.isArray(parsed)) {
-        savedAccounts = parsed;
-      }
+    readFromStorage(getAppStorage());
+    readFromStorage(window.localStorage);
+    readFromStorage(window.sessionStorage);
+    if (window.parent) {
+      readFromStorage(window.parent.localStorage);
+      readFromStorage(window.parent.sessionStorage);
     }
   } catch (e) {}
 
-  savedAccounts = savedAccounts
-    .filter(
-      (u) =>
-        (u.name || "").toLowerCase() !== "andi pratama" &&
-        (u.username || "").toLowerCase() !== "andipratama",
-    )
-    .map((u) => {
-      return { ...u, role: getRoleLabel(u.role) };
-    });
+  return Array.from(map.values());
+}
+
+function getProfileHTML() {
+  let currentUser = getCurrentUser();
+
+  const savedAccounts = getAllAvailableAccounts();
 
   const initial = currentUser.name
     ? currentUser.name.charAt(0).toUpperCase()
@@ -1178,25 +1408,32 @@ function getProfileHTML() {
 
 function switchToAccount(e, username) {
   if (e) e.stopPropagation();
-  let allAccounts = [];
-  try {
-    const storedSaved = getAppStorage().getItem("savedAccounts");
-    if (storedSaved) {
-      allAccounts = JSON.parse(storedSaved) || [];
-    }
-  } catch (err) {}
+  const allAccounts = getAllAvailableAccounts();
 
   const user = allAccounts.find(
     (u) => (u.username || "").toLowerCase() === (username || "").toLowerCase(),
   );
   if (user) {
     user.role = getRoleLabel(user.role);
-    getAppStorage().setItem("currentUser", JSON.stringify(user));
-    getAppStorage().setItem("isAuthenticated", "true");
+    const userStr = JSON.stringify(user);
     try {
-      localStorage.setItem("currentUser", JSON.stringify(user));
+      sessionStorage.setItem("currentUser", userStr);
+      sessionStorage.setItem("isAuthenticated", "true");
+      localStorage.setItem("currentUser", userStr);
       localStorage.setItem("isAuthenticated", "true");
-    } catch (e) {}
+      getAppStorage().setItem("currentUser", userStr);
+      getAppStorage().setItem("isAuthenticated", "true");
+      if (window.parent) {
+        if (window.parent.sessionStorage) {
+          window.parent.sessionStorage.setItem("currentUser", userStr);
+          window.parent.sessionStorage.setItem("isAuthenticated", "true");
+        }
+        if (window.parent.localStorage) {
+          window.parent.localStorage.setItem("currentUser", userStr);
+          window.parent.localStorage.setItem("isAuthenticated", "true");
+        }
+      }
+    } catch (err) {}
     window.location.reload();
   }
 }
@@ -1233,16 +1470,28 @@ document.addEventListener("click", (e) => {
 function switchRole(e) {
   if (e) e.stopPropagation();
   try {
+    const authKeys = [
+      "isAuthenticated",
+      "currentUser",
+      "dashboard_isAuthenticated",
+      "dashboard_currentUser",
+      "booking_isAuthenticated",
+      "booking_currentUser",
+    ];
+    authKeys.forEach((k) => {
+      try { sessionStorage.removeItem(k); } catch (err) {}
+      try { localStorage.removeItem(k); } catch (err) {}
+      try { window.parent?.sessionStorage?.removeItem(k); } catch (err) {}
+      try { window.parent?.localStorage?.removeItem(k); } catch (err) {}
+    });
     sessionStorage.setItem("isAddingAccount", "true");
+    sessionStorage.setItem("booking_isAddingAccount", "true");
     if (window.parent && window.parent.sessionStorage) {
       window.parent.sessionStorage.setItem("isAddingAccount", "true");
+      window.parent.sessionStorage.setItem("booking_isAddingAccount", "true");
     }
   } catch (err) {}
-  getAppStorage().removeItem("isAuthenticated");
-  try {
-    localStorage.removeItem("isAuthenticated");
-  } catch (err) {}
-  window.parent.location.href = "/login";
+  window.parent.location.href = "/login?portal=dashboard";
 }
 
 function stat(icon, num, label, color) {
@@ -1285,7 +1534,6 @@ function dashboard() {
     'width="16" height="16"',
   );
 
-
   const currentUser = getCurrentUser();
   const isAdmin = isAdminRole(currentUser);
   const stats = getMeetingStatistics();
@@ -1296,7 +1544,9 @@ function dashboard() {
 
   // 1. Filter Ruangan jika dipilih
   if (selectedRoom && selectedRoom !== "semua") {
-    meetingsToDisplay = meetingsToDisplay.filter((m) => m.room === selectedRoom);
+    meetingsToDisplay = meetingsToDisplay.filter(
+      (m) => m.room === selectedRoom,
+    );
   }
 
   // 2. Filter Periode Rapat
@@ -1307,11 +1557,17 @@ function dashboard() {
     } else if (f.mode === "mingguan") {
       const start = f.startDate || awalMinggu();
       const end = f.endDate || akhirMinggu();
-      meetingsToDisplay = meetingsToDisplay.filter((m) => m.date >= start && m.date <= end);
+      meetingsToDisplay = meetingsToDisplay.filter(
+        (m) => m.date >= start && m.date <= end,
+      );
     } else if (f.mode === "date" && f.startDate && f.endDate) {
-      meetingsToDisplay = meetingsToDisplay.filter((m) => m.date >= f.startDate && m.date <= f.endDate);
+      meetingsToDisplay = meetingsToDisplay.filter(
+        (m) => m.date >= f.startDate && m.date <= f.endDate,
+      );
     } else if (f.mode === "bulanan" && f.startDate && f.endDate) {
-      meetingsToDisplay = meetingsToDisplay.filter((m) => m.date >= f.startDate && m.date <= f.endDate);
+      meetingsToDisplay = meetingsToDisplay.filter(
+        (m) => m.date >= f.startDate && m.date <= f.endDate,
+      );
     }
   }
 
@@ -1324,8 +1580,11 @@ function dashboard() {
   // Hitung tren aktivitas mingguan (Bulan Ini) & live monitoring ruangan untuk Admin
   const todayIso = getTodayIsoDate();
   const ym = todayIso.slice(0, 7);
-  const monthMeetings = (state.meetings || []).filter((m) => (m.date || "").startsWith(ym));
-  const targetMeetings = monthMeetings.length > 0 ? monthMeetings : (state.meetings || []);
+  const monthMeetings = (state.meetings || []).filter((m) =>
+    (m.date || "").startsWith(ym),
+  );
+  const targetMeetings =
+    monthMeetings.length > 0 ? monthMeetings : state.meetings || [];
 
   const weekRanges = [
     { label: "Mgg 1", sub: "1–7 Okt", minDay: 1, maxDay: 7 },
@@ -1348,7 +1607,13 @@ function dashboard() {
 
   const weekBarsHTML = weekCounts
     .map((w) => {
-      const heightPct = w.count > 0 ? Math.min(100, Math.max(22, Math.round((w.count / maxWeekCount) * 85))) : 10;
+      const heightPct =
+        w.count > 0
+          ? Math.min(
+              100,
+              Math.max(22, Math.round((w.count / maxWeekCount) * 85)),
+            )
+          : 10;
       const barColor = w.count > 0 ? "#1769aa" : "#cbd5e1";
       return `
         <div style="flex:1;display:flex;flex-direction:column;align-items:center;height:100%;justify-content:flex-end;">
@@ -1363,26 +1628,39 @@ function dashboard() {
     })
     .join("");
 
-  const roomsMonitoringHTML = (state.rooms || []).map((room) => {
-    const activeMeeting = (state.meetings || []).find((m) =>
-      m.room === room.name && (m.status || "").toLowerCase() === "berjalan"
-    );
-    const nextMeetingToday = !activeMeeting ? (state.meetings || []).find((m) =>
-      m.room === room.name &&
-      m.date === todayIso &&
-      ((m.status || "").toLowerCase() === "akan datang" || (m.status || "").toLowerCase() === "segera")
-    ) : null;
+  const roomsMonitoringHTML = (state.rooms || [])
+    .map((room) => {
+      const activeMeeting = (state.meetings || []).find(
+        (m) =>
+          m.room === room.name && (m.status || "").toLowerCase() === "berjalan",
+      );
+      const nextMeetingToday = !activeMeeting
+        ? (state.meetings || []).find(
+            (m) =>
+              m.room === room.name &&
+              m.date === todayIso &&
+              ((m.status || "").toLowerCase() === "akan datang" ||
+                (m.status || "").toLowerCase() === "segera"),
+          )
+        : null;
 
-    const isOccupied = !!activeMeeting;
-    const roomMeetings = (state.meetings || []).filter((m) => m.room === room.name).length;
-    const roomPct = stats.totalMeetings > 0 ? Math.round((roomMeetings / stats.totalMeetings) * 100) : (room.id === 1 ? 65 : 35);
+      const isOccupied = !!activeMeeting;
+      const roomMeetings = (state.meetings || []).filter(
+        (m) => m.room === room.name,
+      ).length;
+      const roomPct =
+        stats.totalMeetings > 0
+          ? Math.round((roomMeetings / stats.totalMeetings) * 100)
+          : room.id === 1
+            ? 65
+            : 35;
 
-    return `
+      return `
       <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:8px;">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
           <div style="min-width:0;">
             <strong style="font-size:13px;color:#0c2d5e;display:block;">${esc(room.name)}</strong>
-            <small style="font-size:11px;color:#64748b;">${esc(room.location || 'Lt. 3')} · Kapasitas ${room.capacity || 20} org</small>
+            <small style="font-size:11px;color:#64748b;">${esc(room.location || "Lt. 3")} · Kapasitas ${room.capacity || 20} org</small>
           </div>
           <div>
             ${
@@ -1404,8 +1682,8 @@ function dashboard() {
             isOccupied
               ? `<span>📋 Rapat: <b>${esc(activeMeeting.title)}</b> (${activeMeeting.start}–${activeMeeting.end})</span>`
               : nextMeetingToday
-              ? `<span>🕒 Jadwal Berikutnya: <b>${esc(nextMeetingToday.title)}</b> (${nextMeetingToday.start})</span>`
-              : `<span style="color:#94a3b8;">Tidak ada rapat berikutnya hari ini</span>`
+                ? `<span>🕒 Jadwal Berikutnya: <b>${esc(nextMeetingToday.title)}</b> (${nextMeetingToday.start})</span>`
+                : `<span style="color:#94a3b8;">Tidak ada rapat berikutnya hari ini</span>`
           }
         </div>
 
@@ -1415,12 +1693,13 @@ function dashboard() {
             <span>${roomPct}% (${roomMeetings} rapat)</span>
           </div>
           <div style="height:6px;background:#e2e8f0;border-radius:3px;overflow:hidden;">
-            <div style="height:100%;width:${roomPct}%;background:${isOccupied ? '#dc2626' : '#1769aa'};border-radius:3px;transition:width 0.3s ease;"></div>
+            <div style="height:100%;width:${roomPct}%;background:${isOccupied ? "#dc2626" : "#1769aa"};border-radius:3px;transition:width 0.3s ease;"></div>
           </div>
         </div>
       </div>
     `;
-  }).join("");
+    })
+    .join("");
 
   let customTableHTML = `
     <div class="dash-table-card" style="margin:0;">
@@ -1481,7 +1760,8 @@ function dashboard() {
         </div>
 
         ${
-          selectedRoom !== "semua" || (f && f.mode !== "bulanan" && f.mode !== "semua")
+          selectedRoom !== "semua" ||
+          (f && f.mode !== "bulanan" && f.mode !== "semua")
             ? `<button type="button" onclick="resetDashboardFilter()" style="background:none;border:none;color:#64748b;font-size:11.5px;font-weight:600;cursor:pointer;text-decoration:underline;">Reset Filter</button>`
             : ""
         }
@@ -1497,7 +1777,7 @@ function dashboard() {
               <th style="padding:10px 8px;">Ruangan</th>
               <th style="padding:10px 8px;">Waktu</th>
               <th style="padding:10px 8px;">Status</th>
-              <th style="text-align:center;padding:10px 8px;min-width:${isAdmin ? '170px' : '115px'};width:${isAdmin ? '170px' : '115px'};">Aksi</th>
+              <th style="text-align:center;padding:10px 8px;min-width:${isAdmin ? "170px" : "115px"};width:${isAdmin ? "170px" : "115px"};">Aksi</th>
             </tr>
           </thead>
           <tbody>
@@ -1528,9 +1808,15 @@ function dashboard() {
       }
 
       const isCompleted = sLower === "selesai";
-      const rev = typeof getMeetingReview === "function" ? getMeetingReview(m) : m.review;
-      const isPendingStatus = sLower.includes("menunggu") || sLower === "pending";
-      const isCanceledOrRejected = sLower === "ditolak" || sLower === "dibatalkan" || sLower === "rejected" || sLower === "cancelled";
+      const rev =
+        typeof getMeetingReview === "function" ? getMeetingReview(m) : m.review;
+      const isPendingStatus =
+        sLower.includes("menunggu") || sLower === "pending";
+      const isCanceledOrRejected =
+        sLower === "ditolak" ||
+        sLower === "dibatalkan" ||
+        sLower === "rejected" ||
+        sLower === "cancelled";
       const canShowQr = !isPendingStatus && !isCanceledOrRejected;
 
       const starSvg = `<svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
@@ -1540,15 +1826,30 @@ function dashboard() {
       const qrBtn = canShowQr
         ? `<button type="button" style="background-color:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:6px;padding:0 7px;height:28px;display:inline-flex;align-items:center;gap:3px;cursor:pointer;font-size:11px;font-weight:700;transition:background 0.15s;" title="Buka QR Pass & Presensi Rapat" onclick="openMeetingQRModal('${m.id}')">${qrSvg}<span>QR</span></button>`
         : "";
-      const revBtn = isCompleted && rev
-        ? `<button type="button" style="background-color:#fff8e6;color:#d97706;border:1px solid #fde68a;border-radius:6px;padding:0 6px;height:28px;display:inline-flex;align-items:center;gap:3px;cursor:pointer;font-size:11px;font-weight:700;" title="Lihat Rating & Review Pengguna" onclick="openMeetingReviewModal('${m.id}')">${starSvg}<span>${rev.rating ? Number(rev.rating).toFixed(1) : "5.0"}</span></button>`
-        : "";
+      const revBtn =
+        isCompleted && rev
+          ? `<button type="button" style="background-color:#fff8e6;color:#d97706;border:1px solid #fde68a;border-radius:6px;padding:0 6px;height:28px;display:inline-flex;align-items:center;gap:3px;cursor:pointer;font-size:11px;font-weight:700;" title="Lihat Rating & Review Pengguna" onclick="openMeetingReviewModal('${m.id}')">${starSvg}<span>${rev.rating ? Number(rev.rating).toFixed(1) : "5.0"}</span></button>`
+          : "";
 
       let actionButtons = "";
-      if (isAdmin) {
+      if (isPendingStatus) {
+        if (m.rejectedBy) {
+          actionButtons += `<span style="font-size:10.5px;color:#ff4d4f;background:#ffebee;padding:3px 8px;border-radius:12px;font-weight:700;">Ditolak (${esc(m.rejectedBy)})</span>`;
+        } else if (can("approve", currentUser)) {
+          actionButtons += `<button type="button" onclick="approveMeeting('${m.id}')" style="background:#219653;color:#fff;border:none;border-radius:6px;padding:0 9px;height:28px;font-size:11px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:3px;transition:background 0.15s;" title="Setujui permohonan">✓ Setujui</button>`;
+          actionButtons += `<button type="button" onclick="rejectMeeting('${m.id}')" style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;border-radius:6px;padding:0 9px;height:28px;font-size:11px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:3px;transition:background 0.15s;" title="Tolak permohonan">✕ Tolak</button>`;
+        } else {
+          actionButtons += `<span style="font-size:10.5px;color:#d97706;background:#fef3c7;padding:3px 7px;border-radius:6px;font-weight:600;">⏳ Menunggu Pimpinan</span>`;
+        }
+        actionButtons += viewBtn;
+      } else if (isAdmin) {
         if (sLower === "berjalan") {
           actionButtons += `<button type="button" onclick="checkOutMeetingManual('${m.id}')" style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;border-radius:6px;padding:0 8px;height:28px;font-size:11px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:3px;transition:all 0.15s;" title="Check-Out Manual oleh Admin (Catatan: Peserta juga dapat Check-Out mandiri via Barcode/QR)"><span>Check Out (Manual)</span></button>`;
-        } else if (sLower === "akan datang" || sLower === "segera" || sLower === "disetujui") {
+        } else if (
+          sLower === "akan datang" ||
+          sLower === "segera" ||
+          sLower === "disetujui"
+        ) {
           actionButtons += `<button type="button" onclick="checkInMeetingManual('${m.id}')" style="background:#dcfce7;color:#15803d;border:1px solid #bbf7d0;border-radius:6px;padding:0 8px;height:28px;font-size:11px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:3px;transition:all 0.15s;" title="Check-In Manual oleh Admin (Gunakan ini jika peserta tidak scan Barcode/QR di ruangan)"><span>✓ Check In (Manual)</span></button>`;
         }
         actionButtons += qrBtn;
@@ -1558,22 +1859,29 @@ function dashboard() {
         actionButtons = `${viewBtn}${qrBtn}${revBtn}`;
       }
 
-      const isQrMethod = m.checkInMethod === "barcode_qr" || (m.checkedInBy && (m.checkedInBy.toLowerCase().includes("qr") || m.checkedInBy.toLowerCase().includes("barcode")));
-      const isManualMethod = m.checkInMethod === "manual_admin" || (m.checkedInBy && m.checkedInBy.toLowerCase().includes("admin"));
-      const methodBadge = sLower === "berjalan"
-        ? (isQrMethod
-            ? `<div style="margin-top:3px;"><span style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;padding:1px 6px;border-radius:8px;font-size:9.5px;font-weight:700;display:inline-flex;align-items:center;gap:2px;" title="Check-In otomatis via Barcode/QR oleh ${esc(m.checkedInBy || 'Peserta')}"><span>📱</span><span>Scan QR</span></span></div>`
+      const isQrMethod =
+        m.checkInMethod === "barcode_qr" ||
+        (m.checkedInBy &&
+          (m.checkedInBy.toLowerCase().includes("qr") ||
+            m.checkedInBy.toLowerCase().includes("barcode")));
+      const isManualMethod =
+        m.checkInMethod === "manual_admin" ||
+        (m.checkedInBy && m.checkedInBy.toLowerCase().includes("admin"));
+      const methodBadge =
+        sLower === "berjalan"
+          ? isQrMethod
+            ? `<div style="margin-top:3px;"><span style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;padding:1px 6px;border-radius:8px;font-size:9.5px;font-weight:700;display:inline-flex;align-items:center;gap:2px;" title="Check-In otomatis via Barcode/QR oleh ${esc(m.checkedInBy || "Peserta")}"><span>📱</span><span>Scan QR</span></span></div>`
             : isManualMethod
-            ? `<div style="margin-top:3px;"><span style="background:#fef3c7;color:#b45309;border:1px solid #fde68a;padding:1px 6px;border-radius:8px;font-size:9.5px;font-weight:700;display:inline-flex;align-items:center;gap:2px;" title="Check-In manual oleh Admin"><span>👤</span><span>Manual Admin</span></span></div>`
-            : "")
-        : "";
+              ? `<div style="margin-top:3px;"><span style="background:#fef3c7;color:#b45309;border:1px solid #fde68a;padding:1px 6px;border-radius:8px;font-size:9.5px;font-weight:700;display:inline-flex;align-items:center;gap:2px;" title="Check-In manual oleh Admin"><span>👤</span><span>Manual Admin</span></span></div>`
+              : ""
+          : "";
 
       const actionBtn = `<div style="display:inline-flex;align-items:center;gap:5px;white-space:nowrap;justify-content:center;">${actionButtons}</div>`;
 
       customTableHTML += `<tr>
         <td style="text-align:center;padding:10px 4px;font-size:12px;color:#64748b;">${i + 1}</td>
         <td style="font-weight:700;white-space:nowrap;max-width:180px;overflow:hidden;text-overflow:ellipsis;padding:10px 8px;" title="${esc(m.title)}">${esc(m.title)}</td>
-        <td style="white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis;padding:10px 8px;" title="${esc(m.requester || m.bookedBy || 'TU')}">${esc(m.requester || m.bookedBy || 'TU')}</td>
+        <td style="white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis;padding:10px 8px;" title="${esc(m.requester || m.bookedBy || "TU")}">${esc(m.requester || m.bookedBy || "TU")}</td>
         <td style="white-space:nowrap;max-width:140px;overflow:hidden;text-overflow:ellipsis;padding:10px 8px;" title="${esc(m.room)}">${esc(m.room)}</td>
         <td style="white-space:nowrap;font-size:12px;padding:10px 8px;">${formatDate(m.date)} · ${m.start}-${m.end}</td>
         <td style="padding:10px 8px;"><span style="background:${statusColor};color:${statusText};padding:3px 8px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;display:inline-block;">${esc(m.status)}</span>${methodBadge}</td>
@@ -1595,8 +1903,7 @@ function dashboard() {
     </div>
   `;
 
-  return (
-    `
+  return `
     <div class="rep-page-wrapper">
       <div class="rep-header">
         <div>
@@ -1639,7 +1946,7 @@ function dashboard() {
               <div class="rc-icon-compact" style="background:#dcfce7;color:#15803d;">${bsBuilding}</div>
               <div class="rc-text-compact">
                 <strong>${stats.roomUtilization}%</strong>
-                <span>Pemanfaatan <small style="font-weight:500;color:#64748b;font-size:11px;">(${stats.runningCount > 0 ? stats.runningCount + ' ruang aktif' : 'Siap digunakan'})</small></span>
+                <span>Pemanfaatan <small style="font-weight:500;color:#64748b;font-size:11px;">(${stats.runningCount > 0 ? stats.runningCount + " ruang aktif" : "Siap digunakan"})</small></span>
               </div>
             </div>
           </div>
@@ -1740,8 +2047,7 @@ function dashboard() {
           `
       }
     </div>
-  `
-  );
+  `;
 }
 
 // ----------------------------------------------------------------------
@@ -1887,7 +2193,10 @@ function meetingTable(data, actions = true, allowDelete = true) {
             const isCompleted =
               (m.status || "").toLowerCase() === "selesai" ||
               (m.status || "").toLowerCase() === "completed";
-            const rev = typeof getMeetingReview === "function" ? getMeetingReview(m) : m.review;
+            const rev =
+              typeof getMeetingReview === "function"
+                ? getMeetingReview(m)
+                : m.review;
             const hasRev = isCompleted && !!rev;
             const starSvg = `<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
 
@@ -1929,7 +2238,6 @@ function meetingTable(data, actions = true, allowDelete = true) {
             }
 
             if (actions) {
-
               if (isPending) {
                 if (m.rejectedBy) {
                   actionButtons += `<span style="font-size:11px;color:#ff4d4f;margin-right:8px;font-weight:700;background:#ffebee;padding:6px 12px;border-radius:12px;">Ditolak (${esc(m.rejectedBy)})</span>`;
@@ -1955,21 +2263,31 @@ function meetingTable(data, actions = true, allowDelete = true) {
               }
             }
 
-            const isQrMethod = m.checkInMethod === "barcode_qr" || (m.checkedInBy && (m.checkedInBy.toLowerCase().includes("qr") || m.checkedInBy.toLowerCase().includes("barcode")));
-            const isManualMethod = m.checkInMethod === "manual_admin" || (m.checkedInBy && m.checkedInBy.toLowerCase().includes("admin"));
+            const isQrMethod =
+              m.checkInMethod === "barcode_qr" ||
+              (m.checkedInBy &&
+                (m.checkedInBy.toLowerCase().includes("qr") ||
+                  m.checkedInBy.toLowerCase().includes("barcode")));
+            const isManualMethod =
+              m.checkInMethod === "manual_admin" ||
+              (m.checkedInBy && m.checkedInBy.toLowerCase().includes("admin"));
             const methodTag = isRunning
-              ? (isQrMethod
-                  ? `<div style="margin-top:3px;"><span style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:700;display:inline-flex;align-items:center;gap:3px;" title="Check-In otomatis via Barcode/QR oleh ${esc(m.checkedInBy || 'Peserta')}"><span>📱</span><span>Scan Barcode/QR</span></span></div>`
-                  : isManualMethod
-                  ? `<div style="margin-top:3px;"><span style="background:#fef3c7;color:#b45309;border:1px solid #fde68a;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:700;display:inline-flex;align-items:center;gap:3px;" title="Check-In manual oleh Admin (${esc(m.checkedInBy || 'Admin')})"><span>👤</span><span>Manual Admin</span></span></div>`
-                  : "")
+              ? isQrMethod
+                ? `<div style="margin-top:3px;"><span style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:700;display:inline-flex;align-items:center;gap:3px;" title="Check-In otomatis via Barcode/QR oleh ${esc(m.checkedInBy || "Peserta")}"><span>📱</span><span>Scan Barcode/QR</span></span></div>`
+                : isManualMethod
+                  ? `<div style="margin-top:3px;"><span style="background:#fef3c7;color:#b45309;border:1px solid #fde68a;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:700;display:inline-flex;align-items:center;gap:3px;" title="Check-In manual oleh Admin (${esc(m.checkedInBy || "Admin")})"><span>👤</span><span>Manual Admin</span></span></div>`
+                  : ""
               : isCompleted && (m.checkInMethod || m.checkOutMethod)
-              ? (m.checkInMethod === "barcode_qr" || m.checkOutMethod === "barcode_qr"
+                ? m.checkInMethod === "barcode_qr" ||
+                  m.checkOutMethod === "barcode_qr"
                   ? `<div style="margin-top:3px;"><span style="background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;padding:2px 7px;border-radius:10px;font-size:9.5px;font-weight:600;" title="Selesai via Barcode/QR">📱 Barcode/QR</span></div>`
-                  : `<div style="margin-top:3px;"><span style="background:#f8fafc;color:#64748b;border:1px solid #e2e8f0;padding:2px 7px;border-radius:10px;font-size:9.5px;font-weight:600;" title="Selesai Manual Admin">👤 Manual Admin</span></div>`)
-              : "";
+                  : `<div style="margin-top:3px;"><span style="background:#f8fafc;color:#64748b;border:1px solid #e2e8f0;padding:2px 7px;border-radius:10px;font-size:9.5px;font-weight:600;" title="Selesai Manual Admin">👤 Manual Admin</span></div>`
+                : "";
 
-            const rating = Math.max(0, Math.min(5, Number(m.review?.rating) || 0));
+            const rating = Math.max(
+              0,
+              Math.min(5, Number(m.review?.rating) || 0),
+            );
             const reviewCell = isCompleted
               ? m.review
                 ? `<div style="display:flex;flex-direction:column;align-items:flex-start;gap:3px;min-width:105px;"><span style="color:#e4a719;letter-spacing:1px;white-space:nowrap;" aria-label="Rating ${rating} dari 5">${"★".repeat(rating)}<span style="color:#cbd5e1;">${"☆".repeat(5 - rating)}</span></span><button type="button" onclick="viewMeeting('${m.id}')" style="padding:3px 7px;border:1px solid #c9d9ef;border-radius:6px;color:#15508d;background:#f3f8ff;font:600 10px inherit;cursor:pointer;">Lihat Review</button></div>`
@@ -2018,9 +2336,7 @@ function meetings() {
     'width="18" height="18"',
   );
 
-
-  return (
-    `
+  return `
     <div class="dashboard-wrapper">
       <div class="dash-header">
         <div class="dash-title">
@@ -2151,8 +2467,7 @@ function meetings() {
         <div id="meetingTable">${meetingTable(state.meetings)}</div>
       </div>
     </div>
-  `
-  );
+  `;
 }
 
 function getRoomImage(r) {
@@ -2213,7 +2528,6 @@ function rooms() {
   const perbaikanRooms = state.rooms.filter(
     (r) => r.status === "Dalam Perbaikan" || r.status === "Perbaikan",
   ).length;
-
 
   return `
     <div class="rooms-wrapper">
@@ -2348,14 +2662,12 @@ function users() {
     'width="18" height="18"',
   );
 
-
   const numUsers = state.users.length;
   const numAdmins = state.users.filter(
     (u) => (u.role || "").includes("Admin") || u.role === "Administrator",
   ).length;
 
-  return (
-    `
+  return `
     <div class="dashboard-wrapper">
       <div class="dash-header">
         <div class="dash-title">
@@ -2414,8 +2726,7 @@ function users() {
         <div id="userTable">${userTable(state.users)}</div>
       </div>
     </div>
-  `
-  );
+  `;
 }
 
 function userTable(data) {
@@ -2472,54 +2783,247 @@ function userTable(data) {
     .join("")}</tbody></table></div>`;
 }
 
+function getMeetingDateIso(m) {
+  if (!m) return "";
+  const dStr = String(m.date || "").trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dStr)) return dStr;
+  try {
+    const d = new Date(dStr);
+    if (!isNaN(d.getTime())) {
+      const y = d.getFullYear();
+      const mo = String(d.getMonth() + 1).padStart(2, "0");
+      const da = String(d.getDate()).padStart(2, "0");
+      return `${y}-${mo}-${da}`;
+    }
+  } catch (e) {}
+  return dStr;
+}
+
+function prevCalendarMonth(e) {
+  if (e) e.stopPropagation();
+  if (state.calendarMonth === undefined) {
+    const now = new Date();
+    state.calendarYear = now.getFullYear();
+    state.calendarMonth = now.getMonth();
+  }
+  if (state.calendarMonth === 0) {
+    state.calendarMonth = 11;
+    state.calendarYear -= 1;
+  } else {
+    state.calendarMonth -= 1;
+  }
+  render();
+}
+window.prevCalendarMonth = prevCalendarMonth;
+
+function nextCalendarMonth(e) {
+  if (e) e.stopPropagation();
+  if (state.calendarMonth === undefined) {
+    const now = new Date();
+    state.calendarYear = now.getFullYear();
+    state.calendarMonth = now.getMonth();
+  }
+  if (state.calendarMonth === 11) {
+    state.calendarMonth = 0;
+    state.calendarYear += 1;
+  } else {
+    state.calendarMonth += 1;
+  }
+  render();
+}
+window.nextCalendarMonth = nextCalendarMonth;
+
+function selectCalendarToday(e) {
+  if (e) e.stopPropagation();
+  const now = new Date();
+  state.calendarYear = now.getFullYear();
+  state.calendarMonth = now.getMonth();
+  state.calendarSelectedDate = getTodayIsoDate();
+  render();
+}
+window.selectCalendarToday = selectCalendarToday;
+
+function selectCalendarDate(dateIso) {
+  state.calendarSelectedDate = dateIso;
+  try {
+    const parts = dateIso.split("-").map(Number);
+    if (parts[0] && parts[1]) {
+      state.calendarYear = parts[0];
+      state.calendarMonth = parts[1] - 1;
+    }
+  } catch (e) {}
+  render();
+}
+window.selectCalendarDate = selectCalendarDate;
+
 function calendar() {
+  const now = new Date();
+  if (state.calendarYear === undefined) state.calendarYear = now.getFullYear();
+  if (state.calendarMonth === undefined) state.calendarMonth = now.getMonth();
+  if (!state.calendarSelectedDate)
+    state.calendarSelectedDate = getTodayIsoDate();
+
+  const year = state.calendarYear;
+  const month = state.calendarMonth;
+  const todayIso = getTodayIsoDate();
+  const selectedDate = state.calendarSelectedDate;
+
+  // Header nama bulan & tahun dalam Bahasa Indonesia
+  const monthDate = new Date(year, month, 1);
+  const monthName = monthDate.toLocaleDateString("id-ID", {
+    month: "long",
+    year: "numeric",
+  });
+
+  // Kelompokkan rapat berdasarkan tanggal ISO dari live state.meetings
+  const meetings = state.meetings || [];
+  const meetingsByDate = {};
+  meetings.forEach((m) => {
+    const dateIso = getMeetingDateIso(m);
+    if (!dateIso) return;
+    if (!meetingsByDate[dateIso]) meetingsByDate[dateIso] = [];
+    meetingsByDate[dateIso].push(m);
+  });
+
   const days = ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"];
   let cells = days.map((d) => `<div class="cal-head">${d}</div>`).join("");
 
-  // Generate calendar days for September 2026
-  // Sep 1 2026 is a Tuesday (index 1 in Mon-Sun)
-  const startOffset = 1; // Tuesday = index 1
-  for (let blank = 0; blank < startOffset; blank++)
+  // Offset hari Senin = index 0 (getDay: 0=Minggu -> index 6)
+  const firstDayIndex = (monthDate.getDay() + 6) % 7;
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  for (let blank = 0; blank < firstDayIndex; blank++) {
     cells += `<div class="cal-empty"></div>`;
-  for (let i = 1; i <= 30; i++) {
-    const hasMeeting = state.meetings.some((m) => {
-      const d = new Date(m.date);
-      return d.getDate() === i;
-    });
-    const isSat = (startOffset + i - 1) % 7 === 5;
-    const isSun = (startOffset + i - 1) % 7 === 6;
-    const colorCls = isSat ? "cal-sat" : isSun ? "cal-sun" : "";
-    cells += `<div class="cal-day ${i === 22 ? "cal-today" : ""} ${hasMeeting ? "cal-has" : ""} ${colorCls}">${i}</div>`;
   }
 
-  const scheduleItems = state.meetings
-    .map((m) => {
-      let statusColor = "#e3f2fd";
-      let statusText = "#1769aa";
-      if (m.status === "Berjalan") {
-        statusColor = "#e0f5ec";
-        statusText = "#13865b";
-      } else if (m.status === "Selesai") {
-        statusColor = "#f3f0ff";
-        statusText = "#5b3dd3";
-      } else if (m.status === "Akan Datang") {
-        statusColor = "#fff7e0";
-        statusText = "#b38600";
-      }
-      return `<div style="display:flex;align-items:flex-start;gap:14px;padding:14px 0;border-bottom:1px solid #f0f4f9;">
-      <div style="width:10px;height:10px;border-radius:50%;background:#1769aa;margin-top:5px;flex-shrink:0;"></div>
-      <div>
-        <div style="font-weight:700;font-size:14px;color:#0c2d5e;margin-bottom:3px;">${esc(m.title)}</div>
-        <div style="font-size:12px;color:#4b6a90;margin-bottom:6px;">${m.start}-${m.end} · ${esc(m.room)}</div>
-        <span style="background:${statusColor};color:${statusText};padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;">${esc(m.status)}</span>
+  for (let i = 1; i <= daysInMonth; i++) {
+    const dateIso = `${year}-${String(month + 1).padStart(2, "0")}-${String(i).padStart(2, "0")}`;
+    const isSelected = dateIso === selectedDate;
+    const isToday = dateIso === todayIso;
+    const dayMeetings = meetingsByDate[dateIso] || [];
+    const hasMeeting = dayMeetings.length > 0;
+    const hasPending = dayMeetings.some((m) =>
+      (m.status || "").toLowerCase().includes("menunggu"),
+    );
+
+    const colIndex = (firstDayIndex + i - 1) % 7;
+    const isSat = colIndex === 5;
+    const isSun = colIndex === 6;
+    const colorCls = isSat ? "cal-sat" : isSun ? "cal-sun" : "";
+
+    let extraCls = "";
+    if (isSelected) extraCls += " cal-selected";
+    if (isToday) extraCls += " cal-is-today";
+    if (hasMeeting) extraCls += " cal-has";
+
+    const titleAttr = hasMeeting
+      ? `${i} ${monthName}: ${dayMeetings.length} Rapat (${dayMeetings.map((x) => x.title || x.agenda || "Rapat").join(", ")})`
+      : `${i} ${monthName}: Tidak ada jadwal`;
+
+    cells += `
+      <div class="cal-day ${extraCls} ${colorCls}" 
+           title="${esc(titleAttr)}"
+           onclick="selectCalendarDate('${dateIso}')">
+        <span>${i}</span>
       </div>
-    </div>`;
-    })
-    .join("");
+    `;
+  }
 
+  // Panel Kanan: Jadwal untuk tanggal yang dipilih
+  const selParts = (selectedDate || todayIso).split("-").map(Number);
+  const selDateObj = new Date(
+    selParts[0],
+    (selParts[1] || 1) - 1,
+    selParts[2] || 1,
+  );
+  const isSelectedToday = selectedDate === todayIso;
 
-  return (
-    `
+  const dateHeading = isSelectedToday ? "Jadwal Hari Ini" : `Jadwal Tanggal`;
+
+  const fullDateFormatted = selDateObj.toLocaleDateString("id-ID", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+
+  const selectedMeetings = (meetingsByDate[selectedDate] || []).slice();
+  selectedMeetings.sort((a, b) => (a.start || "").localeCompare(b.start || ""));
+
+  let scheduleItems = "";
+  if (selectedMeetings.length === 0) {
+    scheduleItems = `
+      <div class="cal-schedule-empty">
+        <div style="font-size:24px;margin-bottom:6px;">📅</div>
+        <div style="font-weight:700;color:#0c2d5e;margin-bottom:2px;">Tidak Ada Jadwal</div>
+        <div style="font-size:12px;color:#64748b;">Belum ada kegiatan rapat yang dijadwalkan pada tanggal ini.</div>
+      </div>
+    `;
+  } else {
+    scheduleItems = selectedMeetings
+      .map((m) => {
+        const status = m.status || "Menunggu Approval";
+        let statusBg = "#e3f2fd";
+        let statusText = "#1769aa";
+        let statusBorder = "#bfdbfe";
+        let dotColor = "#1769aa";
+
+        if (status.includes("Menunggu")) {
+          statusBg = "#fff7ed";
+          statusText = "#c2410c";
+          statusBorder = "#fed7aa";
+          dotColor = "#ea580c";
+        } else if (status === "Berjalan") {
+          statusBg = "#e0f5ec";
+          statusText = "#13865b";
+          statusBorder = "#bbf7d0";
+          dotColor = "#16a34a";
+        } else if (status === "Selesai") {
+          statusBg = "#f3f0ff";
+          statusText = "#5b3dd3";
+          statusBorder = "#e9d5ff";
+          dotColor = "#8b5cf6";
+        } else if (status === "Dibatalkan") {
+          statusBg = "#fee2e2";
+          statusText = "#dc2626";
+          statusBorder = "#fecaca";
+          dotColor = "#ef4444";
+        }
+
+        const title = m.title || m.agenda || "Rapat";
+        const room = m.room || "Ruang Rapat";
+        const timeRange = `${m.start || "-"} - ${m.end || "-"} WIB`;
+        const requester = m.organizer || m.requester || m.bagian || "-";
+
+        return `
+          <div class="cal-meeting-item" onclick="viewMeeting('${esc(m.id)}')" title="Klik untuk melihat detail rapat">
+            <div style="width:10px;height:10px;border-radius:50%;background:${dotColor};margin-top:4px;flex-shrink:0;"></div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-weight:700;font-size:13.5px;color:#0c2d5e;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                ${esc(title)}
+              </div>
+              <div style="font-size:11.5px;color:#475569;margin-bottom:4px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                <span>⏰ ${timeRange}</span>
+                <span style="color:#cbd5e1;">·</span>
+                <span>🏛️ ${esc(room)}</span>
+              </div>
+              <div style="font-size:11px;color:#64748b;margin-bottom:6px;">
+                Pemesan: <b>${esc(requester)}</b>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
+                <span style="background:${statusBg};color:${statusText};border:1px solid ${statusBorder};padding:2px 8px;border-radius:12px;font-size:10.5px;font-weight:700;">
+                  ${esc(status)}
+                </span>
+                <span style="font-size:11px;font-weight:600;color:#1769aa;">Lihat detail →</span>
+              </div>
+            </div>
+          </div>
+        `;
+      })
+      .join("");
+  }
+
+  return `
   <div class="cal-page-wrapper">
     <div class="cal-header">
       <div>
@@ -2535,24 +3039,32 @@ function calendar() {
     <div class="cal-body">
       <div class="cal-card">
         <div class="cal-card-header">
-          <h2>${new Date().toLocaleDateString("id-ID", { month: "long", year: "numeric" })}</h2>
+          <div style="display:flex;align-items:center;gap:12px;">
+            <h2>${monthName}</h2>
+            <button type="button" class="cal-today-btn" onclick="selectCalendarToday(event)" title="Kembali ke hari ini">Hari Ini</button>
+          </div>
           <div style="display:flex;gap:6px;">
-            <button class="cal-nav-btn">‹</button>
-            <button class="cal-nav-btn">›</button>
+            <button type="button" class="cal-nav-btn" onclick="prevCalendarMonth(event)" title="Bulan sebelumnya">‹</button>
+            <button type="button" class="cal-nav-btn" onclick="nextCalendarMonth(event)" title="Bulan berikutnya">›</button>
           </div>
         </div>
         <div class="cal-grid">${cells}</div>
       </div>
 
       <div class="cal-card">
-        <div class="cal-schedule-title">Jadwal Hari Ini</div>
-        <div>
-          ${scheduleItems || `<div class="cal-schedule-empty">Tidak ada jadwal hari ini.</div>`}
+        <div class="cal-schedule-header">
+          <div>
+            <div class="cal-schedule-title">${dateHeading}</div>
+            <div class="cal-schedule-subtitle">${fullDateFormatted}</div>
+          </div>
+          <span class="cal-schedule-count">${selectedMeetings.length} Rapat</span>
+        </div>
+        <div class="cal-schedule-list">
+          ${scheduleItems}
         </div>
       </div>
     </div>
-  </div>`
-  );
+  </div>`;
 }
 
 // ----------------------------------------------------------------------
@@ -2629,7 +3141,11 @@ window.setReportPeriod = setReportPeriod;
 function onReportRoomChange(room) {
   state.dashboardRoomFilter = room;
   render();
-  toast(room === "semua" ? "✓ Menampilkan semua ruangan" : `✓ Filter ruangan: ${room}`);
+  toast(
+    room === "semua"
+      ? "✓ Menampilkan semua ruangan"
+      : `✓ Filter ruangan: ${room}`,
+  );
 }
 window.onReportRoomChange = onReportRoomChange;
 
@@ -2669,7 +3185,11 @@ function reports() {
   );
 
   const selectedRoom = state.dashboardRoomFilter || "semua";
-  const f = state.reportFilter || { mode: "bulanan", startDate: awalBulan(), endDate: akhirBulan() };
+  const f = state.reportFilter || {
+    mode: "bulanan",
+    startDate: awalBulan(),
+    endDate: akhirBulan(),
+  };
   const currentMode = f.mode || "bulanan";
 
   const filteredMeetings = getFilteredReportMeetings();
@@ -2690,7 +3210,7 @@ function reports() {
       const [sh, sm] = m.start.split(":").map(Number);
       const [eh, em] = m.end.split(":").map(Number);
       if (!isNaN(sh) && !isNaN(eh)) {
-        const diff = (eh * 60 + (em || 0)) - (sh * 60 + (sm || 0));
+        const diff = eh * 60 + (em || 0) - (sh * 60 + (sm || 0));
         if (diff > 0) totalMinutes += diff;
       }
     }
@@ -2700,7 +3220,8 @@ function reports() {
     const st = (m.status || "").toLowerCase();
     if (st.includes("berjalan")) statusCounts.berjalan++;
     else if (st.includes("selesai")) statusCounts.selesai++;
-    else if (st.includes("menunggu") || st.includes("pending")) statusCounts.menunggu++;
+    else if (st.includes("menunggu") || st.includes("pending"))
+      statusCounts.menunggu++;
     else statusCounts.akandatang++;
 
     const req = (m.requester || m.organizer || "Biro Keuangan / BMN").trim();
@@ -2710,20 +3231,29 @@ function reports() {
   });
 
   const totalHours = (totalMinutes / 60).toFixed(1);
-  const avgHours = totalMeetings > 0 ? (totalMinutes / totalMeetings / 60).toFixed(1) : "0.0";
+  const avgHours =
+    totalMeetings > 0 ? (totalMinutes / totalMeetings / 60).toFixed(1) : "0.0";
 
   // Perhitungan Okupansi Ruangan
-  const activeRoomsCount = (selectedRoom !== "semua") ? 1 : Math.max(state.rooms.length, 1);
+  const activeRoomsCount =
+    selectedRoom !== "semua" ? 1 : Math.max(state.rooms.length, 1);
   let businessHours = 40 * activeRoomsCount; // baseline mingguan (5 hari kerja x 8 jam)
   if (currentMode === "harian") businessHours = 8 * activeRoomsCount;
-  else if (currentMode === "bulanan") businessHours = 176 * activeRoomsCount; // ~22 hari kerja x 8 jam
+  else if (currentMode === "bulanan")
+    businessHours = 176 * activeRoomsCount; // ~22 hari kerja x 8 jam
   else if (currentMode === "date" && f.startDate && f.endDate) {
     const d1 = new Date(f.startDate);
     const d2 = new Date(f.endDate);
-    const days = Math.max(1, Math.round(Math.abs((d2 - d1) / (1000 * 60 * 60 * 24))) + 1);
+    const days = Math.max(
+      1,
+      Math.round(Math.abs((d2 - d1) / (1000 * 60 * 60 * 24))) + 1,
+    );
     businessHours = Math.max(8, days * 8) * activeRoomsCount;
   }
-  const occupancyPct = businessHours > 0 ? Math.min(100, Math.round(((totalMinutes / 60) / businessHours) * 100)) : 0;
+  const occupancyPct =
+    businessHours > 0
+      ? Math.min(100, Math.round((totalMinutes / 60 / businessHours) * 100))
+      : 0;
 
   // Tren Aktivitas (Bar Chart)
   let trendBarsData = [];
@@ -2741,11 +3271,19 @@ function reports() {
     trendBarsData = daysOfWeek.map((d, i) => {
       const curDate = new Date(mStart);
       curDate.setDate(curDate.getDate() + i);
-      const dateStr = curDate.getFullYear() + "-" + String(curDate.getMonth() + 1).padStart(2, "0") + "-" + String(curDate.getDate()).padStart(2, "0");
+      const dateStr =
+        curDate.getFullYear() +
+        "-" +
+        String(curDate.getMonth() + 1).padStart(2, "0") +
+        "-" +
+        String(curDate.getDate()).padStart(2, "0");
       const count = filteredMeetings.filter((m) => m.date === dateStr).length;
       return {
         label: d.key,
-        sub: curDate.getDate() + " " + curDate.toLocaleDateString("id-ID", { month: "short" }),
+        sub:
+          curDate.getDate() +
+          " " +
+          curDate.toLocaleDateString("id-ID", { month: "short" }),
         count: count,
       };
     });
@@ -2793,10 +3331,17 @@ function reports() {
   }
 
   const maxTrendCount = Math.max(...trendBarsData.map((t) => t.count), 2);
-  const trendBarsHTML = trendBarsData.map((t) => {
-    const heightPct = t.count > 0 ? Math.min(100, Math.max(18, Math.round((t.count / maxTrendCount) * 85))) : 8;
-    const barColor = t.count > 0 ? "#1769aa" : "#e2e8f0";
-    return `
+  const trendBarsHTML = trendBarsData
+    .map((t) => {
+      const heightPct =
+        t.count > 0
+          ? Math.min(
+              100,
+              Math.max(18, Math.round((t.count / maxTrendCount) * 85)),
+            )
+          : 8;
+      const barColor = t.count > 0 ? "#1769aa" : "#e2e8f0";
+      return `
       <div style="flex:1;display:flex;flex-direction:column;align-items:center;height:100%;justify-content:flex-end;">
         <span style="font-size:12px;font-weight:700;color:${t.count > 0 ? "#0c2d5e" : "#94a3b8"};margin-bottom:6px;">${t.count}</span>
         <div style="width:100%;max-width:38px;background:#f8fafc;border-radius:6px 6px 0 0;height:110px;display:flex;align-items:flex-end;overflow:hidden;border:1px solid #eef2f6;" title="${t.label} (${t.sub}): ${t.count} Rapat">
@@ -2806,31 +3351,34 @@ function reports() {
         <span style="font-size:10px;color:#64748b;font-weight:500;">${t.sub}</span>
       </div>
     `;
-  }).join("");
+    })
+    .join("");
 
   // Pemanfaatan per Ruangan
-  const roomUsageHTML = state.rooms.map((room) => {
-    const rMeetings = filteredMeetings.filter((m) => m.room === room.name);
-    const count = rMeetings.length;
-    let rMin = 0;
-    rMeetings.forEach((m) => {
-      if (m.start && m.end) {
-        const [sh, sm] = m.start.split(":").map(Number);
-        const [eh, em] = m.end.split(":").map(Number);
-        if (!isNaN(sh) && !isNaN(eh)) {
-          const diff = (eh * 60 + (em || 0)) - (sh * 60 + (sm || 0));
-          if (diff > 0) rMin += diff;
+  const roomUsageHTML = state.rooms
+    .map((room) => {
+      const rMeetings = filteredMeetings.filter((m) => m.room === room.name);
+      const count = rMeetings.length;
+      let rMin = 0;
+      rMeetings.forEach((m) => {
+        if (m.start && m.end) {
+          const [sh, sm] = m.start.split(":").map(Number);
+          const [eh, em] = m.end.split(":").map(Number);
+          if (!isNaN(sh) && !isNaN(eh)) {
+            const diff = eh * 60 + (em || 0) - (sh * 60 + (sm || 0));
+            if (diff > 0) rMin += diff;
+          }
         }
-      }
-    });
-    const rHours = (rMin / 60).toFixed(1);
-    const rPct = totalMinutes > 0 ? Math.round((rMin / totalMinutes) * 100) : 0;
-    return `
+      });
+      const rHours = (rMin / 60).toFixed(1);
+      const rPct =
+        totalMinutes > 0 ? Math.round((rMin / totalMinutes) * 100) : 0;
+      return `
       <div style="margin-bottom: 12px; background:#f8fafc; border:1px solid #eef3f9; border-radius:10px; padding:10px 14px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
           <div>
             <strong style="font-size: 13px; color: #0c2d5e; display:block;">${esc(room.name)}</strong>
-            <small style="font-size: 11px; color: #64748b;">${esc(room.location || 'Lt. 3')} · Kapasitas ${room.capacity || 20} org</small>
+            <small style="font-size: 11px; color: #64748b;">${esc(room.location || "Lt. 3")} · Kapasitas ${room.capacity || 20} org</small>
           </div>
           <div style="text-align:right;">
             <span style="font-size: 13px; font-weight: 700; color: #1769aa;">${count} Rapat</span>
@@ -2842,16 +3390,26 @@ function reports() {
         </div>
       </div>
     `;
-  }).join("");
+    })
+    .join("");
 
   // Status & Pemohon Teraktif
-  const sortedDepts = Object.entries(deptCounts).sort((a, b) => b[1] - a[1]).slice(0, 4);
-  const deptHTML = sortedDepts.length > 0 ? sortedDepts.map(([dept, count]) => `
+  const sortedDepts = Object.entries(deptCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 4);
+  const deptHTML =
+    sortedDepts.length > 0
+      ? sortedDepts
+          .map(
+            ([dept, count]) => `
     <div style="display:flex; justify-content:space-between; align-items:center; padding: 7px 0; border-bottom: 1px dashed #eef2f6;">
       <span style="font-size: 12px; color: #334155; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 170px;" title="${esc(dept)}">${esc(dept)}</span>
       <span style="background: #e0f2fe; color: #0369a1; font-weight: 700; font-size: 11px; padding: 2px 8px; border-radius: 10px;">${count} Rapat</span>
     </div>
-  `).join("") : `<div style="font-size:12px; color:#94a3b8; text-align:center; padding:12px 0;">Belum ada data pemohon</div>`;
+  `,
+          )
+          .join("")
+      : `<div style="font-size:12px; color:#94a3b8; text-align:center; padding:12px 0;">Belum ada data pemohon</div>`;
 
   const statusSummaryHTML = `
     <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;">
@@ -2914,53 +3472,60 @@ function reports() {
               </tr>
             </thead>
             <tbody>
-              ${filteredMeetings.map((m, i) => {
-                let statusBadge = "";
-                const s = (m.status || "").toLowerCase();
-                if (s.includes("berjalan")) {
-                  statusBadge = `<span style="background:#e0f5ec;color:#13865b;padding:5px 10px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;">● Berjalan</span>`;
-                } else if (s.includes("selesai")) {
-                  statusBadge = `<span style="background:#f3f0ff;color:#5b3dd3;padding:5px 10px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;">✓ Selesai</span>`;
-                } else if (s.includes("menunggu") || s.includes("pending")) {
-                  statusBadge = `<span style="background:#fff7ed;color:#ea580c;padding:5px 10px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;">⏳ Menunggu Approval</span>`;
-                } else {
-                  statusBadge = `<span style="background:#e0f2fe;color:#0284c7;padding:5px 10px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;">📅 ${esc(m.status || "Akan Datang")}</span>`;
-                }
+              ${filteredMeetings
+                .map((m, i) => {
+                  let statusBadge = "";
+                  const s = (m.status || "").toLowerCase();
+                  if (s.includes("berjalan")) {
+                    statusBadge = `<span style="background:#e0f5ec;color:#13865b;padding:5px 10px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;">● Berjalan</span>`;
+                  } else if (s.includes("selesai")) {
+                    statusBadge = `<span style="background:#f3f0ff;color:#5b3dd3;padding:5px 10px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;">✓ Selesai</span>`;
+                  } else if (s.includes("menunggu") || s.includes("pending")) {
+                    statusBadge = `<span style="background:#fff7ed;color:#ea580c;padding:5px 10px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;">⏳ Menunggu Approval</span>`;
+                  } else {
+                    statusBadge = `<span style="background:#e0f2fe;color:#0284c7;padding:5px 10px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;">📅 ${esc(m.status || "Akan Datang")}</span>`;
+                  }
 
-                let durasiStr = "-";
-                if (m.start && m.end) {
-                  const [sh, sm] = m.start.split(":").map(Number);
-                  const [eh, em] = m.end.split(":").map(Number);
-                  if (!isNaN(sh) && !isNaN(eh)) {
-                    const diff = (eh * 60 + (em || 0)) - (sh * 60 + (sm || 0));
-                    if (diff > 0) {
-                      const h = Math.floor(diff / 60);
-                      const min = diff % 60;
-                      durasiStr = h > 0 ? (min > 0 ? `${h}j ${min}m` : `${h} Jam`) : `${min} Menit`;
+                  let durasiStr = "-";
+                  if (m.start && m.end) {
+                    const [sh, sm] = m.start.split(":").map(Number);
+                    const [eh, em] = m.end.split(":").map(Number);
+                    if (!isNaN(sh) && !isNaN(eh)) {
+                      const diff = eh * 60 + (em || 0) - (sh * 60 + (sm || 0));
+                      if (diff > 0) {
+                        const h = Math.floor(diff / 60);
+                        const min = diff % 60;
+                        durasiStr =
+                          h > 0
+                            ? min > 0
+                              ? `${h}j ${min}m`
+                              : `${h} Jam`
+                            : `${min} Menit`;
+                      }
                     }
                   }
-                }
 
-                const actionBtn = `<button style="background-color:#f0f4fa;color:#0c2d5e;border:1px solid #dbeafe;border-radius:8px;width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:background 0.15s;" title="Lihat Detail Rapat" onclick="viewMeeting('${m.id}')" onmouseover="this.style.background='#e0f2fe'" onmouseout="this.style.background='#f0f4fa'">${faEye}</button>`;
+                  const actionBtn = `<button style="background-color:#f0f4fa;color:#0c2d5e;border:1px solid #dbeafe;border-radius:8px;width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:background 0.15s;" title="Lihat Detail Rapat" onclick="viewMeeting('${m.id}')" onmouseover="this.style.background='#e0f2fe'" onmouseout="this.style.background='#f0f4fa'">${faEye}</button>`;
 
-                return `
+                  return `
                   <tr>
                     <td>${i + 1}</td>
                     <td>
                       <strong style="color:#0c2d5e; display:block;">${esc(m.title)}</strong>
-                      ${m.desc ? `<small style="color:#64748b; font-size:11px; font-weight:400;">${esc(m.desc.slice(0, 45))}${m.desc.length > 45 ? '...' : ''}</small>` : ''}
+                      ${m.desc ? `<small style="color:#64748b; font-size:11px; font-weight:400;">${esc(m.desc.slice(0, 45))}${m.desc.length > 45 ? "..." : ""}</small>` : ""}
                     </td>
-                    <td>${esc(m.requester || m.organizer || '-')}</td>
+                    <td>${esc(m.requester || m.organizer || "-")}</td>
                     <td><span style="font-weight:600; color:#1769aa;">${esc(m.room)}</span></td>
                     <td>${formatDate(m.date)}</td>
                     <td style="font-weight:600;">${m.start} – ${m.end}</td>
                     <td>${durasiStr}</td>
-                    <td>${m.participants ? `${m.participants} org` : '-'}</td>
+                    <td>${m.participants ? `${m.participants} org` : "-"}</td>
                     <td>${statusBadge}</td>
                     <td style="text-align: center;">${actionBtn}</td>
                   </tr>
                 `;
-              }).join("")}
+                })
+                .join("")}
             </tbody>
           </table>
         </div>
@@ -2985,16 +3550,16 @@ function reports() {
       <div class="rep-filters-row">
         <div class="rep-filters-left" style="flex-wrap: wrap;">
           <div style="display:flex; background:#eef3f9; padding:3px; border-radius:10px; gap:4px;">
-            <button type="button" class="${currentMode === 'mingguan' ? 'btn-blue' : 'btn-white'}" onclick="setReportPeriod('mingguan')" style="border:none; padding:7px 14px; border-radius:7px; font-size:12.5px;">
+            <button type="button" class="${currentMode === "mingguan" ? "btn-blue" : "btn-white"}" onclick="setReportPeriod('mingguan')" style="border:none; padding:7px 14px; border-radius:7px; font-size:12.5px;">
               📆 Mingguan
             </button>
-            <button type="button" class="${currentMode === 'bulanan' ? 'btn-blue' : 'btn-white'}" onclick="setReportPeriod('bulanan')" style="border:none; padding:7px 14px; border-radius:7px; font-size:12.5px;">
+            <button type="button" class="${currentMode === "bulanan" ? "btn-blue" : "btn-white"}" onclick="setReportPeriod('bulanan')" style="border:none; padding:7px 14px; border-radius:7px; font-size:12.5px;">
               🗓️ Bulanan
             </button>
-            <button type="button" class="${currentMode === 'harian' ? 'btn-blue' : 'btn-white'}" onclick="setReportPeriod('harian')" style="border:none; padding:7px 14px; border-radius:7px; font-size:12.5px;">
+            <button type="button" class="${currentMode === "harian" ? "btn-blue" : "btn-white"}" onclick="setReportPeriod('harian')" style="border:none; padding:7px 14px; border-radius:7px; font-size:12.5px;">
               📅 Hari Ini
             </button>
-            <button type="button" class="${currentMode === 'semua' ? 'btn-blue' : 'btn-white'}" onclick="setReportPeriod('semua')" style="border:none; padding:7px 14px; border-radius:7px; font-size:12.5px;">
+            <button type="button" class="${currentMode === "semua" ? "btn-blue" : "btn-white"}" onclick="setReportPeriod('semua')" style="border:none; padding:7px 14px; border-radius:7px; font-size:12.5px;">
               🌐 Semua
             </button>
           </div>
@@ -3069,7 +3634,7 @@ function reports() {
               <small style="color:#64748b; font-weight:500;">Distribusi rapat: <strong>${getActivePeriodLabel()}</strong></small>
             </div>
             <span style="font-size:11px; font-weight:700; color:#1769aa; background:#e0f2fe; padding:3px 8px; border-radius:6px;">
-              ${currentMode === 'mingguan' ? 'Harian (Minggu Ini)' : (currentMode === 'bulanan' ? 'Mingguan (Bulan Ini)' : 'Tren Periode')}
+              ${currentMode === "mingguan" ? "Harian (Minggu Ini)" : currentMode === "bulanan" ? "Mingguan (Bulan Ini)" : "Tren Periode"}
             </span>
           </div>
           <div class="mock-bar-chart" style="align-items:flex-end;">
@@ -3118,7 +3683,10 @@ function getActivePeriodLabel() {
   }
   if (f.mode === "bulanan") {
     const d = new Date();
-    const monthName = d.toLocaleDateString("id-ID", { month: "long", year: "numeric" });
+    const monthName = d.toLocaleDateString("id-ID", {
+      month: "long",
+      year: "numeric",
+    });
     return `Bulan Ini (${monthName})`;
   }
   if (f.mode === "date" && f.startDate && f.endDate) {
@@ -3132,7 +3700,11 @@ function getActivePeriodLabel() {
 window.getActivePeriodLabel = getActivePeriodLabel;
 
 function openFilterModal() {
-  const f = state.reportFilter || { mode: "bulanan", startDate: awalBulan(), endDate: akhirBulan() };
+  const f = state.reportFilter || {
+    mode: "bulanan",
+    startDate: awalBulan(),
+    endDate: akhirBulan(),
+  };
   const body = `
     <div style="display:flex; flex-direction:column; gap:12px; padding-top: 6px; font-family:'Poppins',sans-serif;">
       <h3 style="font-size: 13.5px; font-weight:700; color: #0c2d5e; margin: 0 0 4px;">Pilih Periode Rapat & Laporan</h3>
@@ -3183,7 +3755,9 @@ function openFilterModal() {
 }
 
 function toggleModalFilter() {
-  const checked = document.querySelector('input[name="modalFilterMode"]:checked');
+  const checked = document.querySelector(
+    'input[name="modalFilterMode"]:checked',
+  );
   if (!checked) return;
   const mode = checked.value;
   const container = document.getElementById("modalDateInputs");
@@ -3208,7 +3782,9 @@ function toggleModalFilter() {
 }
 
 function applyFilter() {
-  const checked = document.querySelector('input[name="modalFilterMode"]:checked');
+  const checked = document.querySelector(
+    'input[name="modalFilterMode"]:checked',
+  );
   const mode = checked ? checked.value : "bulanan";
   let sd = "";
   let ed = "";
@@ -3338,8 +3914,12 @@ function settings() {
   `;
 
   const adminAktif = (state.users || []).filter((u) => isAdminRole(u)).length;
-  const pimpinanAktif = (state.users || []).filter((u) => isAtasanRole(u)).length;
-  const userAktif = (state.users || []).filter((u) => !isAdminRole(u) && !isAtasanRole(u)).length;
+  const pimpinanAktif = (state.users || []).filter((u) =>
+    isAtasanRole(u),
+  ).length;
+  const userAktif = (state.users || []).filter(
+    (u) => !isAdminRole(u) && !isAtasanRole(u),
+  ).length;
   const totalRoles = 3;
   const totalUsers = (state.users || []).length;
   const aksesBermasalah = 0;
@@ -3348,23 +3928,25 @@ function settings() {
     {
       no: 1,
       name: "Admin",
-      access: "Operasional Rapat, Kelola Fasilitas Ruangan, Quick Check-In/Out, Manajemen Pengguna",
+      access:
+        "Operasional Rapat, Kelola Fasilitas Ruangan, Quick Check-In/Out, Manajemen Pengguna",
       usersCount: adminAktif,
     },
     {
       no: 2,
       name: "Pimpinan",
-      access: "Otorisasi Persetujuan/Penolakan Booking Rapat, Pembatalan Darurat",
+      access:
+        "Otorisasi Persetujuan/Penolakan Booking Rapat, Pembatalan Darurat",
       usersCount: pimpinanAktif,
     },
     {
       no: 3,
       name: "User",
-      access: "Pengajuan Booking Ruang Rapat, Presensi Daftar Hadir Digital, Review Kepuasan",
+      access:
+        "Pengajuan Booking Ruang Rapat, Presensi Daftar Hadir Digital, Review Kepuasan",
       usersCount: userAktif,
     },
   ];
-
 
   return `
     <div class="settings-wrapper">
@@ -3471,10 +4053,7 @@ function render() {
 
   const curUser = getCurrentUser();
   if (curUser && !isAdminRole(curUser) && !isAtasanRole(curUser)) {
-    if (window.parent && window.parent.location && window.parent.location.pathname.startsWith("/dashboard")) {
-      window.parent.location.href = "/booking";
-      return;
-    }
+    return;
   }
 
   if (!isPageAllowed(state.page, curUser)) {
@@ -3505,12 +4084,98 @@ window.addEventListener("hashchange", () => {
 function openModal(title, body) {
   document.getElementById("modal").innerHTML =
     `<div class="modal"><div class="modal-head"><h2>${title}</h2><button class="btn-icon" onclick="closeModal()">×</button></div>${body}</div>`;
+  if (title === "Detail Rapat") document.querySelector("#modal .modal")?.classList.add("meeting-detail-modal");
   document.getElementById("modal").classList.add("show");
 }
 
 function closeModal() {
   document.getElementById("modal").classList.remove("show");
 }
+
+const ICON_FA_CHECK = `<svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 512 512" style="width:16px;height:16px;display:block;" xmlns="http://www.w3.org/2000/svg"><path d="M173.898 439.404l-166.4-166.4c-9.997-9.997-9.997-26.206 0-36.204l36.203-36.204c9.997-9.998 26.207-9.998 36.204 0L192 312.69 432.095 72.596c9.997-9.997 26.207-9.997 36.204 0l36.203 36.204c9.997 9.997 9.997 26.206 0 36.204l-294.4 294.401c-9.998 9.997-26.207 9.997-36.205-.001z"></path></svg>`;
+const ICON_FA_EXCLAMATION = `<svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 192 512" style="width:11px;height:11px;display:block;" xmlns="http://www.w3.org/2000/svg"><path d="M176 432c0 44.112-35.888 80-80 80s-80-35.888-80-80 35.888-80 80-80 80 35.888 80 80zM25.26 25.199l13.6 272C39.499 309.972 50.041 320 62.83 320h66.34c12.789 0 23.331-10.028 23.97-22.801l13.6-272C167.425 11.49 156.496 0 142.77 0H49.23C35.504 0 24.575 11.49 25.26 25.199z"></path></svg>`;
+
+function showConfirmModal({
+  title = "Konfirmasi",
+  icon = ICON_FA_CHECK,
+  iconBg = "#dcfce7",
+  iconColor = "#15803d",
+  message = "",
+  infoText = "",
+  subtext = "",
+  confirmText = "Lanjutkan",
+  confirmBg = "#16a34a",
+  onConfirm = null,
+}) {
+  const modalEl = document.getElementById("modal");
+  if (!modalEl) return;
+
+  modalEl.innerHTML = `
+    <div class="modal" style="max-width:440px;width:92%;background:#ffffff;border-radius:18px;padding:26px 28px 22px;box-shadow:0 24px 60px rgba(12,45,94,0.2);box-sizing:border-box;font-family:'Poppins',sans-serif;margin:auto;border:1px solid #eef3f9;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="width:38px;height:38px;border-radius:12px;background:${iconBg};color:${iconColor};display:grid;place-items:center;font-size:17px;font-weight:700;flex-shrink:0;">
+            ${icon}
+          </div>
+          <div>
+            <h3 style="font-size:16px;font-weight:700;color:#0c2d5e;margin:0;line-height:1.2;">${esc(title)}</h3>
+          </div>
+        </div>
+        <button type="button" onclick="closeModal()" style="border:none;background:#f1f5f9;color:#64748b;width:30px;height:30px;border-radius:8px;cursor:pointer;display:grid;place-items:center;font-size:15px;line-height:1;transition:all 0.15s;" onmouseover="this.style.background='#e2e8f0';this.style.color='#0c2d5e'" onmouseout="this.style.background='#f1f5f9';this.style.color='#64748b'" title="Tutup">✕</button>
+      </div>
+
+      <div style="font-size:13.5px;color:#1e293b;line-height:1.5;margin-bottom:12px;">
+        ${message}
+      </div>
+
+      ${
+        infoText
+          ? `
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-left:3.5px solid ${iconColor};border-radius:10px;padding:11px 13px;margin:14px 0;font-size:12px;color:#475569;line-height:1.55;">
+          <div style="font-weight:700;color:#0c2d5e;margin-bottom:5px;display:flex;align-items:center;gap:7px;">
+            <span style="display:inline-flex;align-items:center;justify-content:center;width:19px;height:19px;border-radius:50%;background:#e0f2fe;color:#0284c7;flex-shrink:0;">${ICON_FA_EXCLAMATION}</span>
+            <span>Info Sistem</span>
+          </div>
+          ${infoText}
+        </div>
+      `
+          : ""
+      }
+
+      ${
+        subtext
+          ? `
+        <div style="font-size:12px;color:#64748b;line-height:1.45;margin-bottom:18px;">
+          ${subtext}
+        </div>
+      `
+          : ""
+      }
+
+      <div style="display:flex;align-items:center;justify-content:flex-end;gap:10px;margin-top:20px;padding-top:14px;border-top:1px solid #f1f5f9;">
+        <button type="button" onclick="closeModal()" style="padding:9px 18px;border:1px solid #cbd5e1;background:#ffffff;color:#475569;border-radius:9px;font-size:12.5px;font-weight:600;cursor:pointer;transition:all 0.15s ease;" onmouseover="this.style.background='#f8fafc';this.style.borderColor='#94a3b8'" onmouseout="this.style.background='#ffffff';this.style.borderColor='#cbd5e1'">
+          Batal
+        </button>
+        <button type="button" id="confirmModalSubmitBtn" style="padding:9px 20px;border:none;background:${confirmBg};color:#ffffff;border-radius:9px;font-size:12.5px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:all 0.15s ease;box-shadow:0 3px 10px rgba(0,0,0,0.12);" onmouseover="this.style.opacity='0.9';this.style.transform='translateY(-1px)'" onmouseout="this.style.opacity='1';this.style.transform='translateY(0)'">
+          ${confirmText}
+        </button>
+      </div>
+    </div>
+  `;
+
+  modalEl.classList.add("show");
+
+  const btn = document.getElementById("confirmModalSubmitBtn");
+  if (btn) {
+    btn.onclick = () => {
+      closeModal();
+      if (typeof onConfirm === "function") {
+        onConfirm();
+      }
+    };
+  }
+}
+window.showConfirmModal = showConfirmModal;
 
 function onToggleKepalaBiro(checkbox) {
   if (checkbox && checkbox.checked) {
@@ -3532,7 +4197,8 @@ function onToggleKepalaBiro(checkbox) {
 window.onToggleKepalaBiro = onToggleKepalaBiro;
 
 function openMeetingModal(id = null) {
-  if (!can("manageMeeting")) return denyAccess("Tambah / edit rapat dilakukan oleh Admin.");
+  if (!can("manageMeeting"))
+    return denyAccess("Tambah / edit rapat dilakukan oleh Admin.");
   const defaultHours = getDefaultMeetingHours();
   const m = id
     ? state.meetings.find((x) => String(x.id) === String(id))
@@ -3879,7 +4545,20 @@ function approveMeeting(id) {
   });
 
   try {
-    getAppStorage().setItem("app_meetings", JSON.stringify(state.meetings));
+    const jsonStr = JSON.stringify(state.meetings);
+    getAppStorage().setItem("app_meetings", jsonStr);
+    localStorage.setItem("app_meetings", jsonStr);
+    sessionStorage.setItem("app_meetings", jsonStr);
+    if (window.parent) {
+      if (window.parent.localStorage)
+        window.parent.localStorage.setItem("app_meetings", jsonStr);
+      if (window.parent.sessionStorage)
+        window.parent.sessionStorage.setItem("app_meetings", jsonStr);
+      window.parent.dispatchEvent(new Event("storage"));
+      window.parent.dispatchEvent(
+        new CustomEvent("app_meetings_updated", { detail: state.meetings }),
+      );
+    }
     window.dispatchEvent(new Event("meeting_approved"));
     window.dispatchEvent(new Event("storage"));
   } catch (e) {}
@@ -3893,6 +4572,11 @@ function approveMeeting(id) {
     if (notif) {
       notif.status = "Akan Datang";
       notif.approvedBy = approvedTag;
+      if (!Array.isArray(notif.readBy)) notif.readBy = [];
+      const u = (user?.username || "admin").toLowerCase();
+      if (!notif.readBy.some((x) => String(x).toLowerCase() === u)) {
+        notif.readBy.push(user?.username || "admin");
+      }
       saveNotifications(notifs);
     }
   } catch (e) {}
@@ -3924,16 +4608,8 @@ function approveMeeting(id) {
   toast("✓ Rapat berhasil disetujui oleh " + approvedTag);
 }
 
-function checkInMeetingManual(id) {
+function executeCheckInMeetingManual(id) {
   const user = getCurrentUser();
-  if (!can("checkInOut", user)) return denyAccess("Check-In rapat dilakukan oleh Admin.");
-  
-  const m = state.meetings.find((x) => String(x.id) === String(id));
-  const title = m ? `"${m.title}"` : "rapat ini";
-  
-  const confirmMsg = `Lakukan Check-In MANUAL untuk ${title}?\n\n💡 Info Sistem: Peserta rapat/PIC sebenarnya dapat melakukan Check-In mandiri dengan memindai Barcode / QR Code di ruangan tanpa perlu Admin menekan tombol ini.\n\nGunakan tombol ini jika Anda ingin mengaktifkan sesi secara manual sekarang.`;
-  if (!confirm(confirmMsg)) return;
-
   const nowIso = new Date().toISOString();
   const adminName = user?.name ? `${user.name} (Admin)` : "Admin (Manual)";
 
@@ -3955,9 +4631,17 @@ function checkInMeetingManual(id) {
     getAppStorage().setItem("app_meetings", JSON.stringify(state.meetings));
   } catch (e) {}
 
-  ["storage", "meeting_checkin", "meeting_status_changed", "app_meetings_updated"].forEach((ev) => {
+  [
+    "storage",
+    "meeting_checkin",
+    "meeting_status_changed",
+    "app_meetings_updated",
+  ].forEach((ev) => {
     window.dispatchEvent(new Event(ev));
-    try { if (window.parent && window.parent !== window) window.parent.dispatchEvent(new Event(ev)); } catch (e) {}
+    try {
+      if (window.parent && window.parent !== window)
+        window.parent.dispatchEvent(new Event(ev));
+    } catch (e) {}
   });
 
   fetch(`/api/dashboard/meetings/${id}/checkin`, {
@@ -3971,19 +4655,35 @@ function checkInMeetingManual(id) {
     .catch((e) => console.warn("Sync checkin manual error:", e));
 
   render();
-  toast("✓ Berhasil Check-In Manual oleh Admin. Sesi rapat kini berstatus Berjalan.");
+  toast(
+    "✓ Berhasil Check-In Manual oleh Admin. Sesi rapat kini berstatus Berjalan.",
+  );
 }
 
-function checkOutMeetingManual(id) {
+function checkInMeetingManual(id) {
   const user = getCurrentUser();
-  if (!can("checkInOut", user)) return denyAccess("Check-Out rapat dilakukan oleh Admin.");
+  if (!can("checkInOut", user))
+    return denyAccess("Check-In rapat dilakukan oleh Admin.");
 
   const m = state.meetings.find((x) => String(x.id) === String(id));
   const title = m ? `"${m.title}"` : "rapat ini";
 
-  const confirmMsg = `Selesaikan sesi ${title} secara MANUAL sebagai Admin?\n\n💡 Info Sistem: Peserta/PIC sebenarnya dapat melakukan Check-Out mandiri di ruangan dengan memindai Barcode / QR Code tanpa perlu Admin menekan tombol ini.\n\nApakah Anda yakin ingin menyelesaikan rapat ini sekarang?`;
-  if (!confirm(confirmMsg)) return;
+  showConfirmModal({
+    title: "Check-In Manual",
+    icon: ICON_FA_CHECK,
+    iconBg: "#dcfce7",
+    iconColor: "#15803d",
+    message: `Lakukan <b>Check-In MANUAL</b> untuk <b>${esc(title)}</b>?`,
+    infoText: `Peserta rapat / PIC sebenarnya dapat melakukan <b>Check-In mandiri</b> dengan memindai <b>Barcode / QR Code</b> di ruangan tanpa perlu Admin menekan tombol ini.`,
+    subtext: `Gunakan tombol ini jika Anda ingin mengaktifkan sesi secara manual sekarang.`,
+    confirmText: `<span style="display:inline-flex;align-items:center;gap:6px;">${ICON_FA_CHECK} Ya, Check-In Sekarang</span>`,
+    confirmBg: "#16a34a",
+    onConfirm: () => executeCheckInMeetingManual(id),
+  });
+}
 
+function executeCheckOutMeetingManual(id) {
+  const user = getCurrentUser();
   const nowIso = new Date().toISOString();
   const adminName = user?.name ? `${user.name} (Admin)` : "Admin (Manual)";
 
@@ -4005,9 +4705,17 @@ function checkOutMeetingManual(id) {
     getAppStorage().setItem("app_meetings", JSON.stringify(state.meetings));
   } catch (e) {}
 
-  ["storage", "meeting_checkout", "meeting_status_changed", "app_meetings_updated"].forEach((ev) => {
+  [
+    "storage",
+    "meeting_checkout",
+    "meeting_status_changed",
+    "app_meetings_updated",
+  ].forEach((ev) => {
     window.dispatchEvent(new Event(ev));
-    try { if (window.parent && window.parent !== window) window.parent.dispatchEvent(new Event(ev)); } catch (e) {}
+    try {
+      if (window.parent && window.parent !== window)
+        window.parent.dispatchEvent(new Event(ev));
+    } catch (e) {}
   });
 
   fetch(`/api/dashboard/meetings/${id}/checkout`, {
@@ -4022,6 +4730,28 @@ function checkOutMeetingManual(id) {
 
   render();
   toast("✓ Berhasil Check-Out Manual oleh Admin. Rapat telah selesai.");
+}
+
+function checkOutMeetingManual(id) {
+  const user = getCurrentUser();
+  if (!can("checkInOut", user))
+    return denyAccess("Check-Out rapat dilakukan oleh Admin.");
+
+  const m = state.meetings.find((x) => String(x.id) === String(id));
+  const title = m ? `"${m.title}"` : "rapat ini";
+
+  showConfirmModal({
+    title: "Check-Out Manual",
+    icon: "⏹",
+    iconBg: "#f3e8ff",
+    iconColor: "#7e22ce",
+    message: `Selesaikan sesi <b>${esc(title)}</b> secara <b>MANUAL</b> sebagai Admin?`,
+    infoText: `Peserta / PIC sebenarnya dapat melakukan <b>Check-Out mandiri</b> di ruangan dengan memindai <b>Barcode / QR Code</b> tanpa perlu Admin menekan tombol ini.`,
+    subtext: `Apakah Anda yakin ingin menyelesaikan dan mengakhiri sesi rapat ini sekarang?`,
+    confirmText: "✓ Ya, Selesaikan Sesi",
+    confirmBg: "#7c3aed",
+    onConfirm: () => executeCheckOutMeetingManual(id),
+  });
 }
 
 function checkInMeeting(id) {
@@ -4115,7 +4845,21 @@ function confirmReject(id) {
   });
 
   try {
-    getAppStorage().setItem("app_meetings", JSON.stringify(state.meetings));
+    const jsonStr = JSON.stringify(state.meetings);
+    getAppStorage().setItem("app_meetings", jsonStr);
+    localStorage.setItem("app_meetings", jsonStr);
+    sessionStorage.setItem("app_meetings", jsonStr);
+    if (window.parent) {
+      if (window.parent.localStorage)
+        window.parent.localStorage.setItem("app_meetings", jsonStr);
+      if (window.parent.sessionStorage)
+        window.parent.sessionStorage.setItem("app_meetings", jsonStr);
+      window.parent.dispatchEvent(new Event("storage"));
+      window.parent.dispatchEvent(
+        new CustomEvent("app_meetings_updated", { detail: state.meetings }),
+      );
+    }
+    window.dispatchEvent(new Event("storage"));
   } catch (e) {}
 
   // Update notification item status
@@ -4127,6 +4871,11 @@ function confirmReject(id) {
     if (notif) {
       notif.status = "Dibatalkan";
       notif.rejectedBy = rejecterTag;
+      if (!Array.isArray(notif.readBy)) notif.readBy = [];
+      const u = (user?.username || "admin").toLowerCase();
+      if (!notif.readBy.some((x) => String(x).toLowerCase() === u)) {
+        notif.readBy.push(user?.username || "admin");
+      }
       saveNotifications(notifs);
     }
   } catch (e) {}
@@ -4149,6 +4898,25 @@ function confirmReject(id) {
 
 function editMeeting(id) {
   openMeetingModal(id);
+}
+
+function formatMeetingDetailDate(value) {
+  if (!value) return "";
+  const date = new Date(String(value).includes("T") ? value : String(value) + "T00:00:00");
+  return Number.isNaN(date.getTime()) ? formatDate(value) : date.toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" });
+}
+
+function meetingDetailIcon(name) {
+  const icons = {
+    calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 17h.01M12 17h.01"/>',
+    pin: '<path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/>',
+    users: '<path d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M10 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM20 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
+    file: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h8"/>',
+    person: '<path d="M20 21a8 8 0 0 0-16 0M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/>',
+    attendance: '<path d="M8 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9M16 2h2a2 2 0 0 1 2 2v8M8 9h8M8 13h5M8 17h4M15 18l2 2 4-5"/>',
+    download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>'
+  };
+  return '<svg class="meeting-detail-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (icons[name] || icons.file) + '</svg>';
 }
 
 function viewMeeting(id) {
@@ -4191,6 +4959,24 @@ function viewMeeting(id) {
   const user = getCurrentUser();
   const isAtasan = isAtasanRole(user);
   const isAdmin = isAdminRole(user);
+  const roomLocation = state.rooms.find((r) => r.name === m.room)?.location || "";
+
+  try {
+    const rawUsername = user?.username || "admin";
+    const username = rawUsername.toLowerCase();
+    const notifs = getNotifications();
+    let updated = false;
+    notifs.forEach((n) => {
+      if (String(n.meetingId) === String(id) || String(n.id) === String(id)) {
+        if (!Array.isArray(n.readBy)) n.readBy = [];
+        if (!n.readBy.some((u) => String(u).toLowerCase() === username)) {
+          n.readBy.push(rawUsername);
+          updated = true;
+        }
+      }
+    });
+    if (updated) saveNotifications(notifs);
+  } catch (err) {}
 
   const isCanceled = m.status === "Dibatalkan";
   const cancelBox = isCanceled
@@ -4229,10 +5015,8 @@ function viewMeeting(id) {
     statusLower === "berjalan" ||
     statusLower === "ongoing" ||
     statusLower === "running";
-  const isCompleted =
-    statusLower === "selesai" || statusLower === "completed";
-  const isRejected =
-    statusLower === "ditolak" || statusLower === "rejected";
+  const isCompleted = statusLower === "selesai" || statusLower === "completed";
+  const isRejected = statusLower === "ditolak" || statusLower === "rejected";
   const canShowQr = !isPending && !isCanceled && !isRejected;
 
   let actionBtns = `<button class="btn btn-light" style="display:inline-flex;align-items:center;gap:6px;" onclick="exportNotulensiPDF('${m.id}')">${ICONS.export} <span>Notulensi</span></button>`;
@@ -4267,7 +5051,14 @@ function viewMeeting(id) {
     materialsHtml = materialsList
       .map((mat) => {
         const isLink = mat.type === "link";
-        const icon = mat.type === "pdf" ? "📄" : mat.type === "ppt" ? "📊" : isLink ? "🔗" : "📁";
+        const icon =
+          mat.type === "pdf"
+            ? "📄"
+            : mat.type === "ppt"
+              ? "📊"
+              : isLink
+                ? "🔗"
+                : "📁";
         return `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;background:#fff;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:6px;">
           <div style="display:flex;align-items:center;gap:8px;min-width:0;">
             <span style="font-size:16px;">${icon}</span>
@@ -4309,28 +5100,36 @@ function viewMeeting(id) {
         <div style="font-weight:700;color:#0c2d5e;margin-bottom:8px;display:flex;align-items:center;gap:6px;">
           <span>📋</span> Riwayat Presensi &amp; Metode Check-In/Out
         </div>
-        ${m.checkInAt ? `
+        ${
+          m.checkInAt
+            ? `
           <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;flex-wrap:wrap;">
             <div>
               <span style="color:#15803d;font-weight:600;">✓ Check-In:</span>
               <span style="color:#334155;">${formatDate(m.checkInAt)} · ${new Date(m.checkInAt).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} WIB</span>
               ${m.checkedInBy ? `<small style="color:#64748b;">(${esc(m.checkedInBy)})</small>` : ""}
             </div>
-            <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;background:${m.checkInMethod === 'barcode_qr' ? '#e0f2fe;color:#0369a1;border:1px solid #bae6fd;' : '#fef3c7;color:#b45309;border:1px solid #fde68a;'}">
-              ${m.checkInMethod === 'barcode_qr' ? '📱 [Sistem 1] Barcode / QR Mandiri' : '👤 [Sistem 2] Manual Admin'}
+            <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;background:${m.checkInMethod === "barcode_qr" ? "#e0f2fe;color:#0369a1;border:1px solid #bae6fd;" : "#fef3c7;color:#b45309;border:1px solid #fde68a;"}">
+              ${m.checkInMethod === "barcode_qr" ? "📱 [Sistem 1] Barcode / QR Mandiri" : "👤 [Sistem 2] Manual Admin"}
             </span>
-          </div>` : ""}
-        ${m.checkOutAt ? `
+          </div>`
+            : ""
+        }
+        ${
+          m.checkOutAt
+            ? `
           <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
             <div>
               <span style="color:#b91c1c;font-weight:600;">✓ Check-Out:</span>
               <span style="color:#334155;">${formatDate(m.checkOutAt)} · ${new Date(m.checkOutAt).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} WIB</span>
               ${m.checkedOutBy ? `<small style="color:#64748b;">(${esc(m.checkedOutBy)})</small>` : ""}
             </div>
-            <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;background:${m.checkOutMethod === 'barcode_qr' ? '#e0f2fe;color:#0369a1;border:1px solid #bae6fd;' : '#fef3c7;color:#b45309;border:1px solid #fde68a;'}">
-              ${m.checkOutMethod === 'barcode_qr' ? '📱 [Sistem 1] Barcode / QR Mandiri' : '👤 [Sistem 2] Manual Admin'}
+            <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;background:${m.checkOutMethod === "barcode_qr" ? "#e0f2fe;color:#0369a1;border:1px solid #bae6fd;" : "#fef3c7;color:#b45309;border:1px solid #fde68a;"}">
+              ${m.checkOutMethod === "barcode_qr" ? "📱 [Sistem 1] Barcode / QR Mandiri" : "👤 [Sistem 2] Manual Admin"}
             </span>
-          </div>` : ""}
+          </div>`
+            : ""
+        }
       </div>
     `;
   }
@@ -4385,7 +5184,10 @@ function onAdminMatFilePicked(input) {
   else if (ext === "doc" || ext === "docx") type = "doc";
   else if (ext === "xls" || ext === "xlsx") type = "excel";
 
-  const sizeStr = file.size < 1024 * 1024 ? (file.size / 1024).toFixed(1) + " KB" : (file.size / (1024 * 1024)).toFixed(1) + " MB";
+  const sizeStr =
+    file.size < 1024 * 1024
+      ? (file.size / 1024).toFixed(1) + " KB"
+      : (file.size / (1024 * 1024)).toFixed(1) + " MB";
 
   const reader = new FileReader();
   reader.onload = (e) => {
@@ -4442,24 +5244,30 @@ function openAddMaterialModal(meetingId) {
       </div>
       <div class="field full">
         <label>Pengunggah (Admin / PIC)</label>
-        <input type="text" id="adminMatUploaderInput" value="${esc(getCurrentUser()?.name || 'Admin')}" style="font-size:13px;">
+        <input type="text" id="adminMatUploaderInput" value="${esc(getCurrentUser()?.name || "Admin")}" style="font-size:13px;">
       </div>
     </div>
     <div class="modal-actions" style="margin-top:20px;">
       <button class="btn btn-light" onclick="closeModal(); viewMeeting('${esc(m.id)}')">Kembali</button>
       <button class="btn btn-primary" onclick="submitAdminMaterial('${esc(m.id)}')">Simpan Materi</button>
-    </div>`
+    </div>`,
   );
 }
 window.openAddMaterialModal = openAddMaterialModal;
 
 async function submitAdminMaterial(meetingId) {
-  const isLink = document.querySelector('input[name="adminMatType"]:checked')?.value === "link";
+  const isLink =
+    document.querySelector('input[name="adminMatType"]:checked')?.value ===
+    "link";
   let url = "";
   let type = "pdf";
   let size = "";
-  let name = (document.getElementById("adminMatTitleInput")?.value || "").trim();
-  const uploader = (document.getElementById("adminMatUploaderInput")?.value || "").trim() || "Admin";
+  let name = (
+    document.getElementById("adminMatTitleInput")?.value || ""
+  ).trim();
+  const uploader =
+    (document.getElementById("adminMatUploaderInput")?.value || "").trim() ||
+    "Admin";
 
   if (isLink) {
     url = (document.getElementById("adminMatUrlInput")?.value || "").trim();
@@ -4492,15 +5300,23 @@ async function submitAdminMaterial(meetingId) {
     if (res.ok) {
       const data = await res.json();
       if (data?.meeting) {
-        const idx = state.meetings.findIndex((m) => String(m.id) === String(meetingId));
+        const idx = state.meetings.findIndex(
+          (m) => String(m.id) === String(meetingId),
+        );
         if (idx !== -1) {
-          state.meetings[idx] = { ...state.meetings[idx], materials: data.meeting.materials };
+          state.meetings[idx] = {
+            ...state.meetings[idx],
+            materials: data.meeting.materials,
+          };
         }
       }
     } else {
-      const idx = state.meetings.findIndex((m) => String(m.id) === String(meetingId));
+      const idx = state.meetings.findIndex(
+        (m) => String(m.id) === String(meetingId),
+      );
       if (idx !== -1) {
-        if (!Array.isArray(state.meetings[idx].materials)) state.meetings[idx].materials = [];
+        if (!Array.isArray(state.meetings[idx].materials))
+          state.meetings[idx].materials = [];
         state.meetings[idx].materials.push({
           id: "mat_" + Date.now(),
           ...payload,
@@ -4527,9 +5343,13 @@ async function deleteMaterialFromMeeting(meetingId, matId) {
     await fetch(`/api/dashboard/meetings/${meetingId}/materials/${matId}`, {
       method: "DELETE",
     });
-    const idx = state.meetings.findIndex((m) => String(m.id) === String(meetingId));
+    const idx = state.meetings.findIndex(
+      (m) => String(m.id) === String(meetingId),
+    );
     if (idx !== -1 && Array.isArray(state.meetings[idx].materials)) {
-      state.meetings[idx].materials = state.meetings[idx].materials.filter((x) => String(x.id) !== String(matId));
+      state.meetings[idx].materials = state.meetings[idx].materials.filter(
+        (x) => String(x.id) !== String(matId),
+      );
       try {
         getAppStorage().setItem("app_meetings", JSON.stringify(state.meetings));
       } catch (e) {}
@@ -4561,8 +5381,10 @@ function getMeetingReview(m) {
         ? "Ruangan sangat representatif dan kondusif untuk konsultasi. Smart TV dan koneksi berjalan sangat lancar. Suasana nyaman dan ber-AC dingin."
         : "Ruangan bersih, tertata rapi, dan fasilitas Smart TV 85 inch serta sound system/mic berfungsi sempurna selama presentasi berlangsung.",
       reviewer: m.requester || "User Pemesan",
-      submittedAt: m.date ? `${m.date}T${m.end || "12:00"}:00.000Z` : new Date().toISOString(),
-      tags: ["Fasilitas Lengkap", "Sangat Bersih", "AC Dingin", "Tepat Waktu"]
+      submittedAt: m.date
+        ? `${m.date}T${m.end || "12:00"}:00.000Z`
+        : new Date().toISOString(),
+      tags: ["Fasilitas Lengkap", "Sangat Bersih", "AC Dingin", "Tepat Waktu"],
     };
   }
   return null;
@@ -4583,12 +5405,14 @@ function openMeetingReviewModal(id) {
     let stars = "";
     for (let i = 1; i <= 5; i++) {
       const isFilled = i <= Math.round(rating);
-      stars += `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="${isFilled ? '#f59e0b' : '#e2e8f0'}" style="margin-right:2px;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
+      stars += `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="${isFilled ? "#f59e0b" : "#e2e8f0"}" style="margin-right:2px;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
     }
     return stars;
   };
 
-  const contentHTML = isCompleted && rev ? `
+  const contentHTML =
+    isCompleted && rev
+      ? `
     <div style="font-family:'Poppins',sans-serif;color:#0c2d5e;">
       <!-- Header Ruangan & Rapat Info -->
       <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
@@ -4610,14 +5434,14 @@ function openMeetingReviewModal(id) {
       <div style="background:linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);border:1.5px solid #fde68a;border-radius:16px;padding:20px;display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;box-shadow:0 4px 14px rgba(245,158,11,0.08);flex-wrap:wrap;gap:16px;">
         <div style="display:flex;align-items:center;gap:18px;">
           <div style="font-size:46px;font-weight:800;color:#b45309;line-height:1;letter-spacing:-1px;">
-            ${rev.rating ? Number(rev.rating).toFixed(1) : '5.0'}
+            ${rev.rating ? Number(rev.rating).toFixed(1) : "5.0"}
           </div>
           <div>
             <div style="display:flex;align-items:center;margin-bottom:4px;">
               ${renderStars(rev.rating || 5, 20)}
             </div>
             <div style="font-size:13.5px;font-weight:700;color:#92400e;">
-              ${(rev.rating || 5) >= 4.5 ? 'Sangat Puas & Direkomendasikan' : 'Puas'}
+              ${(rev.rating || 5) >= 4.5 ? "Sangat Puas & Direkomendasikan" : "Puas"}
             </div>
             <div style="font-size:11.5px;color:#b45309;">
               Berdasarkan evaluasi langsung dari pengguna setelah selesai rapat
@@ -4641,25 +5465,25 @@ function openMeetingReviewModal(id) {
           <div style="background:#ffffff;border:1px solid #eef2f6;border-radius:10px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;">
             <span style="font-size:12.5px;color:#334155;font-weight:500;">✨ Kebersihan & Kerapian</span>
             <span style="font-size:12.5px;font-weight:700;color:#b45309;display:flex;align-items:center;gap:3px;">
-              ${renderStars(rev.cleanliness || 5, 13)} ${(rev.cleanliness || 5)}.0
+              ${renderStars(rev.cleanliness || 5, 13)} ${rev.cleanliness || 5}.0
             </span>
           </div>
           <div style="background:#ffffff;border:1px solid #eef2f6;border-radius:10px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;">
             <span style="font-size:12.5px;color:#334155;font-weight:500;">🖥️ Fungsi Fasilitas (TV, Mic, dll)</span>
             <span style="font-size:12.5px;font-weight:700;color:#b45309;display:flex;align-items:center;gap:3px;">
-              ${renderStars(rev.facilities || 5, 13)} ${(rev.facilities || 5)}.0
+              ${renderStars(rev.facilities || 5, 13)} ${rev.facilities || 5}.0
             </span>
           </div>
           <div style="background:#ffffff;border:1px solid #eef2f6;border-radius:10px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;">
             <span style="font-size:12.5px;color:#334155;font-weight:500;">❄️ Kenyamanan & Suhu AC</span>
             <span style="font-size:12.5px;font-weight:700;color:#b45309;display:flex;align-items:center;gap:3px;">
-              ${renderStars(rev.comfort || 5, 13)} ${(rev.comfort || 5)}.0
+              ${renderStars(rev.comfort || 5, 13)} ${rev.comfort || 5}.0
             </span>
           </div>
           <div style="background:#ffffff;border:1px solid #eef2f6;border-radius:10px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;">
             <span style="font-size:12.5px;color:#334155;font-weight:500;">⚡ Kesiapan Ruang & Layanan</span>
             <span style="font-size:12.5px;font-weight:700;color:#b45309;display:flex;align-items:center;gap:3px;">
-              ${renderStars(rev.service || 5, 13)} ${(rev.service || 5)}.0
+              ${renderStars(rev.service || 5, 13)} ${rev.service || 5}.0
             </span>
           </div>
         </div>
@@ -4672,16 +5496,20 @@ function openMeetingReviewModal(id) {
         </div>
         <div style="background:#f8fafc;border-left:4px solid #f59e0b;border-top:1px solid #e2e8f0;border-right:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0;border-radius:0 12px 12px 0;padding:16px 18px;position:relative;">
           <div style="font-size:13.5px;line-height:1.6;color:#1e293b;font-style:italic;margin-bottom:12px;">
-            "${esc(rev.comment || 'Ruangan dan seluruh fasilitas berfungsi dengan sangat baik dan memuaskan.')}"
+            "${esc(rev.comment || "Ruangan dan seluruh fasilitas berfungsi dengan sangat baik dan memuaskan.")}"
           </div>
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;padding-top:10px;border-top:1px dashed #cbd5e1;">
             <div style="font-size:12px;color:#64748b;">
               👤 <b>${esc(rev.reviewer || m.requester)}</b> · 🕒 ${formatDate(rev.submittedAt || m.date)}
             </div>
             <div style="display:flex;gap:6px;flex-wrap:wrap;">
-              ${(rev.tags || ["Fasilitas Berfungsi Baik", "Sangat Bersih"]).map(t => `
+              ${(rev.tags || ["Fasilitas Berfungsi Baik", "Sangat Bersih"])
+                .map(
+                  (t) => `
                 <span style="background:#eff6ff;color:#1d4ed8;font-size:11px;font-weight:600;padding:3px 9px;border-radius:12px;border:1px solid #dbeafe;">${esc(t)}</span>
-              `).join("")}
+              `,
+                )
+                .join("")}
             </div>
           </div>
         </div>
@@ -4691,32 +5519,40 @@ function openMeetingReviewModal(id) {
       <div style="margin-bottom:22px;">
         <div style="font-size:13px;font-weight:700;color:#0c2d5e;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.4px;display:flex;align-items:center;justify-content:space-between;">
           <span>🏢 Balasan Pengelola Ruangan (Tampil di Booking Page)</span>
-          ${rev.adminReply ? `
+          ${
+            rev.adminReply
+              ? `
             <div style="display:flex;align-items:center;gap:8px;">
               <span style="font-size:11px;font-weight:700;color:#16a34a;background:#ecfdf5;padding:3px 10px;border-radius:12px;border:1px solid #bbf7d0;">✓ Sudah Dibalas</span>
               <button type="button" onclick="openReviewReplyModal('${m.id}')" style="background:#f0f9ff;color:#0284c7;border:1px solid #bae6fd;padding:3px 10px;border-radius:6px;font-size:11.5px;font-weight:700;cursor:pointer;">✏️ Ubah Balasan</button>
             </div>
-          ` : `<span style="font-size:11px;font-weight:600;color:#64748b;background:#f1f5f9;padding:3px 10px;border-radius:12px;">Belum Dibalas</span>`}
+          `
+              : `<span style="font-size:11px;font-weight:600;color:#64748b;background:#f1f5f9;padding:3px 10px;border-radius:12px;">Belum Dibalas</span>`
+          }
         </div>
-        ${rev.adminReply ? `
+        ${
+          rev.adminReply
+            ? `
           <div style="background:#f0fdf4;border-left:4px solid #16a34a;border-top:1px solid #bbf7d0;border-right:1px solid #bbf7d0;border-bottom:1px solid #bbf7d0;border-radius:0 12px 12px 0;padding:14px 16px;">
             <div style="font-size:13.5px;line-height:1.6;color:#14532d;">
-              "${esc(rev.adminReply.text || '')}"
+              "${esc(rev.adminReply.text || "")}"
             </div>
             <div style="font-size:11.5px;color:#15803d;margin-top:8px;font-weight:600;display:flex;align-items:center;gap:6px;">
-              <span>👤 ${esc(rev.adminReply.sender || 'Pengelola Ruang Rapat Kemnaker')}</span>
+              <span>👤 ${esc(rev.adminReply.sender || "Pengelola Ruang Rapat Kemnaker")}</span>
               <span>·</span>
-              <span>🕒 ${formatDate(rev.adminReply.repliedAt || '')}</span>
+              <span>🕒 ${formatDate(rev.adminReply.repliedAt || "")}</span>
             </div>
           </div>
-        ` : `
+        `
+            : `
           <div style="background:#f8fafc;border:1.5px dashed #cbd5e1;border-radius:10px;padding:14px 16px;color:#64748b;font-size:12.5px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
             <span>Belum ada balasan dari pengelola untuk ulasan ini. Balas sekarang agar pengguna dapat membacanya di Booking Page.</span>
             <button type="button" onclick="openReviewReplyModal('${m.id}')" style="background:#0284c7;color:#fff;border:none;padding:6px 14px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">
               + Tulis Balasan
             </button>
           </div>
-        `}
+        `
+        }
       </div>
 
       <!-- Actions Footer -->
@@ -4726,7 +5562,8 @@ function openMeetingReviewModal(id) {
         </button>
       </div>
     </div>
-  ` : `
+  `
+      : `
     <div style="font-family:'Poppins',sans-serif;color:#0c2d5e;text-align:center;padding:10px 0 10px;">
       <!-- Meeting Context -->
       <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px;margin-bottom:20px;text-align:left;">
@@ -4771,18 +5608,22 @@ function openReviewReplyModal(id) {
   const rev = getMeetingReview(m);
   if (!rev) return;
 
-  const currentReplyText = rev.adminReply ? (rev.adminReply.text || "") : "Terima kasih banyak atas ulasan dan penilaian yang diberikan. Kami senang fasilitas dan kenyamanan ruangan dapat mendukung kelancaran rapat Anda.";
-  const currentSender = rev.adminReply ? (rev.adminReply.sender || "") : "Pengelola Ruang Rapat Kemnaker";
+  const currentReplyText = rev.adminReply
+    ? rev.adminReply.text || ""
+    : "Terima kasih banyak atas ulasan dan penilaian yang diberikan. Kami senang fasilitas dan kenyamanan ruangan dapat mendukung kelancaran rapat Anda.";
+  const currentSender = rev.adminReply
+    ? rev.adminReply.sender || ""
+    : "Pengelola Ruang Rapat Kemnaker";
 
   const formHTML = `
     <div style="font-family:'Poppins',sans-serif;color:#0c2d5e;">
       <!-- Ringkasan Ulasan Pemesan -->
       <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:12px 14px;margin-bottom:16px;">
         <div style="font-size:12px;font-weight:700;color:#b45309;margin-bottom:4px;">
-          Ulasan dari ${esc(rev.reviewer || m.requester)} (⭐ ${rev.rating ? Number(rev.rating).toFixed(1) : '5.0'})
+          Ulasan dari ${esc(rev.reviewer || m.requester)} (⭐ ${rev.rating ? Number(rev.rating).toFixed(1) : "5.0"})
         </div>
         <div style="font-size:13px;font-style:italic;color:#78350f;line-height:1.5;">
-          "${esc(rev.comment || 'Ruangan dan fasilitas sangat memuaskan.')}"
+          "${esc(rev.comment || "Ruangan dan fasilitas sangat memuaskan.")}"
         </div>
       </div>
 
@@ -4818,7 +5659,9 @@ window.openReviewReplyModal = openReviewReplyModal;
 
 async function submitReviewReply(id) {
   const text = document.getElementById("replyTextInput")?.value?.trim();
-  const sender = document.getElementById("replySenderInput")?.value?.trim() || "Pengelola Ruang Rapat Kemnaker";
+  const sender =
+    document.getElementById("replySenderInput")?.value?.trim() ||
+    "Pengelola Ruang Rapat Kemnaker";
 
   if (!text) {
     alert("Harap masukkan teks balasan review.");
@@ -4834,15 +5677,15 @@ async function submitReviewReply(id) {
     adminReply: {
       text: text,
       sender: sender,
-      repliedAt: new Date().toISOString()
-    }
+      repliedAt: new Date().toISOString(),
+    },
   };
 
   state.meetings = state.meetings.map((item) => {
     if (String(item.id) === String(id)) {
       return {
         ...item,
-        review: updatedRev
+        review: updatedRev,
       };
     }
     return item;
@@ -4860,13 +5703,17 @@ async function submitReviewReply(id) {
     }
   } catch (e) {}
 
-  const updatedMeeting = state.meetings.find((x) => String(x.id) === String(id));
+  const updatedMeeting = state.meetings.find(
+    (x) => String(x.id) === String(id),
+  );
   if (updatedMeeting) {
     fetch("/api/dashboard/meetings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(updatedMeeting)
-    }).catch(err => console.error("Gagal sync review reply ke backend:", err));
+      body: JSON.stringify(updatedMeeting),
+    }).catch((err) =>
+      console.error("Gagal sync review reply ke backend:", err),
+    );
   }
 
   toast("Balasan review berhasil dikirimkan ke Booking Page!");
@@ -4876,6 +5723,34 @@ async function submitReviewReply(id) {
   }, 200);
 }
 window.submitReviewReply = submitReviewReply;
+
+// ----------------------------------------------------------------------
+// HELPER GENERATE QR CODE SVG SECARA OFFLINE / STANDALONE
+// ----------------------------------------------------------------------
+function generateQrSvg(text, size = 210) {
+  try {
+    const qrc = window.qrcodegen || (typeof qrcodegen !== "undefined" ? qrcodegen : null);
+    if (qrc && qrc.QrCode) {
+      const qr = qrc.QrCode.encodeText(text, qrc.QrCode.Ecc.MEDIUM);
+      const border = 2;
+      const qrSize = qr.size + border * 2;
+      let path = "";
+      for (let y = 0; y < qr.size; y++) {
+        for (let x = 0; x < qr.size; x++) {
+          if (qr.getModule(x, y)) {
+            path += `M${x + border},${y + border}h1v1h-1z `;
+          }
+        }
+      }
+      return `<svg viewBox="0 0 ${qrSize} ${qrSize}" width="${size}" height="${size}" style="display:block;border-radius:6px;shape-rendering:crispEdges;" role="img" aria-label="QR Code"><path fill="#ffffff" d="M0,0 h${qrSize}v${qrSize}H0z"/><path fill="#000000" d="${path}"/></svg>`;
+    }
+  } catch (e) {
+    console.error("Local QR generation error:", e);
+  }
+  const qrImgUrl = `https://api.qrserver.com/v1/create-qr-code/?size=260x260&margin=10&data=${encodeURIComponent(text)}`;
+  return `<img src="${qrImgUrl}" alt="QR Code Rapat" style="width:${size}px;height:${size}px;display:block;border-radius:6px;" />`;
+}
+window.generateQrSvg = generateQrSvg;
 
 // ----------------------------------------------------------------------
 // MODAL QR CODE & BARCODE DINAMIS (SISTEM 1: PRESENSI MANDIRI TANPA ADMIN)
@@ -4896,70 +5771,87 @@ function openMeetingQRModal(id) {
   }
 
   const meetingUrl = `${window.location.origin}/meeting/${m.id}`;
-  const qrImgUrl = `https://api.qrserver.com/v1/create-qr-code/?size=260x260&margin=10&data=${encodeURIComponent(meetingUrl)}`;
+  const qrSvgHtml = generateQrSvg(meetingUrl, 195);
 
-  const modalBackdrop = document.getElementById("modal");
-  if (!modalBackdrop) return;
+  let modalBackdrop = document.getElementById("modal");
+  if (!modalBackdrop) {
+    modalBackdrop = document.createElement("div");
+    modalBackdrop.id = "modal";
+    modalBackdrop.className = "modal-backdrop";
+    document.body.appendChild(modalBackdrop);
+  }
+
+  const phoneSvg = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-1.5px;"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>`;
+  const closeSvg = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+  const pinSvg = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-1.5px;margin-right:2px;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>`;
+  const calSvg = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-1.5px;margin-right:2px;"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
+  const bulbSvg = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"/></svg>`;
+  const camSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;margin-right:4px;"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>`;
+  const userSvg = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-1px;margin-right:2px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
+  const docSvg = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-1px;margin-right:2px;"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>`;
 
   modalBackdrop.innerHTML = `
-    <div class="modal" style="max-width:440px;width:92%;margin:auto;max-height:calc(100vh - 40px);overflow-y:auto;text-align:center;padding:22px 24px;border-radius:20px;font-family:'Poppins',sans-serif;box-sizing:border-box;box-shadow:0 18px 40px rgba(12,45,94,0.18);">
+    <style>
+      .qr-custom-modal::-webkit-scrollbar { display: none; }
+    </style>
+    <div class="modal qr-custom-modal" style="max-width:440px;width:92%;margin:auto;max-height:calc(100vh - 30px);overflow-y:auto;scrollbar-width:none;-ms-overflow-style:none;text-align:center;padding:22px 24px;border-radius:24px;font-family:'Poppins',sans-serif;box-sizing:border-box;box-shadow:0 20px 48px rgba(12,45,94,0.16);background:#fff;">
       <!-- Header Bar -->
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-        <span style="font-size:11px;font-weight:700;color:#0369a1;background:#e0f2fe;padding:4px 12px;border-radius:20px;display:inline-flex;align-items:center;gap:6px;border:1px solid #bae6fd;">
-          <span style="font-size:13px;">📱</span> QR Presensi Mandiri
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <span style="font-size:12px;font-weight:600;color:#0284c7;background:#e0f2fe;padding:4px 12px;border-radius:20px;display:inline-flex;align-items:center;gap:6px;">
+          ${phoneSvg} <span>QR Presensi Mandiri</span>
         </span>
-        <button type="button" onclick="closeModal()" style="background:#f1f5f9;border:none;width:28px;height:28px;border-radius:50%;font-size:18px;color:#64748b;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;line-height:1;transition:all 0.15s;" onmouseover="this.style.background='#e2e8f0';this.style.color='#0f172a'" onmouseout="this.style.background='#f1f5f9';this.style.color='#64748b'" title="Tutup">&times;</button>
+        <button type="button" onclick="closeModal()" style="background:#f1f5f9;border:none;width:28px;height:28px;border-radius:50%;color:#64748b;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:all 0.15s;" onmouseover="this.style.background='#e2e8f0';this.style.color='#0f172a'" onmouseout="this.style.background='#f1f5f9';this.style.color='#64748b'" title="Tutup">${closeSvg}</button>
       </div>
 
       <!-- Agenda Title & Details -->
-      <h3 style="margin:6px 0 3px;font-size:17px;font-weight:800;color:#0c2d5e;letter-spacing:-0.2px;">${esc(m.title)}</h3>
-      <p style="margin:0 0 10px;font-size:11.5px;color:#64748b;display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap;">
-        <span>📍 <b>${esc(m.room)}</b></span>
-        <span style="color:#cbd5e1;">•</span>
-        <span>📅 ${formatDate(m.date)} (${m.start} - ${m.end} WIB)</span>
+      <h3 style="margin:4px 0 4px;font-size:22px;font-weight:800;color:#0f172a;letter-spacing:-0.3px;line-height:1.2;">${esc(m.title)}</h3>
+      <p style="margin:0 0 12px;font-size:12px;color:#64748b;display:flex;align-items:center;justify-content:center;gap:4px;flex-wrap:wrap;line-height:1.3;">
+        <span>${pinSvg}${esc(m.room)}</span>
+        <span style="color:#cbd5e1;margin:0 4px;">•</span>
+        <span>${calSvg}${formatDate(m.date)} (${m.start} - ${m.end} WIB)</span>
       </p>
 
       <!-- Alert: Sistem Presensi Mandiri Otomatis -->
-      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:8px 12px;margin-bottom:12px;text-align:left;display:flex;align-items:center;gap:8px;">
-        <span style="font-size:16px;flex-shrink:0;">💡</span>
-        <div style="font-size:11px;color:#166534;line-height:1.4;">
-          <strong>Presensi Otomatis:</strong> Peserta/PIC cukup scan QR di bawah ini untuk <strong>Check-In</strong> &amp; <strong>Check-Out</strong> mandiri tanpa perlu tindakan admin.
+      <div style="background:#ebfbf0;border:1px solid #c7f3d6;border-radius:12px;padding:10px 14px;margin-bottom:12px;text-align:left;display:flex;align-items:center;gap:10px;">
+        ${bulbSvg}
+        <div style="font-size:11.5px;color:#166534;line-height:1.45;">
+          <strong style="font-weight:700;">Presensi Otomatis:</strong> Scan QR di bawah untuk Check-In &amp; Check-Out mandiri.
         </div>
       </div>
 
       <!-- Single QR Code Container -->
-      <div style="background:#ffffff;border:1.5px solid #e2e8f0;border-radius:16px;padding:16px;display:flex;flex-direction:column;align-items:center;margin-bottom:12px;box-shadow:0 4px 16px rgba(12,45,94,0.04);">
-        <div style="background:#ffffff;padding:10px;border-radius:14px;box-shadow:0 6px 20px rgba(12,45,94,0.08);border:1px solid #edf2f7;margin-bottom:10px;">
-          <img src="${qrImgUrl}" alt="QR Code Rapat" style="width:185px;height:185px;display:block;border-radius:6px;" />
+      <div style="background:#ffffff;border:1.5px solid #edf2f7;border-radius:20px;padding:16px 14px 14px;display:flex;flex-direction:column;align-items:center;margin-bottom:12px;box-shadow:0 2px 10px rgba(0,0,0,0.02);">
+        <div style="background:#ffffff;padding:8px;border-radius:16px;box-shadow:0 4px 16px rgba(12,45,94,0.05);border:1px solid #f1f5f9;margin-bottom:10px;display:flex;justify-content:center;align-items:center;">
+          ${qrSvgHtml}
         </div>
 
-        <div style="font-size:11px;color:#475569;font-weight:600;display:flex;align-items:center;gap:5px;margin-bottom:6px;">
-          <span>🎯</span> Pindai dengan Kamera Smartphone:
+        <div style="font-size:11.5px;color:#64748b;font-weight:500;display:flex;align-items:center;justify-content:center;margin-bottom:8px;">
+          ${camSvg}Pindai dengan Kamera Smartphone:
         </div>
-        <div style="display:flex;gap:5px;flex-wrap:wrap;justify-content:center;">
-          <span style="background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700;">✓ Check-In</span>
-          <span style="background:#e0f2fe;color:#0369a1;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700;">✍️ Daftar Hadir</span>
-          <span style="background:#fee2e2;color:#b91c1c;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700;">Check-Out</span>
-          <span style="background:#f1f5f9;color:#475569;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700;">📎 Materi</span>
+        <div style="display:flex;gap:5px;flex-wrap:nowrap;justify-content:center;align-items:center;width:100%;">
+          <span style="background:#dcfce7;color:#15803d;padding:3.5px 8px;border-radius:6px;font-size:10.5px;font-weight:600;white-space:nowrap;display:inline-flex;align-items:center;gap:3px;">✓ Check-In</span>
+          <span style="background:#e0f2fe;color:#0284c7;padding:3.5px 8px;border-radius:6px;font-size:10.5px;font-weight:600;white-space:nowrap;display:inline-flex;align-items:center;">${userSvg}Daftar Hadir</span>
+          <span style="background:#fee2e2;color:#dc2626;padding:3.5px 8px;border-radius:6px;font-size:10.5px;font-weight:600;white-space:nowrap;display:inline-flex;align-items:center;">Check-Out</span>
+          <span style="background:#f1f5f9;color:#475569;padding:3.5px 8px;border-radius:6px;font-size:10.5px;font-weight:600;white-space:nowrap;display:inline-flex;align-items:center;">${docSvg}Materi</span>
         </div>
       </div>
 
       <!-- URL Link & Copy Button -->
-      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:6px 10px;font-size:11px;color:#334155;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:8px;">
-        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:monospace;flex:1;text-align:left;color:#475569;">${meetingUrl}</span>
-        <button type="button" onclick="navigator.clipboard.writeText('${meetingUrl}'); toast('✓ Link QR Pass berhasil disalin!');" style="background:#0c2d5e;color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:11px;font-weight:600;cursor:pointer;flex-shrink:0;">Salin</button>
+      <div style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:10px;padding:5px 6px 5px 12px;font-size:11.5px;color:#334155;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:8px;">
+        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:monospace;flex:1;text-align:left;color:#64748b;font-size:11px;">${meetingUrl}</span>
+        <button type="button" onclick="navigator.clipboard.writeText('${meetingUrl}'); toast('✓ Link QR Pass berhasil disalin!');" style="background:#2563eb;color:#fff;border:none;border-radius:8px;padding:6.5px 16px;font-size:12px;font-weight:600;cursor:pointer;flex-shrink:0;transition:background 0.15s;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'">Salin</button>
       </div>
 
       <!-- Action Buttons -->
-      <div style="display:flex;gap:8px;">
-        <a href="${meetingUrl}" target="_blank" style="flex:1.2;background:#16a34a;color:#fff;border:none;border-radius:10px;padding:10px 14px;font-size:12px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:6px;transition:background 0.15s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
+      <div style="display:flex;gap:8px;width:100%;">
+        <a href="${meetingUrl}" target="_blank" style="flex:1.2;background:#16a34a;color:#fff;border:none;border-radius:10px;height:40px;font-size:12px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:4px;white-space:nowrap;transition:background 0.15s;padding:0 6px;box-sizing:border-box;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
           <span>Buka Pass Rapat</span>
-          <span>↗</span>
+          <span style="font-size:13px;line-height:1;">↗</span>
         </a>
-        <button type="button" onclick="window.open('${meetingUrl}', '_blank')" style="flex:1;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:10px;padding:10px 12px;font-size:12px;font-weight:700;cursor:pointer;">
+        <button type="button" onclick="window.open('${meetingUrl}', '_blank')" style="flex:1;background:#ffffff;color:#1e293b;border:1px solid #cbd5e1;border-radius:10px;height:40px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;transition:background 0.15s;padding:0 6px;box-sizing:border-box;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='#ffffff'">
           Cetak Pass
         </button>
-        <button type="button" onclick="closeModal()" style="flex:0.8;background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:10px;padding:10px 12px;font-size:12px;font-weight:600;cursor:pointer;">
+        <button type="button" onclick="closeModal()" style="flex:0.85;background:#f1f5f9;color:#475569;border:none;border-radius:10px;height:40px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;transition:background 0.15s;padding:0 6px;box-sizing:border-box;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">
           Tutup
         </button>
       </div>
@@ -5064,15 +5956,18 @@ function openEmergencyCancelModal(id) {
 }
 window.openEmergencyCancelModal = openEmergencyCancelModal;
 
-window.applyEmergencyReasonTemplate = function(val) {
+window.applyEmergencyReasonTemplate = function (val) {
   const area = document.getElementById("emgCancelReason");
   if (!area) return;
   if (val === "pimpinan") {
-    area.value = "Ruangan dialihkan untuk kebutuhan Rapat Darurat Prioritas Pimpinan / Kepala Biro Keuangan & BMN. Jadwal pemesanan Anda dibatalkan secara darurat.";
+    area.value =
+      "Ruangan dialihkan untuk kebutuhan Rapat Darurat Prioritas Pimpinan / Kepala Biro Keuangan & BMN. Jadwal pemesanan Anda dibatalkan secara darurat.";
   } else if (val === "kementerian") {
-    area.value = "Ruangan dialihkan untuk kebutuhan Rapat Koordinasi Mendesak Tingkat Kementerian Ketenagakerjaan RI.";
+    area.value =
+      "Ruangan dialihkan untuk kebutuhan Rapat Koordinasi Mendesak Tingkat Kementerian Ketenagakerjaan RI.";
   } else if (val === "maintenance") {
-    area.value = "Ruangan mendadak dalam pemeliharaan sarana darurat (AC/perangkat kelistrikan) demi keamanan dan kelancaran kegiatan.";
+    area.value =
+      "Ruangan mendadak dalam pemeliharaan sarana darurat (AC/perangkat kelistrikan) demi keamanan dan kelancaran kegiatan.";
   } else {
     area.value = "";
     area.focus();
@@ -5083,7 +5978,9 @@ async function confirmEmergencyCancel(id) {
   const m = state.meetings.find((x) => String(x.id) === String(id));
   if (!m) return;
 
-  const reason = document.getElementById("emgCancelReason")?.value?.trim() || "Ruangan dialihkan untuk rapat darurat prioritas pimpinan.";
+  const reason =
+    document.getElementById("emgCancelReason")?.value?.trim() ||
+    "Ruangan dialihkan untuk rapat darurat prioritas pimpinan.";
   const currentUser = getCurrentUser() || { name: "Administrator" };
 
   // Update status rapat menjadi Dibatalkan
@@ -5094,7 +5991,9 @@ async function confirmEmergencyCancel(id) {
   m.isEmergency = true;
 
   // 1. Simpan ke state.meetings & localStorage
-  state.meetings = state.meetings.map((x) => (String(x.id) === String(id) ? { ...m } : x));
+  state.meetings = state.meetings.map((x) =>
+    String(x.id) === String(id) ? { ...m } : x,
+  );
   try {
     getAppStorage().setItem("app_meetings", JSON.stringify(state.meetings));
     localStorage.setItem("app_meetings", JSON.stringify(state.meetings));
@@ -5103,7 +6002,9 @@ async function confirmEmergencyCancel(id) {
   // 2. Kirim notifikasi sistem darurat ke antrean notifikasi (app_notifications)
   try {
     let notifs = [];
-    const stored = getAppStorage().getItem("app_notifications") || localStorage.getItem("app_notifications");
+    const stored =
+      getAppStorage().getItem("app_notifications") ||
+      localStorage.getItem("app_notifications");
     if (stored) notifs = JSON.parse(stored);
 
     const cancelNotif = {
@@ -5121,11 +6022,13 @@ async function confirmEmergencyCancel(id) {
       message: `Yth. ${m.requester || "Pemesan"}, pemesanan ruangan ${m.room} pada tanggal ${formatDate(m.date)} (${m.start} - ${m.end}) untuk agenda "${m.title}" TELAH DIBATALKAN DARURAT karena: ${reason}.`,
       createdAt: new Date().toISOString(),
       read: false,
-      isEmergency: true
+      isEmergency: true,
     };
 
     // Update notifikasi lama yang terkait atau masukkan notifikasi baru di paling atas
-    const existingIdx = notifs.findIndex((n) => String(n.meetingId) === String(m.id));
+    const existingIdx = notifs.findIndex(
+      (n) => String(n.meetingId) === String(m.id),
+    );
     if (existingIdx !== -1) {
       notifs[existingIdx] = { ...notifs[existingIdx], ...cancelNotif };
     } else {
@@ -5153,14 +6056,16 @@ async function confirmEmergencyCancel(id) {
     await fetch("/api/dashboard/meetings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(m)
+      body: JSON.stringify(m),
     });
   } catch (err) {
     console.error("Gagal sync pembatalan ke backend:", err);
   }
 
   closeModal();
-  toast("🚨 Rapat berhasil dibatalkan darurat dan notifikasi telah dikirimkan ke pemesan!");
+  toast(
+    "🚨 Rapat berhasil dibatalkan darurat dan notifikasi telah dikirimkan ke pemesan!",
+  );
   render();
 }
 window.confirmEmergencyCancel = confirmEmergencyCancel;
@@ -5176,7 +6081,7 @@ function openReviewEditForm(id) {
     service: 5,
     comment: "",
     reviewer: m.requester || "User Pemesan",
-    tags: ["Fasilitas Lengkap", "Sangat Bersih"]
+    tags: ["Fasilitas Lengkap", "Sangat Bersih"],
   };
 
   const formHTML = `
@@ -5219,8 +6124,11 @@ window.openReviewEditForm = openReviewEditForm;
 
 async function submitMeetingReview(id) {
   const rating = Number(document.getElementById("revRatingInput")?.value) || 5;
-  const reviewer = document.getElementById("revReviewerInput")?.value?.trim() || "User Pemesan";
-  const comment = document.getElementById("revCommentInput")?.value?.trim() || "";
+  const reviewer =
+    document.getElementById("revReviewerInput")?.value?.trim() ||
+    "User Pemesan";
+  const comment =
+    document.getElementById("revCommentInput")?.value?.trim() || "";
 
   if (!comment) {
     alert("Harap masukkan komentar / ulasan fasilitas ruangan.");
@@ -5236,7 +6144,10 @@ async function submitMeetingReview(id) {
     comment: comment,
     reviewer: reviewer,
     submittedAt: new Date().toISOString(),
-    tags: rating >= 4.5 ? ["Fasilitas Lengkap", "Sangat Bersih", "Sangat Puas"] : ["Cukup Baik"]
+    tags:
+      rating >= 4.5
+        ? ["Fasilitas Lengkap", "Sangat Bersih", "Sangat Puas"]
+        : ["Cukup Baik"],
   };
 
   state.meetings = state.meetings.map((m) => {
@@ -5244,7 +6155,7 @@ async function submitMeetingReview(id) {
       return {
         ...m,
         status: "Selesai",
-        review: reviewObj
+        review: reviewObj,
       };
     }
     return m;
@@ -5255,13 +6166,15 @@ async function submitMeetingReview(id) {
     localStorage.setItem("app_meetings", JSON.stringify(state.meetings));
   } catch (e) {}
 
-  const updatedMeeting = state.meetings.find((x) => String(x.id) === String(id));
+  const updatedMeeting = state.meetings.find(
+    (x) => String(x.id) === String(id),
+  );
   if (updatedMeeting) {
     fetch("/api/dashboard/meetings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(updatedMeeting)
-    }).catch(err => console.error("Gagal sync review ke backend:", err));
+      body: JSON.stringify(updatedMeeting),
+    }).catch((err) => console.error("Gagal sync review ke backend:", err));
   }
 
   toast("Rating & review ruangan berhasil disimpan!");
@@ -5273,7 +6186,8 @@ async function submitMeetingReview(id) {
 window.submitMeetingReview = submitMeetingReview;
 
 async function deleteMeeting(id) {
-  if (!can("manageMeeting")) return denyAccess("Penghapusan rapat dilakukan oleh Admin.");
+  if (!can("manageMeeting"))
+    return denyAccess("Penghapusan rapat dilakukan oleh Admin.");
   if (confirm("Hapus rapat ini?")) {
     state.meetings = state.meetings.filter((x) => x.id !== id);
     render();
@@ -5469,28 +6383,59 @@ window.removeRoomImage = removeRoomImage;
 
 function getFacilitySvgIcon(label) {
   const norm = (label || "").toLowerCase();
-  if (norm.includes("kapasitas") || norm.includes("peserta") || norm.includes("orang")) {
+  if (
+    norm.includes("kapasitas") ||
+    norm.includes("peserta") ||
+    norm.includes("orang")
+  ) {
     return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`;
   }
-  if (norm.includes("tv") || norm.includes("monitor") || norm.includes("layar")) {
+  if (
+    norm.includes("tv") ||
+    norm.includes("monitor") ||
+    norm.includes("layar")
+  ) {
     return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>`;
   }
-  if (norm.includes("ac") || norm.includes("air") || norm.includes("pendingin")) {
+  if (
+    norm.includes("ac") ||
+    norm.includes("air") ||
+    norm.includes("pendingin")
+  ) {
     return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z"/><path d="M7 17v2"/><path d="M12 17v3"/><path d="M17 17v2"/></svg>`;
   }
-  if (norm.includes("mic") || norm.includes("sound") || norm.includes("audio")) {
+  if (
+    norm.includes("mic") ||
+    norm.includes("sound") ||
+    norm.includes("audio")
+  ) {
     return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>`;
   }
   if (norm.includes("speaker")) {
     return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>`;
   }
-  if (norm.includes("dispenser") || norm.includes("minum") || norm.includes("water")) {
+  if (
+    norm.includes("dispenser") ||
+    norm.includes("minum") ||
+    norm.includes("water")
+  ) {
     return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>`;
   }
-  if (norm.includes("stopkontak") || norm.includes("stop kontak") || norm.includes("plug") || norm.includes("colokan") || norm.includes("outlet")) {
+  if (
+    norm.includes("stopkontak") ||
+    norm.includes("stop kontak") ||
+    norm.includes("plug") ||
+    norm.includes("colokan") ||
+    norm.includes("outlet")
+  ) {
     return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22v-5"/><path d="M9 8V2"/><path d="M15 8V2"/><path d="M18 8v5a6 6 0 0 1-12 0V8z"/></svg>`;
   }
-  if (norm.includes("kabel") || norm.includes("cable") || norm.includes("hdmi") || norm.includes("vga")) {
+  if (
+    norm.includes("kabel") ||
+    norm.includes("cable") ||
+    norm.includes("hdmi") ||
+    norm.includes("vga")
+  ) {
     return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="6" height="7" rx="1"/><rect x="14" y="2" width="6" height="7" rx="1"/><path d="M7 9v4a5 5 0 0 0 10 0V9"/><line x1="12" y1="18" x2="12" y2="22"/></svg>`;
   }
   return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
@@ -5592,7 +6537,8 @@ window.updateFacilityRowIcon = function (input) {
 };
 
 function openRoomModal(id = null) {
-  if (!can("manageRoom")) return denyAccess("Pengelolaan ruangan dilakukan oleh Admin.");
+  if (!can("manageRoom"))
+    return denyAccess("Pengelolaan ruangan dilakukan oleh Admin.");
   const isEdit = id !== null && id !== undefined;
   const r = isEdit
     ? state.rooms.find((x) => x.id === id)
@@ -5926,7 +6872,10 @@ function viewRoomDetail(id) {
     ${
       facilities.length
         ? `<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 14px;margin-bottom:14px;font-size:12.5px;">${facilities
-            .map((f) => `<div><b style="color:#0c2d5e;">${esc(f.label)}:</b> <span style="color:#4b6a90;">${esc(f.value)}</span></div>`)
+            .map(
+              (f) =>
+                `<div><b style="color:#0c2d5e;">${esc(f.label)}:</b> <span style="color:#4b6a90;">${esc(f.value)}</span></div>`,
+            )
             .join("")}</div>`
         : ""
     }
@@ -5934,7 +6883,10 @@ function viewRoomDetail(id) {
     ${
       todays.length
         ? todays
-            .map((m) => `<div style="display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid #eef3f9;font-size:12.5px;"><span><b>${m.start}-${m.end}</b> · ${esc(m.title)}</span>${badge(m.status)}</div>`)
+            .map(
+              (m) =>
+                `<div style="display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid #eef3f9;font-size:12.5px;"><span><b>${m.start}-${m.end}</b> · ${esc(m.title)}</span>${badge(m.status)}</div>`,
+            )
             .join("")
         : `<p class="muted" style="font-size:12.5px;">Tidak ada jadwal hari ini.</p>`
     }
@@ -6012,7 +6964,7 @@ function openUserModal(id = null) {
         </div>
         <div class="crm-field">
           <label>Password (Untuk Login) ${id ? '<span style="font-size:11px;color:#718096;font-weight:normal;">(Opsional, kosongkan jika tidak diubah)</span>' : '<span style="color:#e53e3e;">*</span>'}</label>
-          <input id="uPassword" type="password" placeholder="${id ? 'Kosongkan jika tidak ingin mengubah password' : 'Masukkan password'}">
+          <input id="uPassword" type="password" placeholder="${id ? "Kosongkan jika tidak ingin mengubah password" : "Masukkan password"}">
         </div>
       </div>
 
@@ -6386,9 +7338,10 @@ function globalSearch(q) {
 
 function getReportData() {
   const isReportsPage = state.page === "reports";
-  const list = isReportsPage && typeof getFilteredReportMeetings === "function"
-    ? getFilteredReportMeetings()
-    : state.meetings;
+  const list =
+    isReportsPage && typeof getFilteredReportMeetings === "function"
+      ? getFilteredReportMeetings()
+      : state.meetings;
   return list.map((m, i) => ({
     No: i + 1,
     "Judul Rapat": m.title || "",
@@ -6699,6 +7652,7 @@ async function fetchDashboardData(showToast = false) {
 // SINKRONISASI REAL-TIME & NOTIFIKASI LIVE
 // ----------------------------------------------------------------------
 let knownMeetingIds = new Set();
+let syncedAutoCompletedIds = new Set();
 let hasInitializedSync = false;
 
 function initNotificationSync() {
@@ -6727,8 +7681,10 @@ function initNotificationSync() {
 
       // Cek apakah ada rapat yang otomatis selesai
       const autoCompleted = latestMeetings.filter((lm) => {
+        const idStr = String(lm.id);
+        if (syncedAutoCompletedIds.has(idStr)) return false;
         const prev = state.meetings.find(
-          (sm) => String(sm.id) === String(lm.id),
+          (sm) => String(sm.id) === idStr,
         );
         return (
           prev &&
@@ -6739,6 +7695,11 @@ function initNotificationSync() {
 
       if (autoCompleted.length > 0) {
         autoCompleted.forEach((ac) => {
+          const idStr = String(ac.id);
+          syncedAutoCompletedIds.add(idStr);
+          const target = state.meetings.find((sm) => String(sm.id) === idStr);
+          if (target) target.status = "Selesai";
+
           fetch("/api/dashboard/meetings", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -6833,45 +7794,66 @@ setInterval(() => fetchDashboardData(false), 30000);
 function logout(e) {
   if (e) e.stopPropagation();
   if (confirm("Apakah Anda yakin ingin keluar?")) {
-    const storage = getAppStorage();
-    storage.removeItem("isAuthenticated");
-    storage.removeItem("currentUser");
-    storage.removeItem("savedAccounts");
+    const authKeys = [
+      "isAuthenticated",
+      "currentUser",
+      "savedAccounts",
+      "dashboard_isAuthenticated",
+      "dashboard_currentUser",
+      "dashboard_savedAccounts",
+      "booking_isAuthenticated",
+      "booking_currentUser",
+      "booking_savedAccounts",
+      "booking_isAddingAccount",
+      "isAddingAccount",
+    ];
     try {
-      localStorage.removeItem("isAuthenticated");
-      localStorage.removeItem("currentUser");
-      localStorage.removeItem("savedAccounts");
-      sessionStorage.removeItem("isAuthenticated");
-      sessionStorage.removeItem("currentUser");
-      sessionStorage.removeItem("savedAccounts");
-      sessionStorage.removeItem("isAddingAccount");
-      if (window.parent) {
-        if (window.parent.localStorage) {
-          window.parent.localStorage.removeItem("isAuthenticated");
-          window.parent.localStorage.removeItem("currentUser");
-          window.parent.localStorage.removeItem("savedAccounts");
-        }
-        if (window.parent.sessionStorage) {
-          window.parent.sessionStorage.removeItem("isAuthenticated");
-          window.parent.sessionStorage.removeItem("currentUser");
-          window.parent.sessionStorage.removeItem("savedAccounts");
-          window.parent.sessionStorage.removeItem("isAddingAccount");
-        }
-      }
+      const storage = getAppStorage();
+      authKeys.forEach((k) => {
+        try { storage?.removeItem(k); } catch (err) {}
+        try { localStorage?.removeItem(k); } catch (err) {}
+        try { sessionStorage?.removeItem(k); } catch (err) {}
+        try { window.parent?.localStorage?.removeItem(k); } catch (err) {}
+        try { window.parent?.sessionStorage?.removeItem(k); } catch (err) {}
+        try { window.top?.localStorage?.removeItem(k); } catch (err) {}
+        try { window.top?.sessionStorage?.removeItem(k); } catch (err) {}
+      });
     } catch (err) {}
-    window.parent.location.href = "/login";
+    if (window.parent && window.parent.location) {
+      window.parent.location.href = "/login?portal=dashboard&logout=true";
+    } else {
+      window.location.href = "/login?portal=dashboard&logout=true";
+    }
   }
 }
 
 function getCurrentUser() {
-  let u = { username: "admin", role: "Admin", name: "Admin Utama" };
+  let u = null;
   try {
-    const s = getAppStorage().getItem("currentUser");
-    if (s) {
-      const parsed = JSON.parse(s);
-      if (parsed) u = parsed;
+    const storages = [
+      window.sessionStorage,
+      window.parent && window.parent.sessionStorage,
+      getAppStorage(),
+      window.localStorage,
+      window.parent && window.parent.localStorage,
+    ];
+    for (const s of storages) {
+      if (s) {
+        const raw = s.getItem("currentUser") || s.getItem("dashboard_currentUser");
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed && (parsed.username || parsed.name || parsed.role)) {
+            u = parsed;
+            break;
+          }
+        }
+      }
     }
   } catch (e) {}
+  if (!u) {
+    u = { username: "admin", role: "Admin", name: "Admin Utama" };
+  }
+  u.role = getRoleLabel(u.role);
   return u;
 }
 
@@ -6881,6 +7863,27 @@ function isMainAdmin() {
   return (
     u.username === "admin" ||
     u.name === "Admin Utama" ||
-    ((u.role === "Admin" || u.role === "Administrator") && (!u.username || u.username === "admin"))
+    ((u.role === "Admin" || u.role === "Administrator") &&
+      (!u.username || u.username === "admin"))
   );
 }
+
+// Global window exposure for inline HTML event handlers
+window.getCurrentUser = getCurrentUser;
+window.approveMeeting = approveMeeting;
+window.rejectMeeting = rejectMeeting;
+window.confirmReject = confirmReject;
+window.approveMeetingFromNotif = approveMeetingFromNotif;
+window.rejectMeetingFromNotif = rejectMeetingFromNotif;
+window.viewMeetingFromNotif = viewMeetingFromNotif;
+window.markAllNotifsRead = markAllNotifsRead;
+window.switchToAccount = switchToAccount;
+window.toggleProfileMenu = toggleProfileMenu;
+window.switchRole = switchRole;
+window.logout = logout;
+window.viewMeeting = viewMeeting;
+window.filterMeetingTable = filterMeetingTable;
+window.getAllAvailableAccounts = getAllAvailableAccounts;
+window.openMeetingQRModal = openMeetingQRModal;
+window.generateQrSvg = generateQrSvg;
+window.closeModal = closeModal;

@@ -426,8 +426,8 @@ async function getDashboardData() {
           approvedBy: localMeeting.approvedBy || calendarMeeting.approvedBy || "",
           approvedAt: localMeeting.approvedAt || calendarMeeting.approvedAt || "",
           materials: localMeeting.materials || calendarMeeting.materials || [],
-          bookedBy: calendarMeeting.bookedBy || localMeeting.bookedBy || localMeeting.requester || "",
-          bookedByUsername: calendarMeeting.bookedByUsername || localMeeting.bookedByUsername || "",
+          bookedBy: localMeeting.bookedBy || localMeeting.requester || calendarMeeting.bookedBy || "",
+          bookedByUsername: localMeeting.bookedByUsername || calendarMeeting.bookedByUsername || "",
           attendees: localMeeting.attendees || calendarMeeting.attendees || [],
           review: localMeeting.review || calendarMeeting.review || null,
           checkInAt: localMeeting.checkInAt || calendarMeeting.checkInAt || null,
@@ -508,6 +508,33 @@ async function getDashboardData() {
     });
   }
 
+  // Deduplikasi ketat jadwal rapat berdasarkan ID, googleId, dan slot waktu (tanggal + jam mulai + ruangan)
+  const uniqueMeetings = [];
+  const seenSlotKeys = new Set();
+  const seenMeetingIds = new Set();
+
+  for (const m of meetings) {
+    if (!m) continue;
+    const idKey = String(m.id || "").trim();
+    const gidKey = m.googleId ? String(m.googleId).trim() : "";
+    const origKey = m.originalId ? String(m.originalId).trim() : "";
+    const normRoom = String(m.room || "").toLowerCase().replace(/\s+/g, "");
+    const slotKey = `${m.date}_${m.start}_${normRoom}`;
+
+    if (idKey && seenMeetingIds.has(idKey)) continue;
+    if (gidKey && seenMeetingIds.has(gidKey)) continue;
+    if (origKey && seenMeetingIds.has(origKey)) continue;
+    if (m.date && m.start && normRoom && seenSlotKeys.has(slotKey)) continue;
+
+    if (idKey) seenMeetingIds.add(idKey);
+    if (gidKey) seenMeetingIds.add(gidKey);
+    if (origKey) seenMeetingIds.add(origKey);
+    if (m.date && m.start && normRoom) seenSlotKeys.add(slotKey);
+
+    uniqueMeetings.push(m);
+  }
+  meetings = uniqueMeetings;
+
   // Update status ruangan secara dinamis berdasarkan rapat yang sedang berjalan
   const rooms = (store.rooms || []).map((room) => {
     const isBusy = meetings.some(
@@ -555,6 +582,20 @@ async function saveMeeting(meeting) {
   if (isPending) {
     meeting.status = "Menunggu Approval";
   }
+
+  // Cari apakah rapat ini sudah ada di store lokal (berdasarkan ID, originalId, googleId, atau slot ruangan)
+  const matchedStored = (store.meetings || []).find((m) => {
+    if (originalId && (String(m.id) === String(originalId) || (m.originalId && String(m.originalId) === String(originalId)))) return true;
+    if (meeting.id && (String(m.id) === String(meeting.id) || (m.originalId && String(m.originalId) === String(meeting.id)))) return true;
+    if (meeting.googleId && (m.googleId === meeting.googleId || String(m.id) === String(meeting.googleId))) return true;
+    const sameDate = m.date === meeting.date;
+    const sameTime = m.start === meeting.start;
+    const normMRoom = (m.room || "").toLowerCase().replace(/\s+/g, "");
+    const normMeetRoom = (meeting.room || "").toLowerCase().replace(/\s+/g, "");
+    const sameRoom = normMRoom && normMeetRoom && (normMRoom.includes(normMeetRoom) || normMeetRoom.includes(normMRoom));
+    return sameDate && sameTime && sameRoom;
+  });
+
   const gcal = getGoogleCalendarClient();
   let googleEvent = null;
 
@@ -601,7 +642,9 @@ async function saveMeeting(meeting) {
 
       const existingGoogleId =
         meeting.googleId ||
-        (typeof meeting.id === "string" && !/^\d+$/.test(meeting.id) ? meeting.id : null);
+        matchedStored?.googleId ||
+        (typeof meeting.id === "string" && !/^\d+$/.test(meeting.id) ? meeting.id : null) ||
+        (matchedStored && typeof matchedStored.id === "string" && !/^\d+$/.test(matchedStored.id) ? matchedStored.id : null);
 
       if (existingGoogleId) {
         try {
@@ -637,7 +680,9 @@ async function saveMeeting(meeting) {
     try {
       const existingGoogleId =
         meeting.googleId ||
-        (typeof meeting.id === "string" && !/^\d+$/.test(meeting.id) ? meeting.id : null);
+        matchedStored?.googleId ||
+        (typeof meeting.id === "string" && !/^\d+$/.test(meeting.id) ? meeting.id : null) ||
+        (matchedStored && typeof matchedStored.id === "string" && !/^\d+$/.test(matchedStored.id) ? matchedStored.id : null);
       if (existingGoogleId) {
         await gcal.calendar.events.delete({
           calendarId: gcal.calendarId,
@@ -656,6 +701,9 @@ async function saveMeeting(meeting) {
   if (googleEvent) {
     meeting.googleId = googleEvent.id;
     meeting.id = googleEvent.id;
+  } else if (matchedStored?.googleId) {
+    meeting.googleId = matchedStored.googleId;
+    meeting.id = matchedStored.googleId;
   } else if (!meeting.id) {
     meeting.id = Date.now();
   }
@@ -663,6 +711,9 @@ async function saveMeeting(meeting) {
   // Simpan originalId agar permohonan yang disetujui tetap dapat diakses dengan ID lokal / link QR sebelumnya
   if (originalId && String(originalId) !== String(meeting.id)) {
     meeting.originalId = meeting.originalId || String(originalId);
+  }
+  if (matchedStored?.originalId && String(matchedStored.originalId) !== String(meeting.id)) {
+    meeting.originalId = meeting.originalId || String(matchedStored.originalId);
   }
 
   // Simpan di local store sebagai cache
@@ -698,6 +749,7 @@ async function saveMeeting(meeting) {
     if (i === targetIdx) return true;
     if (String(m.id) === primaryId) return false;
     if (originalId && String(m.id) === String(originalId)) return false;
+    if (matchedStored?.id && String(m.id) === String(matchedStored.id)) return false;
     const sameDate = m.date === meeting.date;
     const sameTime = m.start === meeting.start;
     const normMRoom = (m.room || "").toLowerCase().replace(/\s+/g, "");
@@ -711,6 +763,27 @@ async function saveMeeting(meeting) {
 
   if (getIsConnected()) {
     try {
+      // Hapus baris lama di database yang menggunakan ID sementara (originalId) atau ID duplikat
+      const oldIdsToDelete = new Set();
+      if (originalId && String(originalId) !== String(meeting.id)) {
+        oldIdsToDelete.add(String(originalId));
+      }
+      if (matchedStored?.id && String(matchedStored.id) !== String(meeting.id)) {
+        oldIdsToDelete.add(String(matchedStored.id));
+      }
+      if (matchedStored?.originalId && String(matchedStored.originalId) !== String(meeting.id)) {
+        oldIdsToDelete.add(String(matchedStored.originalId));
+      }
+      for (const oldId of oldIdsToDelete) {
+        await query(`DELETE FROM meetings WHERE id = $1`, [oldId]);
+      }
+
+      // Hapus baris lama yang memiliki slot ruangan dan jam yang persis sama tapi ID berbeda
+      await query(`
+        DELETE FROM meetings 
+        WHERE date = $1 AND start_time = $2 AND room_name = $3 AND id <> $4
+      `, [meeting.date, meeting.start, meeting.room, String(meeting.id)]);
+
       await query(`
         INSERT INTO meetings (
           id, google_id, title, agenda, requester, booked_by_name, booked_by_username,

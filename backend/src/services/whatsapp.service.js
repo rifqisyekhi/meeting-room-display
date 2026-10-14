@@ -62,10 +62,41 @@ Silakan *QUOTE (Balas)* pesan ini:
   );
 }
 
+const recentNotifications = new Map();
+
+function isRecentlyNotified(meeting) {
+  if (!meeting) return false;
+  const now = Date.now();
+  for (const [key, timestamp] of recentNotifications.entries()) {
+    if (now - timestamp > 60000) {
+      recentNotifications.delete(key);
+    }
+  }
+
+  const idKey = meeting.id ? `id_${String(meeting.id)}` : null;
+  const slotKey = meeting.room && meeting.date && meeting.start
+    ? `slot_${meeting.room}_${meeting.date}_${meeting.start}`
+    : null;
+
+  if (idKey && recentNotifications.has(idKey)) return true;
+  if (slotKey && recentNotifications.has(slotKey)) return true;
+
+  if (idKey) recentNotifications.set(idKey, now);
+  if (slotKey) recentNotifications.set(slotKey, now);
+  return false;
+}
+
 /**
  * Kirim notifikasi permohonan rapat baru ke semua nomor WhatsApp atasan via Bot SisKA
  */
 async function sendNotificationToApprovers(meeting) {
+  if (!meeting) return { success: false, error: "Data rapat tidak ada" };
+
+  if (isRecentlyNotified(meeting)) {
+    console.log(`ℹ️ [WhatsApp Service] Skip notifikasi ganda ke atasan untuk rapat #${meeting.id} (${meeting.room} - ${meeting.date} ${meeting.start}) karena baru saja dikirim.`);
+    return { success: true, duplicate: true, message: "Notifikasi sudah dikirim sebelumnya" };
+  }
+
   const approverPhones = getApproverPhones();
   const sendUrl = process.env.BOT_SISKA_SEND_URL || "http://127.0.0.1:3000/send-message";
 

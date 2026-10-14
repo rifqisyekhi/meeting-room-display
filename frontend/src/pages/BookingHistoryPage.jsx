@@ -78,8 +78,14 @@ const readLocalMeetings = () => {
 export default function BookingHistoryPage() {
   const navigate = useNavigate();
   const [currentUser] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("currentUser") || "{}"); }
-    catch { return {}; }
+    try {
+      const s =
+        sessionStorage.getItem("booking_currentUser") ||
+        localStorage.getItem("booking_currentUser");
+      return s ? JSON.parse(s) : {};
+    } catch {
+      return {};
+    }
   });
   const [meetings, setMeetings] = useState(readLocalMeetings);
   const [rooms, setRooms] = useState(() => {
@@ -203,8 +209,10 @@ export default function BookingHistoryPage() {
     const userUname = (currentUser.username || "").toLowerCase().trim();
     const userName = (currentUser.name || "").toLowerCase().trim();
     const userDept = (currentUser.dept || "").toLowerCase().trim();
+    const seen = new Set();
 
     return meetings.filter((meeting) => {
+      if (!meeting) return false;
       const bookedUname = (meeting.bookedByUsername || "").toLowerCase().trim();
       const bookedName = (meeting.bookedBy || "").toLowerCase().trim();
       const reqDept = (meeting.requester || "").toLowerCase().trim();
@@ -223,7 +231,24 @@ export default function BookingHistoryPage() {
       if (toDate && (meeting.date || "") > toDate) return false;
       const searchText = [meeting.room, meeting.title, meeting.agenda, meeting.requester, meeting.bookedBy]
         .filter(Boolean).join(" ").toLowerCase();
-      return !query || searchText.includes(query);
+      if (query && !searchText.includes(query)) return false;
+
+      const normRoom = String(meeting.room || "").toLowerCase().replace(/\s+/g, "");
+      const dedupeKey =
+        meeting.originalId ||
+        meeting.googleId ||
+        meeting.id ||
+        `${meeting.date}_${meeting.start}_${normRoom}`;
+
+      if (seen.has(dedupeKey)) return false;
+      seen.add(dedupeKey);
+      if (meeting.id) seen.add(String(meeting.id));
+      if (meeting.googleId) seen.add(String(meeting.googleId));
+      if (meeting.originalId) seen.add(String(meeting.originalId));
+      if (meeting.date && meeting.start && normRoom) {
+        seen.add(`${meeting.date}_${meeting.start}_${normRoom}`);
+      }
+      return true;
     }).sort((a, b) => `${b.date || ""} ${b.start || ""}`.localeCompare(`${a.date || ""} ${a.start || ""}`));
   }, [meetings, isAdmin, currentUser, filterStatus, fromDate, toDate, search, clockNow]);
 
@@ -526,9 +551,9 @@ export default function BookingHistoryPage() {
                       <small>{key === "completed" ? `${formatDate(meeting.date, { day: "2-digit", month: "short", year: "numeric" })} ${end}` : "-"}</small>
                     </span>
                   </span>
-                  <span className={`booking-history-status ${key}`}>{statusText}</span>
                 </div>
                 <div className="booking-history-row-actions">
+                  <span className={`booking-history-status ${key}`}>{statusText}</span>
                   {canShowQr && (
                     <button type="button" className="booking-history-qr-button"
                       title="Buka QR Pass Rapat & Presensi"
@@ -738,48 +763,122 @@ export default function BookingHistoryPage() {
         </div>
       )}
 
-      {qrModalMeeting && (
-        <div className="booking-history-modal-backdrop" onClick={() => setQrModalMeeting(null)}>
-          <div className="booking-history-modal booking-history-qr-modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
-            <button type="button" className="booking-history-modal-close" onClick={() => setQrModalMeeting(null)} aria-label="Tutup">×</button>
-            <span className="booking-history-qr-modal-icon"><FaQrcode /></span>
-            <h2>QR Pass & Presensi Rapat</h2>
-            <p><strong>{qrModalMeeting.title || qrModalMeeting.agenda || "Rapat"}</strong> · {qrModalMeeting.room}</p>
-            <div className="booking-history-qr-modal-preview">
-              <QRCodeSVG
-                value={`${typeof window !== 'undefined' ? window.location.origin : ''}/meeting/${qrModalMeeting.id}`}
-                size={180}
-                level="H"
-                marginSize={2}
-              />
-            </div>
-            <p className="booking-history-qr-modal-hint">
-              Pindai dengan kamera smartphone untuk <strong>Check-In</strong>, mengisi <strong>Daftar Hadir</strong>, atau <strong>Check-Out</strong>.
-            </p>
-            <div className="booking-history-qr-modal-actions">
-              <button
-                type="button"
-                className="booking-history-qr-copy-btn"
-                onClick={() => {
-                  navigator.clipboard.writeText(`${window.location.origin}/meeting/${qrModalMeeting.id}`);
-                  setCopiedPassUrl(true);
-                  setTimeout(() => setCopiedPassUrl(false), 2000);
-                }}
-              >
-                {copiedPassUrl ? "✓ Link Tersalin!" : "Salin Link Pass"}
-              </button>
-              <a
-                href={`/meeting/${qrModalMeeting.id}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="booking-history-qr-open-btn"
-              >
-                Buka Halaman Pass ↗
-              </a>
+      {qrModalMeeting && (() => {
+        const passUrl = `${typeof window !== "undefined" ? window.location.origin : ""}/meeting/${qrModalMeeting.id}`;
+        const timeStr = `${qrModalMeeting.start || qrModalMeeting.startTime || "09:00"} - ${qrModalMeeting.end || qrModalMeeting.endTime || "10:00"} WIB`;
+        const formattedDate = formatDate(qrModalMeeting.date, { day: "numeric", month: "short", year: "numeric" });
+        return (
+          <div className="booking-history-modal-backdrop" onClick={() => setQrModalMeeting(null)}>
+            <div className="booking-history-modal booking-history-qr-modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+              
+              {/* Header Bar */}
+              <div className="bh-qr-header-bar">
+                <span className="bh-qr-badge">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ display: "inline-block", verticalAlign: "-1.5px" }}><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+                  <span>QR Presensi Mandiri</span>
+                </span>
+                <button type="button" className="bh-qr-close-btn" onClick={() => setQrModalMeeting(null)} aria-label="Tutup">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+              </div>
+
+              {/* Title & Room / Time */}
+              <h2 className="bh-qr-title">{qrModalMeeting.title || qrModalMeeting.agenda || "Rapat"}</h2>
+              <p className="bh-qr-subtitle">
+                <span>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: "inline-block", verticalAlign: "-1.5px", marginRight: "2px" }}><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                  {qrModalMeeting.room || "Ruang Rapat"}
+                </span>
+                <span className="bh-qr-dot">•</span>
+                <span>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: "inline-block", verticalAlign: "-1.5px", marginRight: "2px" }}><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                  {formattedDate} ({timeStr})
+                </span>
+              </p>
+
+              {/* Info Banner */}
+              <div className="bh-qr-alert">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"/></svg>
+                <div className="bh-qr-alert-text">
+                  <strong>Presensi Otomatis:</strong> Scan QR di bawah untuk Check-In &amp; Check-Out mandiri.
+                </div>
+              </div>
+
+              {/* QR Container */}
+              <div className="bh-qr-code-card">
+                <div className="bh-qr-wrapper">
+                  <QRCodeSVG
+                    value={passUrl}
+                    size={195}
+                    level="M"
+                    marginSize={2}
+                  />
+                </div>
+                <div className="bh-qr-scan-hint">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: "inline-block", verticalAlign: "-2px", marginRight: "4px" }}><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                  Pindai dengan Kamera Smartphone:
+                </div>
+                <div className="bh-qr-pills">
+                  <span className="bh-qr-pill checkin">✓ Check-In</span>
+                  <span className="bh-qr-pill hadir">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ display: "inline-block", verticalAlign: "-1px", marginRight: "2px" }}><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    Daftar Hadir
+                  </span>
+                  <span className="bh-qr-pill checkout">Check-Out</span>
+                  <span className="bh-qr-pill materi">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ display: "inline-block", verticalAlign: "-1px", marginRight: "2px" }}><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+                    Materi
+                  </span>
+                </div>
+              </div>
+
+              {/* URL & Copy Bar */}
+              <div className="bh-qr-url-bar">
+                <span className="bh-qr-url-text">{passUrl}</span>
+                <button
+                  type="button"
+                  className="bh-qr-salin-btn"
+                  onClick={() => {
+                    navigator.clipboard.writeText(passUrl);
+                    setCopiedPassUrl(true);
+                    setTimeout(() => setCopiedPassUrl(false), 2000);
+                  }}
+                >
+                  {copiedPassUrl ? "Tersalin!" : "Salin"}
+                </button>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="bh-qr-actions-row">
+                <a
+                  href={passUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="bh-qr-btn-primary"
+                >
+                  <span>Buka Pass Rapat</span>
+                  <span style={{ fontSize: "13px", lineHeight: 1 }}>↗</span>
+                </a>
+                <button
+                  type="button"
+                  className="bh-qr-btn-secondary"
+                  onClick={() => window.open(passUrl, "_blank")}
+                >
+                  Cetak Pass
+                </button>
+                <button
+                  type="button"
+                  className="bh-qr-btn-close"
+                  onClick={() => setQrModalMeeting(null)}
+                >
+                  Tutup
+                </button>
+              </div>
+
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </main>
   );
 }

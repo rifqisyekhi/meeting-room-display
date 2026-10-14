@@ -224,6 +224,7 @@ export default function MeetingPassPage() {
           by: actorName,
           username: currentUser.username,
           method: "barcode_qr",
+          enforceBooker: true,
         }),
       });
       const nowIso = new Date().toISOString();
@@ -318,6 +319,7 @@ export default function MeetingPassPage() {
             by: actorName,
             username: currentUser.username,
             method: "barcode_qr",
+            enforceBooker: true,
           }),
         },
       );
@@ -711,9 +713,8 @@ export default function MeetingPassPage() {
   const bookerName = (meeting.bookedBy || "").trim().toLowerCase();
   const isMeetingBooker = Boolean(
     isAuthenticated &&
-    (bookerUsername
-      ? signedInUsername && signedInUsername === bookerUsername
-      : signedInName && bookerName && signedInName === bookerName),
+    ((signedInUsername && bookerUsername && signedInUsername === bookerUsername) ||
+      (signedInName && bookerName && signedInName === bookerName)),
   );
 
   return (
@@ -1048,9 +1049,23 @@ export default function MeetingPassPage() {
                 to="/login"
                 state={{ from: { pathname: `/meeting/${id}` } }}
                 className="mp-booker-login-btn"
-                onClick={() =>
-                  isAuthenticated && localStorage.removeItem("isAuthenticated")
-                }
+                onClick={() => {
+                  const keys = [
+                    "booking_isAuthenticated",
+                    "booking_currentUser",
+                    "booking_isAddingAccount",
+                    "dashboard_isAuthenticated",
+                    "dashboard_currentUser",
+                    "isAuthenticated",
+                    "currentUser",
+                    "isAddingAccount",
+                  ];
+                  keys.forEach((k) => {
+                    sessionStorage.removeItem(k);
+                    localStorage.removeItem(k);
+                  });
+                  sessionStorage.setItem("booking_isAddingAccount", "true");
+                }}
               >
                 {isAuthenticated
                   ? "Ganti ke Akun Pemesan"
@@ -1401,58 +1416,117 @@ export default function MeetingPassPage() {
 
       {/* Modal QR Code Pop-up */}
       {showQRModal && (
-        <div
-          className="mp-modal-backdrop"
-          onClick={() => setShowQRModal(false)}
-        >
-          <div className="mp-modal-box" onClick={(e) => e.stopPropagation()}>
-            <button
-              type="button"
-              className="mp-modal-close-btn"
-              onClick={() => setShowQRModal(false)}
-              aria-label="Tutup Modal"
-            >
-              ×
-            </button>
-
-            <h3 className="mp-modal-title">QR Code Presensi Rapat</h3>
-            <p className="mp-modal-subtitle">
-              Pindai dengan kamera smartphone untuk Check-In &amp; Check-Out
-              otomatis tanpa perlu bantuan admin secara manual.
-            </p>
-
-            <div className="mp-modal-qr-wrap">
-              <QRCodeSVG
-                value={currentUrl}
-                size={220}
-                level="H"
-                marginSize={2}
-                bgColor="#ffffff"
-                fgColor="#0c2d5e"
-              />
-            </div>
-
-            <div className="mp-modal-meeting-info">
-              <strong>{meeting.title || "Rapat"}</strong>
-              <span>
-                {meeting.room} · {meeting.date} ({meeting.start}–{meeting.end})
+        <div className="mp-modal-backdrop" onClick={() => setShowQRModal(false)}>
+          <div style={{ maxWidth: 440, width: "92%", padding: "22px 24px", borderRadius: 24, background: "#ffffff", boxShadow: "0 20px 48px rgba(12,45,94,0.16)", textAlign: "center", position: "relative", boxSizing: "border-box", margin: "auto", maxHeight: "calc(100vh - 30px)", overflowY: "auto", scrollbarWidth: "none" }} onClick={(e) => e.stopPropagation()}>
+            {/* Header Bar */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <span style={{ fontSize: "12px", fontWeight: 600, color: "#0284c7", background: "#e0f2fe", padding: "4px 12px", borderRadius: 20, display: "inline-flex", alignItems: "center", gap: 6 }}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ display: "inline-block", verticalAlign: "-1.5px" }}><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+                <span>QR Presensi Mandiri</span>
               </span>
-            </div>
-
-            <div className="mp-modal-actions">
               <button
                 type="button"
-                className="mp-btn-action primary"
-                onClick={handleCopyLink}
+                style={{ background: "#f1f5f9", border: "none", width: 28, height: 28, borderRadius: "50%", color: "#64748b", cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s ease" }}
+                onClick={() => setShowQRModal(false)}
+                aria-label="Tutup Modal"
               >
-                {copied ? "✓ Link Tersalin!" : "Salin Tautan Presensi"}
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+
+            {/* Agenda Title & Details */}
+            <h3 style={{ margin: "4px 0 4px", fontSize: 22, fontWeight: 800, color: "#0f172a", letterSpacing: "-0.3px", lineHeight: 1.2 }}>
+              {meeting.title || "Rapat"}
+            </h3>
+            <p style={{ margin: "0 0 12px", fontSize: "12px", color: "#64748b", display: "flex", alignItems: "center", justifyContent: "center", gap: 4, flexWrap: "wrap", lineHeight: 1.3 }}>
+              <span>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: "inline-block", verticalAlign: "-1.5px", marginRight: "2px" }}><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                <b>{meeting.room}</b>
+              </span>
+              <span style={{ color: "#cbd5e1", margin: "0 4px" }}>•</span>
+              <span>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: "inline-block", verticalAlign: "-1.5px", marginRight: "2px" }}><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                {meeting.date} ({meeting.start} - {meeting.end} WIB)
+              </span>
+            </p>
+
+            {/* Alert: Sistem Presensi Mandiri Otomatis */}
+            <div style={{ background: "#ebfbf0", border: "1px solid #c7f3d6", borderRadius: 12, padding: "10px 14px", marginBottom: 12, textAlign: "left", display: "flex", alignItems: "center", gap: 10 }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"/></svg>
+              <div style={{ fontSize: "11.5px", color: "#166534", lineHeight: 1.45 }}>
+                <strong style={{ fontWeight: 700 }}>Presensi Otomatis:</strong> Scan QR di bawah untuk Check-In &amp; Check-Out mandiri.
+              </div>
+            </div>
+
+            {/* Single QR Code Container */}
+            <div style={{ background: "#ffffff", border: "1.5px solid #edf2f7", borderRadius: 20, padding: "16px 14px 14px", display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 12, boxShadow: "0 2px 10px rgba(0,0,0,0.02)" }}>
+              <div style={{ background: "#ffffff", padding: 8, borderRadius: 16, boxShadow: "0 4px 16px rgba(12,45,94,0.05)", border: "1px solid #f1f5f9", marginBottom: 10, display: "flex", justifyContent: "center", alignItems: "center" }}>
+                <QRCodeSVG
+                  value={currentUrl}
+                  size={195}
+                  level="M"
+                  marginSize={2}
+                  bgColor="#ffffff"
+                  fgColor="#000000"
+                />
+              </div>
+
+              <div style={{ fontSize: "11.5px", color: "#64748b", fontWeight: 500, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 8 }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: "inline-block", verticalAlign: "-2px", marginRight: "4px" }}><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                Pindai dengan Kamera Smartphone:
+              </div>
+              <div style={{ display: "flex", gap: 5, flexWrap: "nowrap", justifyContent: "center", alignItems: "center", width: "100%" }}>
+                <span style={{ background: "#dcfce7", color: "#15803d", padding: "3.5px 8px", borderRadius: 6, fontSize: "10.5px", fontWeight: 600, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 3 }}>✓ Check-In</span>
+                <span style={{ background: "#e0f2fe", color: "#0284c7", padding: "3.5px 8px", borderRadius: 6, fontSize: "10.5px", fontWeight: 600, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center" }}>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ display: "inline-block", verticalAlign: "-1px", marginRight: 2 }}><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                  Daftar Hadir
+                </span>
+                <span style={{ background: "#fee2e2", color: "#dc2626", padding: "3.5px 8px", borderRadius: 6, fontSize: "10.5px", fontWeight: 600, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center" }}>Check-Out</span>
+                <span style={{ background: "#f1f5f9", color: "#475569", padding: "3.5px 8px", borderRadius: 6, fontSize: "10.5px", fontWeight: 600, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center" }}>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ display: "inline-block", verticalAlign: "-1px", marginRight: 2 }}><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+                  Materi
+                </span>
+              </div>
+            </div>
+
+            {/* URL Link & Copy Button */}
+            <div style={{ background: "#f8fafc", border: "1px solid #cbd5e1", borderRadius: 10, padding: "5px 6px 5px 12px", fontSize: "11.5px", color: "#334155", marginBottom: 14, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontFamily: "monospace", flex: 1, textAlign: "left", color: "#64748b", fontSize: "11px" }}>
+                {currentUrl}
+              </span>
+              <button
+                type="button"
+                onClick={handleCopyLink}
+                style={{ background: "#2563eb", color: "#fff", border: "none", borderRadius: 8, padding: "6.5px 16px", fontSize: "12px", fontWeight: 600, cursor: "pointer", flexShrink: 0, transition: "background 0.15s" }}
+              >
+                {copied ? "Tersalin!" : "Salin"}
+              </button>
+            </div>
+
+            {/* Action Buttons */}
+            <div style={{ display: "flex", gap: 8, width: "100%" }}>
+              <a
+                href={currentUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ flex: 1.2, background: "#16a34a", color: "#fff", border: "none", borderRadius: 10, height: 40, fontSize: "12px", fontWeight: 700, textDecoration: "none", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 4, whiteSpace: "nowrap", transition: "background 0.15s", padding: "0 6px", boxSizing: "border-box" }}
+              >
+                <span>Buka Pass Rapat</span>
+                <span style={{ fontSize: "13px", lineHeight: 1 }}>↗</span>
+              </a>
+              <button
+                type="button"
+                onClick={() => window.print()}
+                style={{ flex: 1, background: "#ffffff", color: "#1e293b", border: "1px solid #cbd5e1", borderRadius: 10, height: 40, fontSize: "12px", fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap", transition: "background 0.15s", padding: "0 6px", boxSizing: "border-box" }}
+              >
+                Cetak Pass
               </button>
               <button
                 type="button"
-                className="mp-btn-action light"
-                onClick={() => window.print()}
+                onClick={() => setShowQRModal(false)}
+                style={{ flex: 0.85, background: "#f1f5f9", color: "#475569", border: "none", borderRadius: 10, height: 40, fontSize: "12px", fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap", transition: "background 0.15s", padding: "0 6px", boxSizing: "border-box" }}
               >
-                Cetak Halaman
+                Tutup
               </button>
             </div>
           </div>

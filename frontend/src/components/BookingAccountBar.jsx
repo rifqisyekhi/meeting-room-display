@@ -13,17 +13,41 @@ export default function BookingAccountBar({ currentUser, historyPage = false, sh
   const isRegularUser = !["admin", "pimpinan", "approval"].some((value) => normalizedRole.includes(value));
 
   const logout = () => {
-    localStorage.removeItem("isAuthenticated");
-    localStorage.removeItem("currentUser");
-    sessionStorage.removeItem("isAddingAccount");
-    navigate("/login");
+    const keys = [
+      "booking_isAuthenticated",
+      "booking_currentUser",
+      "booking_isAddingAccount",
+      "dashboard_isAuthenticated",
+      "dashboard_currentUser",
+      "dashboard_savedAccounts",
+      "isAuthenticated",
+      "currentUser",
+      "isAddingAccount",
+    ];
+    keys.forEach((key) => {
+      sessionStorage.removeItem(key);
+      localStorage.removeItem(key);
+    });
+    navigate("/login?portal=booking&logout=true", { replace: true });
   };
 
   const switchAccount = () => {
     setMenuOpen(false);
+    const keys = [
+      "booking_isAuthenticated",
+      "booking_currentUser",
+      "dashboard_isAuthenticated",
+      "dashboard_currentUser",
+      "isAuthenticated",
+      "currentUser",
+    ];
+    keys.forEach((key) => {
+      sessionStorage.removeItem(key);
+      localStorage.removeItem(key);
+    });
+    sessionStorage.setItem("booking_isAddingAccount", "true");
     sessionStorage.setItem("isAddingAccount", "true");
-    localStorage.removeItem("isAuthenticated");
-    navigate("/login");
+    navigate("/login?portal=booking", { state: { from: { pathname: "/booking" }, fromPortal: "booking" } });
   };
 
   return (
@@ -39,11 +63,9 @@ export default function BookingAccountBar({ currentUser, historyPage = false, sh
           </a>
         )}
         <nav className="booking-section-nav" aria-label="Navigasi booking">
-          {isRegularUser && (
-            <button type="button" onClick={() => navigate("/dashboard")}>
-              Dashboard
-            </button>
-          )}
+          <button type="button" onClick={() => navigate("/dashboard")}>
+            Dashboard
+          </button>
           <button
             type="button"
             className={!historyPage ? "active" : ""}
@@ -78,9 +100,13 @@ export default function BookingAccountBar({ currentUser, historyPage = false, sh
                 <strong>{name}</strong>
                 <small>Role: {role}</small>
               </div>
-              {isRegularUser && (
+              {isRegularUser ? (
                 <button type="button" onClick={() => { setMenuOpen(false); navigate("/dashboard/profile"); }}>
                   Profil &amp; Ganti Password
+                </button>
+              ) : (
+                <button type="button" onClick={() => { setMenuOpen(false); navigate("/dashboard"); }}>
+                  Buka Dashboard {role}
                 </button>
               )}
               <button type="button" onClick={switchAccount}>Tambah Akun Lain</button>

@@ -130,10 +130,25 @@ export default function BookingPage() {
   const suggestedBooking = location.state?.bookingRecommendation;
   const currentUser = useMemo(() => {
     try {
-      return JSON.parse(localStorage.getItem("currentUser") || "{}");
+      const s =
+        sessionStorage.getItem("booking_currentUser") ||
+        localStorage.getItem("booking_currentUser");
+      return s ? JSON.parse(s) : {};
     } catch {
       return {};
     }
+  }, []);
+
+  useEffect(() => {
+    try {
+      const stored =
+        sessionStorage.getItem("booking_currentUser") ||
+        localStorage.getItem("booking_currentUser");
+      if (stored && !sessionStorage.getItem("booking_currentUser")) {
+        sessionStorage.setItem("booking_currentUser", stored);
+        sessionStorage.setItem("booking_isAuthenticated", "true");
+      }
+    } catch (e) {}
   }, []);
   const [selectedCategory, setSelectedCategory] = useState("Semua");
   const [selectedRoom, setSelectedRoom] = useState(() => {
@@ -224,7 +239,10 @@ export default function BookingPage() {
   const [agenda, setAgenda] = useState(suggestedBooking?.title || "");
   const [bagian, setBagian] = useState(() => {
     try {
-      const user = JSON.parse(localStorage.getItem("currentUser") || "{}");
+      const s =
+        sessionStorage.getItem("booking_currentUser") ||
+        localStorage.getItem("booking_currentUser");
+      const user = JSON.parse(s || "{}");
       const department = (user.dept || "").trim().toUpperCase();
       return ["TU", "AKLAP", "BMN", "PA", "PTUK"].includes(department)
         ? department
@@ -235,7 +253,10 @@ export default function BookingPage() {
   });
   const [customBagian, setCustomBagian] = useState(() => {
     try {
-      const user = JSON.parse(localStorage.getItem("currentUser") || "{}");
+      const s =
+        sessionStorage.getItem("booking_currentUser") ||
+        localStorage.getItem("booking_currentUser");
+      const user = JSON.parse(s || "{}");
       const department = (user.dept || "").trim();
       return department && !["TU", "AKLAP", "BMN", "PA", "PTUK"].includes(department.toUpperCase())
         ? department
@@ -283,6 +304,7 @@ export default function BookingPage() {
 
   // Modal notification state, facility modal state, review modal state & room detail modal state
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [bookedDetails, setBookedDetails] = useState(null);
   const [selectedFacilityRoom, setSelectedFacilityRoom] = useState(null);
   const [selectedReviewRoom, setSelectedReviewRoom] = useState(null);
@@ -545,7 +567,9 @@ export default function BookingPage() {
     return selectedDate;
   }, [selectedDayObj, selectedDate]);
 
-  const handleBooking = () => {
+  const handleBooking = async () => {
+    if (isSubmitting) return;
+
     const finalBagian = bagian === "Other" ? customBagian.trim() : bagian;
     if (
       !agenda ||
@@ -599,9 +623,11 @@ export default function BookingPage() {
       return;
     }
 
+    setIsSubmitting(true);
     const nowIso = new Date().toISOString();
+    const tempId = Date.now();
     const newMeeting = {
-      id: Date.now(),
+      id: tempId,
       title: agenda,
       requester: finalBagian,
       bookedBy: currentUser.name || currentUser.username || "",
@@ -616,6 +642,7 @@ export default function BookingPage() {
       materials: bookingMaterials.map(({ rawSize, ...material }) => material),
       createdAt: nowIso,
     };
+
     let currentMeetings = [];
     try {
       const stored = localStorage.getItem("app_meetings");
@@ -637,50 +664,14 @@ export default function BookingPage() {
       }
     } catch (err) {}
 
-    // Kirim ke backend & Google Calendar
-    try {
-      fetch("/api/dashboard/meetings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newMeeting),
-      })
-        .then(async (res) => {
-          if (res.ok) {
-            const result = await res.json();
-            if (result?.meeting?.id) {
-              newMeeting.id = result.meeting.id;
-              newMeeting.googleId = result.meeting.googleId;
-              try {
-                const stored = JSON.parse(localStorage.getItem("app_meetings") || "[]");
-                const updated = stored.map((m) =>
-                  m.id === newMeeting.id || (m.date === newMeeting.date && m.start === newMeeting.start && m.room === newMeeting.room)
-                    ? { ...m, ...result.meeting }
-                    : m
-                );
-                localStorage.setItem("app_meetings", JSON.stringify(updated));
-                window.dispatchEvent(new Event("storage"));
-                window.dispatchEvent(new Event("app_meetings_updated"));
-                if (window.parent && window.parent !== window) {
-                  window.parent.dispatchEvent(new Event("storage"));
-                  window.parent.dispatchEvent(new Event("app_meetings_updated"));
-                }
-              } catch (e) {}
-            }
-          }
-        })
-        .catch((err) => {
-          console.warn("Sinkronisasi ke Google Calendar/Backend:", err);
-        });
-    } catch (e) {}
-
     // Tambahkan notifikasi ke antrean untuk Dashboard Admin & Akun Approval
     try {
       const storedNotifs = JSON.parse(
         localStorage.getItem("app_notifications") || "[]",
       );
       const newNotif = {
-        id: newMeeting.id,
-        meetingId: newMeeting.id,
+        id: String(newMeeting.id),
+        meetingId: String(newMeeting.id),
         type: "NEW_REQUEST",
         title: "Permintaan Booking Ruang Rapat",
         message: `${finalBagian} mengajukan permohonan peminjaman ${selectedRoom?.name} untuk agenda "${agenda}"`,
@@ -693,15 +684,87 @@ export default function BookingPage() {
         readBy: [],
         status: "Menunggu Approval",
       };
-      storedNotifs.unshift(newNotif);
-      localStorage.setItem("app_notifications", JSON.stringify(storedNotifs));
-      window.dispatchEvent(new Event("app_notifications_updated"));
-      try {
-        if (window.parent && window.parent !== window) {
-          window.parent.dispatchEvent(new Event("app_notifications_updated"));
-        }
-      } catch (err) {}
+      // Cegah notifikasi ganda jika sudah ada dengan ID atau slot ruangan yang sama
+      const isAlreadyInNotifs = storedNotifs.some(
+        (n) =>
+          String(n.meetingId || n.id) === String(newMeeting.id) ||
+          (n.room === newNotif.room && n.date === newNotif.date && n.time === newNotif.time),
+      );
+      if (!isAlreadyInNotifs) {
+        storedNotifs.unshift(newNotif);
+        localStorage.setItem("app_notifications", JSON.stringify(storedNotifs));
+        window.dispatchEvent(new Event("app_notifications_updated"));
+        try {
+          if (window.parent && window.parent !== window) {
+            window.parent.dispatchEvent(new Event("app_notifications_updated"));
+          }
+        } catch (err) {}
+      }
     } catch (e) {}
+
+    // Kirim ke backend & Google Calendar
+    try {
+      const res = await fetch("/api/dashboard/meetings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newMeeting),
+      });
+
+      if (res.ok) {
+        const result = await res.json();
+        if (result?.meeting?.id) {
+          const backendMeetingId = String(result.meeting.id);
+          newMeeting.id = result.meeting.id;
+          newMeeting.googleId = result.meeting.googleId;
+
+          // Perbarui app_meetings dengan data ID resmi dari backend
+          try {
+            const stored = JSON.parse(localStorage.getItem("app_meetings") || "[]");
+            const updated = stored.map((m) =>
+              String(m.id) === String(tempId) ||
+              String(m.id) === backendMeetingId ||
+              (m.date === newMeeting.date && m.start === newMeeting.start && m.room === newMeeting.room)
+                ? { ...m, ...result.meeting }
+                : m,
+            );
+            localStorage.setItem("app_meetings", JSON.stringify(updated));
+            window.dispatchEvent(new Event("storage"));
+            window.dispatchEvent(new Event("app_meetings_updated"));
+            if (window.parent && window.parent !== window) {
+              window.parent.dispatchEvent(new Event("storage"));
+              window.parent.dispatchEvent(new Event("app_meetings_updated"));
+            }
+          } catch (e) {}
+
+          // Perbarui app_notifications agar ID selaras dengan ID backend
+          try {
+            const storedNotifs = JSON.parse(localStorage.getItem("app_notifications") || "[]");
+            let updatedNotifs = false;
+            const updatedN = storedNotifs.map((n) => {
+              if (
+                String(n.meetingId || n.id) === String(tempId) ||
+                (n.room === newMeeting.room && n.date === newMeeting.date && n.time === `${start} - ${end}`)
+              ) {
+                updatedNotifs = true;
+                return { ...n, id: backendMeetingId, meetingId: backendMeetingId };
+              }
+              return n;
+            });
+            if (updatedNotifs) {
+              localStorage.setItem("app_notifications", JSON.stringify(updatedN));
+              window.dispatchEvent(new Event("app_notifications_updated"));
+              if (window.parent && window.parent !== window) {
+                window.parent.dispatchEvent(new Event("app_notifications_updated"));
+              }
+            }
+          } catch (e) {}
+        }
+      }
+    } catch (err) {
+      console.warn("Sinkronisasi ke Google Calendar/Backend:", err);
+    } finally {
+      setIsSubmitting(false);
+    }
 
     // Simpan rincian untuk ditampilkan pada modal konfirmasi sukses
     const displayTimeString = selectedTime
@@ -1315,8 +1378,12 @@ export default function BookingPage() {
               </li>)}
             </ul>}
           </div>
-          <button className="bk-submit-btn" onClick={handleBooking}>
-            Booking Sekarang
+          <button
+            className="bk-submit-btn"
+            onClick={handleBooking}
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? "Memproses..." : "Booking Sekarang"}
           </button>
         </div>
       </div>
@@ -1446,8 +1513,12 @@ export default function BookingPage() {
                 >
                   <FaChevronLeft /> Kembali
                 </button>
-                <button className="bk-mnav-btn primary" onClick={handleBooking}>
-                  Booking Sekarang
+                <button
+                  className="bk-mnav-btn primary"
+                  onClick={handleBooking}
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? "Memproses..." : "Booking Sekarang"}
                 </button>
               </div>
             </div>

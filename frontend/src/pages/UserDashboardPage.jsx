@@ -1,30 +1,48 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { FaCalendarAlt, FaDoorOpen, FaHistory, FaLock, FaSignOutAlt, FaUser, FaUserCircle } from "react-icons/fa";
+import { FaCalendarAlt, FaDoorOpen, FaEye, FaEyeSlash, FaHistory, FaLock, FaSignOutAlt, FaUser } from "react-icons/fa";
 import { IoMdHome } from "react-icons/io";
 import "./UserDashboardPage.css";
 
 const readUser = () => {
-  try { return JSON.parse(localStorage.getItem("currentUser") || "{}"); }
-  catch { return {}; }
+  try {
+    const raw =
+      sessionStorage.getItem("booking_currentUser") ||
+      localStorage.getItem("booking_currentUser") ||
+      sessionStorage.getItem("dashboard_currentUser") ||
+      localStorage.getItem("dashboard_currentUser") ||
+      sessionStorage.getItem("currentUser") ||
+      localStorage.getItem("currentUser") ||
+      "{}";
+    return JSON.parse(raw);
+  } catch {
+    return {};
+  }
 };
 
 const readMeetings = () => {
   try {
-    const records = JSON.parse(localStorage.getItem("app_meetings") || "[]");
+    const records = JSON.parse(
+      localStorage.getItem("app_meetings") ||
+        sessionStorage.getItem("app_meetings") ||
+        "[]",
+    );
     return Array.isArray(records) ? records : [];
-  } catch { return []; }
+  } catch {
+    return [];
+  }
 };
 
 export default function UserDashboardPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [user] = useState(readUser);
+  const [user, setUser] = useState(readUser);
   const [meetings, setMeetings] = useState(readMeetings);
   const [profileOpen, setProfileOpen] = useState(location.pathname.endsWith("/profile"));
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [visiblePasswords, setVisiblePasswords] = useState({ current: false, next: false, confirm: false });
   const [passwordMessage, setPasswordMessage] = useState("");
   const [passwordError, setPasswordError] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
@@ -38,9 +56,29 @@ export default function UserDashboardPage() {
   }, [location.pathname]);
 
   useEffect(() => {
-    const refresh = () => setMeetings(readMeetings());
+    const refresh = () => {
+      setMeetings(readMeetings());
+      setUser(readUser());
+    };
     window.addEventListener("storage", refresh);
     window.addEventListener("app_meetings_updated", refresh);
+
+    const fetchMeetings = async () => {
+      try {
+        const res = await fetch("/api/dashboard/meetings");
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data) && data.length > 0) {
+            setMeetings(data);
+            try {
+              localStorage.setItem("app_meetings", JSON.stringify(data));
+            } catch (e) {}
+          }
+        }
+      } catch (e) {}
+    };
+    fetchMeetings();
+
     return () => {
       window.removeEventListener("storage", refresh);
       window.removeEventListener("app_meetings_updated", refresh);
@@ -50,10 +88,30 @@ export default function UserDashboardPage() {
   const ownMeetings = useMemo(() => {
     const username = String(user.username || "").toLowerCase();
     const name = String(user.name || "").toLowerCase();
+    const seen = new Set();
     return meetings.filter((meeting) => {
+      if (!meeting) return false;
       const owner = String(meeting.bookedByUsername || meeting.username || "").toLowerCase();
       const ownerName = String(meeting.bookedBy || meeting.requester || "").toLowerCase();
-      return (username && owner === username) || (name && ownerName === name);
+      const isOwner = (username && owner === username) || (name && ownerName === name);
+      if (!isOwner) return false;
+
+      const normRoom = String(meeting.room || meeting.roomName || "").toLowerCase().replace(/\s+/g, "");
+      const dedupeKey =
+        meeting.originalId ||
+        meeting.googleId ||
+        meeting.id ||
+        `${meeting.date}_${meeting.start || meeting.startTime}_${normRoom}`;
+
+      if (seen.has(dedupeKey)) return false;
+      seen.add(dedupeKey);
+      if (meeting.id) seen.add(String(meeting.id));
+      if (meeting.googleId) seen.add(String(meeting.googleId));
+      if (meeting.originalId) seen.add(String(meeting.originalId));
+      if (meeting.date && (meeting.start || meeting.startTime) && normRoom) {
+        seen.add(`${meeting.date}_${meeting.start || meeting.startTime}_${normRoom}`);
+      }
+      return true;
     });
   }, [meetings, user]);
 
@@ -107,33 +165,89 @@ export default function UserDashboardPage() {
   };
 
   const logout = () => {
-    localStorage.removeItem("isAuthenticated");
-    localStorage.removeItem("currentUser");
-    sessionStorage.removeItem("isAddingAccount");
-    navigate("/login", { replace: true });
+    const keys = [
+      "booking_isAuthenticated",
+      "booking_currentUser",
+      "booking_isAddingAccount",
+      "dashboard_isAuthenticated",
+      "dashboard_currentUser",
+      "dashboard_savedAccounts",
+      "isAuthenticated",
+      "currentUser",
+      "isAddingAccount",
+    ];
+    keys.forEach((key) => {
+      sessionStorage.removeItem(key);
+      localStorage.removeItem(key);
+    });
+    navigate("/login?portal=booking&logout=true", { replace: true });
   };
 
   return (
     <div className="user-dashboard-shell">
       <aside className="user-dashboard-sidebar">
         <div className="user-dashboard-brand">
-          <img src="/dashboard-app/assets/kemenaker-white.jpeg" alt="" />
-          <span><strong>MEETING DISPLAY ROOM</strong><small>BIRO KEUANGAN DAN BMN</small></span>
+          <img
+            src="/dashboard-app/assets/kemenaker-white.png"
+            alt="Logo Kemenaker"
+            className="user-dashboard-brand-logo"
+          />
+          <div>
+            <b>MEETING DISPLAY ROOM</b>
+            <small>BIRO KEUANGAN DAN BMN</small>
+          </div>
         </div>
         <nav className="user-dashboard-nav" aria-label="Navigasi pengguna">
-          <button className={!profileOpen ? "active" : ""} onClick={() => { setProfileOpen(false); navigate("/dashboard"); }}><IoMdHome />Dashboard</button>
-          <button onClick={() => navigate("/booking")}><FaCalendarAlt />Booking Ruangan</button>
-          <button onClick={() => navigate("/booking/history")}><FaHistory />Riwayat Pemesanan</button>
-          <button className={profileOpen ? "active" : ""} onClick={openProfile}><FaUser />Profil</button>
+          <button
+            type="button"
+            className={!profileOpen ? "active" : ""}
+            onClick={() => {
+              setProfileOpen(false);
+              navigate("/dashboard");
+            }}
+          >
+            <IoMdHome />
+            <span>Dashboard</span>
+          </button>
+          <button type="button" onClick={() => navigate("/booking")}>
+            <FaCalendarAlt />
+            <span>Booking Ruangan</span>
+          </button>
+          <button type="button" onClick={() => navigate("/booking/history")}>
+            <FaHistory />
+            <span>Riwayat Pemesanan</span>
+          </button>
+          <button
+            type="button"
+            className={profileOpen ? "active" : ""}
+            onClick={openProfile}
+          >
+            <FaUser />
+            <span>Profil</span>
+          </button>
         </nav>
-        <button className="user-dashboard-logout" onClick={logout}><FaSignOutAlt />Keluar</button>
-        <div className="user-dashboard-sidebar-user"><span>{(user.name || user.username || "U").charAt(0).toUpperCase()}</span><div><strong>{user.name || user.username || "Pengguna"}</strong><small>{user.role || "User"}</small></div></div>
+        <div className="user-dashboard-sidebar-footer">
+          <button type="button" className="user-dashboard-logout" onClick={logout}>
+            <FaSignOutAlt />
+            <span>Keluar</span>
+          </button>
+          <div className="user-dashboard-sidebar-user">
+            <span>{(user.name || user.username || "U").charAt(0).toUpperCase()}</span>
+            <div>
+              <strong>{user.name || user.username || "Pengguna"}</strong>
+              <small>{user.role || "User"}</small>
+            </div>
+          </div>
+        </div>
       </aside>
 
       <main className="user-dashboard-main">
         <header className="user-dashboard-topbar">
           <div><small>Portal Pengguna</small><strong>{profileOpen ? "Profil Saya" : "Dashboard"}</strong></div>
-          <button className="user-dashboard-profile-button" onClick={openProfile}><FaUserCircle /><span>{user.name || user.username || "Pengguna"}</span></button>
+          <button className="user-dashboard-profile-button" onClick={openProfile}>
+            <span className="user-dashboard-topbar-avatar">{(user.name || user.username || "U").charAt(0).toUpperCase()}</span>
+            <span className="user-dashboard-topbar-account"><strong>{user.name || user.username || "Pengguna"}</strong><small>{user.role || "User"}</small></span>
+          </button>
         </header>
 
         {profileOpen ? (
@@ -147,9 +261,9 @@ export default function UserDashboardPage() {
               </article>
               <form className="user-password-card" onSubmit={handlePasswordChange}>
                 <div className="user-card-heading"><span><FaLock /></span><div><h2>Ganti Password</h2><p>Gunakan password minimal 8 karakter.</p></div></div>
-                <label>Password saat ini<input type="password" autoComplete="current-password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} required /></label>
-                <label>Password baru<input type="password" autoComplete="new-password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} minLength={8} required /></label>
-                <label>Konfirmasi password baru<input type="password" autoComplete="new-password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} minLength={8} required /></label>
+                <label>Password saat ini<div className="user-password-input-wrap"><input type={visiblePasswords.current ? "text" : "password"} autoComplete="current-password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} required /><button type="button" aria-label={visiblePasswords.current ? "Sembunyikan password saat ini" : "Tampilkan password saat ini"} onClick={() => setVisiblePasswords((state) => ({ ...state, current: !state.current }))}>{visiblePasswords.current ? <FaEyeSlash /> : <FaEye />}</button></div></label>
+                <label>Password baru<div className="user-password-input-wrap"><input type={visiblePasswords.next ? "text" : "password"} autoComplete="new-password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} minLength={8} required /><button type="button" aria-label={visiblePasswords.next ? "Sembunyikan password baru" : "Tampilkan password baru"} onClick={() => setVisiblePasswords((state) => ({ ...state, next: !state.next }))}>{visiblePasswords.next ? <FaEyeSlash /> : <FaEye />}</button></div></label>
+                <label>Konfirmasi password baru<div className="user-password-input-wrap"><input type={visiblePasswords.confirm ? "text" : "password"} autoComplete="new-password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} minLength={8} required /><button type="button" aria-label={visiblePasswords.confirm ? "Sembunyikan konfirmasi password" : "Tampilkan konfirmasi password"} onClick={() => setVisiblePasswords((state) => ({ ...state, confirm: !state.confirm }))}>{visiblePasswords.confirm ? <FaEyeSlash /> : <FaEye />}</button></div></label>
                 {passwordMessage && <p className={`user-password-message ${passwordError ? "error" : "success"}`} role="status">{passwordMessage}</p>}
                 <button type="submit" disabled={savingPassword}>{savingPassword ? "Menyimpan..." : "Simpan Password"}</button>
               </form>
