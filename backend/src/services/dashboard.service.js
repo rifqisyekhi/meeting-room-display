@@ -122,6 +122,75 @@ function getMeetingStatus(startDate, endDate, now = new Date()) {
   return "Selesai";
 }
 
+function normalizeMeetingLifecycle(meeting, now = new Date()) {
+  if (!meeting) return meeting;
+  const sLower = String(meeting.status || "").toLowerCase().trim();
+
+  // Rapat yang Dibatalkan atau Ditolak tidak diubah otomatis
+  if (sLower.includes("batal") || sLower.includes("tolak")) {
+    meeting.status = sLower.includes("tolak") ? "Ditolak" : "Dibatalkan";
+    return meeting;
+  }
+
+  // Jika masih Menunggu Approval dan belum ada tanda persetujuan, pertahankan
+  const isApproved = Boolean(
+    meeting.approvedBy ||
+    meeting.approvedAt ||
+    meeting.googleId ||
+    (!sLower.includes("menunggu") && sLower !== "pending")
+  );
+
+  if (!isApproved && (sLower.includes("menunggu") || sLower === "pending")) {
+    meeting.status = "Menunggu Approval";
+    return meeting;
+  }
+
+  // Jika sudah ada catatan Check-Out, sesi PASTI sudah Selesai
+  if (meeting.checkOutAt) {
+    meeting.status = "Selesai";
+    return meeting;
+  }
+
+  // Hitung status berbasis waktu (Date & Time)
+  if (meeting.date) {
+    try {
+      const [y, mth, d] = String(meeting.date).split("-").map(Number);
+      const [sh, sm] = String(meeting.start || meeting.startTime || "08:00").split(":").map(Number);
+      const [eh, em] = String(meeting.end || meeting.endTime || "17:00").split(":").map(Number);
+      const startDt = new Date(y, mth - 1, d, sh || 0, sm || 0, 0);
+      const endDt = new Date(y, mth - 1, d, eh || 0, em || 0, 0);
+
+      // 1. Waktu rapat sudah lewat -> PASTI Selesai
+      if (now >= endDt) {
+        meeting.status = "Selesai";
+        return meeting;
+      }
+
+      // 2. Berada dalam rentang waktu rapat -> Berjalan
+      if (now >= startDt && now < endDt) {
+        meeting.status = "Berjalan";
+        return meeting;
+      }
+
+      // 3. Masih sebelum waktu mulai
+      if (now < startDt) {
+        if (meeting.checkInAt || sLower === "berjalan") {
+          meeting.status = "Berjalan";
+        } else {
+          const isToday =
+            startDt.getFullYear() === now.getFullYear() &&
+            startDt.getMonth() === now.getMonth() &&
+            startDt.getDate() === now.getDate();
+          meeting.status = isToday ? "Segera" : "Akan Datang";
+        }
+        return meeting;
+      }
+    } catch (err) {}
+  }
+
+  return meeting;
+}
+
 function formatTwoDigits(n) {
   return String(n).padStart(2, "0");
 }
@@ -472,7 +541,7 @@ async function getDashboardData() {
 
     uniqueMeetings.push(m);
   }
-  meetings = uniqueMeetings;
+  meetings = uniqueMeetings.map((m) => normalizeMeetingLifecycle(m));
 
   // Update status ruangan secara dinamis berdasarkan rapat yang sedang berjalan
   const rooms = (store.rooms || []).map((room) => {
@@ -907,6 +976,24 @@ async function getMeetingById(id) {
           (m.localId && String(m.localId) === target)
       );
     } catch (e) {}
+  }
+
+  if (found) {
+    const prevStatus = found.status;
+    found = normalizeMeetingLifecycle(found);
+    if (found.status === "Selesai" && prevStatus !== "Selesai") {
+      const storeIdx = store.meetings.findIndex((m) => String(m.id) === String(found.id));
+      if (storeIdx !== -1) {
+        store.meetings[storeIdx].status = "Selesai";
+        writeStore(store);
+      }
+      if (getIsConnected()) {
+        query(
+          `UPDATE meetings SET status = 'Selesai', updated_at = NOW() WHERE id = $1 OR google_id = $1`,
+          [String(found.id)]
+        ).catch((err) => console.warn("Failed to auto-update meeting status in DB:", err.message));
+      }
+    }
   }
 
   return found || null;
@@ -1474,9 +1561,17 @@ async function deleteUser(id) {
   const store = readStore();
   if (!store.users) return false;
 
-  if (getIsConnected()) {
-    await query("DELETE FROM users WHERE id = $1 OR username = $1", [String(id)]);
+  if (!getIsConnected()) {
+    const error = new Error("Database belum terhubung. Pengguna tidak dihapus.");
+    error.statusCode = 503;
+    throw error;
   }
+
+  const deleted = await query(
+    "DELETE FROM users WHERE id = $1 OR username = $1",
+    [String(id)],
+  );
+  if (!deleted.rowCount) return false;
 
   store.users = store.users.filter(
     (u) =>

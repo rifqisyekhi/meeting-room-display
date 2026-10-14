@@ -405,9 +405,12 @@ router.post("/users", async (req, res) => {
 router.delete("/users/:id", async (req, res) => {
   try {
     const ok = await dashboardService.deleteUser(req.params.id);
-    res.json({ success: ok });
+    if (!ok) {
+      return res.status(404).json({ success: false, error: "Pengguna tidak ditemukan." });
+    }
+    return res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return res.status(err.statusCode || 500).json({ success: false, error: err.message });
   }
 });
 

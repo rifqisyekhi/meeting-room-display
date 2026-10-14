@@ -324,3 +324,212 @@
   .user-profile-card, .user-password-card { padding: 17px; }
   .user-page-heading h1 { font-size: 22px; }
 }
+
+/* Selaraskan kerangka dashboard pengguna dengan dashboard admin/approval. */
+.user-dashboard-shell {
+  background: linear-gradient(180deg, #d4e6f6 0%, #edf5fc 300px);
+}
+
+.user-dashboard-topbar {
+  min-height: 68px;
+  padding: 0 28px;
+  border-bottom-color: #e3eaf3;
+  background: #fff;
+  box-shadow: 0 1px 6px rgba(13, 45, 94, 0.06);
+  backdrop-filter: none;
+}
+
+.user-dashboard-content {
+  width: 100%;
+  max-width: 1600px;
+  padding: 0 0 36px;
+}
+
+.user-welcome-banner {
+  min-height: 0;
+  padding: 30px 40px 24px;
+  border-radius: 0;
+  color: #0c2d5e;
+  background: transparent;
+  box-shadow: none;
+}
+
+.user-welcome-banner::after { display: none; }
+.user-welcome-banner > span { color: #4b6a90; font-size: 12px; font-weight: 500; }
+.user-welcome-banner h1 { margin: 0 0 6px; font-size: 28px; font-weight: 700; }
+.user-welcome-banner p { color: #4b6a90; font-size: 14px; font-weight: 500; }
+.user-welcome-banner button { border-color: #1769aa; color: #fff; background: #1769aa; font-size: 12px; }
+.user-welcome-banner button:hover { background: #0c2d5e; }
+
+.user-stat-grid {
+  gap: 20px;
+  margin: 0;
+  padding: 0 40px 30px;
+}
+
+.user-stat-grid article {
+  min-height: 112px;
+  gap: 18px;
+  padding: 24px;
+  border-color: #fff;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 10px 30px rgba(12, 45, 94, 0.05);
+  backdrop-filter: blur(10px);
+}
+
+.user-stat-grid article > span {
+  width: 56px;
+  height: 56px;
+  font-size: 19px;
+}
+
+.user-stat-grid small { color: #0c2d5e; font-size: 14px; font-weight: 600; }
+.user-stat-grid strong { font-size: 26px; }
+.user-stat-grid p { color: #4b6a90; font-size: 11px; }
+
+.user-dashboard-lower-panel {
+  min-height: 220px;
+  padding: 28px 40px 34px;
+  border-radius: 20px 20px 0 0;
+  background: #fff;
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.02);
+}
+
+.user-section-heading { margin-bottom: 18px; }
+.user-section-heading span, .user-page-heading > span { color: #4b6a90; }
+.user-section-heading h2, .user-page-heading h1 { color: #0c2d5e; }
+.user-quick-grid { gap: 20px; }
+.user-quick-grid button {
+  min-height: 112px;
+  padding: 20px;
+  border-color: #e3eaf3;
+  border-radius: 14px;
+  box-shadow: 0 4px 14px rgba(12, 45, 94, 0.045);
+}
+
+.user-profile-grid {
+  margin: 0 40px;
+  padding: 30px;
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 4px 20px rgba(12, 45, 94, 0.04);
+}
+
+/* Keep the profile heading aligned with the inset profile cards. */
+.user-page-heading { margin-left: 40px; margin-right: 40px; }
+
+@media (max-width: 900px) {
+  .user-dashboard-topbar { padding: 0 20px; }
+  .user-welcome-banner { padding: 26px 24px 20px; }
+  .user-stat-grid { padding: 0 24px 24px; }
+  .user-dashboard-lower-panel { padding: 24px; }
+  .user-profile-grid { margin: 0 24px; padding: 24px; }
+  .user-page-heading { margin-left: 24px; margin-right: 24px; }
+}
+
+@media (max-width: 640px) {
+  .user-dashboard-content { padding-bottom: 24px; }
+  .user-welcome-banner { padding: 20px 16px 18px; }
+  .user-welcome-banner h1 { font-size: 24px; }
+  .user-welcome-banner p { font-size: 12px; }
+  .user-stat-grid { gap: 10px; padding: 0 16px 20px; }
+  .user-stat-grid article { min-height: 82px; padding: 14px; }
+  .user-stat-grid article > span { width: 44px; height: 44px; font-size: 16px; }
+  .user-stat-grid small { font-size: 12px; }
+  .user-dashboard-lower-panel { min-height: 0; padding: 22px 16px 26px; border-radius: 16px 16px 0 0; }
+  .user-quick-grid { gap: 10px; }
+  .user-quick-grid button { min-height: 84px; padding: 14px; }
+  .user-profile-grid { margin: 0 16px; padding: 17px; border-radius: 16px; }
+  .user-page-heading { margin: 0 16px 18px; }
+}
+
+/* Prinsip UX: fokus visual, grouping yang jelas, target klik besar, dan status yang terbaca. */
+.user-dashboard-sidebar::before { filter: brightness(0.58); opacity: 0.68; }
+.user-dashboard-logout { min-height: 40px; border-radius: 8px; background: #a92732; }
+.user-dashboard-logout:hover { background: #8f1d28; }
+.user-dashboard-nav button:focus-visible,
+.user-dashboard-logout:focus-visible,
+.user-dashboard-profile-button:focus-visible,
+.user-welcome-banner button:focus-visible,
+.user-quick-grid button:focus-visible,
+.user-upcoming-heading button:focus-visible,
+.user-upcoming-empty button:focus-visible {
+  outline: 3px solid #62a9ed;
+  outline-offset: 3px;
+}
+
+.user-welcome-banner { padding-bottom: 18px; }
+.user-welcome-banner button { min-height: 40px; padding: 0 16px; }
+.user-stat-grid { padding-bottom: 24px; }
+.user-stat-grid article { border-radius: 14px; }
+.user-stat-grid p { line-height: 1.45; }
+.user-dashboard-lower-panel { min-height: 0; padding-top: 24px; padding-bottom: 44px; }
+.user-section-heading { margin-bottom: 14px; }
+.user-quick-grid button { min-height: 96px; border-radius: 14px; text-align: left; cursor: pointer; }
+.user-quick-grid button:hover { border-color: #b8d3ed; box-shadow: 0 8px 22px rgba(12, 45, 94, 0.09); transform: translateY(-1px); }
+.user-quick-grid button > span:nth-child(2) { display: grid; gap: 4px; }
+.user-quick-grid button small { line-height: 1.45; }
+
+.user-upcoming-section { margin-top: 20px; padding-top: 18px; border-top: 1px solid #e7edf5; }
+.user-upcoming-heading { align-items: center; justify-content: space-between; }
+.user-upcoming-heading button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid #dce7f3;
+  border-radius: 9px;
+  color: #1769aa;
+  background: #fff;
+  font: 600 12px "Poppins", sans-serif;
+  cursor: pointer;
+}
+.user-upcoming-heading button:hover { background: #f2f7fc; }
+.user-upcoming-list { display: grid; gap: 10px; }
+.user-upcoming-card {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid #e6edf5;
+  border-radius: 12px;
+  background: #fff;
+}
+.user-upcoming-date { display: grid; justify-items: center; gap: 1px; padding: 6px 3px; border-radius: 9px; color: #1769aa; background: #edf5fc; }
+.user-upcoming-date strong { font-size: 19px; line-height: 1; }
+.user-upcoming-date span { font-size: 10px; font-weight: 600; text-transform: uppercase; }
+.user-upcoming-details, .user-upcoming-meta { display: grid; gap: 4px; min-width: 0; }
+.user-upcoming-details strong { overflow: hidden; color: #0c2d5e; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.user-upcoming-details > span, .user-upcoming-meta > span { color: #607590; font-size: 11px; line-height: 1.4; }
+.user-upcoming-status { max-width: 150px; padding: 6px 9px; border: 1px solid #dce7f3; border-radius: 999px; color: #315778; background: #f5f8fc; font-size: 10px; font-weight: 600; text-align: center; }
+.user-upcoming-empty { display: flex; align-items: center; gap: 14px; padding: 18px; border: 1px dashed #cbd9e9; border-radius: 12px; background: #f8fbfe; }
+.user-upcoming-empty > span { display: grid; width: 42px; height: 42px; flex: 0 0 auto; place-items: center; border-radius: 50%; color: #1769aa; background: #e8f2ff; }
+.user-upcoming-empty > div { min-width: 0; flex: 1; }
+.user-upcoming-empty strong { color: #0c2d5e; font-size: 12px; }
+.user-upcoming-empty p { margin: 4px 0 0; color: #607590; font-size: 11px; line-height: 1.45; }
+.user-upcoming-empty button { min-height: 38px; padding: 0 13px; border: 0; border-radius: 8px; color: #fff; background: #1769aa; font: 600 11px "Poppins", sans-serif; cursor: pointer; }
+.user-upcoming-empty button:hover { background: #0c2d5e; }
+
+@media (max-width: 900px) {
+  .user-upcoming-card { grid-template-columns: 48px minmax(0, 1fr) auto; gap: 12px; }
+  .user-upcoming-status { grid-column: 2 / -1; justify-self: start; }
+}
+
+@media (max-width: 640px) {
+  .user-dashboard-logout { min-height: 42px; }
+  .user-welcome-banner { padding-bottom: 16px; }
+  .user-stat-grid { padding-bottom: 20px; }
+  .user-upcoming-section { margin-top: 24px; padding-top: 22px; }
+  .user-upcoming-heading { align-items: flex-start; gap: 8px; }
+  .user-upcoming-heading button { min-height: 36px; padding: 0 9px; font-size: 11px; white-space: nowrap; }
+  .user-upcoming-card { grid-template-columns: 44px minmax(0, 1fr); gap: 10px; padding: 12px; }
+  .user-upcoming-meta { grid-column: 2; grid-template-columns: auto auto; gap: 10px; }
+  .user-upcoming-status { grid-column: 2; }
+  .user-upcoming-empty { align-items: flex-start; flex-wrap: wrap; padding: 14px; }
+  .user-upcoming-empty > div { flex-basis: calc(100% - 56px); }
+  .user-upcoming-empty button { margin-left: 56px; }
+}

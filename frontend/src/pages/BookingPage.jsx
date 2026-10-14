@@ -1528,8 +1528,8 @@ export default function BookingPage() {
 
       {/* ── MODAL NOTIFIKASI PEMESANAN BERHASIL ── */}
       {showSuccessModal && bookedDetails && (
-        <div className="bk-modal-overlay">
-          <div className="bk-modal-card">
+        <div className="bk-modal-overlay" role="presentation">
+          <div className="bk-modal-card" role="dialog" aria-modal="true" aria-labelledby="booking-success-title">
             {/* Big Blue Checkmark Icon */}
             <div className="bk-modal-icon-wrap">
               <svg
@@ -1554,7 +1554,7 @@ export default function BookingPage() {
               </svg>
             </div>
 
-            <h3 className="bk-modal-title">Pemesanan Berhasil!</h3>
+            <h3 className="bk-modal-title" id="booking-success-title">Pemesanan Berhasil!</h3>
             <p className="bk-modal-subtitle">Ruang rapat berhasil dipesan</p>
 
             {/* Inner Summary Card */}
@@ -1634,10 +1634,14 @@ export default function BookingPage() {
       {selectedFacilityRoom && (
         <div
           className="bk-facility-overlay"
+          role="presentation"
           onClick={() => setSelectedFacilityRoom(null)}
         >
           <div
             className="bk-facility-card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="booking-facility-title"
             onClick={(e) => e.stopPropagation()}
           >
             <button
@@ -1648,7 +1652,7 @@ export default function BookingPage() {
             >
               ✕
             </button>
-            <h3 className="bk-facility-title">FASILITAS</h3>
+            <h3 className="bk-facility-title" id="booking-facility-title">FASILITAS</h3>
             <div className="bk-facility-list">
               {(selectedFacilityRoom.facilities || [])
                 .filter((f) => {
@@ -1717,10 +1721,14 @@ export default function BookingPage() {
         return (
           <div
             className="bk-facility-overlay"
+            role="presentation"
             onClick={() => setSelectedReviewRoom(null)}
           >
             <div
               className="bk-review-modal-card"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="booking-room-review-title"
               onClick={(e) => e.stopPropagation()}
             >
               <button
@@ -1734,7 +1742,7 @@ export default function BookingPage() {
 
               <div className="bk-review-modal-header">
                 <div className="bk-review-modal-tag">⭐ RATING &amp; TESTIMONI</div>
-                <h3 className="bk-review-modal-title">{selectedReviewRoom.name}</h3>
+                <h3 className="bk-review-modal-title" id="booking-room-review-title">{selectedReviewRoom.name}</h3>
                 <p className="bk-review-modal-desc">
                   Ulasan langsung dari pengguna dan balasan resmi dari pengelola ruangan
                 </p>
@@ -1821,10 +1829,14 @@ export default function BookingPage() {
       {selectedRoomDetail && (
         <div
           className="bk-img-lightbox-overlay"
+          role="presentation"
           onClick={() => setSelectedRoomDetail(null)}
         >
           <div
             className="bk-img-lightbox-wrapper"
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Foto ruangan ${selectedRoomDetail.name}`}
             onClick={(e) => e.stopPropagation()}
           >
             <button

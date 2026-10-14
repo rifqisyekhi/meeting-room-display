@@ -20,6 +20,13 @@ export default function LoginPage() {
     statePortal === "booking" ||
     returnTo.startsWith("/booking");
 
+  useEffect(() => {
+    ["savedAccounts", "dashboard_savedAccounts", "booking_savedAccounts"].forEach((key) => {
+      sessionStorage.removeItem(key);
+      localStorage.removeItem(key);
+    });
+  }, []);
+
   // Jika sudah login dan tidak dalam mode tambah akun atau logout, langsung arahkan ke tujuan atau role yang sesuai
   useEffect(() => {
     if (isLogoutParam) {
@@ -238,42 +245,6 @@ export default function LoginPage() {
         sessionStorage.removeItem("isAddingAccount");
         sessionStorage.removeItem("booking_isAddingAccount");
 
-        let saved = [];
-        try {
-          saved = JSON.parse(
-            localStorage.getItem("savedAccounts") ||
-              sessionStorage.getItem("savedAccounts") ||
-              "[]",
-          );
-        } catch (e) {
-          saved = [];
-        }
-
-        saved = saved
-          .filter(
-            (u) =>
-              (u.name || "").toLowerCase() !== "andi pratama" &&
-              (u.username || "").toLowerCase() !== "andipratama",
-          )
-          .map((u) => {
-            let r = u.role || "User";
-            if (r === "Administrator") r = "Admin";
-            if (r.startsWith("Approval")) r = "Pimpinan";
-            return { ...u, role: r };
-          });
-
-        const existingIdx = saved.findIndex(
-          (u) =>
-            (u.username || "").toLowerCase() === userData.username.toLowerCase(),
-        );
-        if (existingIdx >= 0) {
-          saved[existingIdx] = userData;
-        } else {
-          saved.push(userData);
-        }
-        localStorage.setItem("savedAccounts", JSON.stringify(saved));
-        sessionStorage.setItem("savedAccounts", JSON.stringify(saved));
-
         // Admin dan Approval/Pimpinan SELALU langsung ke Dashboard masing-masing!
         navigate("/dashboard", { replace: true });
       } else {
@@ -297,29 +268,6 @@ export default function LoginPage() {
 
         sessionStorage.removeItem("booking_isAddingAccount");
         sessionStorage.removeItem("isAddingAccount");
-
-        let bookingSaved = [];
-        try {
-          bookingSaved = JSON.parse(
-            localStorage.getItem("booking_savedAccounts") ||
-              sessionStorage.getItem("booking_savedAccounts") ||
-              "[]",
-          );
-        } catch (e) {
-          bookingSaved = [];
-        }
-
-        const existingIdx = bookingSaved.findIndex(
-          (u) =>
-            (u.username || "").toLowerCase() === userData.username.toLowerCase(),
-        );
-        if (existingIdx >= 0) {
-          bookingSaved[existingIdx] = userData;
-        } else {
-          bookingSaved.push(userData);
-        }
-        localStorage.setItem("booking_savedAccounts", JSON.stringify(bookingSaved));
-        sessionStorage.setItem("booking_savedAccounts", JSON.stringify(bookingSaved));
 
         const destination =
           returnTo && returnTo !== "/login" && returnTo !== "/booking"

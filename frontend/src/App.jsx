@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import DisplayPage from "./pages/DisplayPage";
 import DashboardPage from "./pages/DashboardPage";
@@ -7,7 +8,6 @@ import BookingHistoryPage from "./pages/BookingHistoryPage";
 import MeetingPassPage from "./pages/MeetingPassPage";
 import UserDashboardPage from "./pages/UserDashboardPage";
 
-// eslint-disable-next-line react/prop-types
 const ProtectedRoute = ({ children }) => {
   const isBookingAuth =
     sessionStorage.getItem("booking_isAuthenticated") === "true" ||
@@ -46,12 +46,13 @@ const ProtectedRoute = ({ children }) => {
         sessionStorage.setItem("booking_isAuthenticated", "true");
       }
     }
-  } catch (e) {}
+  } catch {
+    // Storage may be unavailable in private or restricted browser contexts.
+  }
 
   return children;
 };
 
-// eslint-disable-next-line react/prop-types
 const DashboardRoute = ({ children }) => {
   const location = useLocation();
 
@@ -75,7 +76,9 @@ const DashboardRoute = ({ children }) => {
       sessionStorage.getItem("booking_currentUser") ||
       localStorage.getItem("booking_currentUser");
     if (stored) currentUser = JSON.parse(stored);
-  } catch (e) {}
+  } catch {
+    // Continue routing from the available authentication state.
+  }
 
   const role = (currentUser?.role || "").toLowerCase();
   const uname = (currentUser?.username || "").toLowerCase();
@@ -118,9 +121,72 @@ const DashboardRoute = ({ children }) => {
   return children;
 };
 
+function DialogKeyboardSupport() {
+  useEffect(() => {
+    const selector = '[role="dialog"][aria-modal="true"], [role="alertdialog"][aria-modal="true"]';
+    let activeDialog = null;
+    let returnFocus = null;
+    const getFocusable = (dialog) => [...dialog.querySelectorAll(
+      'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    )].filter((element) => element.getClientRects().length > 0);
+
+    const syncDialog = () => {
+      const nextDialog = [...document.querySelectorAll(selector)].find((dialog) => dialog.getClientRects().length > 0) || null;
+      if (nextDialog === activeDialog) return;
+      if (activeDialog && returnFocus instanceof HTMLElement && returnFocus.isConnected) returnFocus.focus();
+      activeDialog = nextDialog;
+      returnFocus = activeDialog ? document.activeElement : null;
+      if (activeDialog) {
+        const dialogToFocus = activeDialog;
+        if (!dialogToFocus.hasAttribute("tabindex")) dialogToFocus.setAttribute("tabindex", "-1");
+        requestAnimationFrame(() => {
+          if (dialogToFocus.isConnected) (getFocusable(dialogToFocus)[0] || dialogToFocus).focus();
+        });
+      }
+    };
+
+    const onKeyDown = (event) => {
+      if (!activeDialog?.isConnected) return;
+      if (event.key === "Escape") {
+        const closeButton = activeDialog.querySelector('button[aria-label="Tutup"], button[aria-label="Tutup Modal"], button[title="Tutup"]');
+        closeButton?.click();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const focusable = getFocusable(activeDialog);
+      if (!focusable.length) {
+        event.preventDefault();
+        activeDialog.focus();
+        return;
+      }
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    const observer = new MutationObserver(syncDialog);
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["class", "aria-modal"] });
+    document.addEventListener("keydown", onKeyDown);
+    syncDialog();
+    return () => {
+      observer.disconnect();
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, []);
+
+  return null;
+}
+
 export default function App() {
   return (
     <BrowserRouter>
+      <DialogKeyboardSupport />
       <Routes>
         {/* Tampilan Layar TV / Display Ruangan */}
         <Route path="/" element={<DisplayPage />} />

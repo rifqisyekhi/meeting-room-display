@@ -141,6 +141,16 @@
         position: relative;
         transition: color 0.2s;
       }
+      .dash-tabs button.meeting-pending-tab {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .dash-tabs button.meeting-pending-tab svg {
+        width: 14px;
+        height: 14px;
+        flex: 0 0 14px;
+      }
       .dash-tabs button.active {
         color: #0c2d5e;
       }

@@ -33,12 +33,32 @@ const readMeetings = () => {
   }
 };
 
+const getMeetingDateTime = (meeting, timeValue) => {
+  if (!meeting?.date || !timeValue) return null;
+  const dateMatch = String(meeting.date).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  const timeMatch = String(timeValue).match(/^(\d{1,2}):(\d{2})/);
+  if (!dateMatch || !timeMatch) return null;
+  const [, year, month, day] = dateMatch;
+  const [, hour, minute] = timeMatch;
+  const result = new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute));
+  return Number.isNaN(result.getTime()) ? null : result;
+};
+
+const isPendingMeeting = (meeting) => /menunggu|pending/i.test(String(meeting?.status || ""));
+const isCancelledMeeting = (meeting) => /tolak|batal|reject|cancel/i.test(String(meeting?.status || ""));
+const formatMeetingDate = (date) => new Intl.DateTimeFormat("id-ID", {
+  weekday: "short",
+  day: "numeric",
+  month: "short",
+}).format(date);
+
 export default function UserDashboardPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const [user, setUser] = useState(readUser);
   const [meetings, setMeetings] = useState(readMeetings);
-  const [profileOpen, setProfileOpen] = useState(location.pathname.endsWith("/profile"));
+  const profileOpen = location.pathname.endsWith("/profile");
+  const [now, setNow] = useState(null);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -50,10 +70,6 @@ export default function UserDashboardPage() {
   useEffect(() => {
     document.title = "Dashboard Pengguna - Booking Ruang Rapat";
   }, []);
-
-  useEffect(() => {
-    setProfileOpen(location.pathname.endsWith("/profile"));
-  }, [location.pathname]);
 
   useEffect(() => {
     const refresh = () => {
@@ -68,20 +84,34 @@ export default function UserDashboardPage() {
         const res = await fetch("/api/dashboard/meetings");
         if (res.ok) {
           const data = await res.json();
-          if (Array.isArray(data) && data.length > 0) {
+          if (Array.isArray(data)) {
             setMeetings(data);
             try {
               localStorage.setItem("app_meetings", JSON.stringify(data));
-            } catch (e) {}
+            } catch {
+              // Dashboard tetap memakai data dari API jika storage browser tidak tersedia.
+            }
           }
         }
-      } catch (e) {}
+      } catch {
+        // Pertahankan cache lokal ketika API belum dapat diakses.
+      }
     };
     fetchMeetings();
 
     return () => {
       window.removeEventListener("storage", refresh);
       window.removeEventListener("app_meetings_updated", refresh);
+    };
+  }, []);
+
+  useEffect(() => {
+    const updateClock = () => setNow(Date.now());
+    const initialUpdate = window.setTimeout(updateClock, 0);
+    const interval = window.setInterval(updateClock, 60_000);
+    return () => {
+      window.clearTimeout(initialUpdate);
+      window.clearInterval(interval);
     };
   }, []);
 
@@ -115,15 +145,21 @@ export default function UserDashboardPage() {
     });
   }, [meetings, user]);
 
-  const upcomingCount = ownMeetings.filter((meeting) => {
-    const date = meeting.date;
-    const end = meeting.end || meeting.endTime || "23:59";
-    return date && new Date(`${date}T${end}:00`) >= new Date() && !/tolak|batal/i.test(meeting.status || "");
-  }).length;
+  const upcomingMeetings = useMemo(() => {
+    if (now === null) return [];
+    return ownMeetings
+      .filter((meeting) => {
+        const start = getMeetingDateTime(meeting, meeting.start || meeting.startTime);
+        const end = getMeetingDateTime(meeting, meeting.end || meeting.endTime) || start;
+        return start && end && start.getTime() >= now && !isPendingMeeting(meeting) && !isCancelledMeeting(meeting);
+      })
+      .sort((a, b) => getMeetingDateTime(a, a.start || a.startTime) - getMeetingDateTime(b, b.start || b.startTime));
+  }, [ownMeetings, now]);
+  const upcomingCount = upcomingMeetings.length;
+  const nearestMeetings = upcomingMeetings.slice(0, 3);
   const pendingCount = ownMeetings.filter((meeting) => /menunggu|pending/i.test(meeting.status || "")).length;
 
   const openProfile = () => {
-    setProfileOpen(true);
     setPasswordMessage("");
     navigate("/dashboard/profile");
   };
@@ -202,7 +238,6 @@ export default function UserDashboardPage() {
             type="button"
             className={!profileOpen ? "active" : ""}
             onClick={() => {
-              setProfileOpen(false);
               navigate("/dashboard");
             }}
           >
@@ -252,20 +287,23 @@ export default function UserDashboardPage() {
 
         {profileOpen ? (
           <section className="user-dashboard-content">
-            <div className="user-page-heading"><span>AKUN SAYA</span><h1>Profil Pengguna</h1><p>Periksa informasi akun dan perbarui password Anda.</p></div>
+            <div className="user-page-heading">
+              <h1>Profil Saya</h1>
+              <p>Kelola data diri dan keamanan akun Anda.</p>
+            </div>
             <div className="user-profile-grid">
               <article className="user-profile-card">
                 <div className="user-profile-avatar">{(user.name || user.username || "U").charAt(0).toUpperCase()}</div>
-                <h2>{user.name || "Pengguna"}</h2><p>{user.role || "User"}</p>
+                <h2>{user.name || user.username || "Pengguna"}</h2><p>{user.role || "User"}</p>
                 <dl><div><dt>Username</dt><dd>{user.username || "-"}</dd></div><div><dt>Email</dt><dd>{user.email || "Belum diisi"}</dd></div><div><dt>Bagian</dt><dd>{user.dept || "Biro Keuangan dan BMN"}</dd></div></dl>
               </article>
               <form className="user-password-card" onSubmit={handlePasswordChange}>
-                <div className="user-card-heading"><span><FaLock /></span><div><h2>Ganti Password</h2><p>Gunakan password minimal 8 karakter.</p></div></div>
+                <div className="user-card-heading"><span><FaLock /></span><div><h2>Ganti Password</h2><p>Minimal 8 karakter.</p></div></div>
                 <label>Password saat ini<div className="user-password-input-wrap"><input type={visiblePasswords.current ? "text" : "password"} autoComplete="current-password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} required /><button type="button" aria-label={visiblePasswords.current ? "Sembunyikan password saat ini" : "Tampilkan password saat ini"} onClick={() => setVisiblePasswords((state) => ({ ...state, current: !state.current }))}>{visiblePasswords.current ? <FaEyeSlash /> : <FaEye />}</button></div></label>
                 <label>Password baru<div className="user-password-input-wrap"><input type={visiblePasswords.next ? "text" : "password"} autoComplete="new-password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} minLength={8} required /><button type="button" aria-label={visiblePasswords.next ? "Sembunyikan password baru" : "Tampilkan password baru"} onClick={() => setVisiblePasswords((state) => ({ ...state, next: !state.next }))}>{visiblePasswords.next ? <FaEyeSlash /> : <FaEye />}</button></div></label>
                 <label>Konfirmasi password baru<div className="user-password-input-wrap"><input type={visiblePasswords.confirm ? "text" : "password"} autoComplete="new-password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} minLength={8} required /><button type="button" aria-label={visiblePasswords.confirm ? "Sembunyikan konfirmasi password" : "Tampilkan konfirmasi password"} onClick={() => setVisiblePasswords((state) => ({ ...state, confirm: !state.confirm }))}>{visiblePasswords.confirm ? <FaEyeSlash /> : <FaEye />}</button></div></label>
                 {passwordMessage && <p className={`user-password-message ${passwordError ? "error" : "success"}`} role="status">{passwordMessage}</p>}
-                <button type="submit" disabled={savingPassword}>{savingPassword ? "Menyimpan..." : "Simpan Password"}</button>
+                <button type="submit" disabled={savingPassword}>{savingPassword ? "Menyimpan..." : "Simpan Perubahan"}</button>
               </form>
             </div>
           </section>
@@ -273,15 +311,50 @@ export default function UserDashboardPage() {
           <section className="user-dashboard-content">
             <div className="user-welcome-banner"><span>Selamat datang,</span><h1>{user.name || user.username || "Pengguna"}</h1><p>Kelola pemesanan ruang rapat dan pantau status rapat Anda dengan mudah.</p><button onClick={() => navigate("/booking")}><FaDoorOpen />Booking Ruangan</button></div>
             <div className="user-stat-grid">
-              <article><span className="blue"><FaCalendarAlt /></span><div><small>Total Pemesanan</small><strong>{ownMeetings.length}</strong><p>Semua pemesanan Anda</p></div></article>
-              <article><span className="green"><FaDoorOpen /></span><div><small>Jadwal Mendatang</small><strong>{upcomingCount}</strong><p>Rapat yang belum selesai</p></div></article>
-              <article><span className="amber"><FaHistory /></span><div><small>Menunggu Persetujuan</small><strong>{pendingCount}</strong><p>Permintaan yang diproses</p></div></article>
+              <article><span className="blue"><FaCalendarAlt /></span><div><small>Total Pemesanan</small><strong>{ownMeetings.length}</strong><p>Seluruh pemesanan Anda</p></div></article>
+              <article><span className="green"><FaDoorOpen /></span><div><small>Jadwal Mendatang</small><strong>{upcomingCount}</strong><p>Rapat disetujui yang akan datang</p></div></article>
+              <article><span className="amber"><FaHistory /></span><div><small>Menunggu Persetujuan</small><strong>{pendingCount}</strong><p>Pemesanan menunggu keputusan</p></div></article>
             </div>
-            <div className="user-section-heading"><div><span>AKSES CEPAT</span><h2>Menu Pemesanan</h2></div></div>
-            <div className="user-quick-grid">
-              <button onClick={() => navigate("/booking")}><span className="quick-icon blue"><FaCalendarAlt /></span><span><strong>Booking Ruangan</strong><small>Pilih ruang, tanggal, dan waktu rapat.</small></span><b>›</b></button>
-              <button onClick={() => navigate("/booking/history")}><span className="quick-icon purple"><FaHistory /></span><span><strong>Riwayat Pemesanan</strong><small>Lihat status dan detail pemesanan Anda.</small></span><b>›</b></button>
-              <button onClick={openProfile}><span className="quick-icon slate"><FaUser /></span><span><strong>Profil & Password</strong><small>Perbarui informasi keamanan akun.</small></span><b>›</b></button>
+            <div className="user-dashboard-lower-panel">
+              <div className="user-section-heading"><div><span>AKSES CEPAT</span><h2>Menu Pemesanan</h2></div></div>
+              <div className="user-quick-grid">
+                <button type="button" onClick={() => navigate("/booking")}><span className="quick-icon blue"><FaCalendarAlt /></span><span><strong>Booking Ruangan</strong><small>Buat pemesanan baru</small></span><b aria-hidden="true">›</b></button>
+                <button type="button" onClick={() => navigate("/booking/history")}><span className="quick-icon purple"><FaHistory /></span><span><strong>Riwayat Pemesanan</strong><small>Lihat status pemesanan</small></span><b aria-hidden="true">›</b></button>
+                <button type="button" onClick={openProfile}><span className="quick-icon slate"><FaUser /></span><span><strong>Profil & Password</strong><small>Perbarui informasi akun</small></span><b aria-hidden="true">›</b></button>
+              </div>
+              <div className="user-upcoming-section">
+                <div className="user-section-heading user-upcoming-heading">
+                  <div><span>AGENDA</span><h2>Jadwal Rapat Terdekat</h2></div>
+                  <button type="button" onClick={() => navigate("/booking/history")}>Lihat semua <span aria-hidden="true">→</span></button>
+                </div>
+                {nearestMeetings.length > 0 ? (
+                  <div className="user-upcoming-list">
+                    {nearestMeetings.map((meeting, index) => {
+                      const start = getMeetingDateTime(meeting, meeting.start || meeting.startTime);
+                      return (
+                        <article className="user-upcoming-card" key={meeting.id || meeting.googleId || `${meeting.date}-${meeting.start || meeting.startTime}-${index}`}>
+                          <div className="user-upcoming-date"><strong>{start ? start.getDate() : "—"}</strong><span>{start ? new Intl.DateTimeFormat("id-ID", { month: "short" }).format(start) : ""}</span></div>
+                          <div className="user-upcoming-details">
+                            <strong>{meeting.title || meeting.agenda || "Rapat"}</strong>
+                            <span>{meeting.room || meeting.roomName || "Ruangan belum ditentukan"}</span>
+                          </div>
+                          <div className="user-upcoming-meta">
+                            <span>{start ? formatMeetingDate(start) : "Tanggal belum tersedia"}</span>
+                            <span>{meeting.start || meeting.startTime || "--:--"}{(meeting.end || meeting.endTime) ? `–${meeting.end || meeting.endTime}` : ""}</span>
+                          </div>
+                          <span className="user-upcoming-status">{meeting.status || "Disetujui"}</span>
+                        </article>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="user-upcoming-empty">
+                    <span><FaCalendarAlt /></span>
+                    <div><strong>Belum ada jadwal rapat mendatang</strong><p>Rapat yang sudah disetujui akan muncul di sini.</p></div>
+                    <button type="button" onClick={() => navigate("/booking")}>Buat pemesanan</button>
+                  </div>
+                )}
+              </div>
             </div>
           </section>
         )}

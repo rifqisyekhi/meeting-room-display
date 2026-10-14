@@ -26,10 +26,8 @@ const CALENDAR_STATUS_CONFIG = {
 
 export default function Topbar({
   currentUser,
-  savedAccounts = [],
   onSearch,
   onLogout,
-  onSwitchAccount,
   onAddAccount,
   calendarStatus = 'default',
 }) {
@@ -107,20 +105,6 @@ export default function Topbar({
   };
 
   const statusCfg = CALENDAR_STATUS_CONFIG[calendarStatus] || CALENDAR_STATUS_CONFIG.default;
-
-  const otherAccounts = savedAccounts
-    .filter(
-      (acc) =>
-        acc.email !== currentUser?.email &&
-        (acc.username || "").toLowerCase() !== (currentUser?.username || "").toLowerCase() &&
-        (acc.name || "").toLowerCase() !== "andi pratama",
-    )
-    .map((acc) => {
-      if (acc.role === "Approval 1" || acc.role === "Approval 2") {
-        return { ...acc, role: "Approval" };
-      }
-      return acc;
-    });
 
   return (
     <div style={topbarStyle}>
@@ -463,79 +447,6 @@ export default function Topbar({
                 fontFamily: 'Poppins, sans-serif',
               }}
             >
-              {/* Header */}
-              <div
-                style={{
-                  padding: '12px 16px 8px',
-                  fontSize: '10px',
-                  fontWeight: 700,
-                  letterSpacing: '0.08em',
-                  color: '#94a3b8',
-                  borderBottom: '1px solid #f0f4fa',
-                }}
-              >
-                GANTI AKUN CEPAT
-              </div>
-
-              {/* Other saved accounts */}
-              {otherAccounts.length > 0 ? (
-                <div style={{ padding: '6px 8px' }}>
-                  {otherAccounts.map((acc) => (
-                    <button
-                      key={acc.email}
-                      onClick={() => {
-                        onSwitchAccount && onSwitchAccount(acc);
-                        setDropdownOpen(false);
-                      }}
-                      style={{
-                        width: '100%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '10px',
-                        padding: '9px 10px',
-                        background: 'transparent',
-                        border: 'none',
-                        borderRadius: '9px',
-                        cursor: 'pointer',
-                        textAlign: 'left',
-                        fontFamily: 'Poppins, sans-serif',
-                        transition: 'background 0.13s',
-                      }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = '#f4f7fb')}
-                      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                    >
-                      <div
-                        style={{
-                          width: '30px',
-                          height: '30px',
-                          borderRadius: '50%',
-                          background: '#e3eaf3',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontWeight: 700,
-                          fontSize: '12px',
-                          color: '#0d2d5e',
-                          flexShrink: 0,
-                        }}
-                      >
-                        {acc.name ? acc.name.charAt(0).toUpperCase() : 'U'}
-                      </div>
-                      <div>
-                        <div style={{ fontSize: '13px', fontWeight: 600, color: '#1e3a5f' }}>
-                          {acc.name || acc.email}
-                        </div>
-                        <div style={{ fontSize: '11px', color: '#94a3b8' }}>{acc.role || 'Staff'}</div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <div style={{ padding: '10px 16px', fontSize: '12px', color: '#b0bec5' }}>
-                  Tidak ada akun lain tersimpan.
-                </div>
-              )}
-
               {/* Add account */}
               <div style={{ padding: '4px 8px', borderTop: '1px solid #f0f4fa' }}>
                 <button

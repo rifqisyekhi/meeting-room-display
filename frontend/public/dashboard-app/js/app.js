@@ -201,6 +201,20 @@ function getAppStorage() {
   return window.localStorage;
 }
 
+// Remove caches left by the retired quick account switch feature.
+[
+  window.localStorage,
+  window.sessionStorage,
+  getAppStorage(),
+  (() => { try { return window.parent.localStorage; } catch (e) { return null; } })(),
+  (() => { try { return window.parent.sessionStorage; } catch (e) { return null; } })(),
+].forEach((storage) => {
+  if (!storage) return;
+  ["savedAccounts", "dashboard_savedAccounts", "booking_savedAccounts"].forEach((key) => {
+    try { storage.removeItem(key); } catch (e) {}
+  });
+});
+
 function isDummyMeeting(m) {
   if (!m) return false;
   const title = (m.title || m.agenda || "").toLowerCase();
@@ -561,6 +575,39 @@ const ICONS = {
   export: svgIcon(
     '<path d="M22.711 9.796c-.041-.041-4.055-4.096-5.982-6.146-.42-.414-.999-.65-1.586-.65-1.182 0-2.143.896-2.143 2h-8c-.553 0-1 .448-1 1v14c0 .552.447 1 1 1h14c.553 0 1-.448 1-1v-6.045c1.434-1.461 2.688-2.729 2.711-2.751.387-.39.387-1.018 0-1.408zm-7.432 6.145l-.136.059-.144-.04v-3.96h-1c-1.771.034-3.336.68-4.753 1.958.43-2.215 1.6-4.958 4.753-4.958h1v-3.958l.144-.042.154.05c1.436 1.525 4.051 4.187 5.297 5.45-.253.257-4.342 4.422-5.315 5.441zm-9.279 3.059v-12h8v1c-4.66 0-6 4.871-6 8.5v.5c1.691-2.578 3.6-3.953 6-4v3c0 .551.512 1 1.143 1 .364 0 .676-.158.883-.391.539-.565 1.242-1.291 1.976-2.043v4.434h-12.002z"/>',
     "0 0 24 24",
+  ),
+  // FaEye, FaQrcode, FaStar, FaCheck, FaXmark, and FaClock from react-icons/fa6.
+  meetingEye: svgIcon(
+    '<path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4 142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1 3.3-7.9 3.3-16.7 0-24.6-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM144 256a144 144 0 1 1 288 0 144 144 0 1 1-288 0zm144-64c0 35.3-28.7 64-64 64-7.1 0-13.9-1.2-20.3-3.3-5.5-1.8-11.9 1.6-11.7 7.4.3 6.9 1.3 13.8 3.2 20.7 13.7 51.2 66.4 81.6 117.6 67.9s81.6-66.4 67.9-117.6c-11.1-41.5-47.8-69.4-88.6-71.1-5.8-.2-9.2 6.1-7.4 11.7 2.1 6.4 3.3 13.2 3.3 20.3z"/>',
+    "0 0 576 512",
+  ),
+  meetingQr: svgIcon(
+    '<path d="M0 80C0 53.5 21.5 32 48 32h96c26.5 0 48 21.5 48 48v96c0 26.5-21.5 48-48 48H48c-26.5 0-48-21.5-48-48V80zm64 16v64h64V96H64zM0 336c0-26.5 21.5-48 48-48h96c26.5 0 48 21.5 48 48v96c0 26.5-21.5 48-48 48H48c-26.5 0-48-21.5-48-48v-96zm64 16v64h64v-64H64zM304 32h96c26.5 0 48 21.5 48 48v96c0 26.5-21.5 48-48 48h-96c-26.5 0-48-21.5-48-48V80c0-26.5 21.5-48 48-48zm80 64h-64v64h64V96zM256 304c0-8.8 7.2-16 16-16h64c8.8 0 16 7.2 16 16s7.2 16 16 16h32c8.8 0 16-7.2 16-16s7.2-16 16-16 16 7.2 16 16v96c0 8.8-7.2 16-16 16h-64c-8.8 0-16-7.2-16-16s-7.2-16-16-16-16 7.2-16 16v64c0 8.8-7.2 16-16 16h-32c-8.8 0-16-7.2-16-16V304zM368 480a16 16 0 1 1 0-32 16 16 0 0 1 0 32zm64 0a16 16 0 1 1 0-32 16 16 0 0 1 0 32z"/>',
+    "0 0 448 512",
+  ),
+  reviewStar: svgIcon(
+    '<path d="M316.9 18C311.6 7 300.4 0 288.1 0s-23.4 7-28.8 18L195 150.3 51.4 171.5c-12 1.8-22 10.2-25.7 21.7s-.7 24.2 7.9 32.7L137.8 329 113.2 474.7c-2 12 3 24.2 12.9 31.3s23 8 33.8 2.3l128.3-68.5 128.3 68.5c10.8 5.7 23.9 4.9 33.8-2.3s14.9-19.3 12.9-31.3L438.5 329 542.7 225.9c8.6-8.5 11.7-21.2 7.9-32.7s-13.7-19.9-25.7-21.7L381.2 150.3 316.9 18z"/>',
+    "0 0 576 512",
+  ),
+  meetingCheck: svgIcon(
+    '<path d="M438.6 105.4c12.5 12.5 12.5 32.8 0 45.3l-256 256c-12.5 12.5-32.8 12.5-45.3 0l-128-128c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0L160 338.7 393.4 105.4c12.5-12.5 32.8-12.5 45.3 0z"/>',
+    "0 0 448 512",
+  ),
+  meetingXmark: svgIcon(
+    '<path d="M342.6 150.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L192 210.7 86.6 105.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L146.7 256 41.4 361.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L192 301.3 297.4 406.6c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L237.3 256 342.6 150.6z"/>',
+    "0 0 384 512",
+  ),
+  meetingClock: svgIcon(
+    '<path d="M256 0a256 256 0 1 1 0 512 256 256 0 1 1 0-512zM232 120v136c0 8 4 15.5 10.7 20l96 64c11 7.4 25.9 4.4 33.3-6.7s4.4-25.9-6.7-33.3L280 243.2V120c0-13.3-10.7-24-24-24s-24 10.7-24 24z"/>',
+    "0 0 512 512",
+  ),
+  meetingPlay: svgIcon(
+    '<path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80v352c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/>',
+    "0 0 384 512",
+  ),
+  meetingSearch: svgIcon(
+    '<path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0s208 93.1 208 208zM208 352a144 144 0 1 0 0-288 144 144 0 1 0 0 288z"/>',
+    "0 0 512 512",
   ),
 };
 
@@ -1253,42 +1300,12 @@ function getDashboardNotifPanelHTML(currentUser) {
   `;
 }
 
-function getAllAvailableAccounts() {
-  return (state.users || [])
-    .filter((user) => user?.username && user.status !== "Nonaktif")
-    .map((user) => ({ ...user, role: getRoleLabel(user.role) }));
-}
-
 function getProfileHTML() {
   let currentUser = getCurrentUser();
-
-  const savedAccounts = getAllAvailableAccounts();
 
   const initial = currentUser.name
     ? currentUser.name.charAt(0).toUpperCase()
     : "A";
-
-  const otherAccounts = savedAccounts.filter(
-    (u) =>
-      (u.username || "").toLowerCase() !==
-      (currentUser.username || "").toLowerCase(),
-  );
-
-  const savedItems =
-    otherAccounts.length > 0
-      ? otherAccounts
-          .map((u) => {
-            const isAtasan = isAtasanRole(u);
-            const roleName = getRoleLabel(u.role);
-            return `
-      <div onclick="switchToAccount(event, '${esc(u.username)}')" style="padding:10px 14px;cursor:pointer;font-size:12px;font-weight:500;border-bottom:1px solid #e2e8f0;color:#333;display:flex;flex-direction:column;gap:2px;transition:background 0.15s;" onmouseover="this.style.background='${isAtasan ? "#f0fdf4" : "#eff6ff"}'" onmouseout="this.style.background='white'">
-        <div style="font-weight:600;color:#0f172a;">${esc(u.name)}</div>
-        <small style="color:${isAtasan ? "#16a34a" : "#2563eb"};font-weight:600;">Role: ${esc(roleName)}</small>
-      </div>
-    `;
-          })
-          .join("")
-      : `<div style="padding:10px 14px;font-size:12px;color:#94a3b8;border-bottom:1px solid #e2e8f0;font-style:italic;">Tidak ada akun lain tersimpan</div>`;
 
   return `
     <div style="display:flex;align-items:center;">
@@ -1300,46 +1317,12 @@ function getProfileHTML() {
           <div style="font-size:12px;color:#4b6a90;font-weight:600;">${esc(getRoleLabel(currentUser.role))}</div>
         </div>
         <div id="profileDropdown" style="display:none;position:absolute;top:120%;right:0;background:white;border-radius:8px;box-shadow:0 10px 25px rgba(0,0,0,0.15);width:260px;z-index:100;overflow:hidden;border:1px solid #e2e8f0;text-align:left;">
-          <div style="padding:10px 14px;font-size:11px;font-weight:700;color:#64748b;background:#f8fafc;border-bottom:1px solid #e2e8f0;text-transform:uppercase;letter-spacing:0.5px;">Ganti Akun Cepat</div>
-          ${savedItems}
           <div onclick="switchRole(event)" style="padding:11px 14px;cursor:pointer;font-size:12.5px;font-weight:500;border-bottom:1px solid #e2e8f0;color:#334155;display:flex;align-items:center;gap:8px;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">Tambah Akun Lain</div>
           <div onclick="logout(event)" style="padding:11px 14px;cursor:pointer;font-size:12.5px;font-weight:600;color:#dc2626;display:flex;align-items:center;gap:8px;" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='white'">Log Out</div>
         </div>
       </div>
     </div>
   `;
-}
-
-function switchToAccount(e, username) {
-  if (e) e.stopPropagation();
-  const allAccounts = getAllAvailableAccounts();
-
-  const user = allAccounts.find(
-    (u) => (u.username || "").toLowerCase() === (username || "").toLowerCase(),
-  );
-  if (user) {
-    user.role = getRoleLabel(user.role);
-    const userStr = JSON.stringify(user);
-    try {
-      sessionStorage.setItem("currentUser", userStr);
-      sessionStorage.setItem("isAuthenticated", "true");
-      localStorage.setItem("currentUser", userStr);
-      localStorage.setItem("isAuthenticated", "true");
-      getAppStorage().setItem("currentUser", userStr);
-      getAppStorage().setItem("isAuthenticated", "true");
-      if (window.parent) {
-        if (window.parent.sessionStorage) {
-          window.parent.sessionStorage.setItem("currentUser", userStr);
-          window.parent.sessionStorage.setItem("isAuthenticated", "true");
-        }
-        if (window.parent.localStorage) {
-          window.parent.localStorage.setItem("currentUser", userStr);
-          window.parent.localStorage.setItem("isAuthenticated", "true");
-        }
-      }
-    } catch (err) {}
-    window.location.reload();
-  }
 }
 
 function toggleProfileMenu() {
@@ -2088,11 +2071,7 @@ function meetingTable(data, actions = true, allowDelete = true) {
       ? `<tr><td colspan="9" style="text-align:center;padding:36px;color:#8c9ba5;font-weight:500;">Belum ada jadwal rapat</td></tr>`
       : data
           .map((m, i) => {
-            const faEye = svgIcon(
-              '<path d="M572.52 241.4C518.29 135.59 410.93 64 288 64S57.68 135.64 3.48 241.41a32.35 32.35 0 0 0 0 29.19C57.71 376.41 165.07 448 288 448s230.32-71.64 284.52-177.41a32.35 32.35 0 0 0 0-29.19zM288 400a144 144 0 1 1 144-144 143.93 143.93 0 0 1-144 144zm0-240a95.31 95.31 0 0 0-25.31 3.79 47.85 47.85 0 0 1-66.9 66.9A95.78 95.78 0 1 0 288 160z"/>',
-              "0 0 576 512",
-              'width="16" height="16"',
-            );
+            const faEye = ICONS.meetingEye;
 
             const isCompleted =
               (m.status || "").toLowerCase() === "selesai" ||
@@ -2102,7 +2081,7 @@ function meetingTable(data, actions = true, allowDelete = true) {
                 ? getMeetingReview(m)
                 : m.review;
             const hasRev = isCompleted && !!rev;
-            const starSvg = `<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
+            const starSvg = `<span class="meeting-inline-star">${ICONS.reviewStar}</span>`;
 
             const reviewBtn = hasRev
               ? `<button style="background-color:#fff8e6;color:#d97706;border:1px solid #fde68a;border-radius:10px;padding:0 10px;height:34px;display:inline-flex;align-items:center;gap:5px;cursor:pointer;margin-right:8px;font-size:12px;font-weight:700;box-shadow:0 2px 4px rgba(217,119,6,0.08);transition:all 0.15s ease;" title="Lihat Rating & Review Pengguna" onclick="openMeetingReviewModal('${m.id}')">${starSvg}<span>${rev.rating ? Number(rev.rating).toFixed(1) : "5.0"}</span></button>`
@@ -2128,7 +2107,7 @@ function meetingTable(data, actions = true, allowDelete = true) {
               statusLower === "ditolak" || statusLower === "rejected";
             const canShowQr = !isPending && !isCanceled && !isRejected;
 
-            const qrSvg = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>`;
+            const qrSvg = ICONS.meetingQr;
             const qrBtn = canShowQr
               ? `<button style="background-color:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:10px;padding:0 9px;height:34px;display:inline-flex;align-items:center;gap:4px;cursor:pointer;margin-right:8px;font-size:11.5px;font-weight:700;transition:all 0.15s ease;" title="Tampilkan QR Code Rapat" onclick="openMeetingQRModal('${m.id}')">${qrSvg}<span>QR</span></button>`
               : "";
@@ -2151,23 +2130,23 @@ function meetingTable(data, actions = true, allowDelete = true) {
                   actionButtons += `<span style="font-size:11px;color:#ff4d4f;margin-right:8px;font-weight:700;background:#ffebee;padding:6px 12px;border-radius:12px;">Ditolak (${esc(m.rejectedBy)})</span>`;
                 } else if (can("approve", user)) {
                   // HANYA PIMPINAN YANG MENYETUJUI & MENOLAK
-                  actionButtons += `<button style="background-color:#219653;color:#fff;border:none;border-radius:24px;padding:8px 16px;font-weight:700;font-size:12px;cursor:pointer;margin-right:6px;" title="Setujui" onclick="approveMeeting('${m.id}')">✓ Setujui</button>`;
-                  actionButtons += `<button style="background-color:#ff4d4f;color:#fff;border:none;border-radius:24px;padding:8px 16px;font-weight:700;font-size:12px;cursor:pointer;" title="Tolak" onclick="rejectMeeting('${m.id}')">✕ Tolak</button>`;
+                  actionButtons += `<button style="background-color:#219653;color:#fff;border:none;border-radius:24px;padding:8px 16px;font-weight:700;font-size:12px;cursor:pointer;margin-right:6px;display:inline-flex;align-items:center;gap:5px;" title="Setujui" onclick="approveMeeting('${m.id}')">${ICONS.meetingCheck}<span>Setujui</span></button>`;
+                  actionButtons += `<button style="background-color:#ff4d4f;color:#fff;border:none;border-radius:24px;padding:8px 16px;font-weight:700;font-size:12px;cursor:pointer;display:inline-flex;align-items:center;gap:5px;" title="Tolak" onclick="rejectMeeting('${m.id}')">${ICONS.meetingXmark}<span>Tolak</span></button>`;
                 } else {
-                  actionButtons += `<span style="font-size:11px;color:#d97706;background:#fef3c7;padding:5px 10px;border-radius:12px;font-weight:600;">⏳ Menunggu Persetujuan Pimpinan</span>`;
+                  actionButtons += `<span style="font-size:11px;color:#d97706;background:#fef3c7;padding:5px 10px;border-radius:12px;font-weight:600;display:inline-flex;align-items:center;gap:5px;">${ICONS.meetingClock} Menunggu Persetujuan Pimpinan</span>`;
                 }
               } else if (isUpcoming && can("checkInOut", user)) {
-                actionButtons += `<button style="background-color:#219653;color:#fff;border:none;border-radius:24px;padding:8px 14px;font-weight:700;font-size:12px;cursor:pointer;box-shadow:0 4px 10px rgba(33,150,83,0.2);display:inline-flex;align-items:center;gap:4px;" title="Check-In Manual oleh Admin (Catatan: Peserta juga dapat Check-In mandiri via Barcode/QR di ruangan)" onclick="checkInMeetingManual('${m.id}')"><span>✓ Check In (Manual)</span></button>`;
+                actionButtons += `<button style="background-color:#219653;color:#fff;border:none;border-radius:24px;padding:8px 14px;font-weight:700;font-size:12px;cursor:pointer;box-shadow:0 4px 10px rgba(33,150,83,0.2);display:inline-flex;align-items:center;gap:5px;" title="Check-In Manual oleh Admin (Catatan: Peserta juga dapat Check-In mandiri via Barcode/QR di ruangan)" onclick="checkInMeetingManual('${m.id}')">${ICONS.meetingCheck}<span>Check In (Manual)</span></button>`;
               } else if (isRunning && can("checkInOut", user)) {
-                actionButtons += `<button style="background-color:#ff4d4f;color:#fff;border:none;border-radius:24px;padding:8px 14px;font-weight:700;font-size:12px;cursor:pointer;box-shadow:0 4px 10px rgba(255,77,79,0.2);display:inline-flex;align-items:center;gap:4px;" title="Check-Out Manual oleh Admin (Catatan: Peserta juga dapat Check-Out mandiri via Barcode/QR)" onclick="checkOutMeetingManual('${m.id}')"><span>Check Out (Manual)</span></button>`;
+                actionButtons += `<button style="background-color:#ff4d4f;color:#fff;border:none;border-radius:24px;padding:8px 14px;font-weight:700;font-size:12px;cursor:pointer;box-shadow:0 4px 10px rgba(255,77,79,0.2);display:inline-flex;align-items:center;gap:5px;" title="Check-Out Manual oleh Admin (Catatan: Peserta juga dapat Check-Out mandiri via Barcode/QR)" onclick="checkOutMeetingManual('${m.id}')">${ICONS.meetingXmark}<span>Check Out (Manual)</span></button>`;
               }
 
               // Tombol Canceling System Darurat (Emergency Cancellation)
               if (!isCompleted && !isCanceled && can("emergencyCancel", user)) {
-                const emgCancelBtn = `<button style="background-color:#fee2e2;color:#dc2626;border:1px solid #fca5a5;border-radius:20px;padding:6px 12px;font-weight:700;font-size:11.5px;cursor:pointer;margin-left:6px;display:inline-flex;align-items:center;gap:4px;box-shadow:0 2px 5px rgba(220,38,38,0.08);transition:all 0.15s ease;" title="Batalkan Rapat Darurat (Hanya jika diperlukan)" onclick="openEmergencyCancelModal('${m.id}')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg><span>Batal Darurat</span></button>`;
+                const emgCancelBtn = `<button style="background-color:#fee2e2;color:#dc2626;border:1px solid #fca5a5;border-radius:20px;padding:6px 12px;font-weight:700;font-size:11.5px;cursor:pointer;margin-left:6px;display:inline-flex;align-items:center;gap:5px;box-shadow:0 2px 5px rgba(220,38,38,0.08);transition:all 0.15s ease;" title="Batalkan Rapat Darurat (Hanya jika diperlukan)" onclick="openEmergencyCancelModal('${m.id}')">${ICONS.meetingXmark}<span>Batal Darurat</span></button>`;
                 actionButtons += emgCancelBtn;
               } else if (isCanceled) {
-                actionButtons += `<span style="font-size:11px;color:#dc2626;background:#fef2f2;border:1px solid #fecaca;padding:4px 9px;border-radius:12px;font-weight:700;margin-left:6px;display:inline-flex;align-items:center;gap:3px;">✕ Dibatalkan</span>`;
+                actionButtons += `<span style="font-size:11px;color:#dc2626;background:#fef2f2;border:1px solid #fecaca;padding:4px 9px;border-radius:12px;font-weight:700;margin-left:6px;display:inline-flex;align-items:center;gap:5px;">${ICONS.meetingXmark} Dibatalkan</span>`;
               }
             }
 
@@ -2181,28 +2160,31 @@ function meetingTable(data, actions = true, allowDelete = true) {
               (m.checkedInBy && m.checkedInBy.toLowerCase().includes("admin"));
             const methodTag = isRunning
               ? isQrMethod
-                ? `<div style="margin-top:3px;"><span style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:700;display:inline-flex;align-items:center;gap:3px;" title="Check-In otomatis via Barcode/QR oleh ${esc(m.checkedInBy || "Peserta")}"><span>📱</span><span>Scan Barcode/QR</span></span></div>`
+                ? `<span class="meeting-method-tag is-qr" title="Check-In otomatis via Barcode/QR oleh ${esc(m.checkedInBy || "Peserta")}">Scan Barcode/QR</span>`
                 : isManualMethod
-                  ? `<div style="margin-top:3px;"><span style="background:#fef3c7;color:#b45309;border:1px solid #fde68a;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:700;display:inline-flex;align-items:center;gap:3px;" title="Check-In manual oleh Admin (${esc(m.checkedInBy || "Admin")})"><span>👤</span><span>Manual Admin</span></span></div>`
+                  ? `<span class="meeting-method-tag is-manual" title="Check-In manual oleh Admin (${esc(m.checkedInBy || "Admin")})">Manual Admin</span>`
                   : ""
               : isCompleted && (m.checkInMethod || m.checkOutMethod)
                 ? m.checkInMethod === "barcode_qr" ||
                   m.checkOutMethod === "barcode_qr"
-                  ? `<div style="margin-top:3px;"><span style="background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;padding:2px 7px;border-radius:10px;font-size:9.5px;font-weight:600;" title="Selesai via Barcode/QR">📱 Barcode/QR</span></div>`
-                  : `<div style="margin-top:3px;"><span style="background:#f8fafc;color:#64748b;border:1px solid #e2e8f0;padding:2px 7px;border-radius:10px;font-size:9.5px;font-weight:600;" title="Selesai Manual Admin">👤 Manual Admin</span></div>`
+                  ? `<span class="meeting-method-tag is-completed-qr" title="Selesai via Barcode/QR">Barcode/QR</span>`
+                  : `<span class="meeting-method-tag is-completed-manual" title="Selesai Manual Admin">Manual Admin</span>`
                 : "";
 
             const rating = Math.max(
               0,
               Math.min(5, Number(m.review?.rating) || 0),
             );
+            const ratingStars = Array.from({ length: 5 }, (_, starIndex) =>
+              `<span class="${starIndex < Math.floor(rating) ? "is-filled" : "is-empty"}">${ICONS.reviewStar}</span>`,
+            ).join("");
             const reviewCell = isCompleted
               ? m.review
-                ? `<div style="display:flex;flex-direction:column;align-items:flex-start;gap:3px;min-width:105px;"><span style="color:#e4a719;letter-spacing:1px;white-space:nowrap;" aria-label="Rating ${rating} dari 5">${"★".repeat(rating)}<span style="color:#cbd5e1;">${"☆".repeat(5 - rating)}</span></span><button type="button" onclick="viewMeeting('${m.id}')" style="padding:3px 7px;border:1px solid #c9d9ef;border-radius:6px;color:#15508d;background:#f3f8ff;font:600 10px inherit;cursor:pointer;">Lihat Review</button></div>`
+                ? `<div style="display:flex;flex-direction:column;align-items:flex-start;gap:3px;min-width:105px;"><span class="meeting-rating-stars" aria-label="Rating ${rating} dari 5">${ratingStars}</span><button type="button" onclick="viewMeeting('${m.id}')" style="padding:3px 7px;border:1px solid #c9d9ef;border-radius:6px;color:#15508d;background:#f3f8ff;font:600 10px inherit;cursor:pointer;">Lihat Review</button></div>`
                 : `<span style="color:#8291a5;font-size:11px;">Belum ada review</span>`
               : `<span style="color:#9aa8b8;">-</span>`;
 
-            return `<tr><td>${i + 1}</td><td><b>${esc(m.title)}</b></td><td>${esc(m.requester)}</td><td>${esc(m.room)}</td><td>${formatDate(m.date)}</td><td>${m.start}-${m.end}</td><td>${badge(m.status)}${methodTag}</td><td>${reviewCell}</td><td><div class="actions">${actionButtons}</div></td></tr>`;
+            return `<tr><td>${i + 1}</td><td><b>${esc(m.title)}</b></td><td>${esc(m.requester)}</td><td>${esc(m.room)}</td><td>${formatDate(m.date)}</td><td>${m.start}-${m.end}</td><td class="meeting-status-cell"><div class="meeting-status-stack">${badge(m.status)}${methodTag}</div></td><td>${reviewCell}</td><td><div class="actions">${actionButtons}</div></td></tr>`;
           })
           .join("");
 
@@ -2218,31 +2200,11 @@ function meetings() {
   const done = stats.doneCount;
   const pending = stats.pendingCount;
 
-  const faCheck = svgIcon(
-    '<path d="M173.898 439.404l-166.4-166.4c-9.997-9.997-9.997-26.206 0-36.204l36.203-36.204c9.997-9.998 26.207-9.998 36.204 0L192 312.69 432.095 72.596c9.997-9.997 26.207-9.997 36.204 0l36.203 36.204c9.997 9.997 9.997 26.206 0 36.204l-294.4 294.401c-9.998 9.997-26.207 9.997-36.204-.001z"/>',
-    "0 0 512 512",
-    'width="24" height="24"',
-  );
-  const faClock = svgIcon(
-    '<path d="M256,8C119,8,8,119,8,256S119,504,256,504,504,393,504,256,393,8,256,8Zm92.49,313h0l-20,25a16,16,0,0,1-22.49,2.5h0l-67-49.72a40,40,0,0,1-15-31.23V112a16,16,0,0,1,16-16h32a16,16,0,0,1,16,16V256l58,42.5A16,16,0,0,1,348.49,321Z"/>',
-    "0 0 512 512",
-    'width="24" height="24"',
-  );
-  const faPlay = svgIcon(
-    '<path d="M424.4 214.7L72.4 6.6C43.8-10.3 0 6.1 0 47.9V464c0 37.5 40.7 60.1 72.4 41.3l352-208c31.4-18.5 31.5-64.1 0-82.6z"/>',
-    "0 0 448 512",
-    'width="20" height="20"',
-  );
-  const faCalendarAlt = svgIcon(
-    '<path d="M0 464c0 26.5 21.5 48 48 48h352c26.5 0 48-21.5 48-48V192H0v272zm320-196c0-6.6 5.4-12 12-12h40c6.6 0 12 5.4 12 12v40c0 6.6-5.4 12-12 12h-40c-6.6 0-12-5.4-12-12v-40zm0 128c0-6.6 5.4-12 12-12h40c6.6 0 12 5.4 12 12v40c0 6.6-5.4 12-12 12h-40c-6.6 0-12-5.4-12-12v-40zM192 268c0-6.6 5.4-12 12-12h40c6.6 0 12 5.4 12 12v40c0 6.6-5.4 12-12 12h-40c-6.6 0-12-5.4-12-12v-40zm0 128c0-6.6 5.4-12 12-12h40c6.6 0 12 5.4 12 12v40c0 6.6-5.4 12-12 12h-40c-6.6 0-12-5.4-12-12v-40zM64 268c0-6.6 5.4-12 12-12h40c6.6 0 12 5.4 12 12v40c0 6.6-5.4 12-12 12H76c-6.6 0-12-5.4-12-12v-40zm0 128c0-6.6 5.4-12 12-12h40c6.6 0 12 5.4 12 12v40c0 6.6-5.4 12-12 12H76c-6.6 0-12-5.4-12-12v-40zM400 64h-48V16c0-8.8-7.2-16-16-16h-32c-8.8 0-16 7.2-16 16v48H160V16c0-8.8-7.2-16-16-16h-32c-8.8 0-16 7.2-16 16v48H48C21.5 64 0 85.5 0 112v48h448v-48c0-26.5-21.5-48-48-48z"/>',
-    "0 0 448 512",
-    'width="20" height="20"',
-  );
-  const ioSearch = svgIcon(
-    '<path d="M456.69 421.39 362.6 327.3a173.8 173.8 0 0 0 34.84-104.58C397.44 126.38 319.06 48 222.72 48S48 126.38 48 222.72s78.38 174.72 174.72 174.72A173.8 173.8 0 0 0 327.3 362.6l94.09 94.09a25 25 0 0 0 35.3-35.3M97.92 222.72a124.8 124.8 0 1 1 124.8 124.8 124.95 124.95 0 0 1-124.8-124.8"/>',
-    "0 0 512 512",
-    'width="18" height="18"',
-  );
+  const faCheck = ICONS.meetingCheck;
+  const faClock = ICONS.meetingClock;
+  const faPlay = ICONS.meetingPlay;
+  const faCalendarAlt = ICONS.calendar;
+  const ioSearch = ICONS.meetingSearch;
 
   return `
     <div class="dashboard-wrapper">
@@ -2339,7 +2301,7 @@ function meetings() {
         <div class="dash-tabs">
           ${
             isApproval
-              ? `<button class="tab ${pending > 0 ? "active" : ""}" onclick="filterMeetings('Menunggu Approval',this)" style="color:#ea580c;font-weight:700;">⏳ Perlu Persetujuan (${pending})</button>`
+              ? `<button class="tab meeting-pending-tab ${pending > 0 ? "active" : ""}" onclick="filterMeetings('Menunggu Approval',this)" style="color:#ea580c;font-weight:700;">${ICONS.meetingClock}<span>Perlu Persetujuan (${pending})</span></button>`
               : ""
           }
           <button class="tab ${isApproval && pending > 0 ? "" : "active"}" onclick="filterMeetings('Semua',this)">Semua Rapat (${state.meetings.length})</button>
@@ -2544,10 +2506,10 @@ function roomCards(data) {
           <div class="crc-img-wrap" style="position:relative;">
             <img src="${getRoomImage(r)}" alt="${esc(r.name)}" class="crc-img">
             ${count > 1 ? `<span style="position:absolute;bottom:10px;right:10px;background:rgba(12,45,94,0.85);color:#fff;padding:4px 8px;border-radius:6px;font-size:11px;font-weight:700;letter-spacing:0.3px;display:flex;align-items:center;gap:4px;backdrop-filter:blur(4px);box-shadow:0 2px 6px rgba(0,0,0,0.25);">${count} View</span>` : ""}
+            ${can("manageRoom") ? `<button type="button" class="crc-delete-btn" onclick="event.stopPropagation(); deleteRoom('${safeId}')" title="Hapus ruangan ${esc(r.name)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6m4-6v6M5 7l1 14h12l1-14M9 7V4h6v3"/></svg><span>Hapus</span></button>` : ""}
           </div>
           <div class="crc-footer">
             <span>${esc(r.name)}</span>
-            ${can("manageRoom") ? `<button type="button" class="btn btn-light" onclick="event.stopPropagation(); deleteRoom('${safeId}')" title="Hapus ruangan">Hapus</button>` : ""}
           </div>
         </div>
       `;
@@ -3985,7 +3947,16 @@ async function saveRole(encodedOriginalName = "") {
 
 async function deleteRole(name) {
   if (!can("manageSettings")) return denyAccess();
-  if (!confirm(`Hapus role "${name}"? Role yang masih dipakai akun tidak dapat dihapus.`)) return;
+  if (!(await confirmWithAppModal({
+    title: "Hapus Role",
+    iconBg: "#fee2e2",
+    iconColor: "#dc2626",
+    message: `Anda yakin ingin menghapus role <strong>${esc(name)}</strong>?`,
+    infoText: "Role yang masih digunakan akun tidak dapat dihapus.",
+    confirmText: "Ya, Hapus",
+    confirmBg: "#dc2626",
+    destructive: true,
+  }))) return;
   try {
     const response = await fetch(`/api/dashboard/roles/${encodeURIComponent(name)}`, { method: "DELETE" });
     const result = await response.json().catch(() => ({}));
@@ -4059,11 +4030,15 @@ function openModal(title, body) {
   document.getElementById("modal").innerHTML =
     `<div class="modal"><div class="modal-head"><h2>${title}</h2><button class="btn-icon" onclick="closeModal()">×</button></div>${body}</div>`;
   if (title === "Detail Rapat") document.querySelector("#modal .modal")?.classList.add("meeting-detail-modal");
+  if (title === "Edit Rapat" || title === "Tambah Rapat") document.querySelector("#modal .modal")?.classList.add("meeting-form-modal");
   document.getElementById("modal").classList.add("show");
 }
 
 function closeModal() {
   document.getElementById("modal").classList.remove("show");
+  const onCancel = window._activeConfirmCancel;
+  window._activeConfirmCancel = null;
+  if (typeof onCancel === "function") onCancel();
   if (window._dashboardRenderPending) render();
 }
 
@@ -4080,7 +4055,9 @@ function showConfirmModal({
   subtext = "",
   confirmText = "Lanjutkan",
   confirmBg = "#16a34a",
+  cancelText = "Batal",
   onConfirm = null,
+  onCancel = null,
 }) {
   const modalEl = document.getElementById("modal");
   if (!modalEl) return;
@@ -4128,9 +4105,7 @@ function showConfirmModal({
       }
 
       <div style="display:flex;align-items:center;justify-content:flex-end;gap:10px;margin-top:20px;padding-top:14px;border-top:1px solid #f1f5f9;">
-        <button type="button" onclick="closeModal()" style="padding:9px 18px;border:1px solid #cbd5e1;background:#ffffff;color:#475569;border-radius:9px;font-size:12.5px;font-weight:600;cursor:pointer;transition:all 0.15s ease;" onmouseover="this.style.background='#f8fafc';this.style.borderColor='#94a3b8'" onmouseout="this.style.background='#ffffff';this.style.borderColor='#cbd5e1'">
-          Batal
-        </button>
+        ${cancelText ? `<button type="button" onclick="cancelConfirmModal()" style="padding:9px 18px;border:1px solid #cbd5e1;background:#ffffff;color:#475569;border-radius:9px;font-size:12.5px;font-weight:600;cursor:pointer;transition:all 0.15s ease;" onmouseover="this.style.background='#f8fafc';this.style.borderColor='#94a3b8'" onmouseout="this.style.background='#ffffff';this.style.borderColor='#cbd5e1'">${esc(cancelText)}</button>` : ""}
         <button type="button" id="confirmModalSubmitBtn" style="padding:9px 20px;border:none;background:${confirmBg};color:#ffffff;border-radius:9px;font-size:12.5px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:all 0.15s ease;box-shadow:0 3px 10px rgba(0,0,0,0.12);" onmouseover="this.style.opacity='0.9';this.style.transform='translateY(-1px)'" onmouseout="this.style.opacity='1';this.style.transform='translateY(0)'">
           ${confirmText}
         </button>
@@ -4139,10 +4114,12 @@ function showConfirmModal({
   `;
 
   modalEl.classList.add("show");
+  window._activeConfirmCancel = onCancel;
 
   const btn = document.getElementById("confirmModalSubmitBtn");
   if (btn) {
     btn.onclick = () => {
+      window._activeConfirmCancel = null;
       closeModal();
       if (typeof onConfirm === "function") {
         onConfirm();
@@ -4151,6 +4128,35 @@ function showConfirmModal({
   }
 }
 window.showConfirmModal = showConfirmModal;
+
+function cancelConfirmModal() {
+  const onCancel = window._activeConfirmCancel;
+  window._activeConfirmCancel = null;
+  closeModal();
+  if (typeof onCancel === "function") onCancel();
+}
+window.cancelConfirmModal = cancelConfirmModal;
+
+function confirmWithAppModal(options) {
+  return new Promise((resolve) => {
+    showConfirmModal({
+      ...options,
+      onConfirm: () => resolve(true),
+      onCancel: () => resolve(false),
+    });
+  });
+}
+
+window.alert = (message) => showConfirmModal({
+  title: "Informasi",
+  icon: ICON_FA_EXCLAMATION,
+  iconBg: "#e0f2fe",
+  iconColor: "#0284c7",
+  message: esc(String(message ?? "")),
+  confirmText: "Mengerti",
+  confirmBg: "#1769aa",
+  cancelText: "",
+});
 
 function onToggleKepalaBiro(checkbox) {
   if (checkbox && checkbox.checked) {
@@ -4882,16 +4888,19 @@ function formatMeetingDetailDate(value) {
 }
 
 function meetingDetailIcon(name) {
+  // Paths below are the Font Awesome 6 glyphs distributed by react-icons/fa6.
   const icons = {
-    calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 17h.01M12 17h.01"/>',
-    pin: '<path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/>',
-    users: '<path d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M10 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM20 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
-    file: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h8"/>',
-    person: '<path d="M20 21a8 8 0 0 0-16 0M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/>',
-    attendance: '<path d="M8 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9M16 2h2a2 2 0 0 1 2 2v8M8 9h8M8 13h5M8 17h4M15 18l2 2 4-5"/>',
-    download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>'
+    calendar: ['0 0 448 512', 'M128 0c17.7 0 32 14.3 32 32v32h128V32c0-17.7 14.3-32 32-32s32 14.3 32 32v32h48c26.5 0 48 21.5 48 48v48H0v-48c0-26.5 21.5-48 48-48h48V32c0-17.7 14.3-32 32-32zM0 192h448v272c0 26.5-21.5 48-48 48H48c-26.5 0-48-21.5-48-48V192z'],
+    pin: ['0 0 384 512', 'M215.7 499.2C267 435 384 279.4 384 192 384 86 298 0 192 0S0 86 0 192c0 87.4 117 243 168.3 307.2 12.3 15.3 35.1 15.3 47.4 0zM192 128a64 64 0 1 1 0 128 64 64 0 0 1 0-128z'],
+    users: ['0 0 640 512', 'M96 128a128 128 0 1 1 256 0A128 128 0 1 1 96 128zM0 482.3C0 383.8 79.8 304 178.3 304h91.4C368.2 304 448 383.8 448 482.3c0 16.4-13.3 29.7-29.7 29.7H29.7C13.3 512 0 498.7 0 482.3zM609.3 512H471.5c5.4-9.4 8.6-20.3 8.6-32v-8c0-60.7-27.1-115.2-69.8-151.8 2.4-.1 4.7-.2 7.1-.2h61.4c56.8 0 103.2 46.4 103.2 103.3 0 17-13.8 30.7-30.7 30.7zM432 256c-31 0-59-12.6-79.3-32.9C372.4 196.5 384 163.6 384 128c0-26.8-6.6-52.1-18.3-74.3C384.3 40.1 407.2 32 432 32c61.9 0 112 50.1 112 112s-50.1 112-112 112z'],
+    person: ['0 0 448 512', 'M224 256A128 128 0 1 0 224 0a128 128 0 1 0 0 256zm-45.7 48C79.8 304 0 383.8 0 482.3 0 498.7 13.3 512 29.7 512h388.6c16.4 0 29.7-13.3 29.7-29.7C448 383.8 368.2 304 269.7 304h-91.4z'],
+    file: ['0 0 384 512', 'M64 0C28.7 0 0 28.7 0 64v384c0 35.3 28.7 64 64 64h256c35.3 0 64-28.7 64-64V160H256c-17.7 0-32-14.3-32-32V0H64zm192 0v128h128L256 0zM96 256h192v32H96v-32zm0 80h192v32H96v-32z'],
+    attendance: ['0 0 384 512', 'M192 0c-41.8 0-77.4 26.7-90.5 64H64C28.7 64 0 92.7 0 128v320c0 35.3 28.7 64 64 64h256c35.3 0 64-28.7 64-64V128c0-35.3-28.7-64-64-64h-37.5C269.4 26.7 233.8 0 192 0zm0 64a32 32 0 1 1 0 64 32 32 0 1 1 0-64zM72 272a24 24 0 1 1 48 0 24 24 0 1 1-48 0zm104-16h128c8.8 0 16 7.2 16 16s-7.2 16-16 16H176c-8.8 0-16-7.2-16-16s7.2-16 16-16zm-16 112c0-8.8 7.2-16 16-16h128c8.8 0 16 7.2 16 16s-7.2 16-16 16H176c-8.8 0-16-7.2-16-16z'],
+    download: ['0 0 512 512', 'M288 32c0-17.7-14.3-32-32-32s-32 14.3-32 32v242.7l-73.4-73.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3l128 128c12.5 12.5 32.8 12.5 45.3 0l128-128c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L288 274.7V32zM64 352c-35.3 0-64 28.7-64 64v32c0 35.3 28.7 64 64 64h384c35.3 0 64-28.7 64-64v-32c0-35.3-28.7-64-64-64H346.5l-45.3 45.3c-25 25-65.5 25-90.5 0L165.5 352H64z'],
+    trash: ['0 0 448 512', 'M135.2 17.7C140.6 6.8 151.7 0 163.8 0h120.4c12.1 0 23.2 6.8 28.6 17.7L320 32h96c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 96 0 81.7 0 64s14.3-32 32-32h96l7.2-14.3zM32 128h384v320c0 35.3-28.7 64-64 64H96c-35.3 0-64-28.7-64-64V128z']
   };
-  return '<svg class="meeting-detail-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (icons[name] || icons.file) + '</svg>';
+  const [viewBox, path] = icons[name] || icons.file;
+  return `<svg class="meeting-detail-icon" viewBox="${viewBox}" fill="currentColor" aria-hidden="true"><path d="${path}"/></svg>`;
 }
 
 function viewMeeting(id) {
@@ -4957,7 +4966,7 @@ function viewMeeting(id) {
   const cancelBox = isCanceled
     ? `<div style="background:#fee2e2;border:1.5px solid #fca5a5;color:#991b1b;padding:12px 16px;border-radius:10px;margin:14px 0;font-size:13px;line-height:1.45;">
         <div style="font-weight:700;display:flex;align-items:center;gap:6px;margin-bottom:4px;">
-          <span>⚠️</span> Status: Dibatalkan
+          <span>Status: Dibatalkan</span>
         </div>
         <div>${esc(m.cancellationReason || "Ruangan telah dialihkan untuk rapat prioritas Kepala Biro Keuangan dan BMN.")}</div>
        </div>`
@@ -4996,18 +5005,18 @@ function viewMeeting(id) {
 
   let actionBtns = `<button class="btn btn-light" style="display:inline-flex;align-items:center;gap:6px;" onclick="exportNotulensiPDF('${m.id}')">${ICONS.export} <span>Notulensi</span></button>`;
   if (canShowQr) {
-    actionBtns += `<button class="btn btn-light" style="display:inline-flex;align-items:center;gap:6px;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;font-weight:700;" onclick="closeModal(); openMeetingQRModal('${m.id}')"><span>📱 QR Pass &amp; Presensi</span></button>`;
+    actionBtns += `<button class="btn btn-light" style="display:inline-flex;align-items:center;gap:6px;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;font-weight:700;" onclick="closeModal(); openMeetingQRModal('${m.id}')"><span>QR Pass &amp; Presensi</span></button>`;
   }
 
   if (isPending) {
     if (can("approve")) {
-      actionBtns += `<button class="btn btn-primary" style="background:#219653;border-color:#219653;font-weight:700;" onclick="closeModal(); approveMeeting('${m.id}')">✓ Setujui Rapat</button>`;
-      actionBtns += `<button class="btn btn-primary" style="background:#ff4d4f;border-color:#ff4d4f;font-weight:700;" onclick="closeModal(); rejectMeeting('${m.id}')">✕ Tolak Rapat</button>`;
+      actionBtns += `<button class="btn btn-primary" style="background:#219653;border-color:#219653;font-weight:700;" onclick="closeModal(); approveMeeting('${m.id}')">Setujui Rapat</button>`;
+      actionBtns += `<button class="btn btn-primary" style="background:#ff4d4f;border-color:#ff4d4f;font-weight:700;" onclick="closeModal(); rejectMeeting('${m.id}')">Tolak Rapat</button>`;
     } else {
-      actionBtns += `<div style="font-size:12px;color:#d97706;background:#fef3c7;padding:7px 12px;border-radius:8px;font-weight:600;display:inline-flex;align-items:center;">⏳ Menunggu Persetujuan Pimpinan</div>`;
+      actionBtns += `<div style="font-size:12px;color:#d97706;background:#fef3c7;padding:7px 12px;border-radius:8px;font-weight:600;display:inline-flex;align-items:center;">Menunggu Persetujuan Pimpinan</div>`;
     }
   } else if (isUpcoming && can("checkInOut")) {
-    actionBtns += `<button class="btn btn-primary" style="background:#219653;border-color:#219653;font-weight:700;" onclick="closeModal(); checkInMeetingManual('${m.id}')" title="Sistem 2: Check-In Manual oleh Admin Dashboard">✓ Check In (Manual Admin)</button>`;
+    actionBtns += `<button class="btn btn-primary" style="background:#219653;border-color:#219653;font-weight:700;" onclick="closeModal(); checkInMeetingManual('${m.id}')" title="Sistem 2: Check-In Manual oleh Admin Dashboard">Check In (Manual Admin)</button>`;
   } else if (isRunning && can("checkInOut")) {
     actionBtns += `<button class="btn btn-primary" style="background:#ff4d4f;border-color:#ff4d4f;font-weight:700;" onclick="closeModal(); checkOutMeetingManual('${m.id}')" title="Sistem 2: Check-Out Manual oleh Admin Dashboard">Check Out (Manual Admin)</button>`;
   }
@@ -5017,7 +5026,7 @@ function viewMeeting(id) {
   }
 
   if (!isCompleted && !isCanceled && can("emergencyCancel")) {
-    actionBtns += `<button class="btn btn-primary" style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;font-weight:700;display:inline-flex;align-items:center;gap:4px;" title="Batalkan Rapat Darurat (Hanya jika diperlukan)" onclick="closeModal(); openEmergencyCancelModal('${m.id}')">🚨 Batal Darurat</button>`;
+    actionBtns += `<button class="btn btn-primary" style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;font-weight:700;display:inline-flex;align-items:center;gap:4px;" title="Batalkan Rapat Darurat (Hanya jika diperlukan)" onclick="closeModal(); openEmergencyCancelModal('${m.id}')">Batal Darurat</button>`;
   }
 
   const materialsList = Array.isArray(m.materials) ? m.materials : [];
@@ -5026,27 +5035,20 @@ function viewMeeting(id) {
     materialsHtml = materialsList
       .map((mat) => {
         const isLink = mat.type === "link";
-        const icon =
-          mat.type === "pdf"
-            ? "📄"
-            : mat.type === "ppt"
-              ? "📊"
-              : isLink
-                ? "🔗"
-                : "📁";
-        return `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;background:#fff;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:6px;">
+        return `<div class="meeting-detail-material-row">
           <div style="display:flex;align-items:center;gap:8px;min-width:0;">
-            <span style="font-size:16px;">${icon}</span>
-            <div style="min-width:0;">
-              <div style="font-size:12.5px;font-weight:600;color:#0c2d5e;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(mat.name)}</div>
-              <div style="font-size:11px;color:#64748b;">${mat.size ? `${esc(mat.size)} · ` : ""}${esc(mat.uploadedBy || "Materi")}</div>
+            ${meetingDetailIcon("file")}
+            <div class="meeting-detail-material-info">
+              <strong>${esc(mat.name)}</strong>
+              <span>${mat.size ? `${esc(mat.size)} · ` : ""}${esc(mat.uploadedBy || "Materi")}</span>
             </div>
           </div>
-          <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
-            <a href="${esc(mat.url)}" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:6px;font-size:11.5px;font-weight:600;text-decoration:none;" download="${!isLink ? esc(mat.name) : ""}">
+          <div class="meeting-detail-material-actions">
+            <a href="${esc(mat.url)}" target="_blank" rel="noopener noreferrer" download="${!isLink ? esc(mat.name) : ""}">
+              ${meetingDetailIcon("download")}
               <span>${isLink ? "Buka Link" : "Unduh / Buka"}</span>
             </a>
-            <button type="button" onclick="deleteMaterialFromMeeting('${esc(m.id)}', '${esc(mat.id)}')" style="border:none;background:transparent;color:#ef4444;cursor:pointer;padding:4px 6px;border-radius:4px;font-size:12px;" title="Hapus materi">🗑️</button>
+            <button type="button" onclick="deleteMaterialFromMeeting('${esc(m.id)}', '${esc(mat.id)}')" title="Hapus materi" aria-label="Hapus materi">${meetingDetailIcon("trash")}</button>
           </div>
         </div>`;
       })
@@ -5056,25 +5058,23 @@ function viewMeeting(id) {
   }
 
   const materialsBox = `
-    <div style="margin:16px 0;padding:12px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-        <b style="color:#0c2d5e;font-size:13px;display:flex;align-items:center;gap:6px;">📎 Materi Rapat (PDF &amp; Paparan)</b>
+    <section class="meeting-detail-materials">
+      <div class="meeting-detail-material-heading">
+        ${meetingDetailIcon("file")}<strong>Materi Rapat</strong>
         <button type="button" onclick="openAddMaterialModal('${esc(m.id)}')" style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;background:#0c2d5e;color:#fff;border:none;border-radius:6px;font-size:11.5px;font-weight:600;cursor:pointer;">
           + Tambah Materi
         </button>
       </div>
       <div>${materialsHtml}</div>
-    </div>
+    </section>
   `;
 
   // Info Audit Presensi: Sistem 1 (Barcode/QR Mandiri) vs Sistem 2 (Manual Admin)
   let presensiAuditBox = "";
   if (m.checkInAt || m.checkOutAt) {
     presensiAuditBox = `
-      <div style="margin:14px 0;padding:12px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;font-size:12.5px;">
-        <div style="font-weight:700;color:#0c2d5e;margin-bottom:8px;display:flex;align-items:center;gap:6px;">
-          <span>📋</span> Riwayat Presensi &amp; Metode Check-In/Out
-        </div>
+      <section class="meeting-detail-attendance">
+        <h4>${meetingDetailIcon("attendance")}<span>Riwayat Presensi</span></h4>
         ${
           m.checkInAt
             ? `
@@ -5085,7 +5085,7 @@ function viewMeeting(id) {
               ${m.checkedInBy ? `<small style="color:#64748b;">(${esc(m.checkedInBy)})</small>` : ""}
             </div>
             <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;background:${m.checkInMethod === "barcode_qr" ? "#e0f2fe;color:#0369a1;border:1px solid #bae6fd;" : "#fef3c7;color:#b45309;border:1px solid #fde68a;"}">
-              ${m.checkInMethod === "barcode_qr" ? "📱 [Sistem 1] Barcode / QR Mandiri" : "👤 [Sistem 2] Manual Admin"}
+              ${m.checkInMethod === "barcode_qr" ? "Barcode / QR Mandiri" : "Manual oleh Admin"}
             </span>
           </div>`
             : ""
@@ -5100,31 +5100,39 @@ function viewMeeting(id) {
               ${m.checkedOutBy ? `<small style="color:#64748b;">(${esc(m.checkedOutBy)})</small>` : ""}
             </div>
             <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;background:${m.checkOutMethod === "barcode_qr" ? "#e0f2fe;color:#0369a1;border:1px solid #bae6fd;" : "#fef3c7;color:#b45309;border:1px solid #fde68a;"}">
-              ${m.checkOutMethod === "barcode_qr" ? "📱 [Sistem 1] Barcode / QR Mandiri" : "👤 [Sistem 2] Manual Admin"}
+              ${m.checkOutMethod === "barcode_qr" ? "Barcode / QR Mandiri" : "Manual oleh Admin"}
             </span>
           </div>`
             : ""
         }
-      </div>
+      </section>
     `;
   }
 
   openModal(
     "Detail Rapat",
-    `<p style="font-size:16px;color:#0c2d5e;"><b>${esc(m.title)}</b></p>
-    ${cancelBox}
-    ${reviewBox}
-    <p class="muted" style="margin:12px 0">${formatDate(m.date)} · ${m.start}-${m.end}</p>
-    <p>📍 ${esc(m.room)}</p>
-    <p>👤 <b>Pemesan:</b> ${esc(m.requester)}</p>
-    <p>👥 ${m.participants} peserta</p>
-    <p>🏷️ <b>Status:</b> ${badge(m.status)}</p>
-    ${m.approvedBy ? `<p>✓ <b>Disetujui Oleh:</b> <span style="color:#15803d;font-weight:600;">${esc(m.approvedBy)}</span></p>` : ""}
-    ${m.rejectedBy ? `<p style="color:#dc2626;">✕ <b>Ditolak Oleh:</b> ${esc(m.rejectedBy)}</p>` : ""}
+    `<div class="meeting-detail-content">
+      <header class="meeting-detail-intro">
+        <span class="meeting-detail-eyebrow">INFORMASI RAPAT</span>
+        <h3>${esc(m.title || "Rapat")}</h3>
+        ${m.desc && m.desc !== m.title ? `<p>${esc(m.desc)}</p>` : ""}
+      </header>
+      ${cancelBox}
+      ${reviewBox}
+      <section class="meeting-detail-overview" aria-label="Ringkasan rapat">
+        <div class="meeting-detail-schedule">${meetingDetailIcon("calendar")}<div><span>Tanggal &amp; waktu</span><strong>${formatMeetingDetailDate(m.date)} · ${esc(m.start || "-")}-${esc(m.end || "-")}</strong></div></div>
+        <div class="meeting-detail-meta">
+          <div class="meeting-detail-fact">${meetingDetailIcon("pin")}<div><span>Ruangan</span><strong>${esc(m.room || "Belum ditentukan")}</strong>${roomLocation ? `<small>${esc(roomLocation)}</small>` : ""}</div></div>
+          <div class="meeting-detail-fact">${meetingDetailIcon("person")}<div><span>Pemesan</span><strong>${esc(m.requester || "-")}</strong></div></div>
+          <div class="meeting-detail-fact">${meetingDetailIcon("users")}<div><span>Peserta</span><strong>${esc(m.participants ?? "-")} orang</strong></div></div>
+          <div class="meeting-detail-fact meeting-detail-status-row"><span class="meeting-detail-status-dot" aria-hidden="true"></span><div><span>Status</span><strong>${badge(m.status)}</strong></div></div>
+          ${m.approvedBy ? `<div class="meeting-detail-approval">${meetingDetailIcon("attendance")}<div><span>Disetujui oleh</span><strong>${esc(m.approvedBy)}</strong></div></div>` : ""}
+          ${m.rejectedBy ? `<div class="meeting-detail-approval is-rejected">${meetingDetailIcon("attendance")}<div><span>Ditolak oleh</span><strong>${esc(m.rejectedBy)}</strong></div></div>` : ""}
+        </div>
+      </section>
     ${presensiAuditBox}
-    <p style="margin-top:15px;color:#334155;white-space:pre-line;">${esc(m.desc)}</p>
     ${materialsBox}
-    <div class="modal-actions" style="margin-top:20px;display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;align-items:center;">
+    <div class="modal-actions meeting-detail-actions" style="margin-top:20px;display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;align-items:center;">
       <button class="btn btn-light" style="display:inline-flex;align-items:center;gap:6px;background:#fff8e6;color:#d97706;border:1px solid #fde68a;font-weight:700;" onclick="closeModal(); openMeetingReviewModal('${m.id}')">★ <span>Rating & Review</span></button>
       ${actionBtns}
     </div>`,
@@ -5313,7 +5321,12 @@ async function submitAdminMaterial(meetingId) {
 window.submitAdminMaterial = submitAdminMaterial;
 
 async function deleteMaterialFromMeeting(meetingId, matId) {
-  if (!confirm("Hapus materi ini dari rapat?")) return;
+  if (!(await confirmWithAppModal({
+    title: "Hapus Materi",
+    message: "Anda yakin ingin menghapus materi ini dari rapat?",
+    confirmText: "Ya, Hapus",
+    confirmBg: "#dc2626",
+  }))) return;
   try {
     await fetch(`/api/dashboard/meetings/${meetingId}/materials/${matId}`, {
       method: "DELETE",
@@ -6163,7 +6176,15 @@ window.submitMeetingReview = submitMeetingReview;
 async function deleteMeeting(id) {
   if (!can("manageMeeting"))
     return denyAccess("Penghapusan rapat dilakukan oleh Admin.");
-  if (!confirm("Hapus rapat ini dari database? Tindakan ini tidak dapat dibatalkan.")) return;
+  if (!(await confirmWithAppModal({
+    title: "Hapus Rapat",
+    iconBg: "#fee2e2",
+    iconColor: "#dc2626",
+    message: "Anda yakin ingin menghapus rapat ini dari database?",
+    subtext: "Tindakan ini tidak dapat dibatalkan.",
+    confirmText: "Ya, Hapus",
+    confirmBg: "#dc2626",
+  }))) return;
   try {
     const response = await fetch(`/api/dashboard/meetings/${encodeURIComponent(id)}`, { method: "DELETE" });
     const result = await response.json().catch(() => ({}));
@@ -6177,15 +6198,32 @@ async function deleteMeeting(id) {
 async function deleteRoom(id) {
   if (!can("manageRoom")) return denyAccess("Penghapusan ruangan dilakukan oleh Admin.");
   const room = state.rooms.find((item) => String(item.id) === String(id));
-  if (!room || !confirm(`Hapus ruangan "${room.name}"? Ruangan yang masih memiliki rapat tidak dapat dihapus.`)) return;
-  try {
-    const response = await fetch(`/api/dashboard/rooms/${encodeURIComponent(id)}`, { method: "DELETE" });
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok || !result.success) throw new Error(result.error || "Ruangan gagal dihapus.");
-    state.rooms = state.rooms.filter((item) => String(item.id) !== String(id));
-    getAppStorage().setItem("app_rooms", JSON.stringify(state.rooms));
-    render(); toast("Ruangan berhasil dihapus.");
-  } catch (error) { toast(error.message || "Gagal menghapus ruangan."); }
+  if (!room) return;
+
+  showConfirmModal({
+    title: "Hapus Ruangan",
+    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px"><path d="M4 7h16M10 11v6m4-6v6M5 7l1 14h12l1-14M9 7V4h6v3"/></svg>`,
+    iconBg: "#fee2e2",
+    iconColor: "#dc2626",
+    message: `Anda yakin ingin menghapus ruangan <strong>${esc(room.name)}</strong>?`,
+    infoText: "Ruangan yang masih digunakan oleh rapat tidak dapat dihapus.",
+    subtext: "Tindakan ini tidak dapat dibatalkan.",
+    confirmText: "Ya, Hapus",
+    confirmBg: "#dc2626",
+    onConfirm: async () => {
+      try {
+        const response = await fetch(`/api/dashboard/rooms/${encodeURIComponent(id)}`, { method: "DELETE" });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || !result.success) throw new Error(result.error || "Ruangan gagal dihapus.");
+        state.rooms = state.rooms.filter((item) => String(item.id) !== String(id));
+        getAppStorage().setItem("app_rooms", JSON.stringify(state.rooms));
+        render();
+        toast("Ruangan berhasil dihapus.");
+      } catch (error) {
+        toast(error.message || "Gagal menghapus ruangan.");
+      }
+    },
+  });
 }
 
 // State foto ruangan saat modal dibuka
@@ -7124,30 +7162,6 @@ async function saveUser(id) {
     getAppStorage().setItem("app_login_users", JSON.stringify(allLogin));
   } catch (e) {}
 
-  try {
-    let savedAcc = JSON.parse(getAppStorage().getItem("savedAccounts") || "[]");
-    const accData = {
-      username: username,
-      name: name,
-      role: role,
-      email: email,
-      dept: dept,
-    };
-    const sIdx = savedAcc.findIndex(
-      (x) => (x.username || "").toLowerCase() === lowerUsername,
-    );
-    if (sIdx >= 0) {
-      if (status === "Nonaktif") {
-        savedAcc.splice(sIdx, 1);
-      } else {
-        savedAcc[sIdx] = accData;
-      }
-    } else if (status === "Aktif") {
-      savedAcc.push(accData);
-    }
-    getAppStorage().setItem("savedAccounts", JSON.stringify(savedAcc));
-  } catch (e) {}
-
   closeModal();
   render();
   toast(
@@ -7178,11 +7192,15 @@ async function deleteUser(id) {
     return;
   }
 
-  if (
-    confirm(
-      `Hapus pengguna "${target.name}"? Pengguna ini tidak akan dapat login lagi.`,
-    )
-  ) {
+  if (await confirmWithAppModal({
+    title: "Hapus Pengguna",
+    iconBg: "#fee2e2",
+    iconColor: "#dc2626",
+    message: `Anda yakin ingin menghapus pengguna <strong>${esc(target.name)}</strong>?`,
+    subtext: "Pengguna ini tidak akan dapat login lagi.",
+    confirmText: "Ya, Hapus",
+    confirmBg: "#dc2626",
+  })) {
     try {
       const response = await fetch(`/api/dashboard/users/${id}`, { method: "DELETE" });
       const result = await response.json().catch(() => ({}));
@@ -7591,9 +7609,55 @@ function toast(msg) {
   const t = document.createElement("div");
   t.className = "toast";
   t.textContent = msg;
+  t.setAttribute("role", "status");
+  t.setAttribute("aria-live", "polite");
   document.body.appendChild(t);
-  setTimeout(() => t.remove(), 2200);
+  setTimeout(() => t.remove(), 4000);
 }
+
+function showDashboardAlert(message) {
+  document.querySelector(".dashboard-alert-overlay")?.remove();
+  const previouslyFocused = document.activeElement;
+  const overlay = document.createElement("div");
+  overlay.className = "dashboard-alert-overlay";
+  const dialog = document.createElement("section");
+  dialog.className = "dashboard-alert-dialog";
+  dialog.setAttribute("role", "alertdialog");
+  dialog.setAttribute("aria-modal", "true");
+  dialog.setAttribute("aria-labelledby", "dashboard-alert-title");
+  dialog.setAttribute("aria-describedby", "dashboard-alert-message");
+  const heading = document.createElement("h2");
+  heading.id = "dashboard-alert-title";
+  heading.textContent = "Informasi";
+  const content = document.createElement("p");
+  content.id = "dashboard-alert-message";
+  content.textContent = String(message ?? "");
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "dashboard-alert-confirm";
+  button.textContent = "Mengerti";
+  const close = () => {
+    overlay.remove();
+    document.removeEventListener("keydown", onKeyDown);
+    if (previouslyFocused instanceof HTMLElement && previouslyFocused.isConnected) previouslyFocused.focus();
+  };
+  const onKeyDown = (event) => {
+    if (event.key === "Escape") close();
+    if (event.key === "Tab") {
+      event.preventDefault();
+      button.focus();
+    }
+  };
+  button.addEventListener("click", close);
+  dialog.append(heading, content, button);
+  overlay.append(dialog);
+  document.body.append(overlay);
+  document.addEventListener("keydown", onKeyDown);
+  button.focus();
+}
+
+// Keep alert feedback styled and keyboard-accessible inside the admin iframe too.
+window.alert = showDashboardAlert;
 
 async function fetchDashboardData(showToast = false) {
   try {
@@ -7785,6 +7849,66 @@ async function checkDevSessionLifecycle() {
 }
 
 render();
+// Keep every admin modal usable with a keyboard, including feature-specific forms.
+const dashboardModalRoot = document.getElementById("modal");
+if (dashboardModalRoot) {
+  let dashboardModalWasOpen = false;
+  let dashboardModalReturnFocus = null;
+  const focusableInDashboardModal = () => [...dashboardModalRoot.querySelectorAll(
+    'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+  )].filter((element) => element.getClientRects().length > 0);
+
+  dashboardModalRoot.addEventListener("keydown", (event) => {
+    if (!dashboardModalRoot.classList.contains("show")) return;
+    if (event.key === "Escape") {
+      event.preventDefault();
+      closeModal();
+      return;
+    }
+    if (event.key !== "Tab") return;
+    const focusable = focusableInDashboardModal();
+    if (!focusable.length) {
+      event.preventDefault();
+      dashboardModalRoot.firstElementChild?.focus();
+      return;
+    }
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  });
+
+  new MutationObserver(() => {
+    const isOpen = dashboardModalRoot.classList.contains("show");
+    if (isOpen && !dashboardModalWasOpen) {
+      dashboardModalWasOpen = true;
+      dashboardModalReturnFocus = document.activeElement;
+      const dialog = dashboardModalRoot.firstElementChild;
+      if (dialog) {
+        dialog.setAttribute("role", "dialog");
+        dialog.setAttribute("aria-modal", "true");
+        dialog.setAttribute("tabindex", "-1");
+        const heading = dialog.querySelector("h1, h2, h3");
+        if (heading) {
+          heading.id ||= "dashboard-modal-title";
+          dialog.setAttribute("aria-labelledby", heading.id);
+        }
+      }
+      requestAnimationFrame(() => (focusableInDashboardModal()[0] || dialog)?.focus());
+    } else if (!isOpen && dashboardModalWasOpen) {
+      dashboardModalWasOpen = false;
+      if (dashboardModalReturnFocus instanceof HTMLElement && dashboardModalReturnFocus.isConnected) {
+        dashboardModalReturnFocus.focus();
+      }
+      dashboardModalReturnFocus = null;
+    }
+  }).observe(dashboardModalRoot, { attributes: true, childList: true, subtree: true });
+}
 initNotificationSync();
 checkDevSessionLifecycle();
 fetchDashboardData(false);
@@ -7793,9 +7917,14 @@ setInterval(() => fetchDashboardData(false), 30000);
 // ----------------------------------------------------------------------
 // LOGOUT FUNCTION
 // ----------------------------------------------------------------------
-function logout(e) {
+async function logout(e) {
   if (e) e.stopPropagation();
-  if (confirm("Apakah Anda yakin ingin keluar?")) {
+  if (await confirmWithAppModal({
+    title: "Keluar dari Akun",
+    message: "Apakah Anda yakin ingin keluar dari aplikasi?",
+    confirmText: "Ya, Keluar",
+    confirmBg: "#dc2626",
+  })) {
     const authKeys = [
       "isAuthenticated",
       "currentUser",
@@ -7879,13 +8008,11 @@ window.approveMeetingFromNotif = approveMeetingFromNotif;
 window.rejectMeetingFromNotif = rejectMeetingFromNotif;
 window.viewMeetingFromNotif = viewMeetingFromNotif;
 window.markAllNotifsRead = markAllNotifsRead;
-window.switchToAccount = switchToAccount;
 window.toggleProfileMenu = toggleProfileMenu;
 window.switchRole = switchRole;
 window.logout = logout;
 window.viewMeeting = viewMeeting;
 window.filterMeetingTable = filterMeetingTable;
-window.getAllAvailableAccounts = getAllAvailableAccounts;
 window.openMeetingQRModal = openMeetingQRModal;
 window.generateQrSvg = generateQrSvg;
 window.closeModal = closeModal;

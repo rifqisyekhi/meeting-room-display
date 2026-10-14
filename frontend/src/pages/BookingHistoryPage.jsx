@@ -98,7 +98,9 @@ export default function BookingHistoryPage() {
           room.name?.toLowerCase().includes(item.name.toLowerCase()),
         )?.image || imgRuangRapatBesar }));
       }
-    } catch {}
+    } catch {
+      // Use the default room list when the browser cache is unavailable.
+    }
     return roomDefaults;
   });
   const [filterStatus, setFilterStatus] = useState("all");
@@ -170,14 +172,18 @@ export default function BookingHistoryPage() {
         setMeetings(finalMeetings);
         try {
           localStorage.setItem("app_meetings", JSON.stringify(finalMeetings));
-        } catch {}
+        } catch {
+          // Keep the in-memory booking history when local storage is unavailable.
+        }
       }
       if (Array.isArray(data.rooms) && data.rooms.length) {
         let localRooms = [];
         try {
           const storedRooms = JSON.parse(localStorage.getItem("app_rooms") || "[]");
           if (Array.isArray(storedRooms)) localRooms = storedRooms;
-        } catch {}
+        } catch {
+          // Continue rendering rooms from the server response.
+        }
         const combinedRooms = [...data.rooms, ...localRooms].filter((room, index, list) =>
           list.findIndex((item) => (item.name || "").trim().toLowerCase() === (room.name || "").trim().toLowerCase()) === index,
         );
@@ -451,6 +457,13 @@ export default function BookingHistoryPage() {
     ["all", "Semua"], ["pending", "Menunggu"], ["approved", "Disetujui"],
     ["rejected", "Ditolak"], ["completed", "Selesai"], ["cancelled", "Dibatalkan"],
   ];
+  const hasActiveFilters = filterStatus !== "all" || fromDate || toDate || search.trim();
+  const clearFilters = () => {
+    setFilterStatus("all");
+    setFromDate("");
+    setToDate("");
+    setSearch("");
+  };
 
   return (
     <main className="booking-history-page">
@@ -480,16 +493,10 @@ export default function BookingHistoryPage() {
               <span>Pilih Rentang Tanggal</span>
               <input ref={fromDateInput} type="date" aria-label="Tanggal mulai" title="Klik untuk memilih tanggal dari kalender" value={fromDate}
                 onClick={(event) => { try { event.currentTarget.showPicker?.(); } catch { /* Kalender native mungkin sudah terbuka. */ } }}
-                onKeyDown={(event) => event.preventDefault()}
-                onBeforeInput={(event) => event.preventDefault()}
-                onPaste={(event) => event.preventDefault()}
                 onChange={(event) => setFromDate(event.target.value)} />
               <span>s/d</span>
               <input ref={toDateInput} type="date" aria-label="Tanggal akhir" title="Klik untuk memilih tanggal dari kalender" value={toDate}
                 onClick={(event) => { try { event.currentTarget.showPicker?.(); } catch { /* Kalender native mungkin sudah terbuka. */ } }}
-                onKeyDown={(event) => event.preventDefault()}
-                onBeforeInput={(event) => event.preventDefault()}
-                onPaste={(event) => event.preventDefault()}
                 onChange={(event) => setToDate(event.target.value)} />
             </div>
             <input className="booking-history-search" type="search"
@@ -598,17 +605,25 @@ export default function BookingHistoryPage() {
             </article>
           );
         }) : (
-          <div className="booking-history-empty">Belum ada pemesanan yang cocok dengan filter.</div>
+          <div className="booking-history-empty" role="status">
+            <strong>{hasActiveFilters ? "Tidak ada pemesanan yang cocok" : "Belum ada pemesanan"}</strong>
+            <p>{hasActiveFilters ? "Coba ubah kata kunci atau rentang tanggal." : "Pemesanan ruang rapat yang kamu buat akan tampil di sini."}</p>
+            {hasActiveFilters ? (
+              <button type="button" onClick={clearFilters}>Hapus semua filter</button>
+            ) : (
+              <button type="button" onClick={() => navigate("/booking")}>Buat pemesanan</button>
+            )}
+          </div>
         )}
       </section>
 
       {notice && <div className="booking-history-notice" role="status">{notice}<button onClick={() => setNotice("")}>Tutup</button></div>}
 
       {extensionTarget && (
-        <div className="booking-history-modal-backdrop" onClick={() => setExtensionTarget(null)}>
-          <div className="booking-history-modal" onClick={(event) => event.stopPropagation()}>
+        <div className="booking-history-modal-backdrop" role="presentation" onClick={() => setExtensionTarget(null)}>
+          <div className="booking-history-modal" role="dialog" aria-modal="true" aria-labelledby="booking-extension-title" onClick={(event) => event.stopPropagation()}>
             <button type="button" className="booking-history-modal-close" onClick={() => setExtensionTarget(null)} aria-label="Tutup">×</button>
-            <h2>Tambah Waktu Booking</h2>
+            <h2 id="booking-extension-title">Tambah Waktu Booking</h2>
             <p>{extensionTarget.room} · {extensionTarget.start || extensionTarget.startTime}–{extensionTarget.end || extensionTarget.endTime}</p>
             <span>Pilih durasi tambahan. Waktu perpanjangan langsung ditambahkan setelah dipilih.</span>
             <div className="booking-history-extension-options">
@@ -625,10 +640,10 @@ export default function BookingHistoryPage() {
 
       {extensionComplete && (
         <div className="booking-history-modal-backdrop" onClick={() => setExtensionComplete(null)}>
-          <div className="booking-history-modal booking-history-extension-success" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+          <div className="booking-history-modal booking-history-extension-success" role="dialog" aria-modal="true" aria-labelledby="booking-extension-success-title" onClick={(event) => event.stopPropagation()}>
             <button type="button" className="booking-history-modal-close" onClick={() => setExtensionComplete(null)} aria-label="Tutup">×</button>
             <span className="booking-history-extension-success-icon">✓</span>
-            <h2>Waktu Rapat Berhasil Ditambahkan</h2>
+            <h2 id="booking-extension-success-title">Waktu Rapat Berhasil Ditambahkan</h2>
             <p>{extensionComplete.meeting.room} berhasil diperpanjang {extensionComplete.hours} jam.</p>
             <strong>{extensionComplete.meeting.start || extensionComplete.meeting.startTime}–{extensionComplete.meeting.end}</strong>
             <button type="button" className="booking-history-extension-success-done" onClick={() => setExtensionComplete(null)}>Selesai</button>
@@ -664,10 +679,10 @@ export default function BookingHistoryPage() {
 
       {reviewComplete && (
         <div className="booking-history-modal-backdrop" onClick={() => setReviewComplete(null)}>
-          <div className="booking-history-modal booking-history-extension-success" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+          <div className="booking-history-modal booking-history-extension-success" role="dialog" aria-modal="true" aria-labelledby="booking-review-success-title" onClick={(event) => event.stopPropagation()}>
             <button type="button" className="booking-history-modal-close" onClick={() => setReviewComplete(null)} aria-label="Tutup">×</button>
             <span className="booking-history-extension-success-icon">✓</span>
-            <h2>Ulasan Berhasil Dikirim</h2>
+            <h2 id="booking-review-success-title">Ulasan Berhasil Dikirim</h2>
             <p>Terima kasih atas ulasan Anda. Rating {reviewComplete.rating}/5 telah dikirim ke Admin dan Approval.</p>
             <button type="button" className="booking-history-extension-success-done" onClick={() => setReviewComplete(null)}>Selesai</button>
           </div>
@@ -676,14 +691,14 @@ export default function BookingHistoryPage() {
 
       {recommendationTarget && (
         <div className="booking-recommendation-backdrop" onClick={() => setRecommendationTarget(null)}>
-          <section className="booking-recommendation-modal" style={{
+          <section className="booking-recommendation-modal" role="dialog" aria-modal="true" aria-labelledby="booking-recommendation-title" style={{
             width: recommendedRooms.length <= 1 ? "min(600px, calc(100vw - 40px))" : recommendedRooms.length === 2 ? "min(800px, calc(100vw - 40px))" : "min(1040px, calc(100vw - 40px))",
           }} onClick={(event) => event.stopPropagation()}>
             <button type="button" className="booking-recommendation-close" onClick={() => setRecommendationTarget(null)} aria-label="Tutup">×</button>
             <div className="booking-recommendation-title">
               <span className="booking-recommendation-error">×</span>
               <div>
-                <h2>{statusKey(recommendationTarget.status || recommendationTarget.approvalStatus) === "cancelled" ? "Pemesanan Ruang Rapat Dibatalkan" : "Pemesanan Ruang Rapat Ditolak"}</h2>
+                <h2 id="booking-recommendation-title">{statusKey(recommendationTarget.status || recommendationTarget.approvalStatus) === "cancelled" ? "Pemesanan Ruang Rapat Dibatalkan" : "Pemesanan Ruang Rapat Ditolak"}</h2>
                 <p>Pemesanan Anda untuk <strong>{recommendationTarget.room}</strong> pada {formatDate(recommendationTarget.date, { weekday: "long", day: "2-digit", month: "long", year: "numeric" })} pukul {recommendationTarget.start || recommendationTarget.startTime}–{recommendationTarget.end || recommendationTarget.endTime} tidak dapat digunakan.</p>
               </div>
             </div>
@@ -769,7 +784,7 @@ export default function BookingHistoryPage() {
         const formattedDate = formatDate(qrModalMeeting.date, { day: "numeric", month: "short", year: "numeric" });
         return (
           <div className="booking-history-modal-backdrop" onClick={() => setQrModalMeeting(null)}>
-            <div className="booking-history-modal booking-history-qr-modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+            <div className="booking-history-modal booking-history-qr-modal" role="dialog" aria-modal="true" aria-labelledby="booking-qr-title" onClick={(event) => event.stopPropagation()}>
               
               {/* Header Bar */}
               <div className="bh-qr-header-bar">
@@ -783,7 +798,7 @@ export default function BookingHistoryPage() {
               </div>
 
               {/* Title & Room / Time */}
-              <h2 className="bh-qr-title">{qrModalMeeting.title || qrModalMeeting.agenda || "Rapat"}</h2>
+              <h2 className="bh-qr-title" id="booking-qr-title">{qrModalMeeting.title || qrModalMeeting.agenda || "Rapat"}</h2>
               <p className="bh-qr-subtitle">
                 <span>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: "inline-block", verticalAlign: "-1.5px", marginRight: "2px" }}><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>

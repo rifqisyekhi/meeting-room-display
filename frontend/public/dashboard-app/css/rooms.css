@@ -218,6 +218,41 @@
         object-fit: cover;
         display: block;
       }
+      .crc-delete-btn {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        z-index: 2;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 11px;
+        border: 1px solid rgba(255, 255, 255, 0.72);
+        border-radius: 9px;
+        background: rgba(255, 255, 255, 0.94);
+        color: #c62828;
+        box-shadow: 0 3px 10px rgba(15, 23, 42, 0.18);
+        font: 600 12px 'Poppins', sans-serif;
+        cursor: pointer;
+        transition: background 0.15s ease, transform 0.15s ease;
+      }
+      .crc-delete-btn:hover {
+        background: #fff1f1;
+        transform: translateY(-1px);
+      }
+      .crc-delete-btn:focus-visible {
+        outline: 3px solid rgba(198, 40, 40, 0.35);
+        outline-offset: 2px;
+      }
+      .crc-delete-btn svg {
+        width: 15px;
+        height: 15px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.8;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
       .crc-footer {
         background: #e9eff6;
         padding: 16px 14px;
@@ -241,6 +276,28 @@
         box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18);
         font-family: 'Poppins', sans-serif;
         box-sizing: border-box;
+        scrollbar-width: thin;
+        scrollbar-color: #c2cedd transparent;
+      }
+      .custom-room-modal::-webkit-scrollbar {
+        width: 8px;
+      }
+      .custom-room-modal::-webkit-scrollbar-button {
+        display: none;
+        width: 0;
+        height: 0;
+      }
+      .custom-room-modal::-webkit-scrollbar-track {
+        margin: 20px 0;
+        background: transparent;
+      }
+      .custom-room-modal::-webkit-scrollbar-thumb {
+        border: 2px solid #fff;
+        border-radius: 8px;
+        background: #c2cedd;
+      }
+      .custom-room-modal::-webkit-scrollbar-thumb:hover {
+        background: #91a4bb;
       }
       .custom-room-modal h2 {
         font-size: 24px;

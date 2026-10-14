@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
+import { showAppConfirm } from "../utils/appDialogs";
 import { QRCodeSVG } from "qrcode.react";
 import {
   FaCheckCircle,
@@ -145,8 +146,26 @@ export default function MeetingPassPage() {
       }
     }
 
+    const normalizeStatusIfEnded = (m) => {
+      if (!m) return m;
+      const sLower = String(m.status || "").toLowerCase().trim();
+      if (sLower.includes("batal") || sLower.includes("tolak")) return m;
+      if (m.checkOutAt) return { ...m, status: "Selesai" };
+      if (m.date && (m.end || m.endTime)) {
+        try {
+          const [y, mth, d] = String(m.date).split("-").map(Number);
+          const [eh, em] = String(m.end || m.endTime).split(":").map(Number);
+          if (new Date() >= new Date(y, mth - 1, d, eh || 0, em || 0, 0)) {
+            return { ...m, status: "Selesai" };
+          }
+        } catch (e) {}
+      }
+      return m;
+    };
+
     // 3. Jika berhasil didapat dari backend, sinkronkan ke state & localStorage
     if (foundMeeting) {
+      foundMeeting = normalizeStatusIfEnded(foundMeeting);
       setMeeting(foundMeeting);
       setLoading(false);
       try {
@@ -182,7 +201,7 @@ export default function MeetingPassPage() {
           String(m.originalId) === String(id),
       );
       if (found) {
-        setMeeting(found);
+        setMeeting(normalizeStatusIfEnded(found));
       }
     } catch (err) {
       console.error(err);
@@ -297,11 +316,10 @@ export default function MeetingPassPage() {
       );
       return;
     }
-    if (
-      !window.confirm(
-        "Apakah Anda yakin ingin menyelesaikan sesi rapat ini (Check-Out)?",
-      )
-    ) {
+    if (!(await showAppConfirm(
+      "Apakah Anda yakin ingin menyelesaikan sesi rapat ini (Check-Out)?",
+      { title: "Konfirmasi Check-Out", confirmLabel: "Ya, Check-Out" },
+    ))) {
       return;
     }
     const actorName =
@@ -567,7 +585,11 @@ export default function MeetingPassPage() {
 
   // Handle Hapus Materi Rapat
   const handleDeleteMaterial = async (matId) => {
-    if (!window.confirm("Apakah Anda yakin ingin menghapus materi ini?"))
+    if (!(await showAppConfirm("Apakah Anda yakin ingin menghapus materi ini?", {
+      title: "Hapus Materi",
+      confirmLabel: "Ya, Hapus",
+      destructive: true,
+    })))
       return;
     try {
       const res = await fetch(
@@ -664,28 +686,47 @@ export default function MeetingPassPage() {
     );
   }
 
+  const now = new Date();
+  let isPastEnd = false;
+  let isCurrentSlot = false;
+  let isFutureSlot = false;
+
+  if (meeting.date) {
+    try {
+      const [year, month, day] = String(meeting.date).split("-").map(Number);
+      const startParts = String(meeting.start || meeting.startTime || "00:00").split(":").map(Number);
+      const endParts = String(meeting.end || meeting.endTime || "23:59").split(":").map(Number);
+      const startDt = new Date(year, month - 1, day, startParts[0] || 0, startParts[1] || 0, 0);
+      const endDt = new Date(year, month - 1, day, endParts[0] || 0, endParts[1] || 0, 0);
+
+      isPastEnd = now >= endDt;
+      isCurrentSlot = now >= startDt && now < endDt;
+      isFutureSlot = now < startDt;
+    } catch (e) {}
+  }
+
   const normStatus = (meeting.status || "").toLowerCase().trim();
-  const hasApprovedTag = !!(meeting.approvedBy || meeting.approvedAt);
-  const isRunning =
-    normStatus === "berjalan" ||
-    normStatus === "in_progress" ||
-    normStatus === "ongoing";
-  const isCompleted = normStatus === "selesai" || normStatus === "completed";
-  const isUpcoming =
-    normStatus === "akan datang" ||
-    normStatus === "segera" ||
-    normStatus === "disetujui" ||
-    normStatus === "approved" ||
-    normStatus === "upcoming" ||
-    (hasApprovedTag &&
-      !normStatus.includes("tolak") &&
-      !normStatus.includes("batal"));
-  const isPending =
-    !hasApprovedTag &&
-    (normStatus.includes("menunggu") || normStatus === "pending") &&
-    !isCompleted &&
-    !isUpcoming &&
-    !isRunning;
+  const hasApprovedTag = Boolean(
+    meeting.approvedBy ||
+    meeting.approvedAt ||
+    meeting.googleId ||
+    (normStatus && !normStatus.includes("menunggu") && normStatus !== "pending" && !normStatus.includes("tolak") && !normStatus.includes("batal"))
+  );
+  const isCancelled = normStatus.includes("batal") || normStatus.includes("tolak");
+  const isCheckedOut = Boolean(meeting.checkOutAt);
+  const isCheckedIn = Boolean(meeting.checkInAt);
+
+  // 1. Selesai: Jika sudah check-out, status sudah 'selesai', atau waktu akhir rapat sudah lewat
+  const isCompleted = !isCancelled && (isCheckedOut || normStatus === "selesai" || normStatus === "completed" || isPastEnd);
+
+  // 2. Berjalan: Belum selesai, tidak dibatalkan, sudah disetujui, dan (sudah check-in atau status 'berjalan' atau sedang di rentang jam rapat)
+  const isRunning = !isCompleted && !isCancelled && hasApprovedTag && (isCheckedIn || normStatus === "berjalan" || normStatus === "in_progress" || isCurrentSlot);
+
+  // 3. Menunggu Approval: Belum disetujui, tidak dibatalkan, belum selesai
+  const isPending = !hasApprovedTag && (normStatus.includes("menunggu") || normStatus === "pending") && !isCompleted && !isCancelled;
+
+  // 4. Terjadwal / Akan Datang: Sudah disetujui, belum berjalan, belum selesai, tidak dibatalkan
+  const isUpcoming = hasApprovedTag && !isRunning && !isCompleted && !isCancelled && !isPending;
 
   const attendeesList = Array.isArray(meeting.attendees)
     ? meeting.attendees
@@ -754,6 +795,11 @@ export default function MeetingPassPage() {
               {isPending && (
                 <span className="mp-status-pill pending">
                   Menunggu Approval
+                </span>
+              )}
+              {isCancelled && (
+                <span className="mp-status-pill done" style={{ background: "#fee2e2", color: "#b91c1c", borderColor: "#fca5a5" }}>
+                  ✕ Dibatalkan
                 </span>
               )}
             </div>
@@ -1070,7 +1116,7 @@ export default function MeetingPassPage() {
                     <span>
                       {meeting.checkInAt
                         ? `Check-in pukul ${new Date(meeting.checkInAt).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} WIB ${meeting.checkedInBy ? `oleh ${meeting.checkedInBy}` : ""}`
-                        : "Sesi telah aktif di sistem kalender."}
+                        : "Sesi rapat sedang aktif sesuai jadwal kalender."}
                     </span>
                   </div>
                 </div>
@@ -1118,7 +1164,29 @@ export default function MeetingPassPage() {
                     <span>
                       {meeting.checkOutAt
                         ? `Check-out pada ${new Date(meeting.checkOutAt).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} WIB ${meeting.checkedOutBy ? `oleh ${meeting.checkedOutBy}` : ""}`
-                        : "Ruangan telah dikosongkan dan siap digunakan berikutnya."}
+                        : isPastEnd
+                          ? `Waktu sesi rapat (${meeting.end || meeting.endTime || "selesai"}) telah berakhir.`
+                          : "Ruangan telah dikosongkan dan sesi rapat telah berakhir."}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {isCancelled && (
+                <div
+                  className="mp-status-box waiting"
+                  style={{
+                    borderColor: "#ef4444",
+                    background: "rgba(239, 68, 68, 0.08)",
+                  }}
+                >
+                  <FaTimes className="icon" style={{ color: "#dc2626" }} />
+                  <div>
+                    <strong style={{ color: "#b91c1c" }}>
+                      Rapat Dibatalkan
+                    </strong>
+                    <span>
+                      Jadwal rapat ini telah dibatalkan atau ditolak.
                     </span>
                   </div>
                 </div>
@@ -1136,27 +1204,36 @@ export default function MeetingPassPage() {
                   actionLoading ||
                   isRunning ||
                   isCompleted ||
-                  isPending
+                  isPending ||
+                  isCancelled
                 }
                 title={
                   !isMeetingBooker
                     ? "Hanya pemesan ruangan yang dapat Check-In"
-                    : isPending
-                      ? "Rapat belum disetujui oleh Pimpinan"
-                      : isRunning
-                        ? "Rapat sudah berstatus Berjalan"
-                        : "Mulai sesi rapat sekarang"
+                    : isCancelled
+                      ? "Rapat telah dibatalkan"
+                      : isPending
+                        ? "Rapat belum disetujui oleh Pimpinan"
+                        : isCompleted
+                          ? "Rapat telah selesai"
+                          : isRunning
+                            ? "Rapat sudah berstatus Berjalan"
+                            : "Mulai sesi rapat sekarang"
                 }
               >
                 <FaCheck />
                 <span>
                   {actionLoading
                     ? "Memproses..."
-                    : isPending
-                      ? "Menunggu Persetujuan"
-                      : isRunning
-                        ? "✓ Telah Check-In"
-                        : "Check-In (Mulai Rapat)"}
+                    : isCancelled
+                      ? "✕ Dibatalkan"
+                      : isPending
+                        ? "Menunggu Persetujuan"
+                        : isCompleted
+                          ? "✓ Sesi Selesai"
+                          : isRunning
+                            ? "✓ Telah Check-In"
+                            : "Check-In (Mulai Rapat)"}
                 </span>
               </button>
 
@@ -1165,14 +1242,18 @@ export default function MeetingPassPage() {
                 className="mp-btn-action checkout-btn"
                 onClick={handleCheckOut}
                 disabled={
-                  !isMeetingBooker || actionLoading || !isRunning || isCompleted
+                  !isMeetingBooker || actionLoading || !isRunning || isCompleted || isCancelled
                 }
                 title={
                   !isMeetingBooker
                     ? "Hanya pemesan ruangan yang dapat Check-Out"
-                    : !isRunning
-                      ? "Hanya aktif saat rapat sedang berjalan"
-                      : "Selesaikan sesi rapat"
+                    : isCancelled
+                      ? "Rapat telah dibatalkan"
+                      : isCompleted
+                        ? "Rapat telah selesai"
+                        : !isRunning
+                          ? "Hanya aktif saat rapat sedang berjalan"
+                          : "Selesaikan sesi rapat"
                 }
               >
                 <FaSignOutAlt />
@@ -1396,15 +1477,15 @@ export default function MeetingPassPage() {
 
       {/* Toast Notification */}
       {toast && (
-        <div className={`mp-toast ${toast.type}`}>
+        <div className={`mp-toast ${toast.type}`} role={toast.type === "error" ? "alert" : "status"} aria-live={toast.type === "error" ? "assertive" : "polite"} aria-atomic="true">
           <span>{toast.message}</span>
         </div>
       )}
 
       {/* Modal QR Code Pop-up */}
       {showQRModal && (
-        <div className="mp-modal-backdrop" onClick={() => setShowQRModal(false)}>
-          <div style={{ maxWidth: 440, width: "92%", padding: "22px 24px", borderRadius: 24, background: "#ffffff", boxShadow: "0 20px 48px rgba(12,45,94,0.16)", textAlign: "center", position: "relative", boxSizing: "border-box", margin: "auto", maxHeight: "calc(100vh - 30px)", overflowY: "auto", scrollbarWidth: "none" }} onClick={(e) => e.stopPropagation()}>
+        <div className="mp-modal-backdrop" role="presentation" onClick={() => setShowQRModal(false)}>
+          <div role="dialog" aria-modal="true" aria-labelledby="meeting-qr-title" style={{ maxWidth: 440, width: "92%", padding: "22px 24px", borderRadius: 24, background: "#ffffff", boxShadow: "0 20px 48px rgba(12,45,94,0.16)", textAlign: "center", position: "relative", boxSizing: "border-box", margin: "auto", maxHeight: "calc(100vh - 30px)", overflowY: "auto", scrollbarWidth: "none" }} onClick={(e) => e.stopPropagation()}>
             {/* Header Bar */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
               <span style={{ fontSize: "12px", fontWeight: 600, color: "#0284c7", background: "#e0f2fe", padding: "4px 12px", borderRadius: 20, display: "inline-flex", alignItems: "center", gap: 6 }}>
@@ -1422,7 +1503,7 @@ export default function MeetingPassPage() {
             </div>
 
             {/* Agenda Title & Details */}
-            <h3 style={{ margin: "4px 0 4px", fontSize: 22, fontWeight: 800, color: "#0f172a", letterSpacing: "-0.3px", lineHeight: 1.2 }}>
+            <h3 id="meeting-qr-title" style={{ margin: "4px 0 4px", fontSize: 22, fontWeight: 800, color: "#0f172a", letterSpacing: "-0.3px", lineHeight: 1.2 }}>
               {meeting.title || "Rapat"}
             </h3>
             <p style={{ margin: "0 0 12px", fontSize: "12px", color: "#64748b", display: "flex", alignItems: "center", justifyContent: "center", gap: 4, flexWrap: "wrap", lineHeight: 1.3 }}>
@@ -1524,10 +1605,14 @@ export default function MeetingPassPage() {
       {showMaterialModal && (
         <div
           className="mp-modal-backdrop"
+          role="presentation"
           onClick={() => setShowMaterialModal(false)}
         >
           <div
             className="mp-modal-box"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="meeting-material-title"
             style={{ maxWidth: "520px" }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -1538,7 +1623,7 @@ export default function MeetingPassPage() {
               aria-label="Tutup Modal"
             ></button>
 
-            <h3 className="mp-modal-title">Unggah Materi Rapat</h3>
+            <h3 className="mp-modal-title" id="meeting-material-title">Unggah Materi Rapat</h3>
             <p className="mp-modal-subtitle">
               Lampirkan dokumen PDF, materi paparan (PPT), atau tautan
               presentasi untuk seluruh peserta rapat.
