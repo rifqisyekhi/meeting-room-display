@@ -51,6 +51,54 @@ export function sanitizeMeetings(list) {
   return result;
 }
 
+export const MASTER_ENV_SEED_USERS = [
+  {
+    username: (import.meta.env?.VITE_ADMIN_USERNAME || "admin").trim().toLowerCase(),
+    password: import.meta.env?.VITE_ADMIN_PASSWORD || "admin123",
+    name: import.meta.env?.VITE_ADMIN_NAME || "Admin Utama",
+    role: "Admin",
+    dept: "Biro Keuangan dan BMN",
+    email: import.meta.env?.VITE_ADMIN_EMAIL || "admin@kemnaker.go.id",
+    status: "Aktif",
+  },
+  {
+    username: (import.meta.env?.VITE_APPROVAL_USERNAME || "approval").trim().toLowerCase(),
+    password: import.meta.env?.VITE_APPROVAL_PASSWORD || "approval123",
+    name: import.meta.env?.VITE_APPROVAL_NAME || "Pimpinan Approval",
+    role: "Pimpinan",
+    dept: "Biro Keuangan dan BMN",
+    email: import.meta.env?.VITE_APPROVAL_EMAIL || "approval@kemnaker.go.id",
+    status: "Aktif",
+  },
+  {
+    username: (import.meta.env?.VITE_APPROVAL1_USERNAME || "approval1").trim().toLowerCase(),
+    password: import.meta.env?.VITE_APPROVAL1_PASSWORD || "approval123",
+    name: "Pimpinan",
+    role: "Pimpinan",
+    dept: "Biro Keuangan dan BMN",
+    email: "pimpinan@kemnaker.go.id",
+    status: "Aktif",
+  },
+  {
+    username: (import.meta.env?.VITE_USER_USERNAME || "user").trim().toLowerCase(),
+    password: import.meta.env?.VITE_USER_PASSWORD || "user123",
+    name: import.meta.env?.VITE_USER_NAME || "User Pegawai",
+    role: "User",
+    dept: "Biro Keuangan dan BMN",
+    email: import.meta.env?.VITE_USER_EMAIL || "user@kemnaker.go.id",
+    status: "Aktif",
+  },
+  {
+    username: (import.meta.env?.VITE_USER_ANDI_USERNAME || "andipratama").trim().toLowerCase(),
+    password: import.meta.env?.VITE_USER_ANDI_PASSWORD || "user123",
+    name: "Andi Pratama",
+    role: "User",
+    dept: "Biro Keuangan dan BMN",
+    email: "andi@kemnaker.go.id",
+    status: "Aktif",
+  },
+];
+
 export function ensureDevSessionSync() {
   try {
     const storages = [window.localStorage];
@@ -67,6 +115,12 @@ export function ensureDevSessionSync() {
           storage.removeItem('app_users');
           storage.removeItem('app_login_users');
           storage.setItem('app_clean_reset_test_20261010', 'true');
+        }
+
+        const storedUsers = storage.getItem('app_login_users');
+        if (!storedUsers || storedUsers === '[]') {
+          storage.setItem('app_login_users', JSON.stringify(MASTER_ENV_SEED_USERS));
+          storage.setItem('app_users', JSON.stringify(MASTER_ENV_SEED_USERS));
         }
 
         const storedMeetings = storage.getItem('app_meetings');

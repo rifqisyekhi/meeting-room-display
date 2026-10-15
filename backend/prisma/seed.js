@@ -1,6 +1,15 @@
 const { PrismaClient } = require("@prisma/client");
 const fs = require("fs");
 const path = require("path");
+const crypto = require("crypto");
+require("dotenv").config({ path: path.join(__dirname, "../.env") });
+
+function hashPassword(password) {
+  if (!password) return null;
+  const salt = crypto.randomBytes(16).toString("hex");
+  const hash = crypto.scryptSync(password, salt, 64).toString("hex");
+  return `${salt}:${hash}`;
+}
 
 const prisma = new PrismaClient();
 
@@ -97,29 +106,91 @@ async function main() {
     console.log(`✓ Ruangan disinkronkan: ${r.name}`);
   }
 
-  // 2. Seed Users
-  const usersToSeed = (data && data.users && data.users.length > 0) ? data.users : [
+  // 2. Seed Master Users dari ENV (Admin, Approval, User)
+  const masterAccounts = [
     {
       id: "admin",
-      name: "Admin Utama",
-      username: "admin",
-      email: "admin@kemnaker.go.id",
+      name: process.env.ADMIN_NAME || "Admin Utama",
+      username: (process.env.ADMIN_USERNAME || "admin").trim(),
+      email: process.env.ADMIN_EMAIL || "admin@kemnaker.go.id",
       dept: "Biro Keuangan dan BMN",
       role: "Admin",
       status: "Aktif",
+      passwordHash: hashPassword(process.env.ADMIN_PASSWORD || "admin123"),
+    },
+    {
+      id: "approval",
+      name: process.env.APPROVAL_NAME || "Pimpinan Approval",
+      username: (process.env.APPROVAL_USERNAME || "approval").trim(),
+      email: process.env.APPROVAL_EMAIL || "approval@kemnaker.go.id",
+      dept: "Biro Keuangan dan BMN",
+      role: "Pimpinan",
+      status: "Aktif",
+      passwordHash: hashPassword(process.env.APPROVAL_PASSWORD || "approval123"),
     },
     {
       id: "approval1",
       name: "Pimpinan",
-      username: "approval1",
+      username: (process.env.APPROVAL1_USERNAME || "approval1").trim(),
       email: "pimpinan@kemnaker.go.id",
       dept: "Biro Keuangan dan BMN",
       role: "Pimpinan",
       status: "Aktif",
+      passwordHash: hashPassword(process.env.APPROVAL1_PASSWORD || "approval123"),
+    },
+    {
+      id: "user",
+      name: process.env.USER_NAME || "User Pegawai",
+      username: (process.env.USER_USERNAME || "user").trim(),
+      email: process.env.USER_EMAIL || "user@kemnaker.go.id",
+      dept: "Biro Keuangan dan BMN",
+      role: "User",
+      status: "Aktif",
+      passwordHash: hashPassword(process.env.USER_PASSWORD || "user123"),
+    },
+    {
+      id: "andipratama",
+      name: "Andi Pratama",
+      username: (process.env.USER_ANDI_USERNAME || "andipratama").trim(),
+      email: "andi@kemnaker.go.id",
+      dept: "Biro Keuangan dan BMN",
+      role: "User",
+      status: "Aktif",
+      passwordHash: hashPassword(process.env.USER_ANDI_PASSWORD || "user123"),
     },
   ];
 
-  for (const u of usersToSeed) {
+  for (const master of masterAccounts) {
+    await prisma.user.upsert({
+      where: { username: master.username },
+      update: {
+        name: master.name,
+        email: master.email,
+        dept: master.dept,
+        role: master.role,
+        status: "Aktif",
+        passwordHash: master.passwordHash,
+      },
+      create: {
+        id: master.id,
+        name: master.name,
+        username: master.username,
+        email: master.email,
+        dept: master.dept,
+        role: master.role,
+        status: "Aktif",
+        passwordHash: master.passwordHash,
+      },
+    });
+    console.log(`✓ Master User disinkronkan: ${master.username} (${master.role})`);
+  }
+
+  // Seed user tambahan jika ada dari store
+  const otherUsers = (data && data.users ? data.users : []).filter(
+    (u) => !masterAccounts.some((m) => m.username.toLowerCase() === (u.username || "").toLowerCase())
+  );
+
+  for (const u of otherUsers) {
     await prisma.user.upsert({
       where: { username: u.username },
       update: {

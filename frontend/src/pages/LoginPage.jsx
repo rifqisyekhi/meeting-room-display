@@ -3,6 +3,54 @@ import { useLocation, useNavigate } from "react-router-dom";
 import "./LoginPage.css";
 import logoKemnaker from "../assets/Logo Kemenaker White.png";
 
+const MASTER_ENV_ACCOUNTS = [
+  {
+    username: (import.meta.env.VITE_ADMIN_USERNAME || "admin").trim().toLowerCase(),
+    password: import.meta.env.VITE_ADMIN_PASSWORD || "admin123",
+    name: import.meta.env.VITE_ADMIN_NAME || "Admin Utama",
+    role: "Admin",
+    dept: "Biro Keuangan dan BMN",
+    email: import.meta.env.VITE_ADMIN_EMAIL || "admin@kemnaker.go.id",
+    status: "Aktif",
+  },
+  {
+    username: (import.meta.env.VITE_APPROVAL_USERNAME || "approval").trim().toLowerCase(),
+    password: import.meta.env.VITE_APPROVAL_PASSWORD || "approval123",
+    name: import.meta.env.VITE_APPROVAL_NAME || "Pimpinan Approval",
+    role: "Pimpinan",
+    dept: "Biro Keuangan dan BMN",
+    email: import.meta.env.VITE_APPROVAL_EMAIL || "approval@kemnaker.go.id",
+    status: "Aktif",
+  },
+  {
+    username: (import.meta.env.VITE_APPROVAL1_USERNAME || "approval1").trim().toLowerCase(),
+    password: import.meta.env.VITE_APPROVAL1_PASSWORD || "approval123",
+    name: "Pimpinan",
+    role: "Pimpinan",
+    dept: "Biro Keuangan dan BMN",
+    email: "pimpinan@kemnaker.go.id",
+    status: "Aktif",
+  },
+  {
+    username: (import.meta.env.VITE_USER_USERNAME || "user").trim().toLowerCase(),
+    password: import.meta.env.VITE_USER_PASSWORD || "user123",
+    name: import.meta.env.VITE_USER_NAME || "User Pegawai",
+    role: "User",
+    dept: "Biro Keuangan dan BMN",
+    email: import.meta.env.VITE_USER_EMAIL || "user@kemnaker.go.id",
+    status: "Aktif",
+  },
+  {
+    username: (import.meta.env.VITE_USER_ANDI_USERNAME || "andipratama").trim().toLowerCase(),
+    password: import.meta.env.VITE_USER_ANDI_PASSWORD || "user123",
+    name: "Andi Pratama",
+    role: "User",
+    dept: "Biro Keuangan dan BMN",
+    email: "andi@kemnaker.go.id",
+    status: "Aktif",
+  },
+];
+
 export default function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -155,6 +203,8 @@ export default function LoginPage() {
 
     setIsLoading(true);
     let authenticatedUser = null;
+    const lowerUname = trimmedUsername.toLowerCase();
+    const masterAccount = MASTER_ENV_ACCOUNTS.find((m) => m.username === lowerUname);
 
     // 1. Prioritaskan otentikasi langsung ke server database backend
     try {
@@ -166,21 +216,39 @@ export default function LoginPage() {
       const data = await res.json();
       if (res.ok && data.success && data.user) {
         authenticatedUser = data.user;
-      } else if (res.status === 401 || (data && data.message)) {
+      } else if (res.status === 401 && !masterAccount) {
         setIsLoading(false);
         alert(data.message || "Username atau password salah!");
         return;
       }
     } catch (err) {
-      console.warn("Backend login offline, mencoba cache lokal:", err.message);
+      console.warn("Backend login offline, mencoba master ENV / cache lokal:", err.message);
     }
 
-    // 2. Fallback ke database cache lokal jika koneksi ke backend gagal
+    // 2. Jika akun master dari ENV dan belum terotentikasi via backend
+    if (!authenticatedUser && masterAccount) {
+      if (password === masterAccount.password) {
+        authenticatedUser = {
+          username: masterAccount.username,
+          name: masterAccount.name,
+          role: masterAccount.role,
+          email: masterAccount.email,
+          dept: masterAccount.dept,
+          status: "Aktif",
+        };
+      } else {
+        setIsLoading(false);
+        alert("Username atau password salah!");
+        return;
+      }
+    }
+
+    // 3. Fallback ke database cache lokal jika koneksi ke backend gagal
     if (!authenticatedUser) {
       const accounts = getLoginAccounts();
       const localMatch = accounts.find(
         (u) =>
-          (u.username || "").toLowerCase() === trimmedUsername.toLowerCase() &&
+          (u.username || "").toLowerCase() === lowerUname &&
           u.password === password,
       );
       if (localMatch) {

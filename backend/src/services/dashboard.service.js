@@ -30,6 +30,82 @@ function verifyPassword(password, storedHash) {
   }
 }
 
+function getMasterAccounts() {
+  const adminUsername = (process.env.ADMIN_USERNAME || "admin").trim();
+  const adminPassword = process.env.ADMIN_PASSWORD || "admin123";
+  const adminName = process.env.ADMIN_NAME || "Admin Utama";
+  const adminEmail = process.env.ADMIN_EMAIL || "admin@kemnaker.go.id";
+
+  const approvalUsername = (process.env.APPROVAL_USERNAME || "approval").trim();
+  const approvalPassword = process.env.APPROVAL_PASSWORD || "approval123";
+  const approvalName = process.env.APPROVAL_NAME || "Pimpinan Approval";
+  const approvalEmail = process.env.APPROVAL_EMAIL || "approval@kemnaker.go.id";
+
+  const approval1Username = (process.env.APPROVAL1_USERNAME || "approval1").trim();
+  const approval1Password = process.env.APPROVAL1_PASSWORD || "approval123";
+
+  const userUsername = (process.env.USER_USERNAME || "user").trim();
+  const userPassword = process.env.USER_PASSWORD || "user123";
+  const userName = process.env.USER_NAME || "User Pegawai";
+  const userEmail = process.env.USER_EMAIL || "user@kemnaker.go.id";
+
+  const userAndiUsername = (process.env.USER_ANDI_USERNAME || "andipratama").trim();
+  const userAndiPassword = process.env.USER_ANDI_PASSWORD || "user123";
+
+  return [
+    {
+      id: "admin",
+      username: adminUsername,
+      password: adminPassword,
+      name: adminName,
+      email: adminEmail,
+      dept: "Biro Keuangan dan BMN",
+      role: "Admin",
+      status: "Aktif",
+    },
+    {
+      id: "approval",
+      username: approvalUsername,
+      password: approvalPassword,
+      name: approvalName,
+      email: approvalEmail,
+      dept: "Biro Keuangan dan BMN",
+      role: "Pimpinan",
+      status: "Aktif",
+    },
+    {
+      id: "approval1",
+      username: approval1Username,
+      password: approval1Password,
+      name: "Pimpinan",
+      email: "pimpinan@kemnaker.go.id",
+      dept: "Biro Keuangan dan BMN",
+      role: "Pimpinan",
+      status: "Aktif",
+    },
+    {
+      id: "user",
+      username: userUsername,
+      password: userPassword,
+      name: userName,
+      email: userEmail,
+      dept: "Biro Keuangan dan BMN",
+      role: "User",
+      status: "Aktif",
+    },
+    {
+      id: "andipratama",
+      username: userAndiUsername,
+      password: userAndiPassword,
+      name: "Andi Pratama",
+      email: "andi@kemnaker.go.id",
+      dept: "Biro Keuangan dan BMN",
+      role: "User",
+      status: "Aktif",
+    },
+  ];
+}
+
 function readStore() {
   try {
     if (fs.existsSync(STORE_PATH)) {
@@ -45,11 +121,45 @@ function readStore() {
         storeNeedsUpdate = true;
       }
 
+      // Pastikan 3 akun master/seed awal dari ENV selalu ada dan valid di store
+      getMasterAccounts().forEach((master) => {
+        const uIndex = parsed.users.findIndex(
+          (u) => (u.username || "").toLowerCase() === master.username.toLowerCase()
+        );
+        const masterHash = hashPassword(master.password);
+        if (uIndex >= 0) {
+          const current = parsed.users[uIndex];
+          parsed.users[uIndex] = {
+            ...current,
+            id: current.id || master.id,
+            name: master.name || current.name,
+            email: master.email || current.email,
+            dept: master.dept || current.dept,
+            role: master.role || current.role,
+            status: "Aktif",
+            passwordHash: masterHash,
+          };
+          delete parsed.users[uIndex].password;
+        } else {
+          parsed.users.unshift({
+            id: master.id,
+            name: master.name,
+            username: master.username,
+            email: master.email,
+            dept: master.dept,
+            role: master.role,
+            status: "Aktif",
+            passwordHash: masterHash,
+          });
+          storeNeedsUpdate = true;
+        }
+      });
+
       // Hapus seluruh password plaintext dari file JSON dan migrasikan user custom ke passwordHash
       parsed.users.forEach((u) => {
         if (u.password) {
           const lowerU = (u.username || "").toLowerCase();
-          if (!u.passwordHash && !["admin", "approval1", "approval2"].includes(lowerU)) {
+          if (!u.passwordHash && !["admin", "approval", "approval1", "approval2", "user"].includes(lowerU)) {
             u.passwordHash = hashPassword(u.password);
           }
           delete u.password;
@@ -1370,6 +1480,35 @@ async function authenticateUser(username, password) {
     return {
       success: false,
       message: "Username dan password wajib diisi!",
+    };
+  }
+
+  // 0. Cek langsung akun master/seed dari ENV
+  const masterAccounts = getMasterAccounts();
+  const masterMatch = masterAccounts.find(
+    (m) => (m.username || "").toLowerCase() === uname
+  );
+  if (masterMatch) {
+    const isMatch =
+      password === masterMatch.password ||
+      verifyPassword(password, hashPassword(masterMatch.password));
+    if (isMatch) {
+      return {
+        success: true,
+        user: {
+          id: masterMatch.id,
+          username: masterMatch.username,
+          name: masterMatch.name,
+          role: masterMatch.role,
+          email: masterMatch.email || "",
+          dept: masterMatch.dept || "Biro Keuangan dan BMN",
+          status: "Aktif",
+        },
+      };
+    }
+    return {
+      success: false,
+      message: "Username atau password salah!",
     };
   }
 
