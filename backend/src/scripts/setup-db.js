@@ -1,6 +1,7 @@
 require("dotenv").config();
 const { Client } = require("pg");
 const { initDatabase, query } = require("../db");
+const { seedDefaultData } = require("../services/dashboard.service");
 
 async function setup() {
   const dbUrl = process.env.DATABASE_URL;
@@ -70,6 +71,7 @@ async function setup() {
   const success = await initDatabase();
   if (success) {
     try {
+      await seedDefaultData();
       const roomRes = await query("SELECT COUNT(*) FROM rooms");
       const userRes = await query("SELECT COUNT(*) FROM users");
       const meetingRes = await query("SELECT COUNT(*) FROM meetings");

@@ -45,11 +45,10 @@ function readStore() {
         storeNeedsUpdate = true;
       }
 
-      // Hapus seluruh password plaintext dari file JSON dan migrasikan user custom ke passwordHash
+      // Hapus seluruh password plaintext dari file JSON dan migrasikan user ke passwordHash
       parsed.users.forEach((u) => {
         if (u.password) {
-          const lowerU = (u.username || "").toLowerCase();
-          if (!u.passwordHash && !["admin", "approval1", "approval2"].includes(lowerU)) {
+          if (!u.passwordHash) {
             u.passwordHash = hashPassword(u.password);
           }
           delete u.password;
@@ -312,9 +311,162 @@ async function getGoogleCalendarEvents() {
   }
 }
 
+async function seedDefaultData() {
+  const defaultRoles = [
+    {
+      name: "Admin",
+      description: "Operasional dan pengelolaan sistem",
+      permissions: [
+        "manageMeeting",
+        "checkInOut",
+        "emergencyCancel",
+        "manageRoom",
+        "manageUsers",
+        "manageSettings",
+        "viewReports",
+      ],
+      isSystem: true,
+    },
+    {
+      name: "Pimpinan",
+      description: "Persetujuan dan pembatalan darurat",
+      permissions: ["approve", "emergencyCancel"],
+      isSystem: true,
+    },
+    {
+      name: "User",
+      description: "Pengajuan rapat dan presensi",
+      permissions: [],
+      isSystem: true,
+    },
+  ];
+
+  const defaultUsers = [
+    {
+      id: "admin",
+      name: "Admin Utama",
+      username: (process.env.ADMIN_USERNAME || "admin").trim(),
+      password: process.env.ADMIN_PASSWORD || "admin123",
+      role: "Admin",
+      email: "admin@kemnaker.go.id",
+      dept: "Biro Keuangan dan BMN",
+      status: "Aktif",
+    },
+    {
+      id: "approval1",
+      name: "Pimpinan",
+      username: (process.env.APPROVAL1_USERNAME || "approval1").trim(),
+      password: process.env.APPROVAL1_PASSWORD || "approval123",
+      role: "Pimpinan",
+      email: "pimpinan@kemnaker.go.id",
+      dept: "Biro Keuangan dan BMN",
+      status: "Aktif",
+    },
+    {
+      id: "approval2",
+      name: "Wakil Pimpinan",
+      username: (process.env.APPROVAL2_USERNAME || "approval2").trim(),
+      password: process.env.APPROVAL2_PASSWORD || "approval234",
+      role: "Pimpinan",
+      email: "wakilpimpinan@kemnaker.go.id",
+      dept: "Biro Keuangan dan BMN",
+      status: "Aktif",
+    },
+    {
+      id: "andipratama",
+      name: "Andi Pratama",
+      username: (process.env.USER_USERNAME || "andipratama").trim(),
+      password: process.env.USER_PASSWORD || "user123",
+      role: "User",
+      email: "andi@kemnaker.go.id",
+      dept: "Biro Keuangan dan BMN",
+      status: "Aktif",
+    },
+  ];
+
+  if (getIsConnected()) {
+    try {
+      // 1. Pastikan roles sistem bawaan tersimpan di basis data
+      for (const role of defaultRoles) {
+        await query(
+          `INSERT INTO roles (name, description, permissions, is_system)
+           VALUES ($1, $2, $3, TRUE)
+           ON CONFLICT (name) DO UPDATE SET
+             description = EXCLUDED.description,
+             permissions = EXCLUDED.permissions,
+             is_system = TRUE`,
+          [role.name, role.description, JSON.stringify(role.permissions)]
+        );
+      }
+
+      // 2. Pastikan akun master default tersimpan di basis data
+      for (const u of defaultUsers) {
+        const check = await query(
+          "SELECT id, password_hash FROM users WHERE LOWER(username) = LOWER($1)",
+          [u.username]
+        );
+        if (check.rows.length === 0) {
+          const passHash = hashPassword(u.password);
+          await query(
+            `INSERT INTO users (id, name, username, email, dept, role, status, password_hash)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+             ON CONFLICT (username) DO NOTHING`,
+            [u.id, u.name, u.username, u.email, u.dept, u.role, u.status, passHash]
+          );
+        } else if (!check.rows[0].password_hash) {
+          const passHash = hashPassword(u.password);
+          await query(
+            "UPDATE users SET password_hash = $1 WHERE id = $2",
+            [passHash, check.rows[0].id]
+          );
+        }
+      }
+    } catch (err) {
+      console.warn("[PostgreSQL] Gagal seeder default data:", err.message);
+    }
+  }
+
+  // Fallback dan sinkronkan akun master ke file JSON store lokal
+  const store = readStore();
+  let storeChanged = false;
+
+  if (!Array.isArray(store.roles)) store.roles = [];
+  for (const role of defaultRoles) {
+    if (!store.roles.some((r) => (r.name || "").toLowerCase() === role.name.toLowerCase())) {
+      store.roles.push(role);
+      storeChanged = true;
+    }
+  }
+
+  if (!Array.isArray(store.users)) store.users = [];
+  for (const u of defaultUsers) {
+    const existing = store.users.find(
+      (entry) => (entry.username || "").toLowerCase() === u.username.toLowerCase()
+    );
+    if (!existing) {
+      store.users.push({
+        id: u.id,
+        name: u.name,
+        username: u.username,
+        email: u.email,
+        dept: u.dept,
+        role: u.role,
+        status: u.status,
+        passwordHash: hashPassword(u.password),
+      });
+      storeChanged = true;
+    }
+  }
+
+  if (storeChanged) {
+    writeStore(store);
+  }
+}
+
 async function syncStoreFromDatabase() {
   if (!getIsConnected()) return;
   try {
+    await seedDefaultData();
     const roomsRes = await query("SELECT * FROM rooms ORDER BY id ASC");
     const usersRes = await query("SELECT * FROM users ORDER BY created_at ASC");
     const rolesRes = await query("SELECT * FROM roles ORDER BY is_system DESC, name ASC");
@@ -1605,4 +1757,5 @@ module.exports = {
   readStore,
   writeStore,
   syncStoreFromDatabase,
+  seedDefaultData,
 };

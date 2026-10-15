@@ -53,6 +53,24 @@
       "dept": "Biro Keuangan dan BMN",
       "role": "Pimpinan",
       "status": "Aktif"
+    },
+    {
+      "id": "approval2",
+      "name": "Wakil Pimpinan",
+      "username": "approval2",
+      "email": "wakilpimpinan@kemnaker.go.id",
+      "dept": "Biro Keuangan dan BMN",
+      "role": "Pimpinan",
+      "status": "Aktif"
+    },
+    {
+      "id": "andipratama",
+      "name": "Andi Pratama",
+      "username": "andipratama",
+      "email": "andi@kemnaker.go.id",
+      "dept": "Biro Keuangan dan BMN",
+      "role": "User",
+      "status": "Aktif"
     }
   ],
   "meetings": []
