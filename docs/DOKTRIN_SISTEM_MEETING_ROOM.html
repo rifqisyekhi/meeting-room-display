@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Doktrin Induk Sistem - Meeting Room Display</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 16mm 14mm 16mm 14mm;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      color: #1e293b;
+      line-height: 1.55;
+      font-size: 11pt;
+      margin: 0;
+      padding: 0;
+    }
+    .header-box {
+      border-bottom: 3px double #0284c7;
+      padding-bottom: 12px;
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+    }
+    .header-title h1 {
+      font-size: 18pt;
+      margin: 0 0 4px 0;
+      color: #0f172a;
+      letter-spacing: -0.5px;
+    }
+    .header-title h2 {
+      font-size: 12pt;
+      margin: 0;
+      color: #0284c7;
+      font-weight: 600;
+    }
+    .header-meta {
+      text-align: right;
+      font-size: 9pt;
+      color: #64748b;
+    }
+    .badge-notice {
+      background-color: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      border-left: 4px solid #16a34a;
+      padding: 10px 14px;
+      border-radius: 4px;
+      margin-bottom: 20px;
+      font-size: 9.5pt;
+      color: #166534;
+    }
+    h3 {
+      font-size: 13pt;
+      color: #0f172a;
+      border-bottom: 1.5px solid #e2e8f0;
+      padding-bottom: 5px;
+      margin-top: 22px;
+      margin-bottom: 10px;
+    }
+    h4 {
+      font-size: 11pt;
+      color: #0369a1;
+      margin-top: 14px;
+      margin-bottom: 6px;
+    }
+    p, ul, ol {
+      margin-top: 0;
+      margin-bottom: 10px;
+    }
+    ul, ol {
+      padding-left: 20px;
+    }
+    li {
+      margin-bottom: 4px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12px 0 16px 0;
+      font-size: 9.5pt;
+    }
+    th, td {
+      border: 1px solid #cbd5e1;
+      padding: 7px 10px;
+      text-align: left;
+    }
+    th {
+      background-color: #f1f5f9;
+      color: #1e293b;
+      font-weight: 600;
+    }
+    tr:nth-child(even) td {
+      background-color: #f8fafc;
+    }
+    code {
+      font-family: Consolas, "Courier New", monospace;
+      background-color: #f1f5f9;
+      color: #0f172a;
+      padding: 2px 5px;
+      border-radius: 3px;
+      font-size: 9pt;
+      border: 1px solid #e2e8f0;
+    }
+    pre {
+      background-color: #0f172a;
+      color: #f8fafc;
+      padding: 10px 14px;
+      border-radius: 5px;
+      font-size: 9pt;
+      overflow-x: auto;
+      font-family: Consolas, monospace;
+      margin: 10px 0;
+    }
+    .flowchart {
+      background-color: #f8fafc;
+      border: 1px dashed #cbd5e1;
+      border-radius: 6px;
+      padding: 12px;
+      margin: 12px 0;
+      font-size: 9.5pt;
+    }
+    .flow-step {
+      display: inline-block;
+      background: #ffffff;
+      border: 1px solid #0284c7;
+      color: #0369a1;
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-weight: 600;
+      margin: 3px 0;
+    }
+    .flow-arrow {
+      color: #64748b;
+      font-weight: bold;
+      padding: 0 4px;
+    }
+    .alert-danger {
+      background-color: #fef2f2;
+      border: 1px solid #fecaca;
+      border-left: 4px solid #dc2626;
+      color: #991b1b;
+      padding: 10px 12px;
+      border-radius: 4px;
+      margin: 12px 0;
+      font-size: 9.5pt;
+    }
+    .page-break {
+      page-break-before: always;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header-box">
+    <div class="header-title">
+      <h1>DOKTRIN INDUK & PETUNJUK ARSITEKTUR</h1>
+      <h2>Meeting Room Display & Management System &mdash; Kemnaker RI</h2>
+    </div>
+    <div class="header-meta">
+      <strong>Kementerian Ketenagakerjaan RI</strong><br>
+      Biro Keuangan dan BMN<br>
+      Versi Dokumen: 1.2 (Oktober 2026)
+    </div>
+  </div>
+
+  <div class="badge-notice">
+    <strong>PETUNJUK PENTING BAGI TIM PENGEMBANG & AI ASSISTANT:</strong><br>
+    Dokumen ini adalah <em>Single Source of Truth</em> (Pedoman Mutlak). Setiap kali melakukan prompt pada asisten AI (ChatGPT, Claude, Cursor, Copilot), sertakan file ini sebagai context dasar agar seluruh fitur, skema tabel, dan alur aplikasi yang dibangun antar-anggota tim tetap seragam dan tidak saling merusak.
+  </div>
+
+  <h3>1. Identitas & Tujuan Sistem</h3>
+  <p>Sistem ini dirancang khusus untuk mengotomatisasi pemakaian, pemesanan, dan publikasi status ruang rapat di lingkungan Biro Keuangan dan BMN Kemnaker RI:</p>
+  <ul>
+    <li><strong>Display Publik Interaktif (<code>/display</code> atau <code>/</code>):</strong> Tampilan TV cerdas di luar ruangan rapat yang menyajikan status ruangan secara realtime (<em>Tersedia / Sedang Digunakan</em>), hitung mundur sisa durasi rapat, jadwal rapat berikutnya, jadwal sholat otomatis, running text dinamis, serta QR Code presensi.</li>
+    <li><strong>Portal Pengajuan Mandiri (<code>/booking</code>):</strong> Form pemesanan ruangan bagi pegawai dengan validasi bentrok jadwal, fasilitas pendukung, peserta, dan materi rapat.</li>
+    <li><strong>Dashboard Terpadu (<code>/dashboard</code>):</strong> Panel kendali bagi Admin Utama dan Pimpinan untuk approval, emergency cancel, manajemen ruangan, manajemen user (RBAC), serta analitik utilisasi.</li>
+    <li><strong>Presensi Mandiri QR/Barcode:</strong> Fitur check-in otomatis peserta menggunakan scanner kamera atau handheld barcode di pintu ruangan rapat.</li>
+    <li><strong>Integrasi Eksternal:</strong> Sinkronisasi dua arah Google Calendar API v3 dan WhatsApp Notification Bot (SISKA).</li>
+  </ul>
+
+  <h3>2. Arsitektur Teknologi & Port</h3>
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 20%;">Komponen</th>
+        <th style="width: 45%;">Teknologi & Modul</th>
+        <th style="width: 35%;">Peran & Keterangan</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Frontend</strong></td>
+        <td>React 18, Vite, React Router v6, Pure CSS, Lucide Icons, HTML5-QRCode</td>
+        <td>Port <code>5173</code> (Display TV, Booking, Dashboard, Login)</td>
+      </tr>
+      <tr>
+        <td><strong>Backend</strong></td>
+        <td>Node.js, Express.js, <code>crypto</code> (scrypt), <code>googleapis</code>, <code>axios</code></td>
+        <td>Port <code>3001</code> (REST API <code>/api/dashboard/*</code>)</td>
+      </tr>
+      <tr>
+        <td><strong>Database Utama</strong></td>
+        <td>PostgreSQL (Driver: <code>pg</code> Pool Connection)</td>
+        <td>Penyimpanan permanen relasional (tabel terstruktur)</td>
+      </tr>
+      <tr>
+        <td><strong>Database Fallback</strong></td>
+        <td>Local JSON Store (<code>backend/data/dashboard-store.json</code>)</td>
+        <td>Penyimpanan lokal jika server database offline / dev cepat</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>3. Daftar Aktor & Akun Master Default (RBAC)</h3>
+  <p>Sistem dilengkapi auto-seeder bawaan yang otomatis mengisi akun berikut saat server backend pertama kali dijalankan:</p>
+  <table>
+    <thead>
+      <tr>
+        <th>Role</th>
+        <th>Username</th>
+        <th>Password</th>
+        <th>Nama Akun</th>
+        <th>Wewenang Utama</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Admin</strong></td>
+        <td><code>admin</code></td>
+        <td><code>admin123</code></td>
+        <td>Admin Utama</td>
+        <td>Kelola semua rapat, ruangan, user, role, konfigurasi WA/Calendar, laporan.</td>
+      </tr>
+      <tr>
+        <td><strong>Pimpinan</strong></td>
+        <td><code>approval1</code></td>
+        <td><code>approval123</code></td>
+        <td>Pimpinan</td>
+        <td>Setujui (Approve) / Tolak (Reject) permohonan, pembatalan darurat.</td>
+      </tr>
+      <tr>
+        <td><strong>Pimpinan</strong></td>
+        <td><code>approval2</code></td>
+        <td><code>approval234</code></td>
+        <td>Wakil Pimpinan</td>
+        <td>Persetujuan rapat cadangan / setara pimpinan.</td>
+      </tr>
+      <tr>
+        <td><strong>User</strong></td>
+        <td><code>andipratama</code></td>
+        <td><code>user123</code></td>
+        <td>Andi Pratama</td>
+        <td>Mengajukan rapat via <code>/booking</code>, cek riwayat, check-in, review ruangan.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="page-break"></div>
+
+  <h3>4. Alur Hidup Rapat (Meeting Lifecycle)</h3>
+  <div class="flowchart">
+    <span class="flow-step">1. User Booking (/booking)</span>
+    <span class="flow-arrow">&rarr;</span>
+    <span class="flow-step">Status: Menunggu Approval</span>
+    <span class="flow-arrow">&rarr;</span>
+    <span class="flow-step">2. Approval Pimpinan</span>
+    <br><br>
+    &bull; <strong>Jika Disetujui:</strong>
+    <span class="flow-step" style="border-color:#16a34a; color:#16a34a;">Status: Akan Datang / Segera</span>
+    <span class="flow-arrow">&rarr;</span>
+    <span class="flow-step" style="border-color:#dc2626; color:#dc2626;">Masuk Jam: Berjalan (Layar TV Merah & QR Aktif)</span>
+    <span class="flow-arrow">&rarr;</span>
+    <span class="flow-step">Presensi Scan QR</span>
+    <span class="flow-arrow">&rarr;</span>
+    <span class="flow-step">Selesai (End Time / Checkout)</span>
+    <br><br>
+    &bull; <strong>Jika Ditolak:</strong>
+    <span class="flow-step" style="border-color:#dc2626; color:#dc2626;">Status: Ditolak (Alasan dikirim via WA)</span>
+    <br>
+    &bull; <strong>Jika Situasi Mendesak:</strong>
+    <span class="flow-step" style="border-color:#d97706; color:#d97706;">Status: Dibatalkan (Emergency Cancel)</span>
+  </div>
+
+  <h3>5. Skema Tabel Basis Data (PostgreSQL)</h3>
+  <ul>
+    <li><strong><code>rooms</code>:</strong> <code>id</code> (PK), <code>name</code> (UNIQUE), <code>location</code>, <code>capacity</code>, <code>status</code> ('Tersedia'/'Sedang Digunakan'/'Pemeliharaan'), <code>facilities</code> (JSONB), <code>images</code> (JSONB), <code>img</code>.</li>
+    <li><strong><code>users</code>:</strong> <code>id</code> (PK), <code>name</code>, <code>username</code> (UNIQUE), <code>email</code>, <code>dept</code>, <code>role</code>, <code>status</code> ('Aktif'/'Nonaktif'), <code>password_hash</code> (scrypt salt:hash).</li>
+    <li><strong><code>roles</code>:</strong> <code>name</code> (PK), <code>description</code>, <code>permissions</code> (JSONB), <code>is_system</code> (BOOLEAN).</li>
+    <li><strong><code>meetings</code>:</strong> <code>id</code> (PK), <code>google_id</code>, <code>title</code>, <code>agenda</code>, <code>requester</code>, <code>booked_by_username</code>, <code>room_name</code>, <code>date</code>, <code>start_time</code>, <code>end_time</code>, <code>status</code>, <code>participants</code>, <code>approved_by</code>, <code>rejection_reason</code>, <code>checked_in_at</code>, <code>checked_in_by</code>, <code>check_in_method</code>, <code>checked_out_at</code>, <code>attendees</code> (JSONB), <code>materials</code> (JSONB).</li>
+    <li><strong><code>reviews</code>:</strong> <code>id</code> (PK), <code>meeting_id</code>, <code>room_name</code>, <code>user_name</code>, <code>rating</code> (1-5), <code>comment</code>, <code>admin_reply</code>.</li>
+    <li><strong><code>notifications</code>:</strong> <code>id</code> (PK), <code>meeting_id</code>, <code>type</code>, <code>title</code>, <code>message</code>, <code>status</code>, <code>read_by</code> (JSONB).</li>
+  </ul>
+
+  <h3>6. Hukum Mutlak & Larangan Koding (Commandments)</h3>
+  <div class="alert-danger">
+    <strong>DILARANG KERAS MENGEMBALIKAN <code>dummyDB</code> DI FRONTEND!</strong><br>
+    Seluruh proses otentikasi harus memanggil backend API <code>POST /api/dashboard/login</code>. Backend mengamankan password menggunakan <code>crypto.scryptSync</code>. Jangan pernah meng-hardcode akun pengguna di komponen React.
+  </div>
+
+  <ul>
+    <li><strong>Wajib Menjaga Auto-Seeder:</strong> Fungsi <code>seedDefaultData()</code> di <code>backend/src/services/dashboard.service.js</code> tidak boleh dihapus. Fungsi ini menjamin akun master siap pakai di laptop setiap developer yang melakukan <code>git pull</code>.</li>
+    <li><strong>Validasi Bentrok Jadwal:</strong> Ruangan yang sama pada rentang jam dan tanggal yang sama tidak boleh disetujui lebih dari satu kali jika jadwalnya bertabrakan.</li>
+    <li><strong>Git Workflow Tim:</strong> Kerjakan tugas di branch masing-masing. Lakukan update dari main dengan <code>git pull origin main</code>. Dilarang melakukan <code>git push --force</code> ke branch <code>main</code>.</li>
+    <li><strong>Integritas .gitignore:</strong> File <code>backend/data/dashboard-store.json</code> dan file <code>.env</code> tidak boleh di-push ke Git. Selalu gunakan template <code>.example</code>.</li>
+  </ul>
+
+  <h3>7. Cara Memasang Doktrin Ini ke AI Assistant Tim</h3>
+  <p>Bagikan file <code>PROJECT_DOCTRINE.md</code> kepada setiap rekan tim. Instruksikan mereka untuk menggunakannya dengan cara:</p>
+  <pre>
+# CONTOH PROMPT UNTUK CHATGPT / CLAUDE / CURSOR:
+"Halo AI, berikut terlampir Doktrin Induk Sistem untuk proyek 'Meeting Room Display Kemnaker'.
+Mohon pelajari aturan arsitektur, daftar akun master, lifecycle rapat, dan skema tabelnya.
+Tolong bantu saya mengerjakan revisi [sebutkan fitur] di branch saya tanpa melanggar
+hukum mutlak koding dan tanpa mengubah struktur database yang sudah ada."
+  </pre>
+
+</body>
+</html>
+

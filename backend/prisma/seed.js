@@ -13,6 +13,17 @@ function hashPassword(password) {
 
 const prisma = new PrismaClient();
 
+/* Tidak ada password bawaan di berkas ini. Seeder yang diam-diam memakai
+   "admin123" ketika .env kosong akan menghasilkan akun yang bisa ditebak
+   siapa pun yang membaca repo. Lebih baik berhenti dengan pesan jelas. */
+function wajibEnv(nama) {
+  const nilai = process.env[nama];
+  if (!nilai) {
+    throw new Error(`${nama} belum diisi di backend/.env — seeder dihentikan agar tidak membuat akun dengan password bawaan.`);
+  }
+  return nilai;
+}
+
 async function main() {
   console.log("Memulai seeding database PostgreSQL...");
 
@@ -116,7 +127,7 @@ async function main() {
       dept: "Biro Keuangan dan BMN",
       role: "Admin",
       status: "Aktif",
-      passwordHash: hashPassword(process.env.ADMIN_PASSWORD || "admin123"),
+      passwordHash: hashPassword(wajibEnv("ADMIN_PASSWORD")),
     },
     {
       id: "approval",
@@ -126,7 +137,7 @@ async function main() {
       dept: "Biro Keuangan dan BMN",
       role: "Pimpinan",
       status: "Aktif",
-      passwordHash: hashPassword(process.env.APPROVAL_PASSWORD || "approval123"),
+      passwordHash: hashPassword(wajibEnv("APPROVAL_PASSWORD")),
     },
     {
       id: "approval1",
@@ -136,7 +147,7 @@ async function main() {
       dept: "Biro Keuangan dan BMN",
       role: "Pimpinan",
       status: "Aktif",
-      passwordHash: hashPassword(process.env.APPROVAL1_PASSWORD || "approval123"),
+      passwordHash: hashPassword(wajibEnv("APPROVAL1_PASSWORD")),
     },
     {
       id: "user",
@@ -146,7 +157,7 @@ async function main() {
       dept: "Biro Keuangan dan BMN",
       role: "User",
       status: "Aktif",
-      passwordHash: hashPassword(process.env.USER_PASSWORD || "user123"),
+      passwordHash: hashPassword(wajibEnv("USER_PASSWORD")),
     },
     {
       id: "andipratama",
@@ -156,7 +167,7 @@ async function main() {
       dept: "Biro Keuangan dan BMN",
       role: "User",
       status: "Aktif",
-      passwordHash: hashPassword(process.env.USER_ANDI_PASSWORD || "user123"),
+      passwordHash: hashPassword(wajibEnv("USER_ANDI_PASSWORD")),
     },
   ];
 

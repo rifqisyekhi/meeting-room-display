@@ -1,5 +1,11 @@
 const express = require("express");
 const router = express.Router();
+
+const { pasangSesi, hapusSesi, bacaSesi, wajibLogin, wajibPeran } = require("../middleware/auth");
+
+/* Mengisi req.user bila ada cookie sesi yang sah. Tidak menolak siapa pun di
+   sini: rute papan TV dan halaman QR memang harus tetap terbuka. */
+router.use(bacaSesi);
 const fs = require("fs/promises");
 const path = require("path");
 const crypto = require("crypto");
@@ -102,7 +108,7 @@ router.get("/meetings", async (req, res) => {
 });
 
 // Simpan / update rapat (otomatis sinkron ke Google Calendar & notif WA atasan jika butuh approval)
-router.post("/meetings", async (req, res) => {
+router.post("/meetings", wajibLogin, async (req, res) => {
   try {
     const saved = await dashboardService.saveMeeting(req.body);
 
@@ -120,7 +126,31 @@ router.post("/meetings", async (req, res) => {
 });
 
 // Webhook untuk balasan WhatsApp Atasan (Ketik 1 = Approve, 2 = Tolak)
-router.post("/whatsapp/reply", async (req, res) => {
+/* Webhook dari bot SisKA. Inilah jalur yang MENYETUJUI rapat, jadi harus
+   dibedakan dari permintaan biasa — tanpa penjagaan, satu permintaan HTTP
+   dari siapa pun bisa meloloskan permohonan rapat.
+
+   Token dibuat opsional dengan sengaja: bot-nya berjalan terpisah dan
+   belum tentu sempat dikonfigurasi bersamaan dengan deploy ini. Selama
+   BOT_SISKA_WEBHOOK_TOKEN kosong, jalur ini tetap terbuka dan backend
+   memperingatkan di log setiap kali dipakai. Isi variabel itu di kedua
+   sisi untuk menutupnya. */
+function webhookTerpercaya(req, res, next) {
+  const token = process.env.BOT_SISKA_WEBHOOK_TOKEN;
+  if (!token) {
+    console.warn(
+      "[webhook] BOT_SISKA_WEBHOOK_TOKEN belum diisi — jalur persetujuan WhatsApp terbuka untuk siapa saja."
+    );
+    return next();
+  }
+  const dikirim = req.get("x-webhook-token") || req.body?.token || "";
+  if (dikirim !== token) {
+    return res.status(401).json({ success: false, error: "Token webhook tidak sah." });
+  }
+  next();
+}
+
+router.post("/whatsapp/reply", webhookTerpercaya, async (req, res) => {
   try {
     const result = await whatsappService.handleApproverReply(req.body);
     res.json({
@@ -140,7 +170,7 @@ router.post("/whatsapp/reply", async (req, res) => {
 });
 
 // Manual trigger kirim ulang notifikasi WhatsApp permohonan rapat ke Atasan
-router.post("/whatsapp/notify/:id", async (req, res) => {
+router.post("/whatsapp/notify/:id", wajibLogin, async (req, res) => {
   try {
     const store = dashboardService.readStore();
     const meeting = (store.meetings || []).find((m) => String(m.id) === String(req.params.id));
@@ -157,7 +187,7 @@ router.post("/whatsapp/notify/:id", async (req, res) => {
 });
 
 // Hapus rapat (otomatis hapus dari Google Calendar)
-router.delete("/meetings/:id", async (req, res) => {
+router.delete("/meetings/:id", wajibPeran("Admin", "Pimpinan"), async (req, res) => {
   try {
     const ok = await dashboardService.deleteMeeting(req.params.id);
     if (!ok) {
@@ -191,11 +221,14 @@ router.post("/meetings/:id/checkin", async (req, res) => {
     }
 
     const method = req.body?.method || (req.body?.by && req.body.by.toLowerCase().includes("admin") ? "manual_admin" : "barcode_qr");
-    const username = String(req.body?.username || "").trim().toLowerCase();
-    const role = String(req.body?.role || "").trim().toLowerCase();
+    const username = String(req.user?.u || req.body?.username || "").trim().toLowerCase();
+    /* Peran diambil dari cookie sesi, tidak pernah dari badan permintaan.
+       Sebelumnya siapa pun bisa menambahkan "role":"admin" lalu lolos. */
+    const role = String(req.user?.r || "").trim().toLowerCase();
     const isAuthorized = await isAuthorizedCheckInOut(meeting, username, role, req.body?.by);
 
-    if (method !== "manual_admin" && !isAuthorized) {
+    const bolehManual = role === "admin" || role === "pimpinan";
+    if (!(method === "manual_admin" && bolehManual) && !isAuthorized) {
       return res.status(403).json({ success: false, error: "Check-In hanya dapat dilakukan oleh akun pemesan ruangan, Admin, atau Approval." });
     }
 
@@ -227,11 +260,14 @@ router.post("/meetings/:id/checkout", async (req, res) => {
     }
 
     const method = req.body?.method || (req.body?.by && req.body.by.toLowerCase().includes("admin") ? "manual_admin" : "barcode_qr");
-    const username = String(req.body?.username || "").trim().toLowerCase();
-    const role = String(req.body?.role || "").trim().toLowerCase();
+    const username = String(req.user?.u || req.body?.username || "").trim().toLowerCase();
+    /* Peran diambil dari cookie sesi, tidak pernah dari badan permintaan.
+       Sebelumnya siapa pun bisa menambahkan "role":"admin" lalu lolos. */
+    const role = String(req.user?.r || "").trim().toLowerCase();
     const isAuthorized = await isAuthorizedCheckInOut(meeting, username, role, req.body?.by);
 
-    if (method !== "manual_admin" && !isAuthorized) {
+    const bolehManual = role === "admin" || role === "pimpinan";
+    if (!(method === "manual_admin" && bolehManual) && !isAuthorized) {
       return res.status(403).json({ success: false, error: "Check-Out hanya dapat dilakukan oleh akun pemesan ruangan, Admin, atau Approval." });
     }
 
@@ -346,7 +382,7 @@ router.delete("/meetings/:id/materials/:materialId", async (req, res) => {
 });
 
 // Simpan / update ruangan
-router.post("/rooms", async (req, res) => {
+router.post("/rooms", wajibPeran("Admin"), async (req, res) => {
   try {
     const saved = await dashboardService.saveRoom(req.body);
     res.json({ success: true, room: saved });
@@ -355,7 +391,7 @@ router.post("/rooms", async (req, res) => {
   }
 });
 
-router.delete("/rooms/:id", async (req, res) => {
+router.delete("/rooms/:id", wajibPeran("Admin"), async (req, res) => {
   try {
     const ok = await dashboardService.deleteRoom(req.params.id);
     if (!ok) return res.status(404).json({ success: false, error: "Ruangan tidak ditemukan." });
@@ -365,7 +401,7 @@ router.delete("/rooms/:id", async (req, res) => {
   }
 });
 
-router.get("/roles", async (req, res) => {
+router.get("/roles", wajibLogin, async (req, res) => {
   try {
     return res.json(await dashboardService.getRoles());
   } catch (err) {
@@ -373,7 +409,7 @@ router.get("/roles", async (req, res) => {
   }
 });
 
-router.post("/roles", async (req, res) => {
+router.post("/roles", wajibPeran("Admin"), async (req, res) => {
   try {
     const role = await dashboardService.saveRole(req.body || {});
     return res.json({ success: true, role });
@@ -382,7 +418,7 @@ router.post("/roles", async (req, res) => {
   }
 });
 
-router.delete("/roles/:name", async (req, res) => {
+router.delete("/roles/:name", wajibPeran("Admin"), async (req, res) => {
   try {
     const ok = await dashboardService.deleteRole(req.params.name);
     if (!ok) return res.status(404).json({ success: false, error: "Role tidak ditemukan." });
@@ -393,7 +429,7 @@ router.delete("/roles/:name", async (req, res) => {
 });
 
 // Ambil seluruh daftar pengguna
-router.get("/users", async (req, res) => {
+router.get("/users", wajibPeran("Admin"), async (req, res) => {
   try {
     const users = await dashboardService.getUsers();
     res.json(users);
@@ -408,6 +444,10 @@ router.post("/login", async (req, res) => {
     const { username, password } = req.body;
     const result = await dashboardService.authenticateUser(username, password);
     if (result.success) {
+      /* Sejak sini identitas dipegang server lewat cookie bertanda tangan.
+         Balasan JSON tetap dikirim utuh supaya frontend yang sudah ada
+         (yang menyimpan profil di sessionStorage) tidak perlu diubah. */
+      pasangSesi(res, result.user);
       res.json(result);
     } else {
       res.status(401).json(result);
@@ -418,7 +458,19 @@ router.post("/login", async (req, res) => {
 });
 
 // Perbarui password akun dengan verifikasi password saat ini.
-router.post("/users/change-password", async (req, res) => {
+router.post("/logout", (req, res) => {
+  hapusSesi(res);
+  res.json({ success: true });
+});
+
+/* Dipakai frontend untuk menanyakan "saya masih login sebagai siapa?"
+   tanpa menebak-nebak dari sessionStorage yang bisa basi. */
+router.get("/me", (req, res) => {
+  if (!req.user) return res.status(401).json({ success: false, user: null });
+  res.json({ success: true, user: { username: req.user.u, role: req.user.r, name: req.user.n } });
+});
+
+router.post("/users/change-password", wajibLogin, async (req, res) => {
   try {
     const { username, currentPassword, newPassword } = req.body || {};
     if (!username || !currentPassword || !newPassword) {
@@ -437,7 +489,7 @@ router.post("/users/change-password", async (req, res) => {
 });
 
 // Simpan / update pengguna
-router.post("/users", async (req, res) => {
+router.post("/users", wajibPeran("Admin"), async (req, res) => {
   try {
     const saved = await dashboardService.saveUser(req.body);
     res.json({ success: true, user: saved });
@@ -447,7 +499,7 @@ router.post("/users", async (req, res) => {
 });
 
 // Hapus pengguna
-router.delete("/users/:id", async (req, res) => {
+router.delete("/users/:id", wajibPeran("Admin"), async (req, res) => {
   try {
     const ok = await dashboardService.deleteUser(req.params.id);
     if (!ok) {

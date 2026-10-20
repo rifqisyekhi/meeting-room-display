@@ -12,3 +12,12 @@ credentials/
 *service-account*.json
 backend/data/*.json
 !backend/data/dashboard-store.example.json
+
+# Berkas materi rapat yang diunggah pengguna. Ini dokumen kerja, bukan
+# kode, dan sebagian bisa bersifat internal — jangan sampai ikut masuk
+# riwayat repo. Direktorinya tetap dibuat lewat .gitkeep.
+backend/data/materials/*
+!backend/data/materials/.gitkeep
+
+# PDF referensi yang sempat ikut ter-commit
+backend/data/docs/

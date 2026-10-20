@@ -30,80 +30,77 @@ function verifyPassword(password, storedHash) {
   }
 }
 
+/* Akun master cadangan.
+
+   PASSWORD TIDAK LAGI PUNYA NILAI BAWAAN DI KODE. Sebelumnya setiap akun
+   di sini punya cadangan seperti "admin123", sehingga siapa pun yang bisa
+   membaca repo dapat masuk — bahkan ke sistem yang akunnya belum pernah
+   dibuat, karena authenticateUser memakai daftar ini sebagai lapis terakhir
+   ketika database dan store lokal sama-sama tidak punya penggunanya.
+
+   Sekarang sumber kebenarannya database. Tanam akun master dengan:
+     node src/scripts/seed-master-accounts.js
+
+   Daftar ini hanya tersisa sebagai jaring pengaman untuk keadaan database
+   belum siap. Akun yang passwordnya tidak diisi di .env sengaja DIBUANG
+   dari daftar, bukan diberi nilai cadangan — lebih baik satu akun tidak
+   bisa dipakai daripada bisa dipakai oleh orang yang tidak berhak. */
 function getMasterAccounts() {
-  const adminUsername = (process.env.ADMIN_USERNAME || "admin").trim();
-  const adminPassword = process.env.ADMIN_PASSWORD || "admin123";
-  const adminName = process.env.ADMIN_NAME || "Admin Utama";
-  const adminEmail = process.env.ADMIN_EMAIL || "admin@kemnaker.go.id";
-
-  const approvalUsername = (process.env.APPROVAL_USERNAME || "approval").trim();
-  const approvalPassword = process.env.APPROVAL_PASSWORD || "approval123";
-  const approvalName = process.env.APPROVAL_NAME || "Pimpinan Approval";
-  const approvalEmail = process.env.APPROVAL_EMAIL || "approval@kemnaker.go.id";
-
-  const approval1Username = (process.env.APPROVAL1_USERNAME || "approval1").trim();
-  const approval1Password = process.env.APPROVAL1_PASSWORD || "approval123";
-
-  const userUsername = (process.env.USER_USERNAME || "user").trim();
-  const userPassword = process.env.USER_PASSWORD || "user123";
-  const userName = process.env.USER_NAME || "User Pegawai";
-  const userEmail = process.env.USER_EMAIL || "user@kemnaker.go.id";
-
-  const userAndiUsername = (process.env.USER_ANDI_USERNAME || "andipratama").trim();
-  const userAndiPassword = process.env.USER_ANDI_PASSWORD || "user123";
-
-  return [
+  const definisi = [
     {
+      env: "ADMIN",
       id: "admin",
-      username: adminUsername,
-      password: adminPassword,
-      name: adminName,
-      email: adminEmail,
-      dept: "Biro Keuangan dan BMN",
       role: "Admin",
-      status: "Aktif",
+      usernameBawaan: "admin",
+      namaBawaan: "Admin Utama",
+      emailBawaan: "admin@kemnaker.go.id",
     },
     {
+      env: "APPROVAL",
       id: "approval",
-      username: approvalUsername,
-      password: approvalPassword,
-      name: approvalName,
-      email: approvalEmail,
-      dept: "Biro Keuangan dan BMN",
       role: "Pimpinan",
-      status: "Aktif",
+      usernameBawaan: "approval",
+      namaBawaan: "Pimpinan Approval",
+      emailBawaan: "approval@kemnaker.go.id",
     },
     {
+      env: "APPROVAL1",
       id: "approval1",
-      username: approval1Username,
-      password: approval1Password,
-      name: "Pimpinan",
-      email: "pimpinan@kemnaker.go.id",
-      dept: "Biro Keuangan dan BMN",
       role: "Pimpinan",
-      status: "Aktif",
+      usernameBawaan: "approval1",
+      namaBawaan: "Pimpinan",
+      emailBawaan: "pimpinan@kemnaker.go.id",
     },
     {
+      env: "USER",
       id: "user",
-      username: userUsername,
-      password: userPassword,
-      name: userName,
-      email: userEmail,
-      dept: "Biro Keuangan dan BMN",
       role: "User",
-      status: "Aktif",
+      usernameBawaan: "user",
+      namaBawaan: "User Pegawai",
+      emailBawaan: "user@kemnaker.go.id",
     },
     {
+      env: "USER_ANDI",
       id: "andipratama",
-      username: userAndiUsername,
-      password: userAndiPassword,
-      name: "Andi Pratama",
-      email: "andi@kemnaker.go.id",
-      dept: "Biro Keuangan dan BMN",
       role: "User",
-      status: "Aktif",
+      usernameBawaan: "andipratama",
+      namaBawaan: "Andi Pratama",
+      emailBawaan: "andi@kemnaker.go.id",
     },
   ];
+
+  return definisi
+    .map((d) => ({
+      id: d.id,
+      username: (process.env[`${d.env}_USERNAME`] || d.usernameBawaan).trim(),
+      password: process.env[`${d.env}_PASSWORD`] || "",
+      name: process.env[`${d.env}_NAME`] || d.namaBawaan,
+      email: process.env[`${d.env}_EMAIL`] || d.emailBawaan,
+      dept: "Biro Keuangan dan BMN",
+      role: d.role,
+      status: "Aktif",
+    }))
+    .filter((akun) => akun.password !== "");
 }
 
 function getDefaultSystemRoles() {
@@ -1966,6 +1963,11 @@ async function deleteUser(id) {
 }
 
 module.exports = {
+  /* Diekspor supaya skrip seeder memakai skema hash yang persis sama.
+     Menyalin implementasinya ke skrip lain berisiko melenceng diam-diam,
+     dan hash yang tidak cocok berarti akun tidak bisa login sama sekali. */
+  hashPassword,
+  verifyPassword,
   getDashboardData,
   saveMeeting,
   deleteMeeting,
