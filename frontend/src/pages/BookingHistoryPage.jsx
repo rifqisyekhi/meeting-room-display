@@ -123,8 +123,30 @@ export default function BookingHistoryPage() {
   const [qrModalMeeting, setQrModalMeeting] = useState(null);
   const [copiedPassUrl, setCopiedPassUrl] = useState(false);
 
-  const isAdmin = (currentUser.role || "").toLowerCase().includes("admin") ||
-    (currentUser.username || "").toLowerCase() === "admin";
+  useEffect(() => {
+    document.body.classList.remove("booking-fitscreen-active");
+    document.documentElement.style.overflowY = "auto";
+    document.documentElement.style.height = "auto";
+    document.body.style.overflowY = "auto";
+    document.body.style.height = "auto";
+    const root = document.getElementById("root");
+    if (root) {
+      root.style.overflowY = "visible";
+      root.style.height = "auto";
+      root.style.maxHeight = "none";
+    }
+    return () => {
+      document.documentElement.style.overflowY = "";
+      document.documentElement.style.height = "";
+      document.body.style.overflowY = "";
+      document.body.style.height = "";
+      if (root) {
+        root.style.overflowY = "";
+        root.style.height = "";
+        root.style.maxHeight = "";
+      }
+    };
+  }, []);
 
   const refreshData = useCallback(async () => {
     try {
@@ -214,21 +236,19 @@ export default function BookingHistoryPage() {
     const query = search.trim().toLowerCase();
     const userUname = (currentUser.username || "").toLowerCase().trim();
     const userName = (currentUser.name || "").toLowerCase().trim();
-    const userDept = (currentUser.dept || "").toLowerCase().trim();
     const seen = new Set();
 
     return meetings.filter((meeting) => {
       if (!meeting) return false;
-      const bookedUname = (meeting.bookedByUsername || "").toLowerCase().trim();
+      const bookedUname = (meeting.bookedByUsername || meeting.username || "").toLowerCase().trim();
       const bookedName = (meeting.bookedBy || "").toLowerCase().trim();
-      const reqDept = (meeting.requester || "").toLowerCase().trim();
 
-      const belongsToUser =
-        isAdmin ||
+      const belongsToUser = Boolean(
         (userUname && bookedUname && bookedUname === userUname) ||
         (userName && bookedName && bookedName === userName) ||
         (userUname && bookedName && bookedName === userUname) ||
-        (userDept && reqDept && reqDept === userDept);
+        (userName && bookedUname && userName === bookedUname)
+      );
 
       if (!belongsToUser) return false;
       const key = effectiveStatusKey(meeting, clockNow);
@@ -256,7 +276,7 @@ export default function BookingHistoryPage() {
       }
       return true;
     }).sort((a, b) => `${b.date || ""} ${b.start || ""}`.localeCompare(`${a.date || ""} ${a.start || ""}`));
-  }, [meetings, isAdmin, currentUser, filterStatus, fromDate, toDate, search, clockNow]);
+  }, [meetings, currentUser, filterStatus, fromDate, toDate, search, clockNow]);
 
   const recommendedRooms = useMemo(() => {
     if (!recommendationTarget) return [];

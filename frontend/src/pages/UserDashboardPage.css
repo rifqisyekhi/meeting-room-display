@@ -220,9 +220,13 @@
   font-size: 10px;
 }
 
-.user-dashboard-main { width: calc(100% - 250px); min-height: 100vh; margin-left: 250px; }
+.user-dashboard-main { width: calc(100% - 250px); min-height: 100vh; margin-left: 250px; transition: margin-left 0.25s ease, width 0.25s ease; }
+.user-dashboard-backdrop { display: none; }
+.user-dashboard-sidebar-close { display: none; }
+.user-dashboard-menu-toggle { display: none; }
 .user-dashboard-topbar { position: sticky; top: 0; z-index: 10; display: flex; min-height: 66px; align-items: center; justify-content: space-between; gap: 16px; padding: 0 32px; border-bottom: 1px solid #e6edf5; background: rgba(255,255,255,.94); backdrop-filter: blur(12px); }
-.user-dashboard-topbar > div { display: grid; gap: 2px; }
+.user-dashboard-topbar-left { display: flex; align-items: center; gap: 12px; }
+.user-dashboard-topbar-title-block { display: grid; gap: 2px; }
 .user-dashboard-topbar small { color: #8797aa; font-size: 10px; }
 .user-dashboard-topbar strong { color: var(--user-navy); font-size: 13px; }
 .user-dashboard-profile-button { display: flex; align-items: center; gap: 9px; border: 0; color: #19385e; background: transparent; text-align: left; cursor: pointer; }
@@ -293,36 +297,91 @@
 .user-password-message.error { color: #a9323c; background: #fff0f0; }
 
 @media (max-width: 900px) {
-  .user-dashboard-sidebar { width: 220px; }
-  .user-dashboard-main { width: calc(100% - 220px); margin-left: 220px; }
-  .user-dashboard-content { padding: 22px 20px 30px; }
-  .user-dashboard-topbar { padding: 0 20px; }
-  .user-quick-grid { grid-template-columns: 1fr; }
-  .user-quick-grid button { min-height: 84px; }
-}
-
-@media (max-width: 640px) {
-  .user-dashboard-shell { display: block; }
-  .user-dashboard-sidebar { position: static; width: 100%; min-height: auto; padding: 10px 12px; }
-  .user-dashboard-brand { padding: 2px 4px 10px; }
-  .user-dashboard-brand img { width: 34px; height: 34px; }
-  .user-dashboard-nav { grid-template-columns: repeat(4,minmax(0,1fr)); gap: 4px; padding-top: 9px; }
-  .user-dashboard-nav button { min-height: 48px; flex-direction: column; justify-content: center; gap: 3px; padding: 5px 2px; font-size: 8px; text-align: center; }
-  .user-dashboard-nav svg { font-size: 14px; }
-  .user-dashboard-logout, .user-dashboard-sidebar-user { display: none; }
-  .user-dashboard-main { width: 100%; min-height: 0; margin: 0; }
-  .user-dashboard-topbar { min-height: 54px; padding: 0 14px; }
-  .user-dashboard-content { padding: 16px 14px 25px; }
-  .user-welcome-banner { min-height: 168px; padding: 22px 20px; }
-  .user-welcome-banner h1 { font-size: 24px; }
-  .user-welcome-banner p { max-width: 88%; font-size: 10px; }
-  .user-stat-grid { grid-template-columns: 1fr; gap: 8px; margin: 12px 0 22px; }
-  .user-stat-grid article { min-height: 72px; padding: 11px 13px; }
-  .user-stat-grid article > span { width: 40px; height: 40px; font-size: 14px; }
-  .user-stat-grid strong { font-size: 21px; }
-  .user-profile-grid { grid-template-columns: 1fr; }
-  .user-profile-card, .user-password-card { padding: 17px; }
-  .user-page-heading h1 { font-size: 22px; }
+  .user-dashboard-shell {
+    display: flex;
+    position: relative;
+    overflow-x: hidden;
+  }
+  .user-dashboard-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(8, 28, 58, 0.65);
+    backdrop-filter: blur(3px);
+    z-index: 1000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+  }
+  .user-dashboard-backdrop.visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .user-dashboard-sidebar {
+    width: 270px;
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 1001;
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: none;
+  }
+  .user-dashboard-sidebar.open {
+    transform: translateX(0);
+    box-shadow: 8px 0 32px rgba(8, 28, 58, 0.35);
+  }
+  .user-dashboard-sidebar-close {
+    display: grid;
+    width: 32px;
+    height: 32px;
+    place-items: center;
+    border: 0;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+    font-size: 16px;
+    cursor: pointer;
+    margin-left: auto;
+    transition: background 0.15s;
+  }
+  .user-dashboard-sidebar-close:hover {
+    background: rgba(255, 255, 255, 0.24);
+  }
+  .user-dashboard-menu-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border: 1px solid #dce5f0;
+    border-radius: 8px;
+    background: #fff;
+    color: #0c2d5e;
+    font-size: 18px;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .user-dashboard-menu-toggle:hover {
+    background: #f0f6fc;
+    border-color: #bad3ed;
+  }
+  .user-dashboard-main {
+    width: 100%;
+    margin-left: 0;
+    min-height: 100vh;
+  }
+  .user-dashboard-topbar {
+    padding: 0 16px;
+    min-height: 58px;
+  }
+  .user-quick-grid {
+    grid-template-columns: 1fr;
+  }
+  .user-quick-grid button {
+    min-height: 84px;
+  }
 }
 
 /* Selaraskan kerangka dashboard pengguna dengan dashboard admin/approval. */
@@ -520,16 +579,175 @@
 }
 
 @media (max-width: 640px) {
-  .user-dashboard-logout { min-height: 42px; }
-  .user-welcome-banner { padding-bottom: 16px; }
-  .user-stat-grid { padding-bottom: 20px; }
-  .user-upcoming-section { margin-top: 24px; padding-top: 22px; }
-  .user-upcoming-heading { align-items: flex-start; gap: 8px; }
-  .user-upcoming-heading button { min-height: 36px; padding: 0 9px; font-size: 11px; white-space: nowrap; }
-  .user-upcoming-card { grid-template-columns: 44px minmax(0, 1fr); gap: 10px; padding: 12px; }
-  .user-upcoming-meta { grid-column: 2; grid-template-columns: auto auto; gap: 10px; }
-  .user-upcoming-status { grid-column: 2; }
-  .user-upcoming-empty { align-items: flex-start; flex-wrap: wrap; padding: 14px; }
-  .user-upcoming-empty > div { flex-basis: calc(100% - 56px); }
-  .user-upcoming-empty button { margin-left: 56px; }
+  .user-dashboard-topbar {
+    padding: 0 14px;
+    min-height: 56px;
+  }
+  .user-dashboard-topbar-account small {
+    display: none;
+  }
+  .user-dashboard-topbar-account strong {
+    font-size: 13px;
+    max-width: 130px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .user-dashboard-topbar-avatar {
+    width: 34px;
+    height: 34px;
+    font-size: 13px;
+  }
+  .user-dashboard-topbar-title-block small {
+    font-size: 9.5px;
+  }
+  .user-dashboard-topbar-title-block strong {
+    font-size: 12.5px;
+  }
+  .user-welcome-banner {
+    padding: 18px 16px;
+  }
+  .user-welcome-banner h1 {
+    font-size: 21px;
+  }
+  .user-welcome-banner p {
+    font-size: 11px;
+    line-height: 1.5;
+  }
+  .user-welcome-banner button {
+    width: 100%;
+    justify-content: center;
+    min-height: 42px;
+    font-size: 12px;
+  }
+  .user-stat-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    padding: 0 16px 20px;
+  }
+  .user-stat-grid article {
+    min-height: 74px;
+    padding: 12px 14px;
+    gap: 14px;
+  }
+  .user-stat-grid article > span {
+    width: 44px;
+    height: 44px;
+    font-size: 16px;
+  }
+  .user-stat-grid small {
+    font-size: 11.5px;
+  }
+  .user-stat-grid strong {
+    font-size: 23px;
+  }
+  .user-quick-grid {
+    gap: 10px;
+  }
+  .user-quick-grid button {
+    min-height: 74px;
+    padding: 13px 15px;
+  }
+  .user-quick-grid button strong {
+    font-size: 12.5px;
+  }
+  .user-quick-grid button small {
+    font-size: 10.5px;
+  }
+  .user-dashboard-lower-panel {
+    padding: 20px 16px 32px;
+    border-radius: 16px 16px 0 0;
+  }
+  .user-dashboard-logout {
+    min-height: 42px;
+  }
+  .user-upcoming-section {
+    margin-top: 22px;
+    padding-top: 20px;
+  }
+  .user-upcoming-heading {
+    align-items: center;
+    gap: 8px;
+  }
+  .user-upcoming-heading button {
+    min-height: 36px;
+    padding: 0 10px;
+    font-size: 11px;
+    white-space: nowrap;
+  }
+  .user-upcoming-card {
+    grid-template-columns: 46px minmax(0, 1fr);
+    grid-template-rows: auto auto auto;
+    gap: 10px;
+    padding: 12px 14px;
+  }
+  .user-upcoming-date {
+    grid-row: 1;
+    align-self: start;
+  }
+  .user-upcoming-details {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .user-upcoming-meta {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding-top: 8px;
+    border-top: 1px solid #f1f5f9;
+  }
+  .user-upcoming-meta > span {
+    font-size: 10.5px;
+  }
+  .user-upcoming-status {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    max-width: none;
+    width: 100%;
+    box-sizing: border-box;
+    text-align: center;
+    padding: 6px;
+    font-size: 10.5px;
+  }
+  .user-upcoming-empty {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    padding: 14px;
+    gap: 12px;
+  }
+  .user-upcoming-empty > div {
+    flex-basis: calc(100% - 56px);
+  }
+  .user-upcoming-empty button {
+    margin-left: 0;
+    width: 100%;
+    min-height: 40px;
+  }
+  .user-profile-grid {
+    margin: 0 16px;
+    padding: 18px 14px;
+    border-radius: 14px;
+  }
+  .user-profile-card,
+  .user-password-card {
+    padding: 16px 14px;
+  }
+  .user-password-card input {
+    min-height: 42px;
+    font-size: 12px;
+  }
+  .user-password-card > button {
+    width: 100%;
+    min-height: 42px;
+    font-size: 12px;
+  }
+  .user-page-heading {
+    margin: 0 16px 16px;
+  }
+  .user-page-heading h1 {
+    font-size: 21px;
+  }
 }

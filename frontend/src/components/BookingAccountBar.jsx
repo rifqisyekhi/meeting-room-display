@@ -72,7 +72,7 @@ export default function BookingAccountBar({ currentUser, historyPage = false, sh
             aria-current={!historyPage ? "page" : undefined}
             onClick={() => navigate("/booking")}
           >
-            Booking Ruangan
+            <span>Booking</span><span className="bk-nav-full"> Ruangan</span>
           </button>
           <button
             type="button"
@@ -80,7 +80,7 @@ export default function BookingAccountBar({ currentUser, historyPage = false, sh
             aria-current={historyPage ? "page" : undefined}
             onClick={() => navigate("/booking/history")}
           >
-            Riwayat Pemesanan
+            <span>Riwayat</span><span className="bk-nav-full"> Pemesanan</span>
           </button>
         </nav>
         <div className="booking-account-menu-wrap">

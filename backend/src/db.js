@@ -83,6 +83,20 @@ async function initDatabase() {
           updated_at TIMESTAMPTZ DEFAULT NOW()
         );
       `);
+
+      // Pastikan role bawaan sistem terdaftar di database
+      const defaultRoles = [
+        ["Admin", "Akses penuh ke seluruh modul sistem", JSON.stringify(["approve", "manageMeeting", "checkInOut", "emergencyCancel", "manageRoom", "manageUsers", "manageSettings", "viewReports"])],
+        ["Pimpinan", "Persetujuan permohonan rapat dan monitoring jadwal", JSON.stringify(["approve", "manageMeeting", "viewReports"])],
+        ["User", "Pengguna standar peminjaman ruangan", JSON.stringify(["checkInOut"])],
+      ];
+      for (const [rName, rDesc, rPerm] of defaultRoles) {
+        await client.query(`
+          INSERT INTO roles (name, description, permissions, is_system)
+          VALUES ($1, $2, $3::jsonb, TRUE)
+          ON CONFLICT (name) DO UPDATE SET is_system = TRUE;
+        `, [rName, rDesc, rPerm]);
+      }
       // 3. Tabel Meetings
       await client.query(`
         CREATE TABLE IF NOT EXISTS meetings (
@@ -162,6 +176,34 @@ async function initDatabase() {
           created_at TIMESTAMPTZ DEFAULT NOW()
         );
       `);
+
+      // Pastikan akun master awal tersedia jika tabel pengguna kosong
+      const userCountRes = await client.query("SELECT COUNT(*)::int AS count FROM users");
+      if (userCountRes.rows[0]?.count === 0) {
+        const adminUser = process.env.ADMIN_USERNAME || "admin";
+        const adminName = process.env.ADMIN_NAME || "Admin Utama";
+        const approvalUser = process.env.APPROVAL_USERNAME || "approval";
+        const approvalName = process.env.APPROVAL_NAME || "Pimpinan Approval";
+        const normalUser = process.env.USER_USERNAME || "user";
+        const normalName = process.env.USER_NAME || "User Pegawai";
+
+        await client.query(`
+          INSERT INTO users (id, name, username, email, dept, role, status) VALUES
+            ('admin', $1, $2, 'admin@kemnaker.go.id', 'Biro Keuangan dan BMN', 'Admin', 'Aktif'),
+            ('approval', $3, $4, 'approval@kemnaker.go.id', 'Biro Keuangan dan BMN', 'Pimpinan', 'Aktif'),
+            ('user', $5, $6, 'user@kemnaker.go.id', 'Biro Keuangan dan BMN', 'User', 'Aktif')
+          ON CONFLICT (username) DO NOTHING
+        `, [adminName, adminUser, approvalName, approvalUser, normalName, normalUser]);
+      } else {
+        // Pastikan akun Admin Utama selalu ada
+        const adminUser = process.env.ADMIN_USERNAME || "admin";
+        const adminName = process.env.ADMIN_NAME || "Admin Utama";
+        await client.query(`
+          INSERT INTO users (id, name, username, email, dept, role, status)
+          VALUES ('admin', $1, $2, 'admin@kemnaker.go.id', 'Biro Keuangan dan BMN', 'Admin', 'Aktif')
+          ON CONFLICT (username) DO NOTHING
+        `, [adminName, adminUser]);
+      }
 
       console.log("[PostgreSQL] Skema tabel siap dan sinkron.");
       isConnected = true;

@@ -106,6 +106,29 @@ function getMasterAccounts() {
   ];
 }
 
+function getDefaultSystemRoles() {
+  return [
+    {
+      name: "Admin",
+      description: "Akses penuh ke seluruh modul sistem",
+      permissions: ["approve", "manageMeeting", "checkInOut", "emergencyCancel", "manageRoom", "manageUsers", "manageSettings", "viewReports"],
+      isSystem: true,
+    },
+    {
+      name: "Pimpinan",
+      description: "Persetujuan permohonan rapat dan monitoring jadwal",
+      permissions: ["approve", "manageMeeting", "viewReports"],
+      isSystem: true,
+    },
+    {
+      name: "User",
+      description: "Pengguna standar peminjaman ruangan",
+      permissions: ["checkInOut"],
+      isSystem: true,
+    },
+  ];
+}
+
 function readStore() {
   try {
     if (fs.existsSync(STORE_PATH)) {
@@ -116,32 +139,44 @@ function readStore() {
       if (!parsed.users) parsed.users = [];
 
       let storeNeedsUpdate = false;
-      if (!Array.isArray(parsed.roles)) {
-        parsed.roles = [];
+      if (!Array.isArray(parsed.roles) || parsed.roles.length === 0) {
+        parsed.roles = getDefaultSystemRoles();
         storeNeedsUpdate = true;
+      } else {
+        const sysRoles = getDefaultSystemRoles();
+        sysRoles.forEach((sr) => {
+          if (!parsed.roles.some((r) => r.name.toLowerCase() === sr.name.toLowerCase())) {
+            parsed.roles.push(sr);
+            storeNeedsUpdate = true;
+          }
+        });
       }
 
-      // Pastikan 3 akun master/seed awal dari ENV selalu ada dan valid di store
+      // Pertahankan kredensial akun yang sudah ada, jangan pernah menimpa passwordHash yang sudah diupdate
       getMasterAccounts().forEach((master) => {
         const uIndex = parsed.users.findIndex(
           (u) => (u.username || "").toLowerCase() === master.username.toLowerCase()
         );
-        const masterHash = hashPassword(master.password);
         if (uIndex >= 0) {
           const current = parsed.users[uIndex];
           parsed.users[uIndex] = {
             ...current,
             id: current.id || master.id,
-            name: master.name || current.name,
-            email: master.email || current.email,
-            dept: master.dept || current.dept,
-            role: master.role || current.role,
-            status: "Aktif",
-            passwordHash: masterHash,
+            name: current.name || master.name,
+            email: current.email || master.email,
+            dept: current.dept || master.dept,
+            role: current.role || master.role,
+            status: current.status || "Aktif",
+            passwordHash: current.passwordHash || hashPassword(master.password),
           };
           delete parsed.users[uIndex].password;
-        } else {
-          parsed.users.unshift({
+        }
+      });
+
+      // Jika users di store kosong sama sekali, inisialisasi akun master dari ENV
+      if (parsed.users.length === 0) {
+        getMasterAccounts().forEach((master) => {
+          parsed.users.push({
             id: master.id,
             name: master.name,
             username: master.username,
@@ -149,11 +184,29 @@ function readStore() {
             dept: master.dept,
             role: master.role,
             status: "Aktif",
-            passwordHash: masterHash,
+            passwordHash: hashPassword(master.password),
+          });
+        });
+        storeNeedsUpdate = true;
+      }
+
+      // Pastikan akun Admin Utama selalu tersedia agar sistem tidak terkunci
+      if (!parsed.users.some((u) => (u.username || "").toLowerCase() === "admin")) {
+        const adminMaster = getMasterAccounts().find((m) => m.username.toLowerCase() === "admin");
+        if (adminMaster) {
+          parsed.users.unshift({
+            id: "admin",
+            name: adminMaster.name,
+            username: adminMaster.username,
+            email: adminMaster.email,
+            dept: adminMaster.dept,
+            role: "Admin",
+            status: "Aktif",
+            passwordHash: hashPassword(adminMaster.password),
           });
           storeNeedsUpdate = true;
         }
-      });
+      }
 
       // Hapus seluruh password plaintext dari file JSON dan migrasikan user custom ke passwordHash
       parsed.users.forEach((u) => {
@@ -232,8 +285,37 @@ function getMeetingStatus(startDate, endDate, now = new Date()) {
   return "Selesai";
 }
 
+function sanitizeMeetingMaterials(materials) {
+  if (!Array.isArray(materials)) return [];
+  const withUrl = materials.filter((m) => Boolean(m && m.url && String(m.url).trim()));
+  const withoutUrl = materials.filter((m) => !m || !m.url || !String(m.url).trim());
+  const seenNames = new Set();
+  const result = [];
+
+  for (const item of withUrl) {
+    const key = (item.name || "").trim().toLowerCase();
+    if (key && !seenNames.has(key)) {
+      seenNames.add(key);
+      result.push(item);
+    }
+  }
+
+  for (const item of withoutUrl) {
+    const key = (item?.name || "").trim().toLowerCase();
+    if (key && !seenNames.has(key)) {
+      seenNames.add(key);
+      result.push(item);
+    }
+  }
+
+  return result;
+}
+
 function normalizeMeetingLifecycle(meeting, now = new Date()) {
   if (!meeting) return meeting;
+  if (Array.isArray(meeting.materials)) {
+    meeting.materials = sanitizeMeetingMaterials(meeting.materials);
+  }
   const sLower = String(meeting.status || "").toLowerCase().trim();
 
   // Rapat yang Dibatalkan atau Ditolak tidak diubah otomatis
@@ -702,6 +784,39 @@ async function saveMeeting(meeting) {
     meeting.status = "Menunggu Approval";
   }
 
+  // Ekstrak material base64 menjadi file fisik di disk jika ada agar store & DB tetap ringan
+  if (Array.isArray(meeting.materials)) {
+    const materialsDir = path.join(__dirname, "../../data/materials");
+    meeting.materials = meeting.materials.map((mat) => {
+      if (mat && mat.url && typeof mat.url === "string" && mat.url.startsWith("data:")) {
+        const match = mat.url.match(/^data:([^;]+);base64,(.+)$/);
+        if (match) {
+          try {
+            if (!fs.existsSync(materialsDir)) {
+              fs.mkdirSync(materialsDir, { recursive: true });
+            }
+            const ext = path.extname(mat.name || "").toLowerCase() || (mat.type === "pdf" ? ".pdf" : ".bin");
+            const cleanExt = [".pdf", ".ppt", ".pptx", ".doc", ".docx", ".xls", ".xlsx"].includes(ext) ? ext : ".pdf";
+            const fileName = `${crypto.randomUUID()}${cleanExt}`;
+            const filePath = path.join(materialsDir, fileName);
+            const buffer = Buffer.from(match[2], "base64");
+            fs.writeFileSync(filePath, buffer);
+            return {
+              ...mat,
+              url: `/api/dashboard/materials/files/${fileName}`,
+              size: buffer.length < 1024 * 1024
+                ? `${(buffer.length / 1024).toFixed(1)} KB`
+                : `${(buffer.length / (1024 * 1024)).toFixed(1)} MB`,
+            };
+          } catch (matErr) {
+            console.warn("Gagal ekstrak base64 material:", matErr.message);
+          }
+        }
+      }
+      return mat;
+    });
+  }
+
   // Cari apakah rapat ini sudah ada di store lokal (berdasarkan ID, originalId, googleId, atau slot ruangan)
   const matchedStored = (store.meetings || []).find((m) => {
     if (originalId && (String(m.id) === String(originalId) || (m.originalId && String(m.originalId) === String(originalId)))) return true;
@@ -848,12 +963,18 @@ async function saveMeeting(meeting) {
     return sameDate && sameTime && sameRoom;
   });
 
+  const mergedMaterials = sanitizeMeetingMaterials([
+    ...(idx !== -1 ? (store.meetings[idx].materials || []) : []),
+    ...(meeting.materials || []),
+  ]);
+  meeting.materials = mergedMaterials;
+
   if (idx !== -1) {
     store.meetings[idx] = {
       ...store.meetings[idx],
       ...meeting,
       originalId: store.meetings[idx].originalId || meeting.originalId || (originalId ? String(originalId) : undefined),
-      materials: meeting.materials || store.meetings[idx].materials || [],
+      materials: mergedMaterials,
       attendees: meeting.attendees || store.meetings[idx].attendees || [],
       bookedBy: meeting.bookedBy || store.meetings[idx].bookedBy || "",
       bookedByUsername: meeting.bookedByUsername || store.meetings[idx].bookedByUsername || "",
@@ -1124,17 +1245,19 @@ async function checkInMeeting(id, checkedInBy = "Peserta (Barcode / QR)", method
   }
   if (!meeting) return null;
 
-  const isManual = method === "manual_admin" || (checkedInBy && checkedInBy.toLowerCase().includes("admin"));
+  const bookerPicName = meeting.bookedBy || meeting.bookedByUsername || meeting.requester || "Pemesan Ruangan";
+  const finalActor = checkedInBy || bookerPicName;
+  const isManual = method === "manual_admin" || (finalActor && finalActor.toLowerCase().includes("admin"));
   meeting.status = "Berjalan";
   meeting.checkInAt = new Date().toISOString();
-  meeting.checkedInBy = checkedInBy;
+  meeting.checkedInBy = finalActor;
   meeting.checkInMethod = isManual ? "manual_admin" : "barcode_qr";
   meeting.checkInMethodLabel = isManual ? "Manual oleh Admin" : "Barcode / QR Scanner (Otomatis)";
 
   return await saveMeeting(meeting);
 }
 
-async function checkOutMeeting(id, checkedOutBy = "Peserta (Barcode / QR)", method = "barcode_qr") {
+async function checkOutMeeting(id, checkedOutBy, method = "barcode_qr") {
   const store = readStore();
   const target = String(id).trim();
   let meeting = (store.meetings || []).find(
@@ -1149,10 +1272,12 @@ async function checkOutMeeting(id, checkedOutBy = "Peserta (Barcode / QR)", meth
   }
   if (!meeting) return null;
 
-  const isManual = method === "manual_admin" || (checkedOutBy && checkedOutBy.toLowerCase().includes("admin"));
+  const bookerPicName = meeting.bookedBy || meeting.bookedByUsername || meeting.requester || "Pemesan Ruangan";
+  const finalActor = checkedOutBy || bookerPicName;
+  const isManual = method === "manual_admin" || (finalActor && finalActor.toLowerCase().includes("admin"));
   meeting.status = "Selesai";
   meeting.checkOutAt = new Date().toISOString();
-  meeting.checkedOutBy = checkedOutBy;
+  meeting.checkedOutBy = finalActor;
   meeting.checkOutMethod = isManual ? "manual_admin" : "barcode_qr";
   meeting.checkOutMethodLabel = isManual ? "Manual oleh Admin" : "Barcode / QR Scanner (Otomatis)";
 
@@ -1251,7 +1376,29 @@ async function addMeetingMaterial(id, materialData) {
     uploadedAt: new Date().toISOString(),
   };
 
-  meeting.materials.push(newMaterial);
+  const existingPlaceholderIdx = meeting.materials.findIndex(
+    (m) =>
+      m.name &&
+      newMaterial.name &&
+      m.name.trim().toLowerCase() === newMaterial.name.trim().toLowerCase() &&
+      !m.url,
+  );
+
+  if (existingPlaceholderIdx !== -1) {
+    meeting.materials[existingPlaceholderIdx] = {
+      ...meeting.materials[existingPlaceholderIdx],
+      ...newMaterial,
+      id: meeting.materials[existingPlaceholderIdx].id || newMaterial.id,
+    };
+  } else {
+    meeting.materials = meeting.materials.filter(
+      (m) =>
+        !(m.name && newMaterial.name && m.name.trim().toLowerCase() === newMaterial.name.trim().toLowerCase() && !m.url),
+    );
+    meeting.materials.push(newMaterial);
+  }
+
+  meeting.materials = sanitizeMeetingMaterials(meeting.materials);
   const persistedInDatabase = getIsConnected();
   if (getIsConnected()) {
     const meetingIds = [...new Set([target, meeting.id, meeting.googleId, meeting.originalId].filter(Boolean).map(String))];
@@ -1372,7 +1519,17 @@ async function deleteRoom(id) {
   return true;
 }
 
-function getUsers() {
+async function getUsers() {
+  if (getIsConnected()) {
+    try {
+      const res = await query("SELECT id, name, username, email, dept, role, status FROM users ORDER BY created_at ASC");
+      if (res.rows && res.rows.length > 0) {
+        return res.rows;
+      }
+    } catch (e) {
+      console.warn("[PostgreSQL] Gagal membaca users:", e.message);
+    }
+  }
   const store = readStore();
   return (store.users || []).map(({ password, passwordHash, ...safeUser }) => safeUser);
 }
@@ -1460,14 +1617,27 @@ async function deleteRole(name) {
 }
 
 async function getRoles() {
-  if (!getIsConnected()) return readStore().roles || [];
+  if (!getIsConnected()) {
+    const r = readStore().roles || [];
+    return r.length ? r : getDefaultSystemRoles();
+  }
   const result = await query("SELECT name, description, permissions, is_system FROM roles ORDER BY is_system DESC, name ASC");
-  const roles = result.rows.map((role) => ({
+  let roles = result.rows.map((role) => ({
     name: role.name,
     description: role.description || "",
     permissions: Array.isArray(role.permissions) ? role.permissions : [],
     isSystem: !!role.is_system,
   }));
+  if (!roles.length) {
+    roles = getDefaultSystemRoles();
+  } else {
+    const sysRoles = getDefaultSystemRoles();
+    sysRoles.forEach((sr) => {
+      if (!roles.some((r) => r.name.toLowerCase() === sr.name.toLowerCase())) {
+        roles.push(sr);
+      }
+    });
+  }
   const store = readStore();
   store.roles = roles;
   writeStore(store);
@@ -1483,11 +1653,114 @@ async function authenticateUser(username, password) {
     };
   }
 
-  // 0. Cek langsung akun master/seed dari ENV
   const masterAccounts = getMasterAccounts();
   const masterMatch = masterAccounts.find(
     (m) => (m.username || "").toLowerCase() === uname
   );
+
+  // 1. Cek langsung ke database PostgreSQL jika terkoneksi
+  if (getIsConnected()) {
+    try {
+      const dbRes = await query("SELECT * FROM users WHERE LOWER(username) = LOWER($1)", [uname]);
+      if (dbRes.rows && dbRes.rows.length > 0) {
+        const dbUser = dbRes.rows[0];
+
+        if (dbUser.status === "Nonaktif") {
+          return {
+            success: false,
+            message: "Akun ini sedang dinonaktifkan. Silakan hubungi Admin Utama.",
+          };
+        }
+
+        let isMatch = false;
+        if (dbUser.password_hash) {
+          isMatch = verifyPassword(password, dbUser.password_hash);
+        } else if (masterMatch && (password === masterMatch.password || verifyPassword(password, hashPassword(masterMatch.password)))) {
+          // Hanya fallback ke default ENV jika password_hash di DB belum diset
+          isMatch = true;
+          try {
+            await query("UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2", [hashPassword(password), dbUser.id]);
+          } catch (e) {}
+        }
+
+        if (isMatch) {
+          return {
+            success: true,
+            user: {
+              id: dbUser.id,
+              username: dbUser.username,
+              name: dbUser.name,
+              role: dbUser.role,
+              email: dbUser.email || "",
+              dept: dbUser.dept || "",
+              status: dbUser.status || "Aktif",
+            },
+          };
+        }
+
+        return {
+          success: false,
+          message: "Username atau password salah!",
+        };
+      }
+    } catch (dbErr) {
+      console.warn("[PostgreSQL] Gagal autentikasi via database:", dbErr.message);
+    }
+  }
+
+  // 2. Cek ke memory store lokal (JSON)
+  const store = readStore();
+  const users = store.users || [];
+  const user = users.find(
+    (u) => (u.username || "").toLowerCase() === uname
+  );
+
+  if (user) {
+    if (user.status === "Nonaktif") {
+      return {
+        success: false,
+        message: "Akun ini sedang dinonaktifkan. Silakan hubungi Admin Utama.",
+      };
+    }
+
+    let isMatch = false;
+    if (user.passwordHash) {
+      isMatch = verifyPassword(password, user.passwordHash);
+    } else if (user.password) {
+      isMatch = verifyPassword(password, user.password) || password === user.password;
+      if (isMatch) {
+        user.passwordHash = hashPassword(password);
+        delete user.password;
+        writeStore(store);
+      }
+    } else if (masterMatch && (password === masterMatch.password || verifyPassword(password, hashPassword(masterMatch.password)))) {
+      isMatch = true;
+      user.passwordHash = hashPassword(password);
+      writeStore(store);
+    }
+
+    if (isMatch) {
+      return {
+        success: true,
+        user: {
+          id: user.id,
+          username: user.username,
+          name: user.name,
+          role: user.role,
+          email: user.email || "",
+          dept: user.dept || "",
+          status: user.status || "Aktif",
+        },
+      };
+    }
+
+    return {
+      success: false,
+      message: "Username atau password salah!",
+    };
+  }
+
+  // 3. Fallback jika akun belum tersimpan di DB maupun store tapi merupakan akun master ENV
   if (masterMatch) {
     const isMatch =
       password === masterMatch.password ||
@@ -1506,105 +1779,11 @@ async function authenticateUser(username, password) {
         },
       };
     }
-    return {
-      success: false,
-      message: "Username atau password salah!",
-    };
-  }
-
-  // 1. Prioritaskan pengecekan langsung ke basis data PostgreSQL
-  if (getIsConnected()) {
-    try {
-      const dbRes = await query("SELECT * FROM users WHERE LOWER(username) = LOWER($1)", [uname]);
-      if (dbRes.rows && dbRes.rows.length > 0) {
-        const dbUser = dbRes.rows[0];
-        let isMatch = false;
-        if (dbUser.password_hash) {
-          isMatch = verifyPassword(password, dbUser.password_hash);
-        }
-
-        if (!isMatch) {
-          return {
-            success: false,
-            message: "Username atau password salah!",
-          };
-        }
-
-        if (dbUser.status === "Nonaktif") {
-          return {
-            success: false,
-            message: "Akun ini sedang dinonaktifkan. Silakan hubungi Admin Utama.",
-          };
-        }
-
-        return {
-          success: true,
-          user: {
-            id: dbUser.id,
-            username: dbUser.username,
-            name: dbUser.name,
-            role: dbUser.role,
-            email: dbUser.email || "",
-            dept: dbUser.dept || "",
-            status: dbUser.status || "Aktif",
-          },
-        };
-      }
-    } catch (dbErr) {
-      console.warn("[PostgreSQL] Gagal autentikasi via database:", dbErr.message);
-    }
-  }
-
-  // 2. Fallback ke memory store lokal
-  const store = readStore();
-  const users = store.users || [];
-
-  const user = users.find(
-    (u) => (u.username || "").toLowerCase() === uname
-  );
-
-  if (!user) {
-    return {
-      success: false,
-      message: "Username atau password salah!",
-    };
-  }
-
-  let isMatch = false;
-  if (user.passwordHash) {
-    isMatch = verifyPassword(password, user.passwordHash);
-  } else if (user.password && verifyPassword(password, user.password)) {
-    isMatch = true;
-    user.passwordHash = hashPassword(password);
-    delete user.password;
-    writeStore(store);
-  }
-
-  if (!isMatch) {
-    return {
-      success: false,
-      message: "Username atau password salah!",
-    };
-  }
-
-  if (user.status === "Nonaktif") {
-    return {
-      success: false,
-      message: "Akun ini sedang dinonaktifkan. Silakan hubungi Admin Utama.",
-    };
   }
 
   return {
-    success: true,
-    user: {
-      id: user.id,
-      username: user.username,
-      name: user.name,
-      role: user.role,
-      email: user.email || "",
-      dept: user.dept || "",
-      status: user.status || "Aktif",
-    },
+    success: false,
+    message: "Username atau password salah!",
   };
 }
 
@@ -1612,21 +1791,56 @@ async function changeUserPassword(username, currentPassword, newPassword) {
   const authentication = await authenticateUser(username, currentPassword);
   if (!authentication.success) return authentication;
 
+  const targetUname = String(username || "").trim().toLowerCase();
   const store = readStore();
-  const user = (store.users || []).find(
-    (entry) => (entry.username || "").toLowerCase() === String(username || "").trim().toLowerCase()
+  let user = (store.users || []).find(
+    (entry) => (entry.username || "").toLowerCase() === targetUname
   );
-  if (!user) return { success: false, message: "Akun tidak ditemukan." };
 
-  user.passwordHash = hashPassword(newPassword);
-  delete user.password;
+  const newHash = hashPassword(newPassword);
+
+  if (user) {
+    user.passwordHash = newHash;
+    delete user.password;
+  } else {
+    user = {
+      id: authentication.user?.id || targetUname,
+      name: authentication.user?.name || username,
+      username: username,
+      email: authentication.user?.email || "",
+      dept: authentication.user?.dept || "Biro Keuangan dan BMN",
+      role: authentication.user?.role || "User",
+      status: "Aktif",
+      passwordHash: newHash,
+    };
+    if (!Array.isArray(store.users)) store.users = [];
+    store.users.push(user);
+  }
 
   if (getIsConnected()) {
-    const dbResult = await query("UPDATE users SET password_hash = $1, updated_at = NOW() WHERE username = $2", [
-      user.passwordHash,
-      user.username,
-    ]);
-    if (!dbResult.rowCount) throw new Error("Akun belum tersimpan di database.");
+    try {
+      const dbResult = await query(
+        "UPDATE users SET password_hash = $1, updated_at = NOW() WHERE LOWER(username) = LOWER($2)",
+        [newHash, targetUname]
+      );
+      if (!dbResult.rowCount) {
+        await query(`
+          INSERT INTO users (id, name, username, email, dept, role, status, password_hash, updated_at)
+          VALUES ($1, $2, $3, $4, $5, $6, 'Aktif', $7, NOW())
+          ON CONFLICT (username) DO UPDATE SET password_hash = EXCLUDED.password_hash, updated_at = NOW();
+        `, [
+          String(user.id || targetUname),
+          user.name || username,
+          user.username || username,
+          user.email || null,
+          user.dept || "Biro Keuangan dan BMN",
+          user.role || "User",
+          newHash,
+        ]);
+      }
+    } catch (dbErr) {
+      console.warn("[PostgreSQL] Gagal update password di database:", dbErr.message);
+    }
   }
 
   writeStore(store);
@@ -1638,26 +1852,27 @@ async function saveUser(user) {
   if (!store.users) store.users = [];
 
   const lowerUname = (user.username || "").trim().toLowerCase();
-  const normalized = {
-    id: user.id || "user_" + Date.now(),
-    name: user.name || "",
-    username: user.username || "",
-    email: user.email || "",
-    dept: user.dept || "Biro Keuangan dan BMN",
-    role: user.role || "User",
-    status: user.status || "Aktif",
-  };
-
   const idx = store.users.findIndex(
     (u) =>
-      String(u.id) === String(normalized.id) ||
-      (u.username && normalized.username && u.username.toLowerCase() === lowerUname)
+      String(u.id) === String(user.id) ||
+      (u.username && user.username && u.username.toLowerCase() === lowerUname)
   );
+  const existing = idx !== -1 ? store.users[idx] : null;
+
+  const normalized = {
+    id: user.id || existing?.id || "user_" + Date.now(),
+    name: user.name || existing?.name || "",
+    username: user.username || existing?.username || "",
+    email: user.email !== undefined ? user.email : (existing?.email || ""),
+    dept: user.dept || existing?.dept || "Biro Keuangan dan BMN",
+    role: lowerUname === "admin" ? "Admin" : (user.role || existing?.role || "User"),
+    status: user.status || existing?.status || "Aktif",
+  };
 
   if (user.password) {
     normalized.passwordHash = hashPassword(user.password);
-  } else if (idx !== -1 && store.users[idx].passwordHash) {
-    normalized.passwordHash = store.users[idx].passwordHash;
+  } else if (existing && existing.passwordHash) {
+    normalized.passwordHash = existing.passwordHash;
   }
 
   if (idx !== -1) {
@@ -1668,27 +1883,31 @@ async function saveUser(user) {
   }
 
   if (getIsConnected()) {
-    await query(`
-      INSERT INTO users (id, name, username, email, dept, role, status, password_hash, updated_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
-      ON CONFLICT (username) DO UPDATE SET
-        name = EXCLUDED.name,
-        email = EXCLUDED.email,
-        dept = EXCLUDED.dept,
-        role = EXCLUDED.role,
-        status = EXCLUDED.status,
-        password_hash = COALESCE(EXCLUDED.password_hash, users.password_hash),
-        updated_at = NOW();
-    `, [
-      String(normalized.id),
-      normalized.name,
-      normalized.username,
-      normalized.email || null,
-      normalized.dept || "Biro Keuangan dan BMN",
-      normalized.role || "User",
-      normalized.status || "Aktif",
-      normalized.passwordHash || null,
-    ]);
+    try {
+      await query(`
+        INSERT INTO users (id, name, username, email, dept, role, status, password_hash, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+        ON CONFLICT (username) DO UPDATE SET
+          name = EXCLUDED.name,
+          email = EXCLUDED.email,
+          dept = EXCLUDED.dept,
+          role = EXCLUDED.role,
+          status = EXCLUDED.status,
+          password_hash = COALESCE(EXCLUDED.password_hash, users.password_hash),
+          updated_at = NOW();
+      `, [
+        String(normalized.id),
+        normalized.name,
+        normalized.username,
+        normalized.email || null,
+        normalized.dept || "Biro Keuangan dan BMN",
+        normalized.role || "User",
+        normalized.status || "Aktif",
+        normalized.passwordHash || null,
+      ]);
+    } catch (dbErr) {
+      console.warn("[PostgreSQL] Gagal simpan user ke DB:", dbErr.message);
+    }
   }
 
   writeStore(store);
@@ -1697,26 +1916,51 @@ async function saveUser(user) {
 }
 
 async function deleteUser(id) {
-  const store = readStore();
-  if (!store.users) return false;
+  const targetId = String(id || "").trim();
+  if (!targetId) return false;
 
-  if (!getIsConnected()) {
-    const error = new Error("Database belum terhubung. Pengguna tidak dihapus.");
-    error.statusCode = 503;
+  // Akun Admin Utama dilindungi dari penghapusan
+  if (targetId.toLowerCase() === "admin") {
+    const error = new Error("Akun Admin Utama tidak dapat dihapus.");
+    error.statusCode = 400;
     throw error;
   }
 
-  const deleted = await query(
-    "DELETE FROM users WHERE id = $1 OR username = $1",
-    [String(id)],
-  );
-  if (!deleted.rowCount) return false;
+  const store = readStore();
+  let foundInStore = false;
+  if (Array.isArray(store.users)) {
+    const prevCount = store.users.length;
+    store.users = store.users.filter(
+      (u) =>
+        String(u.id) !== targetId &&
+        (u.username || "").toLowerCase() !== targetId.toLowerCase()
+    );
+    foundInStore = store.users.length < prevCount;
+  }
 
-  store.users = store.users.filter(
-    (u) =>
-      String(u.id) !== String(id) &&
-      (u.username || "").toLowerCase() !== String(id).toLowerCase()
-  );
+  let foundInDb = false;
+  if (getIsConnected()) {
+    try {
+      // Lepaskan ketergantungan relasi pemohon di tabel meetings agar tidak error
+      await query(
+        "UPDATE meetings SET booked_by_id = NULL WHERE booked_by_id = $1 OR LOWER(booked_by_username) = LOWER($1)",
+        [targetId]
+      );
+      const deleted = await query(
+        "DELETE FROM users WHERE id = $1 OR LOWER(username) = LOWER($1)",
+        [targetId]
+      );
+      foundInDb = (deleted.rowCount || 0) > 0;
+    } catch (dbErr) {
+      console.warn("[PostgreSQL] Error saat menghapus user dari DB:", dbErr.message);
+    }
+  }
+
+  // Jika ada di store ATAU ada di DB, proses penghapusan berhasil
+  if (!foundInStore && !foundInDb) {
+    return false;
+  }
+
   writeStore(store);
   return true;
 }

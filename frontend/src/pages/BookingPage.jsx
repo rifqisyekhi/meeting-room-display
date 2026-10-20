@@ -150,6 +150,13 @@ export default function BookingPage() {
       }
     } catch (e) {}
   }, []);
+
+  useEffect(() => {
+    document.body.classList.add("booking-fitscreen-active");
+    return () => {
+      document.body.classList.remove("booking-fitscreen-active");
+    };
+  }, []);
   const [selectedCategory, setSelectedCategory] = useState("Semua");
   const [selectedRoom, setSelectedRoom] = useState(() => {
     if (!suggestedBooking?.room) return null;
@@ -272,7 +279,7 @@ export default function BookingPage() {
   const handleBookingMaterialSelect = (event) => {
     const selectedFiles = Array.from(event.target.files || []);
     if (!selectedFiles.length) return;
-    const currentSize = bookingMaterials.reduce((total, item) => total + item.rawSize, 0);
+    const currentSize = bookingMaterials.reduce((total, item) => total + (item.rawSize || 0), 0);
     const incomingSize = selectedFiles.reduce((total, file) => total + file.size, 0);
     if (currentSize + incomingSize > 20 * 1024 * 1024) {
       alert("Total ukuran file materi maksimal 20 MB.");
@@ -280,25 +287,31 @@ export default function BookingPage() {
       return;
     }
 
-    Promise.all(selectedFiles.map((file) => new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const extension = file.name.split(".").pop().toLowerCase();
-        const type = extension === "ppt" || extension === "pptx" ? "ppt" : extension === "doc" || extension === "docx" ? "doc" : extension === "xls" || extension === "xlsx" ? "excel" : "pdf";
-        resolve({
-          id: `mat_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-          name: file.name,
-          size: file.size < 1024 * 1024 ? `${(file.size / 1024).toFixed(1)} KB` : `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
-          rawSize: file.size,
-          type,
-          url: reader.result,
-          uploadedBy: currentUser.name || currentUser.username || "Pemesan",
-        });
+    const newItems = selectedFiles.map((file) => {
+      const extension = file.name.split(".").pop().toLowerCase();
+      const type =
+        extension === "ppt" || extension === "pptx"
+          ? "ppt"
+          : extension === "doc" || extension === "docx"
+          ? "doc"
+          : extension === "xls" || extension === "xlsx"
+          ? "excel"
+          : "pdf";
+      return {
+        id: `mat_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        name: file.name,
+        size:
+          file.size < 1024 * 1024
+            ? `${(file.size / 1024).toFixed(1)} KB`
+            : `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
+        rawSize: file.size,
+        type,
+        file,
+        uploadedBy: currentUser.name || currentUser.username || "Pemesan",
       };
-      reader.onerror = () => reject(reader.error);
-      reader.readAsDataURL(file);
-    }))).then((items) => setBookingMaterials((current) => [...current, ...items]))
-      .catch(() => alert("File materi gagal dibaca. Silakan pilih file kembali."));
+    });
+
+    setBookingMaterials((current) => [...current, ...newItems]);
     event.target.value = "";
   };
 
@@ -311,15 +324,161 @@ export default function BookingPage() {
   const [selectedRoomDetail, setSelectedRoomDetail] = useState(null);
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
 
-  // Desktop: derived step for blur; Mobile: explicit step navigation
-  const currentStep = showSuccessModal
+  const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" && window.innerWidth < 768);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  const [mobileStep, setMobileStep] = useState(() => {
+    if (suggestedBooking?.room && suggestedBooking?.start && suggestedBooking?.end) {
+      return 3;
+    }
+    if (suggestedBooking?.room) {
+      return 2;
+    }
+    return 1;
+  });
+
+  const [slideDirection, setSlideDirection] = useState("next");
+  const touchStartXRef = useRef(0);
+  const touchStartYRef = useRef(0);
+
+  const changeMobileStep = (targetStep) => {
+    if (targetStep === mobileStep) return;
+    setSlideDirection(targetStep > mobileStep ? "next" : "prev");
+    setMobileStep(targetStep);
+    try {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (e) {
+      window.scrollTo(0, 0);
+    }
+  };
+
+  // Ensure mobileStep never exceeds the valid progression
+  useEffect(() => {
+    if (!selectedRoom && mobileStep > 1) {
+      setMobileStep(1);
+    } else if ((!selectedDate || !selectedTime) && mobileStep > 2) {
+      setMobileStep(2);
+    }
+  }, [mobileStep, selectedRoom, selectedDate, selectedTime]);
+
+  const finalBagianValue = bagian === "Other" ? customBagian.trim() : bagian;
+  const isFormFilled = Boolean(agenda.trim() && finalBagianValue && peserta && Number(peserta) > 0);
+
+  const desktopStep = showSuccessModal
     ? 4
     : selectedRoom
       ? selectedDate && selectedTime
-        ? 3
+        ? isFormFilled
+          ? 4
+          : 3
         : 2
       : 1;
-  const [mobileStep, setMobileStep] = useState(suggestedBooking ? 3 : 1); // 1, 2, 3
+
+  const activeStep = isMobile ? (showSuccessModal ? 4 : mobileStep) : desktopStep;
+
+  const handleStepClick = (targetStep) => {
+    if (targetStep === mobileStep) return;
+    if (targetStep === 1) {
+      if (isMobile) changeMobileStep(1);
+      return;
+    }
+    if (targetStep === 2) {
+      if (!selectedRoom) {
+        alert("Silakan pilih ruangan terlebih dahulu.");
+        return;
+      }
+      if (isMobile) changeMobileStep(2);
+      return;
+    }
+    if (targetStep === 3) {
+      if (!selectedRoom) {
+        alert("Silakan pilih ruangan terlebih dahulu.");
+        return;
+      }
+      if (!selectedDate || !selectedTime) {
+        alert("Silakan pilih tanggal dan jam rapat terlebih dahulu.");
+        return;
+      }
+      if (isMobile) changeMobileStep(3);
+      return;
+    }
+    if (targetStep === 4) {
+      if (!selectedRoom) {
+        alert("Silakan pilih ruangan terlebih dahulu.");
+        return;
+      }
+      if (!selectedDate || !selectedTime) {
+        alert("Silakan pilih tanggal dan jam rapat terlebih dahulu.");
+        return;
+      }
+      if (!isFormFilled) {
+        alert("Silakan lengkapi agenda, bagian, dan jumlah peserta terlebih dahulu.");
+        return;
+      }
+      if (isMobile) changeMobileStep(4);
+    }
+  };
+
+  const handleGoToStep4 = () => {
+    if (!agenda.trim()) {
+      alert("Mohon masukkan agenda rapat!");
+      return;
+    }
+    const currentBagian = bagian === "Other" ? customBagian.trim() : bagian;
+    if (!currentBagian) {
+      alert("Mohon masukkan nama bagian Anda!");
+      return;
+    }
+    if (!peserta || Number(peserta) <= 0) {
+      alert("Mohon masukkan jumlah peserta!");
+      return;
+    }
+    changeMobileStep(4);
+  };
+
+  // Touch gesture swipe handler for fluid mobile page changes
+  const handleTouchStart = (e) => {
+    if (e.touches && e.touches.length > 0) {
+      touchStartXRef.current = e.touches[0].clientX;
+      touchStartYRef.current = e.touches[0].clientY;
+    }
+  };
+
+  const handleTouchEnd = (e) => {
+    if (!touchStartXRef.current) return;
+    const endX = e.changedTouches[0].clientX;
+    const endY = e.changedTouches[0].clientY;
+    const deltaX = endX - touchStartXRef.current;
+    const deltaY = endY - touchStartYRef.current;
+
+    // Trigger only if horizontal swipe dominates over vertical scrolling
+    if (Math.abs(deltaX) > 65 && Math.abs(deltaX) > Math.abs(deltaY) * 1.5) {
+      if (deltaX < 0) {
+        // Swipe left -> advance to next step
+        if (mobileStep === 1 && selectedRoom) {
+          changeMobileStep(2);
+        } else if (mobileStep === 2 && selectedDate && selectedTime && !currentConflict) {
+          changeMobileStep(3);
+        } else if (mobileStep === 3 && isFormFilled) {
+          handleGoToStep4();
+        }
+      } else {
+        // Swipe right -> return to previous step
+        if (mobileStep > 1) {
+          changeMobileStep(mobileStep - 1);
+        }
+      }
+    }
+    touchStartXRef.current = 0;
+    touchStartYRef.current = 0;
+  };
 
   const [allMeetings, setAllMeetings] = useState([]);
 
@@ -624,164 +783,202 @@ export default function BookingPage() {
     }
 
     setIsSubmitting(true);
-    const nowIso = new Date().toISOString();
-    const tempId = Date.now();
-    const newMeeting = {
-      id: tempId,
-      title: agenda,
-      requester: finalBagian,
-      bookedBy: currentUser.name || currentUser.username || "",
-      bookedByUsername: currentUser.username || "",
-      room: selectedRoom?.name,
-      date: selectedDate,
-      start,
-      end,
-      status: "Menunggu Approval",
-      participants: parseInt(peserta) || 0,
-      desc: agenda,
-      materials: bookingMaterials.map(({ rawSize, ...material }) => material),
-      createdAt: nowIso,
-    };
-
-    let currentMeetings = [];
     try {
-      const stored = localStorage.getItem("app_meetings");
-      currentMeetings = stored ? sanitizeMeetings(JSON.parse(stored)) : [];
-      if (!Array.isArray(currentMeetings)) currentMeetings = [];
-    } catch (e) {
-      currentMeetings = [];
-    }
-    currentMeetings.push(newMeeting);
-    localStorage.setItem("app_meetings", JSON.stringify(currentMeetings));
+      const nowIso = new Date().toISOString();
+      const tempId = Date.now();
 
-    // Picu event sinkronisasi agar Dashboard langsung terupdate
-    window.dispatchEvent(new Event("storage"));
-    window.dispatchEvent(new Event("app_meetings_updated"));
-    try {
-      if (window.parent && window.parent !== window) {
-        window.parent.dispatchEvent(new Event("storage"));
-        window.parent.dispatchEvent(new Event("app_meetings_updated"));
-      }
-    } catch (err) {}
+      // Hanya sertakan materi yang sudah memiliki URL (non-file/link) pada pembuatan awal rapat.
+      // File biner diunggah via endpoint /materials/file dan otomatis dimasukkan dengan URL resminya.
+      const initialMaterials = bookingMaterials
+        .filter((m) => Boolean(m.url) && !(m.file instanceof File))
+        .map(({ rawSize, file, ...material }) => material);
 
-    // Tambahkan notifikasi ke antrean untuk Dashboard Admin & Akun Approval
-    try {
-      const storedNotifs = JSON.parse(
-        localStorage.getItem("app_notifications") || "[]",
-      );
-      const newNotif = {
-        id: String(newMeeting.id),
-        meetingId: String(newMeeting.id),
-        type: "NEW_REQUEST",
-        title: "Permintaan Booking Ruang Rapat",
-        message: `${finalBagian} mengajukan permohonan peminjaman ${selectedRoom?.name} untuk agenda "${agenda}"`,
-        room: selectedRoom?.name,
+      const newMeeting = {
+        id: tempId,
+        title: agenda,
         requester: finalBagian,
+        bookedBy: currentUser.name || currentUser.username || "",
+        bookedByUsername: currentUser.username || "",
+        room: selectedRoom?.name,
         date: selectedDate,
-        time: `${start} - ${end}`,
-        agenda: agenda,
-        createdAt: nowIso,
-        readBy: [],
+        start,
+        end,
         status: "Menunggu Approval",
+        participants: parseInt(peserta) || 0,
+        desc: agenda,
+        materials: initialMaterials,
+        createdAt: nowIso,
       };
-      // Cegah notifikasi ganda jika sudah ada dengan ID atau slot ruangan yang sama
-      const isAlreadyInNotifs = storedNotifs.some(
-        (n) =>
-          String(n.meetingId || n.id) === String(newMeeting.id) ||
-          (n.room === newNotif.room && n.date === newNotif.date && n.time === newNotif.time),
-      );
-      if (!isAlreadyInNotifs) {
-        storedNotifs.unshift(newNotif);
-        localStorage.setItem("app_notifications", JSON.stringify(storedNotifs));
-        window.dispatchEvent(new Event("app_notifications_updated"));
-        try {
+
+      // Simpan lokal dengan penanganan exception aman
+      try {
+        const stored = localStorage.getItem("app_meetings");
+        let currentMeetings = stored ? sanitizeMeetings(JSON.parse(stored)) : [];
+        if (!Array.isArray(currentMeetings)) currentMeetings = [];
+        currentMeetings.push(newMeeting);
+        localStorage.setItem("app_meetings", JSON.stringify(currentMeetings));
+      } catch (storageErr) {
+        console.warn("Penyimpanan lokal app_meetings gagal:", storageErr);
+      }
+
+      // Picu event sinkronisasi agar Dashboard langsung terupdate
+      try {
+        window.dispatchEvent(new Event("storage"));
+        window.dispatchEvent(new Event("app_meetings_updated"));
+        if (window.parent && window.parent !== window) {
+          window.parent.dispatchEvent(new Event("storage"));
+          window.parent.dispatchEvent(new Event("app_meetings_updated"));
+        }
+      } catch (err) {}
+
+      // Tambahkan notifikasi ke antrean untuk Dashboard Admin & Akun Approval
+      try {
+        const storedNotifs = JSON.parse(
+          localStorage.getItem("app_notifications") || "[]",
+        );
+        const newNotif = {
+          id: String(newMeeting.id),
+          meetingId: String(newMeeting.id),
+          type: "NEW_REQUEST",
+          title: "Permintaan Booking Ruang Rapat",
+          message: `${finalBagian} mengajukan permohonan peminjaman ${selectedRoom?.name} untuk agenda "${agenda}"`,
+          room: selectedRoom?.name,
+          requester: finalBagian,
+          date: selectedDate,
+          time: `${start} - ${end}`,
+          agenda: agenda,
+          createdAt: nowIso,
+          readBy: [],
+          status: "Menunggu Approval",
+        };
+        const isAlreadyInNotifs = storedNotifs.some(
+          (n) =>
+            String(n.meetingId || n.id) === String(newMeeting.id) ||
+            (n.room === newNotif.room && n.date === newNotif.date && n.time === newNotif.time),
+        );
+        if (!isAlreadyInNotifs) {
+          storedNotifs.unshift(newNotif);
+          localStorage.setItem("app_notifications", JSON.stringify(storedNotifs));
+          window.dispatchEvent(new Event("app_notifications_updated"));
           if (window.parent && window.parent !== window) {
             window.parent.dispatchEvent(new Event("app_notifications_updated"));
           }
-        } catch (err) {}
-      }
-    } catch (e) {}
+        }
+      } catch (e) {}
 
-    // Kirim ke backend & Google Calendar
-    try {
-      const res = await fetch("/api/dashboard/meetings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newMeeting),
+      // Kirim ke backend & Google Calendar
+      let backendMeetingId = String(tempId);
+      try {
+        const res = await fetch("/api/dashboard/meetings", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(newMeeting),
+        });
+
+        if (res.ok) {
+          const result = await res.json();
+          if (result?.meeting?.id) {
+            backendMeetingId = String(result.meeting.id);
+            newMeeting.id = result.meeting.id;
+            newMeeting.googleId = result.meeting.googleId;
+
+            let freshMeeting = result.meeting;
+            // Jika ada file biner yang diunggah, unggah langsung ke endpoint server
+            const filesToUpload = bookingMaterials.filter((m) => m.file instanceof File);
+            if (filesToUpload.length > 0) {
+              for (const mat of filesToUpload) {
+                try {
+                  const uploadRes = await fetch(`/api/dashboard/meetings/${backendMeetingId}/materials/file`, {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/octet-stream",
+                      "X-File-Name": encodeURIComponent(mat.file.name),
+                      "X-Material-Name": encodeURIComponent(mat.name),
+                      "X-Uploaded-By": encodeURIComponent(mat.uploadedBy || currentUser.name || "Pemesan"),
+                    },
+                    body: mat.file,
+                  });
+                  if (uploadRes.ok) {
+                    const uploadData = await uploadRes.json();
+                    if (uploadData.meeting) {
+                      freshMeeting = uploadData.meeting;
+                    }
+                  }
+                } catch (uploadErr) {
+                  console.warn("Gagal unggah file materi biner:", uploadErr);
+                }
+              }
+            }
+
+            // Perbarui app_meetings dengan data ID resmi dan materi ber-URL dari backend
+            try {
+              const stored = JSON.parse(localStorage.getItem("app_meetings") || "[]");
+              const updated = stored.map((m) =>
+                String(m.id) === String(tempId) ||
+                String(m.id) === backendMeetingId ||
+                (m.date === newMeeting.date && m.start === newMeeting.start && m.room === newMeeting.room)
+                  ? { ...m, ...freshMeeting }
+                  : m,
+              );
+              localStorage.setItem("app_meetings", JSON.stringify(updated));
+              window.dispatchEvent(new Event("storage"));
+              window.dispatchEvent(new Event("app_meetings_updated"));
+              if (window.parent && window.parent !== window) {
+                window.parent.dispatchEvent(new Event("storage"));
+                window.parent.dispatchEvent(new Event("app_meetings_updated"));
+              }
+            } catch (e) {}
+
+            // Perbarui app_notifications agar ID selaras dengan ID backend
+            try {
+              const storedNotifs = JSON.parse(localStorage.getItem("app_notifications") || "[]");
+              let updatedNotifs = false;
+              const updatedN = storedNotifs.map((n) => {
+                if (
+                  String(n.meetingId || n.id) === String(tempId) ||
+                  (n.room === newMeeting.room && n.date === newMeeting.date && n.time === `${start} - ${end}`)
+                ) {
+                  updatedNotifs = true;
+                  return { ...n, id: backendMeetingId, meetingId: backendMeetingId };
+                }
+                return n;
+              });
+              if (updatedNotifs) {
+                localStorage.setItem("app_notifications", JSON.stringify(updatedN));
+                window.dispatchEvent(new Event("app_notifications_updated"));
+                if (window.parent && window.parent !== window) {
+                  window.parent.dispatchEvent(new Event("app_notifications_updated"));
+                }
+              }
+            } catch (e) {}
+          }
+        }
+      } catch (err) {
+        console.warn("Sinkronisasi ke Google Calendar/Backend:", err);
+      }
+
+      // Simpan rincian untuk ditampilkan pada modal konfirmasi sukses
+      const displayTimeString = selectedTime
+        ? selectedTime.replace(/:/g, ".")
+        : `${start.replace(/:/g, ".")} - ${end.replace(/:/g, ".")}`;
+
+      setBookedDetails({
+        roomName: selectedRoom?.name,
+        bagian: finalBagian,
+        dateString: formattedDateString,
+        timeString: displayTimeString,
+        agenda: agenda,
+        participants: peserta,
       });
 
-      if (res.ok) {
-        const result = await res.json();
-        if (result?.meeting?.id) {
-          const backendMeetingId = String(result.meeting.id);
-          newMeeting.id = result.meeting.id;
-          newMeeting.googleId = result.meeting.googleId;
-
-          // Perbarui app_meetings dengan data ID resmi dari backend
-          try {
-            const stored = JSON.parse(localStorage.getItem("app_meetings") || "[]");
-            const updated = stored.map((m) =>
-              String(m.id) === String(tempId) ||
-              String(m.id) === backendMeetingId ||
-              (m.date === newMeeting.date && m.start === newMeeting.start && m.room === newMeeting.room)
-                ? { ...m, ...result.meeting }
-                : m,
-            );
-            localStorage.setItem("app_meetings", JSON.stringify(updated));
-            window.dispatchEvent(new Event("storage"));
-            window.dispatchEvent(new Event("app_meetings_updated"));
-            if (window.parent && window.parent !== window) {
-              window.parent.dispatchEvent(new Event("storage"));
-              window.parent.dispatchEvent(new Event("app_meetings_updated"));
-            }
-          } catch (e) {}
-
-          // Perbarui app_notifications agar ID selaras dengan ID backend
-          try {
-            const storedNotifs = JSON.parse(localStorage.getItem("app_notifications") || "[]");
-            let updatedNotifs = false;
-            const updatedN = storedNotifs.map((n) => {
-              if (
-                String(n.meetingId || n.id) === String(tempId) ||
-                (n.room === newMeeting.room && n.date === newMeeting.date && n.time === `${start} - ${end}`)
-              ) {
-                updatedNotifs = true;
-                return { ...n, id: backendMeetingId, meetingId: backendMeetingId };
-              }
-              return n;
-            });
-            if (updatedNotifs) {
-              localStorage.setItem("app_notifications", JSON.stringify(updatedN));
-              window.dispatchEvent(new Event("app_notifications_updated"));
-              if (window.parent && window.parent !== window) {
-                window.parent.dispatchEvent(new Event("app_notifications_updated"));
-              }
-            }
-          } catch (e) {}
-        }
-      }
-    } catch (err) {
-      console.warn("Sinkronisasi ke Google Calendar/Backend:", err);
+      // Buka popup modal konfirmasi
+      setShowSuccessModal(true);
+    } catch (globalErr) {
+      console.error("Gagal melakukan booking:", globalErr);
+      alert("Terjadi kesalahan saat memproses booking: " + (globalErr.message || "Silakan coba lagi."));
     } finally {
       setIsSubmitting(false);
     }
-
-    // Simpan rincian untuk ditampilkan pada modal konfirmasi sukses
-    const displayTimeString = selectedTime
-      ? selectedTime.replace(/:/g, ".")
-      : `${start.replace(/:/g, ".")} - ${end.replace(/:/g, ".")}`;
-
-    setBookedDetails({
-      roomName: selectedRoom?.name,
-      bagian: finalBagian,
-      dateString: formattedDateString,
-      timeString: displayTimeString,
-      agenda: agenda,
-      participants: peserta,
-    });
-
-    // Buka popup modal konfirmasi
-    setShowSuccessModal(true);
   };
 
   const handleFinishBooking = () => {
@@ -865,7 +1062,9 @@ export default function BookingPage() {
   // Mobile: handle room selection + auto advance
   const handleSelectRoom = (room) => {
     setSelectedRoom(room);
-    setMobileStep(2);
+    if (isMobile) {
+      changeMobileStep(2);
+    }
   };
 
   // ---- Shared column content (rendered both desktop & mobile) ----
@@ -973,6 +1172,25 @@ export default function BookingPage() {
   const colDateTime = (
     <>
       <h2 className="bk-col-title">PILIH TANGGAL &amp; WAKTU</h2>
+
+      {/* Mini banner ruangan terpilih khusus mobile di atas kalender */}
+      {isMobile && selectedRoom && (
+        <div className="bk-mobile-step-summary-bar">
+          <div className="bk-mssb-info">
+            <strong>{selectedRoom.name}</strong>
+            <span>Kapasitas: {selectedRoom.capacity} Orang · {selectedRoom.location || "-"}</span>
+          </div>
+          <button
+            type="button"
+            className="bk-mssb-change"
+            onClick={() => changeMobileStep(1)}
+            title="Ganti Ruangan Rapat"
+          >
+            Ganti Ruang
+          </button>
+        </div>
+      )}
+
       <div className="bk-datetime-scroll">
         <div className="bk-month-selector">
           <div className="bk-month-header-row">
@@ -1401,41 +1619,70 @@ export default function BookingPage() {
         </div>
       </header>
 
-      {/* Stepper */}
+      {/* Stepper (Timeline 1 - 4) */}
       <div className="bk-stepper">
-        <div
-          className={`bk-step ${currentStep > 1 ? "completed" : currentStep === 1 ? "active" : "upcoming"} ${mobileStep >= 1 ? "mobile-active" : ""}`}
-          onClick={() => setMobileStep(1)}
-        >
-          <span className="step-num">{currentStep > 1 ? "✓" : "1"}</span>{" "}
-          <span className="step-label">Pilih Ruangan</span>
+        {/* Progress track bar for mobile animation */}
+        <div className="bk-stepper-progress-track">
+          <div
+            className="bk-stepper-progress-fill"
+            style={{ width: `${(activeStep / 4) * 100}%` }}
+          />
         </div>
-        <div className={`bk-line ${currentStep > 1 ? "completed" : ""}`}></div>
-        <div
-          className={`bk-step ${currentStep > 2 ? "completed" : currentStep === 2 ? "active" : "upcoming"} ${mobileStep >= 2 ? "mobile-active" : ""}`}
-          onClick={() => {
-            if (selectedRoom) setMobileStep(2);
-          }}
-        >
-          <span className="step-num">{currentStep > 2 ? "✓" : "2"}</span>{" "}
-          <span className="step-label">Pilih Tanggal &amp; Waktu</span>
+
+        <div className="bk-stepper-steps-row">
+          <div
+            className={`bk-step ${showSuccessModal || activeStep > 1 ? "completed" : activeStep === 1 ? "active" : "upcoming"}`}
+            onClick={() => handleStepClick(1)}
+            title="Langkah 1: Pilih Ruangan"
+          >
+            <span className="step-num">{showSuccessModal || activeStep > 1 ? "✓" : "1"}</span>{" "}
+            <span className="step-label">Pilih Ruangan</span>
+          </div>
+          <div className={`bk-line ${showSuccessModal || activeStep > 1 ? "completed" : ""}`}></div>
+
+          <div
+            className={`bk-step ${showSuccessModal || activeStep > 2 ? "completed" : activeStep === 2 ? "active" : "upcoming"}`}
+            onClick={() => handleStepClick(2)}
+            title="Langkah 2: Pilih Tanggal & Waktu"
+          >
+            <span className="step-num">{showSuccessModal || activeStep > 2 ? "✓" : "2"}</span>{" "}
+            <span className="step-label">Pilih Tanggal &amp; Waktu</span>
+          </div>
+          <div className={`bk-line ${showSuccessModal || activeStep > 2 ? "completed" : ""}`}></div>
+
+          <div
+            className={`bk-step ${showSuccessModal || activeStep > 3 ? "completed" : activeStep === 3 ? "active" : "upcoming"}`}
+            onClick={() => handleStepClick(3)}
+            title="Langkah 3: Isi Detail Rapat"
+          >
+            <span className="step-num">{showSuccessModal || activeStep > 3 ? "✓" : "3"}</span>{" "}
+            <span className="step-label">Isi Detail Rapat</span>
+          </div>
+          <div className={`bk-line ${showSuccessModal || activeStep > 3 ? "completed" : ""}`}></div>
+
+          <div
+            className={`bk-step ${showSuccessModal ? "completed" : activeStep === 4 ? "active" : "upcoming"}`}
+            onClick={() => handleStepClick(4)}
+            title="Langkah 4: Konfirmasi"
+          >
+            <span className="step-num">{showSuccessModal ? "✓" : "4"}</span>{" "}
+            <span className="step-label">Konfirmasi</span>
+          </div>
         </div>
-        <div className={`bk-line ${currentStep > 2 ? "completed" : ""}`}></div>
-        <div
-          className={`bk-step ${currentStep > 3 ? "completed" : currentStep === 3 ? "active" : "upcoming"} ${mobileStep >= 3 ? "mobile-active" : ""}`}
-          onClick={() => {
-            if (selectedRoom && selectedDate && selectedTime) setMobileStep(3);
-          }}
-        >
-          <span className="step-num">{currentStep > 3 ? "✓" : "3"}</span>{" "}
-          <span className="step-label">Isi Detail Rapat</span>
-        </div>
-        <div className={`bk-line ${currentStep > 3 ? "completed" : ""}`}></div>
-        <div
-          className={`bk-step ${currentStep === 4 ? "active" : "upcoming"} ${showSuccessModal ? "mobile-active" : ""}`}
-        >
-          <span className="step-num">{currentStep === 4 ? "✓" : "4"}</span>{" "}
-          <span className="step-label">Konfirmasi</span>
+
+        {/* Dynamic Mobile Step Badge with subtle entrance animation */}
+        <div className="bk-mobile-step-badge" key={`badge-${activeStep}`}>
+          <span className="bk-msb-counter">Langkah {activeStep} / 4</span>
+          <span className="bk-msb-sep">•</span>
+          <span className="bk-msb-name">
+            {activeStep === 1
+              ? "Pilih Ruang Rapat"
+              : activeStep === 2
+              ? "Pilih Tanggal & Waktu"
+              : activeStep === 3
+              ? "Isi Detail Rapat"
+              : "Konfirmasi Pemesanan"}
+          </span>
         </div>
       </div>
 
@@ -1452,15 +1699,19 @@ export default function BookingPage() {
         </div>
       </div>
 
-      {/* ── MOBILE LAYOUT (slide one step at a time, fit screen) ── */}
-      <div className="bk-mobile">
-        {/* Sliding track */}
+      {/* ── MOBILE LAYOUT (slide 1-4, fit screen) ── */}
+      <div
+        className="bk-mobile"
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
+        {/* Sliding track with 4 steps */}
         <div
           className="bk-mobile-track"
-          style={{ transform: `translateX(${-(mobileStep - 1) * 100}%)` }}
+          style={{ transform: `translate3d(${-(mobileStep - 1) * 100}%, 0, 0)` }}
         >
           {/* Slide 1: Pilih Ruangan */}
-          <div className="bk-mobile-slide">
+          <div className={`bk-mobile-slide ${mobileStep === 1 ? `is-active anim-${slideDirection}` : ""}`}>
             <div className="bk-col">
               {colRoom}
               <div className="bk-mobile-nav">
@@ -1472,7 +1723,7 @@ export default function BookingPage() {
                 <button
                   className="bk-mnav-btn primary bk-mnav-single"
                   disabled={!selectedRoom}
-                  onClick={() => setMobileStep(2)}
+                  onClick={() => changeMobileStep(2)}
                 >
                   Selanjutnya <FaChevronRight />
                 </button>
@@ -1481,20 +1732,20 @@ export default function BookingPage() {
           </div>
 
           {/* Slide 2: Pilih Tanggal & Waktu */}
-          <div className="bk-mobile-slide">
+          <div className={`bk-mobile-slide ${mobileStep === 2 ? `is-active anim-${slideDirection}` : ""}`}>
             <div className="bk-col">
               {colDateTime}
               <div className="bk-mobile-nav">
                 <button
                   className="bk-mnav-btn outline"
-                  onClick={() => setMobileStep(1)}
+                  onClick={() => changeMobileStep(1)}
                 >
                   <FaChevronLeft /> Kembali
                 </button>
                 <button
                   className="bk-mnav-btn primary"
-                  disabled={!selectedDate || !selectedTime}
-                  onClick={() => setMobileStep(3)}
+                  disabled={!selectedDate || !selectedTime || Boolean(currentConflict)}
+                  onClick={() => changeMobileStep(3)}
                 >
                   Selanjutnya <FaChevronRight />
                 </button>
@@ -1502,23 +1753,211 @@ export default function BookingPage() {
             </div>
           </div>
 
-          {/* Slide 3: Detail Pemesanan */}
-          <div className="bk-mobile-slide">
+          {/* Slide 3: Isi Detail Rapat */}
+          <div className={`bk-mobile-slide ${mobileStep === 3 ? `is-active anim-${slideDirection}` : ""}`}>
             <div className="bk-col">
-              {colDetail}
+              <h2 className="bk-col-title">ISI DETAIL RAPAT</h2>
+              {/* Summary Chip of selected room & time */}
+              <div className="bk-mobile-step-summary-bar">
+                <div className="bk-mssb-info">
+                  <strong>{selectedRoom?.name || "Ruangan belum dipilih"}</strong>
+                  <span>{formattedDateString} · {selectedTime || "Waktu belum dipilih"}</span>
+                </div>
+                <button
+                  type="button"
+                  className="bk-mssb-change"
+                  onClick={() => changeMobileStep(2)}
+                >
+                  Ubah Waktu
+                </button>
+              </div>
+
+              <div className="bk-mobile-form-scroll">
+                <div className="bk-form">
+                  <div className="bk-form-group">
+                    <label>
+                      <FaRegListAlt className="bk-icon-dark" /> Agenda Rapat
+                    </label>
+                    <textarea
+                      placeholder="Masukkan agenda rapat secara spesifik..."
+                      value={agenda}
+                      onChange={(e) => setAgenda(e.target.value)}
+                    ></textarea>
+                  </div>
+                  <div className="bk-form-group">
+                    <label>
+                      <FaRegBuilding className="bk-icon-dark" /> Bagian
+                    </label>
+                    <select
+                      value={bagian}
+                      onChange={(e) => {
+                        setBagian(e.target.value);
+                        if (e.target.value !== "Other") {
+                          setCustomBagian("");
+                        }
+                      }}
+                    >
+                      <option value="" disabled>
+                        Pilih bagian
+                      </option>
+                      <option value="TU">TU</option>
+                      <option value="AKLAP">AKLAP</option>
+                      <option value="BMN">BMN</option>
+                      <option value="PA">PA</option>
+                      <option value="PTUK">PTUK</option>
+                      <option value="Other">Other</option>
+                    </select>
+                    {bagian === "Other" && (
+                      <input
+                        type="text"
+                        className="bk-input-custom-bagian"
+                        placeholder="Ketik nama bagian Anda..."
+                        value={customBagian}
+                        onChange={(e) => setCustomBagian(e.target.value)}
+                        autoFocus
+                      />
+                    )}
+                  </div>
+                  <div className="bk-form-group">
+                    <label>
+                      <FaUsers className="bk-icon-dark" /> Jumlah Peserta
+                    </label>
+                    <div className="bk-peserta-input-wrap">
+                      <input
+                        type="number"
+                        min="1"
+                        placeholder="Masukkan jumlah peserta"
+                        value={peserta}
+                        onChange={(e) => setPeserta(e.target.value)}
+                      />
+                      <span className="bk-peserta-suffix">Orang</span>
+                    </div>
+                  </div>
+                  <div className="bk-booking-materials">
+                    <input
+                      ref={materialInputRef}
+                      type="file"
+                      accept=".pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,application/pdf,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation"
+                      multiple
+                      onChange={handleBookingMaterialSelect}
+                      hidden
+                    />
+                    <button type="button" className="bk-add-material-btn" onClick={() => materialInputRef.current?.click()}>
+                      <FaFileUpload /> Tambah File Materi
+                    </button>
+                    <small>PDF, PowerPoint, Word, atau Excel · total maksimal 20 MB</small>
+                    {bookingMaterials.length > 0 && (
+                      <ul className="bk-selected-materials">
+                        {bookingMaterials.map((material) => (
+                          <li key={material.id}>
+                            <span><FaFileUpload /> {material.name} <small>{material.size}</small></span>
+                            <button type="button" aria-label={`Hapus ${material.name}`} onClick={() => setBookingMaterials((items) => items.filter((item) => item.id !== material.id))}><FaTimes /></button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               <div className="bk-mobile-nav">
                 <button
                   className="bk-mnav-btn outline"
-                  onClick={() => setMobileStep(2)}
+                  onClick={() => changeMobileStep(2)}
                 >
                   <FaChevronLeft /> Kembali
+                </button>
+                <button
+                  className="bk-mnav-btn primary"
+                  onClick={handleGoToStep4}
+                  disabled={!isFormFilled}
+                >
+                  Konfirmasi <FaChevronRight />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Slide 4: Konfirmasi Pemesanan */}
+          <div className={`bk-mobile-slide ${mobileStep === 4 ? `is-active anim-${slideDirection}` : ""}`}>
+            <div className="bk-col">
+              <h2 className="bk-col-title">KONFIRMASI PEMESANAN</h2>
+              <div className="bk-confirmation-scroll">
+                <div className="bk-conf-banner">
+                  <span className="bk-conf-badge">Langkah 4 / 4</span>
+                  <h3>Periksa Rincian Pemesanan</h3>
+                  <p>Pastikan informasi ruangan, jadwal, dan agenda sudah benar sebelum mengajukan pemesanan.</p>
+                </div>
+
+                <div className="bk-conf-card">
+                  <div className="bk-conf-room-header">
+                    <img src={selectedRoom?.img} alt={selectedRoom?.name} className="bk-conf-room-img" />
+                    <div className="bk-conf-room-details">
+                      <h4>{selectedRoom?.name || "-"}</h4>
+                      <span className="bk-conf-room-meta"><FaUserFriends /> Kapasitas: {selectedRoom?.capacity || "-"} Orang</span>
+                      <span className="bk-conf-room-meta"><FaMapMarkerAlt /> {selectedRoom?.location || "-"}</span>
+                    </div>
+                  </div>
+
+                  <div className="bk-conf-divider" />
+
+                  <div className="bk-conf-details-list">
+                    <div className="bk-conf-row">
+                      <span className="bk-conf-label"><FaRegCalendarAlt /> Tanggal Rapat</span>
+                      <strong className="bk-conf-val">{formattedDateString || "-"}</strong>
+                    </div>
+                    <div className="bk-conf-row">
+                      <span className="bk-conf-label"><FaRegClock /> Waktu Rapat</span>
+                      <strong className="bk-conf-val bk-time-highlight">{selectedTime || "-"} WIB</strong>
+                    </div>
+                    <div className="bk-conf-row">
+                      <span className="bk-conf-label"><FaRegListAlt /> Agenda Rapat</span>
+                      <strong className="bk-conf-val">{agenda || "-"}</strong>
+                    </div>
+                    <div className="bk-conf-row">
+                      <span className="bk-conf-label"><FaRegBuilding /> Bagian / Unit Kerja</span>
+                      <strong className="bk-conf-val">{finalBagianValue || "-"}</strong>
+                    </div>
+                    <div className="bk-conf-row">
+                      <span className="bk-conf-label"><FaUsers /> Jumlah Peserta</span>
+                      <strong className="bk-conf-val">{peserta ? `${peserta} Orang` : "-"}</strong>
+                    </div>
+                    <div className="bk-conf-row">
+                      <span className="bk-conf-label"><FaFileUpload /> File Materi</span>
+                      <strong className="bk-conf-val">
+                        {bookingMaterials.length > 0
+                          ? `${bookingMaterials.length} file dilampirkan`
+                          : "Tidak ada materi"}
+                      </strong>
+                    </div>
+                    {bookingMaterials.length > 0 && (
+                      <div className="bk-conf-materials-preview">
+                        {bookingMaterials.map((m) => (
+                          <div key={m.id} className="bk-conf-mat-pill">
+                            <FaFileUpload />
+                            <span>{m.name}</span>
+                            <small>({m.size})</small>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="bk-mobile-nav">
+                <button
+                  className="bk-mnav-btn outline"
+                  onClick={() => changeMobileStep(3)}
+                >
+                  <FaChevronLeft /> Ubah Data
                 </button>
                 <button
                   className="bk-mnav-btn primary"
                   onClick={handleBooking}
                   disabled={isSubmitting}
                 >
-                  {isSubmitting ? "Memproses..." : "Booking Sekarang"}
+                  {isSubmitting ? "Memproses..." : "✓ Booking Sekarang"}
                 </button>
               </div>
             </div>

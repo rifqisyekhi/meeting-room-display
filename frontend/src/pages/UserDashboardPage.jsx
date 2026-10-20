@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { FaCalendarAlt, FaDoorOpen, FaEye, FaEyeSlash, FaHistory, FaLock, FaSignOutAlt, FaUser } from "react-icons/fa";
+import { FaBars, FaCalendarAlt, FaDoorOpen, FaEye, FaEyeSlash, FaHistory, FaLock, FaSignOutAlt, FaTimes, FaUser } from "react-icons/fa";
 import { IoMdHome } from "react-icons/io";
 import "./UserDashboardPage.css";
 
@@ -63,6 +63,7 @@ export default function UserDashboardPage() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [visiblePasswords, setVisiblePasswords] = useState({ current: false, next: false, confirm: false });
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [passwordMessage, setPasswordMessage] = useState("");
   const [passwordError, setPasswordError] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
@@ -188,6 +189,16 @@ export default function UserDashboardPage() {
       });
       const result = await response.json();
       if (!response.ok || !result.success) throw new Error(result.message || "Password gagal diperbarui.");
+
+      try {
+        const stored = JSON.parse(localStorage.getItem("app_login_users") || "[]");
+        const idx = stored.findIndex((u) => (u.username || "").toLowerCase() === (user.username || "").toLowerCase());
+        if (idx !== -1) {
+          stored[idx].password = newPassword;
+          localStorage.setItem("app_login_users", JSON.stringify(stored));
+        }
+      } catch (e) {}
+
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
@@ -221,7 +232,12 @@ export default function UserDashboardPage() {
 
   return (
     <div className="user-dashboard-shell">
-      <aside className="user-dashboard-sidebar">
+      <div
+        className={`user-dashboard-backdrop ${mobileSidebarOpen ? "visible" : ""}`}
+        onClick={() => setMobileSidebarOpen(false)}
+        aria-hidden="true"
+      />
+      <aside className={`user-dashboard-sidebar ${mobileSidebarOpen ? "open" : ""}`}>
         <div className="user-dashboard-brand">
           <img
             src="/dashboard-app/assets/kemenaker-white.png"
@@ -232,30 +248,54 @@ export default function UserDashboardPage() {
             <b>MEETING DISPLAY ROOM</b>
             <small>BIRO KEUANGAN DAN BMN</small>
           </div>
+          <button
+            type="button"
+            className="user-dashboard-sidebar-close"
+            aria-label="Tutup menu navigasi"
+            onClick={() => setMobileSidebarOpen(false)}
+          >
+            <FaTimes />
+          </button>
         </div>
         <nav className="user-dashboard-nav" aria-label="Navigasi pengguna">
           <button
             type="button"
             className={!profileOpen ? "active" : ""}
             onClick={() => {
+              setMobileSidebarOpen(false);
               navigate("/dashboard");
             }}
           >
             <IoMdHome />
             <span>Dashboard</span>
           </button>
-          <button type="button" onClick={() => navigate("/booking")}>
+          <button
+            type="button"
+            onClick={() => {
+              setMobileSidebarOpen(false);
+              navigate("/booking");
+            }}
+          >
             <FaCalendarAlt />
             <span>Booking Ruangan</span>
           </button>
-          <button type="button" onClick={() => navigate("/booking/history")}>
+          <button
+            type="button"
+            onClick={() => {
+              setMobileSidebarOpen(false);
+              navigate("/booking/history");
+            }}
+          >
             <FaHistory />
             <span>Riwayat Pemesanan</span>
           </button>
           <button
             type="button"
             className={profileOpen ? "active" : ""}
-            onClick={openProfile}
+            onClick={() => {
+              setMobileSidebarOpen(false);
+              openProfile();
+            }}
           >
             <FaUser />
             <span>Profil</span>
@@ -278,8 +318,27 @@ export default function UserDashboardPage() {
 
       <main className="user-dashboard-main">
         <header className="user-dashboard-topbar">
-          <div><small>Portal Pengguna</small><strong>{profileOpen ? "Profil Saya" : "Dashboard"}</strong></div>
-          <button className="user-dashboard-profile-button" onClick={openProfile}>
+          <div className="user-dashboard-topbar-left">
+            <button
+              type="button"
+              className="user-dashboard-menu-toggle"
+              aria-label={mobileSidebarOpen ? "Tutup menu navigasi" : "Buka menu navigasi"}
+              onClick={() => setMobileSidebarOpen(!mobileSidebarOpen)}
+            >
+              {mobileSidebarOpen ? <FaTimes /> : <FaBars />}
+            </button>
+            <div className="user-dashboard-topbar-title-block">
+              <small>Portal Pengguna</small>
+              <strong>{profileOpen ? "Profil Saya" : "Dashboard"}</strong>
+            </div>
+          </div>
+          <button
+            className="user-dashboard-profile-button"
+            onClick={() => {
+              setMobileSidebarOpen(false);
+              openProfile();
+            }}
+          >
             <span className="user-dashboard-topbar-avatar">{(user.name || user.username || "U").charAt(0).toUpperCase()}</span>
             <span className="user-dashboard-topbar-account"><strong>{user.name || user.username || "Pengguna"}</strong><small>{user.role || "User"}</small></span>
           </button>

@@ -145,15 +145,23 @@
 }
 
 @media (max-width: 767px) {
-  .booking-account-bar { min-height: 52px; padding: 8px 12px; gap: 8px; }
-  .booking-account-brand { gap: 7px; }
-  .booking-account-brand img { width: 25px; height: 25px; }
-  .booking-account-brand span { font-size: 10px; }
-  .booking-account-actions { gap: 7px; }
+  .booking-account-bar { min-height: 52px; padding: 6px 12px; gap: 8px; }
+  .booking-account-brand { gap: 6px; }
+  .booking-account-brand img { width: 26px; height: 26px; }
+  .booking-account-brand span { font-size: 11px; }
+  .booking-account-actions { gap: 8px; }
   .booking-account-help { display: none; }
-  .booking-section-nav { gap: 0; padding: 3px; border-radius: 9px; }
-  .booking-section-nav button { padding: 8px 7px 10px; font-size: 8px; }
-  .booking-section-nav button.active::after { right: 7px; bottom: 2px; left: 7px; }
-  .booking-account-avatar { width: 36px; height: 36px; font-size: 15px; }
-  .booking-account-menu { width: 210px; }
+  .booking-section-nav { gap: 2px; padding: 3px 4px; border-radius: 9px; }
+  .booking-section-nav button { padding: 6px 9px 8px; font-size: 11px; }
+  .booking-section-nav button.active::after { right: 8px; bottom: 2px; left: 8px; }
+  .bk-nav-full { display: none; }
+  .booking-account-avatar { width: 36px; height: 36px; font-size: 14px; }
+  .booking-account-menu { width: 220px; max-width: calc(100vw - 24px); right: 0; }
+}
+
+@media (max-width: 480px) {
+  .booking-account-bar { padding: 6px 8px; }
+  .booking-account-brand span { display: none; }
+  .booking-section-nav button { padding: 6px 7px 7px; font-size: 10.5px; }
+  .booking-section-nav button.active::after { right: 6px; left: 6px; }
 }

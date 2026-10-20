@@ -213,10 +213,10 @@ export default function LoginPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username: trimmedUsername, password }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (res.ok && data.success && data.user) {
         authenticatedUser = data.user;
-      } else if (res.status === 401 && !masterAccount) {
+      } else if (res.status === 401 || res.status === 403) {
         setIsLoading(false);
         alert(data.message || "Username atau password salah!");
         return;
@@ -225,7 +225,7 @@ export default function LoginPage() {
       console.warn("Backend login offline, mencoba master ENV / cache lokal:", err.message);
     }
 
-    // 2. Jika akun master dari ENV dan belum terotentikasi via backend
+    // 2. Jika koneksi backend offline dan merupakan akun master dari ENV
     if (!authenticatedUser && masterAccount) {
       if (password === masterAccount.password) {
         authenticatedUser = {

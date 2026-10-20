@@ -2627,7 +2627,7 @@ function userTable(data) {
         (u.status || "Aktif") === "Aktif"
           ? "background:#d1fae5;color:#047857;padding:3px 8px;border-radius:8px;font-size:11px;font-weight:600;"
           : "background:#fee2e2;color:#b91c1c;padding:3px 8px;border-radius:8px;font-size:11px;font-weight:600;";
-      const uid = typeof u.id === "string" ? `'${u.id}'` : u.id;
+      const uid = esc(String(u.id || u.username || ""));
       return `<tr>
         <td>${i + 1}</td>
         <td>
@@ -2643,8 +2643,8 @@ function userTable(data) {
             mainAdmin
               ? `
             <div class="actions" style="gap:12px;">
-              <button style="background:none;border:none;color:#4b6a90;cursor:pointer;" title="Edit" onclick="editUser(${uid})">${faPencilAlt}</button>
-              ${u.username !== "admin" ? `<button style="background:none;border:none;color:#e53e3e;cursor:pointer;" title="Hapus" onclick="deleteUser(${uid})">${faTrashAlt}</button>` : ""}
+              <button style="background:none;border:none;color:#4b6a90;cursor:pointer;" title="Edit" onclick="editUser('${uid}')">${faPencilAlt}</button>
+              ${(u.username || "").toLowerCase() !== "admin" ? `<button style="background:none;border:none;color:#e53e3e;cursor:pointer;" title="Hapus" onclick="deleteUser('${uid}')">${faTrashAlt}</button>` : ""}
             </div>
           `
               : `<span style="font-size:11px;color:#94a3b8;font-style:italic;">Hanya Baca</span>`
@@ -3917,7 +3917,58 @@ function openRoleModal(name = "") {
   const modalBackdrop = document.getElementById("modal");
   if (!modalBackdrop) return;
   const selected = new Set(role?.permissions || []);
-  modalBackdrop.innerHTML = `<div class="modal-content" onclick="event.stopPropagation()" style="max-width:650px"><div class="modal-header"><h3>${role ? "Edit Role" : "Tambah Role"}</h3><button onclick="closeModal()">×</button></div><div class="modal-body"><label>Nama role</label><input id="roleName" maxlength="80" value="${esc(role?.name || "")}" ${role ? "readonly" : ""} placeholder="Contoh: Operator Ruangan"><label style="display:block;margin-top:14px">Deskripsi</label><input id="roleDescription" maxlength="300" value="${esc(role?.description || "")}" placeholder="Tugas role"><div style="margin-top:18px;font-weight:700">Hak akses</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">${ROLE_PERMISSION_OPTIONS.map(([key, label]) => `<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" value="${key}" class="role-permission" ${selected.has(key) ? "checked" : ""}>${label}</label>`).join("")}</div><div style="display:flex;justify-content:flex-end;gap:8px;margin-top:22px"><button class="btn btn-light" onclick="closeModal()">Batal</button><button class="btn btn-primary" onclick="saveRole('${encodeURIComponent(role?.name || "")}')">Simpan</button></div></div></div>`;
+
+  modalBackdrop.innerHTML = `
+    <div class="custom-role-modal" onclick="event.stopPropagation()" style="width: min(620px, 94vw); background: #ffffff !important; border-radius: 18px; padding: 22px 26px 20px; box-shadow: 0 16px 48px rgba(12, 45, 94, 0.22); font-family: 'Poppins', sans-serif; box-sizing: border-box; position: relative; z-index: 10000; max-height: calc(100vh - 36px); overflow-y: auto;">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 14px;">
+        <div>
+          <h2 style="margin:0 0 2px; font-size:19px; font-weight:800; color:#0c2d5e; letter-spacing:-0.3px;">
+            ${role ? "Edit Role" : "Tambah Role Baru"}
+          </h2>
+          <p style="margin:0; font-size:12px; color:#4b6a90; font-weight:500;">
+            ${role ? "Perbarui informasi dan hak akses fitur role ini" : "Buat role baru dan tentukan hak akses fitur aplikasi"}
+          </p>
+        </div>
+        <button type="button" onclick="closeModal()" style="background:none; border:none; font-size:24px; color:#a0aec0; cursor:pointer; line-height:1; padding:0 4px; transition:color 0.15s;" title="Tutup" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#a0aec0'">&times;</button>
+      </div>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:12px;">
+        <div class="crm-field" style="margin-bottom:0;">
+          <label style="display:block; font-size:12.5px; font-weight:700; color:#0c2d5e; margin-bottom:5px;">Nama Role <span style="color:#e53e3e;">*</span></label>
+          <input id="roleName" maxlength="80" value="${esc(role?.name || "")}" ${role ? "readonly style='background:#f1f5f9; cursor:not-allowed; border-color:#cbd5e1; color:#64748b;'" : ""} placeholder="Contoh: Operator Ruang" style="width:100%; padding:9px 13px; border-radius:10px; border:1.5px solid #dbe6f2; background:#f7fafe; font-size:13px; font-family:'Poppins',sans-serif; color:#0c2d5e; outline:none; box-sizing:border-box;">
+        </div>
+
+        <div class="crm-field" style="margin-bottom:0;">
+          <label style="display:block; font-size:12.5px; font-weight:700; color:#0c2d5e; margin-bottom:5px;">Deskripsi Role <span style="font-size:11px; font-weight:normal; color:#718096;">(Opsional)</span></label>
+          <input id="roleDescription" maxlength="300" value="${esc(role?.description || "")}" placeholder="Contoh: Mengelola rapat dan presensi" style="width:100%; padding:9px 13px; border-radius:10px; border:1.5px solid #dbe6f2; background:#f7fafe; font-size:13px; font-family:'Poppins',sans-serif; color:#0c2d5e; outline:none; box-sizing:border-box;">
+        </div>
+      </div>
+
+      <div style="margin: 10px 0 4px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:7px;">
+          <label style="font-size:12.5px; font-weight:700; color:#0c2d5e; font-family:'Poppins',sans-serif; margin:0;">
+            Hak Akses Fitur <span style="color:#e53e3e;">*</span>
+          </label>
+          <span style="font-size:11px; color:#64748b; font-weight:500;">Pilih hak akses yang diizinkan</span>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:7px;">
+          ${ROLE_PERMISSION_OPTIONS.map(([key, label]) => `
+            <label class="role-perm-card" style="display:flex; align-items:center; gap:8px; padding:7px 11px; background:#f8fafc; border:1.5px solid #e2e8f0; border-radius:9px; cursor:pointer; transition:all 0.15s ease; user-select:none;">
+              <input type="checkbox" value="${key}" class="role-permission" ${selected.has(key) ? "checked" : ""} style="accent-color:#0c2d5e; width:15px; height:15px; cursor:pointer; flex-shrink:0;">
+              <span style="font-size:12px; font-weight:600; color:#1e293b; line-height:1.25;">${label}</span>
+            </label>
+          `).join("")}
+        </div>
+      </div>
+
+      <div class="crm-actions" style="display:flex; justify-content:flex-end; gap:10px; margin-top:16px;">
+        <button type="button" class="crm-btn-cancel" onclick="closeModal()" style="padding:8px 18px; font-size:12.5px; border-radius:8px;">Batal</button>
+        <button type="button" class="crm-btn-save" onclick="saveRole('${encodeURIComponent(role?.name || "")}')" style="padding:8px 22px; font-size:12.5px; border-radius:8px;">
+          ${role ? "Simpan Perubahan" : "Simpan Role"}
+        </button>
+      </div>
+    </div>
+  `;
   modalBackdrop.onclick = (event) => { if (event.target === modalBackdrop) closeModal(); };
   modalBackdrop.classList.add("show");
 }
@@ -3926,11 +3977,13 @@ async function saveRole(encodedOriginalName = "") {
   if (!can("manageSettings")) return denyAccess();
   const name = document.getElementById("roleName")?.value.trim();
   if (!name) return toast("Nama role wajib diisi.");
+  const permissions = [...document.querySelectorAll(".role-permission:checked")].map((checkbox) => checkbox.value);
+  if (permissions.length === 0) return toast("Pilih minimal satu hak akses fitur.");
   const payload = {
     name,
     originalName: decodeURIComponent(encodedOriginalName || "") || name,
     description: document.getElementById("roleDescription")?.value.trim() || "",
-    permissions: [...document.querySelectorAll(".role-permission:checked")].map((checkbox) => checkbox.value),
+    permissions,
   };
   try {
     const response = await fetch("/api/dashboard/roles", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
@@ -5029,7 +5082,17 @@ function viewMeeting(id) {
     actionBtns += `<button class="btn btn-primary" style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;font-weight:700;display:inline-flex;align-items:center;gap:4px;" title="Batalkan Rapat Darurat (Hanya jika diperlukan)" onclick="closeModal(); openEmergencyCancelModal('${m.id}')">Batal Darurat</button>`;
   }
 
-  const materialsList = Array.isArray(m.materials) ? m.materials : [];
+  const rawMaterials = Array.isArray(m.materials) ? m.materials : [];
+  const seenMaterialNames = new Set();
+  const materialsList = [];
+  rawMaterials.forEach((mat) => {
+    if (!mat || !mat.url) return;
+    const key = (mat.name || "").trim().toLowerCase();
+    if (key && !seenMaterialNames.has(key)) {
+      seenMaterialNames.add(key);
+      materialsList.push(mat);
+    }
+  });
   let materialsHtml = "";
   if (materialsList.length > 0) {
     materialsHtml = materialsList
@@ -6933,8 +6996,12 @@ function openUserModal(id = null) {
     role: "User",
     status: "Aktif",
   };
-  if (id !== null && id !== undefined) {
-    const found = state.users.find((x) => x.id === id);
+  if (id !== null && id !== undefined && id !== "") {
+    const targetIdStr = String(id).toLowerCase();
+    const found = state.users.find((x) =>
+      String(x.id).toLowerCase() === targetIdStr ||
+      (x.username && String(x.username).toLowerCase() === targetIdStr)
+    );
     if (found) {
       u = { ...found };
       try {
@@ -6943,7 +7010,7 @@ function openUserModal(id = null) {
         );
         const lu = loginUsers.find(
           (x) =>
-            x.id === id ||
+            String(x.id).toLowerCase() === targetIdStr ||
             (x.username &&
               found.username &&
               x.username.toLowerCase() === found.username.toLowerCase()),
@@ -6957,7 +7024,20 @@ function openUserModal(id = null) {
   }
 
   const isEditingAdmin =
-    id && (u.username === "admin" || u.name === "Admin Utama");
+    Boolean(id) && ((u.username || "").toLowerCase() === "admin" || u.name === "Admin Utama");
+
+  const defaultSystemRoles = [
+    { name: "User" },
+    { name: "Admin" },
+    { name: "Pimpinan" },
+  ];
+  const customRoles = Array.isArray(state.roles) ? state.roles : [];
+  const availableRoles = [...defaultSystemRoles];
+  customRoles.forEach((cr) => {
+    if (cr && cr.name && !availableRoles.some((r) => r.name.toLowerCase() === cr.name.toLowerCase())) {
+      availableRoles.push(cr);
+    }
+  });
 
   const modalBackdrop = document.getElementById("modal");
   modalBackdrop.innerHTML = `
@@ -7005,12 +7085,10 @@ function openUserModal(id = null) {
         <div class="crm-field">
           <label>Role Akun</label>
           <select id="uRole" ${isEditingAdmin ? "disabled style='background:#e2e8f0; cursor:not-allowed;'" : ""}>
-            ${(state.roles || [
-              { name: "User" }, { name: "Admin" }, { name: "Pimpinan" },
-            ])
+            ${availableRoles
               .map(
                 (r) =>
-                  `<option value="${esc(r.name)}" ${String(u.role).toLowerCase() === String(r.name).toLowerCase() ? "selected" : ""}>${esc(r.name)}</option>`,
+                  `<option value="${esc(r.name)}" ${String(u.role || "User").toLowerCase() === String(r.name).toLowerCase() ? "selected" : ""}>${esc(r.name)}</option>`,
               )
               .join("")}
           </select>
@@ -7053,10 +7131,18 @@ async function saveUser(id) {
   const dept =
     (document.getElementById("uDept")?.value || "").trim() ||
     "Biro Keuangan dan BMN";
+  const lowerUsername = username.toLowerCase();
+  const targetIdStr = id ? String(id).toLowerCase() : "";
+  const currentEditing = id
+    ? state.users.find((x) => String(x.id).toLowerCase() === targetIdStr || (x.username && String(x.username).toLowerCase() === targetIdStr))
+    : null;
+  const isEditingAdmin = Boolean(
+    id && (lowerUsername === "admin" || (currentEditing && (currentEditing.username || "").toLowerCase() === "admin"))
+  );
   const roleEl = document.getElementById("uRole");
-  const role = roleEl ? roleEl.value : "User";
+  const role = isEditingAdmin ? "Admin" : (roleEl ? roleEl.value : (currentEditing?.role || "User"));
   const statusEl = document.getElementById("uStatus");
-  const status = statusEl ? statusEl.value : "Aktif";
+  const status = statusEl ? statusEl.value : (currentEditing?.status || "Aktif");
 
   if (!name) {
     alert("Nama lengkap tidak boleh kosong!");
@@ -7071,13 +7157,11 @@ async function saveUser(id) {
     return;
   }
 
-  const lowerUsername = username.toLowerCase();
   let loginUsers = [];
   try {
     loginUsers = JSON.parse(getAppStorage().getItem("app_login_users") || "[]");
   } catch (e) {}
 
-  const currentEditing = id ? state.users.find((x) => x.id === id) : null;
   const oldUsername = (currentEditing?.username || "").toLowerCase();
 
   // Cek duplikasi jika membuat akun baru atau mengganti username
@@ -7135,7 +7219,9 @@ async function saveUser(id) {
 
   if (id) {
     state.users = state.users.map((x) =>
-      x.id === id ? { ...x, ...userObj } : x,
+      (String(x.id).toLowerCase() === targetIdStr || (x.username && String(x.username).toLowerCase() === lowerUsername))
+        ? { ...x, ...userObj }
+        : x,
     );
   } else {
     state.users.push(userObj);
@@ -7151,8 +7237,8 @@ async function saveUser(id) {
     );
     const existingIdx = allLogin.findIndex(
       (x) =>
-        x.id === userId ||
-        (x.username && x.username.toLowerCase() === lowerUsername),
+        String(x.id).toLowerCase() === String(userId).toLowerCase() ||
+        (x.username && String(x.username).toLowerCase() === lowerUsername),
     );
     if (existingIdx >= 0) {
       allLogin[existingIdx] = userObj;
@@ -7184,10 +7270,17 @@ async function deleteUser(id) {
     alert("Hanya Admin Utama yang berhak menghapus pengguna.");
     return;
   }
-  const target = state.users.find((x) => x.id === id);
-  if (!target) return;
+  const targetIdStr = String(id || "").trim().toLowerCase();
+  const target = state.users.find((x) =>
+    String(x.id).toLowerCase() === targetIdStr ||
+    (x.username && String(x.username).toLowerCase() === targetIdStr)
+  );
+  if (!target) {
+    alert("Pengguna tidak ditemukan.");
+    return;
+  }
 
-  if (target.username === "admin" || target.name === "Admin Utama") {
+  if ((target.username || "").toLowerCase() === "admin" || target.name === "Admin Utama") {
     alert("Akun Admin Utama tidak dapat dihapus!");
     return;
   }
@@ -7201,8 +7294,9 @@ async function deleteUser(id) {
     confirmText: "Ya, Hapus",
     confirmBg: "#dc2626",
   })) {
+    const deleteId = target.id || target.username || id;
     try {
-      const response = await fetch(`/api/dashboard/users/${id}`, { method: "DELETE" });
+      const response = await fetch(`/api/dashboard/users/${encodeURIComponent(deleteId)}`, { method: "DELETE" });
       const result = await response.json().catch(() => ({}));
       if (!response.ok || result.success === false) {
         throw new Error(result.error || "Gagal menghapus pengguna.");
@@ -7213,7 +7307,13 @@ async function deleteUser(id) {
       return;
     }
 
-    state.users = state.users.filter((x) => x.id !== id);
+    const tId = String(target.id || id).toLowerCase();
+    const tUname = String(target.username || "").toLowerCase();
+
+    state.users = state.users.filter((x) =>
+      String(x.id).toLowerCase() !== tId &&
+      (x.username || "").toLowerCase() !== tUname
+    );
 
     try {
       getAppStorage().setItem("app_users", JSON.stringify(state.users));
@@ -7225,9 +7325,8 @@ async function deleteUser(id) {
       );
       allLogin = allLogin.filter(
         (x) =>
-          x.id !== id &&
-          (x.username || "").toLowerCase() !==
-            (target.username || "").toLowerCase(),
+          String(x.id).toLowerCase() !== tId &&
+          (x.username || "").toLowerCase() !== tUname,
       );
       getAppStorage().setItem("app_login_users", JSON.stringify(allLogin));
     } catch (e) {}
@@ -7238,8 +7337,7 @@ async function deleteUser(id) {
       );
       savedAcc = savedAcc.filter(
         (x) =>
-          (x.username || "").toLowerCase() !==
-          (target.username || "").toLowerCase(),
+          (x.username || "").toLowerCase() !== tUname,
       );
       getAppStorage().setItem("savedAccounts", JSON.stringify(savedAcc));
     } catch (e) {}

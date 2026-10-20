@@ -43,21 +43,41 @@ export default function MeetingPassPage() {
 
   const [currentUser] = useState(() => {
     try {
-      return JSON.parse(localStorage.getItem("currentUser") || "{}");
+      const stored =
+        sessionStorage.getItem("dashboard_currentUser") ||
+        sessionStorage.getItem("booking_currentUser") ||
+        sessionStorage.getItem("currentUser") ||
+        localStorage.getItem("dashboard_currentUser") ||
+        localStorage.getItem("booking_currentUser") ||
+        localStorage.getItem("currentUser");
+      return stored ? JSON.parse(stored) : {};
     } catch {
       return {};
     }
   });
-  const [isAuthenticated] = useState(
-    () => localStorage.getItem("isAuthenticated") === "true",
-  );
-  const [repName, setRepName] = useState(() => {
+  const [isAuthenticated] = useState(() => {
     try {
-      const user = JSON.parse(localStorage.getItem("currentUser") || "{}");
-      return user.name || user.username || "";
-    } catch {
-      return "";
-    }
+      const hasFlag =
+        sessionStorage.getItem("dashboard_isAuthenticated") === "true" ||
+        sessionStorage.getItem("booking_isAuthenticated") === "true" ||
+        sessionStorage.getItem("isAuthenticated") === "true" ||
+        localStorage.getItem("dashboard_isAuthenticated") === "true" ||
+        localStorage.getItem("booking_isAuthenticated") === "true" ||
+        localStorage.getItem("isAuthenticated") === "true";
+      if (hasFlag) return true;
+      const stored =
+        sessionStorage.getItem("dashboard_currentUser") ||
+        sessionStorage.getItem("booking_currentUser") ||
+        sessionStorage.getItem("currentUser") ||
+        localStorage.getItem("dashboard_currentUser") ||
+        localStorage.getItem("booking_currentUser") ||
+        localStorage.getItem("currentUser");
+      if (stored) {
+        const u = JSON.parse(stored);
+        if (u && (u.username || u.name || u.id)) return true;
+      }
+    } catch {}
+    return false;
   });
 
   // Form Presensi Peserta (Untuk Seluruh Peserta - Catatan telah ditiadakan sesuai arahan)
@@ -215,12 +235,36 @@ export default function MeetingPassPage() {
     return () => clearInterval(interval);
   }, [loadMeeting]);
 
+  const bookerPicName =
+    (meeting?.bookedBy || meeting?.bookedByUsername || meeting?.requester || "").trim() ||
+    "Pemesan Ruangan";
+  const userRole = (currentUser.role || "").trim().toLowerCase();
+  const isAdmin =
+    userRole === "admin" || (currentUser.username || "").trim().toLowerCase() === "admin";
+  const isApproval =
+    userRole === "pimpinan" ||
+    userRole === "approval" ||
+    (currentUser.username || "").trim().toLowerCase().startsWith("approval");
+
+  const signedInUsername = (currentUser.username || "").trim().toLowerCase();
+  const bookerUsername = (meeting?.bookedByUsername || "").trim().toLowerCase();
+  const signedInName = (currentUser.name || "").trim().toLowerCase();
+  const bookerName = (meeting?.bookedBy || "").trim().toLowerCase();
+  const isMeetingBooker = Boolean(
+    isAuthenticated &&
+    ((signedInUsername && bookerUsername && signedInUsername === bookerUsername) ||
+      (signedInName && bookerName && signedInName === bookerName)),
+  );
+  const canManageCheckIn = Boolean(
+    isAuthenticated && (isMeetingBooker || isAdmin || isApproval),
+  );
+
   // Handle Check-In Perwakilan
   const handleCheckIn = async () => {
     if (!meeting) return;
-    if (!isMeetingBooker) {
+    if (!canManageCheckIn) {
       showToast(
-        "Check-In hanya dapat dilakukan oleh pemesan ruangan.",
+        "Check-In hanya dapat dilakukan oleh akun pemesan ruangan, Admin, atau Approval.",
         "error",
       );
       return;
@@ -230,11 +274,7 @@ export default function MeetingPassPage() {
       showToast("Rapat belum disetujui oleh Pimpinan.", "error");
       return;
     }
-    const actorName =
-      repName.trim() ||
-      currentUser.name ||
-      currentUser.username ||
-      "Pemesan Rapat";
+    const actorName = bookerPicName;
     setActionLoading(true);
     try {
       const res = await fetch(`/api/dashboard/meetings/${meeting.id}/checkin`, {
@@ -243,6 +283,7 @@ export default function MeetingPassPage() {
         body: JSON.stringify({
           by: actorName,
           username: currentUser.username,
+          role: currentUser.role,
           method: "barcode_qr",
           enforceBooker: true,
         }),
@@ -266,7 +307,7 @@ export default function MeetingPassPage() {
         const data = await res.json().catch(() => ({}));
         showToast(
           data.error ||
-            "Check-In ditolak. Pastikan Anda masuk dengan akun pemesan.",
+            "Check-In ditolak. Pastikan Anda masuk dengan akun pemesan, Admin, atau Approval.",
           "error",
         );
         return;
@@ -309,9 +350,9 @@ export default function MeetingPassPage() {
   // Handle Check-Out Perwakilan
   const handleCheckOut = async () => {
     if (!meeting) return;
-    if (!isMeetingBooker) {
+    if (!canManageCheckIn) {
       showToast(
-        "Check-Out hanya dapat dilakukan oleh pemesan ruangan.",
+        "Check-Out hanya dapat dilakukan oleh akun pemesan ruangan, Admin, atau Approval.",
         "error",
       );
       return;
@@ -322,11 +363,7 @@ export default function MeetingPassPage() {
     ))) {
       return;
     }
-    const actorName =
-      repName.trim() ||
-      currentUser.name ||
-      currentUser.username ||
-      "Pemesan Rapat";
+    const actorName = bookerPicName;
     setActionLoading(true);
     try {
       const res = await fetch(
@@ -337,6 +374,7 @@ export default function MeetingPassPage() {
           body: JSON.stringify({
             by: actorName,
             username: currentUser.username,
+            role: currentUser.role,
             method: "barcode_qr",
             enforceBooker: true,
           }),
@@ -361,7 +399,7 @@ export default function MeetingPassPage() {
         const data = await res.json().catch(() => ({}));
         showToast(
           data.error ||
-            "Check-Out ditolak. Pastikan Anda masuk dengan akun pemesan.",
+            "Check-Out ditolak. Pastikan Anda masuk dengan akun pemesan, Admin, atau Approval.",
           "error",
         );
         return;
@@ -731,19 +769,20 @@ export default function MeetingPassPage() {
   const attendeesList = Array.isArray(meeting.attendees)
     ? meeting.attendees
     : [];
-  const materialsList = Array.isArray(meeting.materials)
+  const rawMaterials = Array.isArray(meeting.materials)
     ? meeting.materials
     : [];
+  const seenMaterialNames = new Set();
+  const materialsList = [];
+  rawMaterials.forEach((m) => {
+    if (!m || !m.url || !String(m.url).trim()) return;
+    const key = (m.name || "").trim().toLowerCase();
+    if (key && !seenMaterialNames.has(key)) {
+      seenMaterialNames.add(key);
+      materialsList.push(m);
+    }
+  });
   const currentUrl = typeof window !== "undefined" ? window.location.href : "";
-  const signedInUsername = (currentUser.username || "").trim().toLowerCase();
-  const bookerUsername = (meeting.bookedByUsername || "").trim().toLowerCase();
-  const signedInName = (currentUser.name || "").trim().toLowerCase();
-  const bookerName = (meeting.bookedBy || "").trim().toLowerCase();
-  const isMeetingBooker = Boolean(
-    isAuthenticated &&
-    ((signedInUsername && bookerUsername && signedInUsername === bookerUsername) ||
-      (signedInName && bookerName && signedInName === bookerName)),
-  );
 
   return (
     <div className="mp-wrapper">
@@ -1006,8 +1045,8 @@ export default function MeetingPassPage() {
             </div>
             <p className="mp-section-subtitle">
               Sistem presensi mandiri berbasis QR Code: Tombol{" "}
-              <strong>Check-In</strong> dan <strong>Check-Out</strong> hanya
-              dapat digunakan oleh akun pemesan ruangan untuk membuka dan
+              <strong>Check-In</strong> dan <strong>Check-Out</strong>{" "}
+              dapat digunakan oleh akun pemesan ruangan, Admin, atau Approval untuk membuka dan
               mengakhiri sesi rapat secara otomatis.
             </p>
           </div>
@@ -1043,13 +1082,23 @@ export default function MeetingPassPage() {
                     Login sebagai pemesan:{" "}
                     <strong>{currentUser.name || currentUser.username}</strong>
                   </>
+                ) : isAdmin ? (
+                  <>
+                    Login sebagai Admin:{" "}
+                    <strong>{currentUser.name || currentUser.username}</strong>
+                    {" "}(Pemesan: <em>{bookerPicName}</em>)
+                  </>
+                ) : isApproval ? (
+                  <>
+                    Login sebagai Approval / Pimpinan:{" "}
+                    <strong>{currentUser.name || currentUser.username}</strong>
+                    {" "}(Pemesan: <em>{bookerPicName}</em>)
+                  </>
                 ) : (
                   <>
-                    Kontrol hanya untuk pemesan:{" "}
+                    Pemesan Ruangan:{" "}
                     <strong>
-                      {meeting.bookedBy ||
-                        meeting.bookedByUsername ||
-                        "Pemesan ruangan"}
+                      {bookerPicName}
                     </strong>
                   </>
                 )}
@@ -1064,20 +1113,20 @@ export default function MeetingPassPage() {
                   id="repNameInput"
                   type="text"
                   className="mp-rep-input"
-                  value={isMeetingBooker ? repName : meeting.bookedBy || ""}
+                  value={bookerPicName}
                   readOnly
                   aria-readonly="true"
                 />
               </div>
             )}
-            {!isMeetingBooker && (
+            {!canManageCheckIn && (
               <div className="mp-control-locked-note">
                 {isAuthenticated
-                  ? "Akun ini bukan akun pemesan ruangan."
-                  : "Login sebagai pemesan untuk mengaktifkan Check-In dan Check-Out."}
+                  ? "Akun ini bukan akun pemesan ruangan, Admin, atau Approval."
+                  : "Login sebagai pemesan, Admin, atau Approval untuk mengaktifkan Check-In dan Check-Out."}
               </div>
             )}
-            {!isMeetingBooker && (
+            {!canManageCheckIn && (
               <Link
                 to="/login"
                 state={{ from: { pathname: `/meeting/${id}` } }}
@@ -1101,8 +1150,8 @@ export default function MeetingPassPage() {
                 }}
               >
                 {isAuthenticated
-                  ? "Ganti ke Akun Pemesan"
-                  : "Login sebagai Pemesan"}
+                  ? "Ganti Akun"
+                  : "Login Akun"}
               </Link>
             )}
 
@@ -1200,7 +1249,7 @@ export default function MeetingPassPage() {
                 className="mp-btn-action checkin-btn"
                 onClick={handleCheckIn}
                 disabled={
-                  !isMeetingBooker ||
+                  !canManageCheckIn ||
                   actionLoading ||
                   isRunning ||
                   isCompleted ||
@@ -1208,8 +1257,8 @@ export default function MeetingPassPage() {
                   isCancelled
                 }
                 title={
-                  !isMeetingBooker
-                    ? "Hanya pemesan ruangan yang dapat Check-In"
+                  !canManageCheckIn
+                    ? "Hanya akun pemesan ruangan, Admin, atau Approval yang dapat Check-In"
                     : isCancelled
                       ? "Rapat telah dibatalkan"
                       : isPending
@@ -1242,11 +1291,11 @@ export default function MeetingPassPage() {
                 className="mp-btn-action checkout-btn"
                 onClick={handleCheckOut}
                 disabled={
-                  !isMeetingBooker || actionLoading || !isRunning || isCompleted || isCancelled
+                  !canManageCheckIn || actionLoading || !isRunning || isCompleted || isCancelled
                 }
                 title={
-                  !isMeetingBooker
-                    ? "Hanya pemesan ruangan yang dapat Check-Out"
+                  !canManageCheckIn
+                    ? "Hanya akun pemesan ruangan, Admin, atau Approval yang dapat Check-Out"
                     : isCancelled
                       ? "Rapat telah dibatalkan"
                       : isCompleted

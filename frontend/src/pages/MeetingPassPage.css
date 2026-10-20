@@ -978,17 +978,63 @@
 
 /* ------------------------------------------------------------- Responsiveness */
 @media (max-width: 640px) {
-  .mp-card {
-    padding: 18px 16px;
+  .mp-wrapper {
+    padding: 12px 10px 48px;
   }
 
-  .mp-detil-table td {
-    padding: 10px 4px;
+  .mp-container {
+    gap: 14px;
+  }
+
+  .mp-topbar {
+    padding: 10px 12px;
+    gap: 10px;
+  }
+
+  .mp-brand {
+    gap: 10px;
+  }
+
+  .mp-logo {
+    width: 32px;
+    height: 32px;
+  }
+
+  .mp-brand-info h1 {
     font-size: 13px;
   }
 
+  .mp-brand-info p {
+    font-size: 10.5px;
+  }
+
+  .mp-topbar-actions {
+    gap: 6px;
+  }
+
+  .mp-qr-toggle-btn,
+  .mp-back-btn {
+    padding: 6px 10px;
+    font-size: 11.5px;
+    border-radius: 7px;
+  }
+
+  .mp-card {
+    padding: 18px 14px;
+    border-radius: 12px;
+  }
+
+  .mp-detil-heading {
+    font-size: 18px;
+  }
+
+  .mp-detil-table td {
+    padding: 8px 4px;
+    font-size: 12.5px;
+  }
+
   .mp-field-label {
-    width: 120px;
+    width: 110px;
     white-space: normal;
   }
 
@@ -997,17 +1043,119 @@
     gap: 10px;
   }
 
+  .mp-ctrl-btn {
+    min-height: 48px;
+    font-size: 13px;
+  }
+
   .mp-form-grid {
     grid-template-columns: 1fr;
-    gap: 12px;
+    gap: 10px;
   }
 
-  .mp-topbar {
-    padding: 12px 14px;
-  }
-
-  .mp-brand-info h1 {
+  .mp-text-input {
+    min-height: 42px;
     font-size: 13px;
+    box-sizing: border-box;
+    width: 100%;
+  }
+
+  .mp-form-submit-row {
+    margin-top: 14px;
+  }
+
+  .mp-submit-att-btn {
+    width: 100%;
+    min-height: 46px;
+    font-size: 13.5px;
+    justify-content: center;
+  }
+
+  .mp-att-table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .mp-att-table th,
+  .mp-att-table td {
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+
+  .mp-modal-box {
+    width: 94%;
+    max-width: 420px;
+    padding: 20px 16px;
+    border-radius: 16px;
+  }
+
+  .mp-modal-actions {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .mp-modal-actions .mp-btn-action {
+    width: 100%;
+    min-height: 42px;
+  }
+}
+
+@media (max-width: 480px) {
+  .mp-detil-table {
+    display: block;
+    width: 100%;
+  }
+
+  .mp-detil-table tbody,
+  .mp-detil-table tr {
+    display: block;
+    width: 100%;
+  }
+
+  .mp-detil-table tr {
+    padding: 8px 0;
+    border-bottom: 1px solid #f1f5f9;
+  }
+
+  .mp-detil-table td {
+    display: block;
+    padding: 2px 0 !important;
+    font-size: 12.5px;
+  }
+
+  .mp-field-label {
+    width: 100% !important;
+    font-size: 10.5px !important;
+    font-weight: 700 !important;
+    color: #64748b !important;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    margin-bottom: 2px;
+  }
+
+  .mp-field-value {
+    width: 100% !important;
+    font-size: 13px !important;
+    color: #0c2d5e !important;
+  }
+
+  .mp-material-item {
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 10px 12px;
+  }
+
+  .mp-mat-actions {
+    width: 100%;
+    justify-content: flex-end;
+    padding-top: 6px;
+    border-top: 1px dashed #e2e8f0;
+  }
+
+  .mp-upload-trigger-btn {
+    width: 100%;
+    justify-content: center;
+    min-height: 42px;
   }
 }
 

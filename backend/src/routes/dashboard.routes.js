@@ -21,21 +21,62 @@ router.get("/materials/files/:fileName", (req, res) => {
 const dashboardService = require("../services/dashboard.service");
 const whatsappService = require("../services/whatsapp.service");
 
-function isMeetingBooker(meeting, username, submittedName) {
+async function isAuthorizedCheckInOut(meeting, username, role, submittedName) {
   const normalizedUsername = String(username || "").trim().toLowerCase();
   const bookedUsername = String(meeting.bookedByUsername || "").trim().toLowerCase();
   const bookedName = String(meeting.bookedBy || "").trim().toLowerCase();
   const normalizedSubmittedName = String(submittedName || "").trim().toLowerCase();
-  const user = dashboardService.getUsers().find(
+  const accountRoleParam = String(role || "").trim().toLowerCase();
+
+  // 1. Role Admin, Pimpinan, dan Approval selalu diizinkan
+  if (
+    accountRoleParam === "admin" ||
+    accountRoleParam === "pimpinan" ||
+    accountRoleParam === "approval" ||
+    normalizedUsername === "admin" ||
+    normalizedUsername.startsWith("approval")
+  ) {
+    return true;
+  }
+
+  // 2. Akun pemesan ruangan cocok username
+  if (normalizedUsername && bookedUsername && normalizedUsername === bookedUsername) {
+    return true;
+  }
+
+  // 3. Cek data user dari database / store
+  let users = [];
+  try {
+    users = await dashboardService.getUsers();
+  } catch (e) {
+    const store = dashboardService.readStore();
+    users = store.users || [];
+  }
+
+  const user = (Array.isArray(users) ? users : []).find(
     (candidate) =>
       String(candidate.username || "").trim().toLowerCase() === normalizedUsername,
   );
   const accountName = String(user?.name || "").trim().toLowerCase();
+  const accountRole = String(user?.role || "").trim().toLowerCase();
 
+  if (
+    accountRole === "admin" ||
+    accountRole === "pimpinan" ||
+    accountRole === "approval"
+  ) {
+    return true;
+  }
+
+  // 4. Akun pemesan ruangan cocok nama
   return Boolean(
     (normalizedUsername && bookedUsername && normalizedUsername === bookedUsername) ||
     (bookedName && (accountName === bookedName || normalizedSubmittedName === bookedName)),
   );
+}
+
+async function isMeetingBooker(meeting, username, submittedName) {
+  return await isAuthorizedCheckInOut(meeting, username, "", submittedName);
 }
 
 // Ambil seluruh data dashboard (Google Calendar + Ruangan + Pengguna)
@@ -151,13 +192,15 @@ router.post("/meetings/:id/checkin", async (req, res) => {
 
     const method = req.body?.method || (req.body?.by && req.body.by.toLowerCase().includes("admin") ? "manual_admin" : "barcode_qr");
     const username = String(req.body?.username || "").trim().toLowerCase();
-    const isBooker = isMeetingBooker(meeting, username, req.body?.by);
+    const role = String(req.body?.role || "").trim().toLowerCase();
+    const isAuthorized = await isAuthorizedCheckInOut(meeting, username, role, req.body?.by);
 
-    if (method !== "manual_admin" && !isBooker) {
-      return res.status(403).json({ success: false, error: "Check-In hanya dapat dilakukan oleh akun pemesan ruangan atau Admin." });
+    if (method !== "manual_admin" && !isAuthorized) {
+      return res.status(403).json({ success: false, error: "Check-In hanya dapat dilakukan oleh akun pemesan ruangan, Admin, atau Approval." });
     }
 
-    const defaultActor = method === "manual_admin" ? "Admin (Manual)" : (meeting.bookedBy || "Peserta (Barcode / QR)");
+    const bookerPicName = meeting.bookedBy || meeting.bookedByUsername || meeting.requester || "Pemesan Ruangan";
+    const defaultActor = method === "manual_admin" ? "Admin (Manual)" : bookerPicName;
     const checkedInBy = req.body?.by || defaultActor;
     const updated = await dashboardService.checkInMeeting(req.params.id, checkedInBy, method);
 
@@ -185,13 +228,15 @@ router.post("/meetings/:id/checkout", async (req, res) => {
 
     const method = req.body?.method || (req.body?.by && req.body.by.toLowerCase().includes("admin") ? "manual_admin" : "barcode_qr");
     const username = String(req.body?.username || "").trim().toLowerCase();
-    const isBooker = isMeetingBooker(meeting, username, req.body?.by);
+    const role = String(req.body?.role || "").trim().toLowerCase();
+    const isAuthorized = await isAuthorizedCheckInOut(meeting, username, role, req.body?.by);
 
-    if (method !== "manual_admin" && !isBooker) {
-      return res.status(403).json({ success: false, error: "Check-Out hanya dapat dilakukan oleh akun pemesan ruangan atau Admin." });
+    if (method !== "manual_admin" && !isAuthorized) {
+      return res.status(403).json({ success: false, error: "Check-Out hanya dapat dilakukan oleh akun pemesan ruangan, Admin, atau Approval." });
     }
 
-    const defaultActor = method === "manual_admin" ? "Admin (Manual)" : (meeting.bookedBy || "Peserta (Barcode / QR)");
+    const bookerPicName = meeting.bookedBy || meeting.bookedByUsername || meeting.requester || "Pemesan Ruangan";
+    const defaultActor = method === "manual_admin" ? "Admin (Manual)" : bookerPicName;
     const checkedOutBy = req.body?.by || defaultActor;
     const updated = await dashboardService.checkOutMeeting(req.params.id, checkedOutBy, method);
 
@@ -348,9 +393,9 @@ router.delete("/roles/:name", async (req, res) => {
 });
 
 // Ambil seluruh daftar pengguna
-router.get("/users", (req, res) => {
+router.get("/users", async (req, res) => {
   try {
-    const users = dashboardService.getUsers();
+    const users = await dashboardService.getUsers();
     res.json(users);
   } catch (err) {
     res.status(500).json({ error: err.message });

@@ -1,10 +1,10 @@
 @import url("https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap");
 
 /* ────────────────────────────────────────────
-   BASE (FIT SCREEN - NO WINDOW SCROLL)
+   BASE (FIT SCREEN - NO WINDOW SCROLL FOR BOOKING FORM ONLY)
 ──────────────────────────────────────────── */
-html,
-body {
+body.booking-fitscreen-active,
+body:has(.bk-container) {
   height: 100% !important;
   max-height: 100% !important;
   overflow: hidden !important;
@@ -12,7 +12,8 @@ body {
   padding: 0;
 }
 
-#root {
+body.booking-fitscreen-active #root,
+body:has(.bk-container) #root {
   height: 100% !important;
   max-height: 100% !important;
   overflow: hidden !important;
@@ -211,6 +212,21 @@ body {
 
 .bk-line.completed {
   background: #1769aa;
+}
+
+.bk-stepper-progress-track {
+  display: none;
+}
+
+.bk-mobile-step-badge {
+  display: none;
+}
+
+.bk-stepper-steps-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
 }
 
 /* ────────────────────────────────────────────
@@ -1342,34 +1358,43 @@ body {
 }
 
 /* ────────────────────────────────────────────
-   MOBILE LAYOUT  (< 768 px) - FIT SCREEN NO SCROLL
+   MOBILE LAYOUT  (< 768 px) - FLUID VERTICAL SCROLL & STEPPER
 ──────────────────────────────────────────── */
 @media (max-width: 767px) {
-  /* Prevent whole page vertical scrolling */
+  /* Enable full fluid vertical scrolling for mobile users */
   html,
-  body {
-    height: 100% !important;
-    max-height: 100% !important;
-    overflow: hidden !important;
+  body.booking-fitscreen-active,
+  body:has(.bk-container) {
+    height: auto !important;
+    min-height: 100% !important;
+    max-height: none !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
   }
 
-  #root {
-    height: 100% !important;
-    max-height: 100% !important;
-    overflow: hidden !important;
+  body.booking-fitscreen-active #root,
+  body:has(.bk-container) #root {
+    height: auto !important;
+    min-height: 100% !important;
+    max-height: none !important;
+    overflow-x: hidden !important;
+    overflow-y: visible !important;
     display: flex;
     flex-direction: column;
   }
 
   .bk-container {
-    height: 100vh;
-    height: 100dvh;
-    max-height: 100vh;
-    max-height: 100dvh;
-    overflow: hidden;
+    height: auto !important;
+    min-height: 100vh !important;
+    min-height: 100dvh !important;
+    max-height: none !important;
+    overflow-x: hidden !important;
+    overflow-y: visible !important;
     display: flex;
     flex-direction: column;
     flex: 1;
+    padding-bottom: 24px;
   }
 
   /* Compact Header */
@@ -1416,36 +1441,85 @@ body {
     color: rgba(255, 255, 255, 0.9);
   }
 
-  /* Compact Stepper */
+  /* Compact Stepper (1 to 4) */
   .bk-stepper {
     flex-shrink: 0;
-    padding: 6px 14px;
-    gap: 6px;
+    padding: 6px 12px 6px;
+    gap: 4px;
     margin-bottom: 6px;
+    display: flex;
+    flex-direction: column;
     justify-content: center;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+    align-items: center;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
     overflow: hidden;
+    background: #ffffff;
+    border-bottom: 1px solid #f1f5f9;
+  }
+
+  /* Thin Progress Bar for Mobile */
+  .bk-stepper-progress-track {
+    display: block !important;
+    width: 100%;
+    max-width: 260px;
+    height: 3px;
+    background: #e2e8f0;
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 4px;
+  }
+  .bk-stepper-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #1769aa, #0284c7);
+    border-radius: 3px;
+    transition: width 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .bk-stepper-steps-row {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
     flex-wrap: nowrap;
   }
+
   .bk-step {
     font-size: 0;
     gap: 0;
     cursor: pointer;
     color: #94a3b8;
+    padding: 2px;
+    -webkit-tap-highlight-color: transparent;
   }
   .bk-step .step-num {
     font-size: 11px;
-    width: 22px;
-    height: 22px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
     background: #cbd5e1;
-    transition:
-      background 0.2s,
-      transform 0.2s;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    transition: background 0.25s, transform 0.25s, box-shadow 0.25s;
   }
-  .bk-step.mobile-active .step-num {
-    background: #1769aa;
-    color: white;
-    transform: scale(1.1);
+  .bk-step.active .step-num {
+    background: #0a2d5e !important;
+    color: #ffffff !important;
+    transform: scale(1.15);
+    box-shadow: 0 0 0 3px rgba(23, 105, 170, 0.28) !important;
+  }
+  .bk-step.completed .step-num {
+    background: #1769aa !important;
+    color: #ffffff !important;
+    box-shadow: none !important;
+  }
+  .bk-step.upcoming .step-num {
+    background: #cbd5e1 !important;
+    color: #64748b !important;
+    box-shadow: none !important;
   }
   .step-label {
     display: none;
@@ -1454,9 +1528,39 @@ body {
     width: 20px;
     height: 2px;
     background: #e2e8f0;
+    transition: background 0.25s ease;
+  }
+  .bk-line.completed {
+    background: #1769aa !important;
   }
   .bk-mobile-dots {
     display: none !important;
+  }
+
+  /* Dynamic Active Step Badge */
+  .bk-mobile-step-badge {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    background: #f0f7ff;
+    border: 1px solid #bae6fd;
+    border-radius: 12px;
+    padding: 2px 10px;
+    margin: 2px auto 0;
+    font-size: 10.5px;
+    animation: bkBadgeFadeIn 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .bk-msb-counter {
+    color: #0284c7;
+    font-weight: 700;
+  }
+  .bk-msb-sep {
+    color: #94a3b8;
+  }
+  .bk-msb-name {
+    color: #0c2d5e;
+    font-weight: 600;
   }
 
   /* Hide desktop 3-column grid */
@@ -1464,44 +1568,97 @@ body {
     display: none !important;
   }
 
-  /* Mobile Track & Slides */
+  /* Mobile Track & Animated Slides */
   .bk-mobile {
     display: flex;
     flex-direction: column;
-    flex: 1;
-    min-height: 0;
-    overflow: hidden;
-    padding-bottom: 6px;
+    width: 100%;
+    overflow-x: hidden;
+    overflow-y: visible;
+    padding-bottom: 24px;
+    touch-action: pan-y;
   }
   .bk-mobile-track {
     display: flex;
-    height: 100%;
-    min-height: 0;
-    flex: 1;
-    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    width: 100%;
+    align-items: flex-start;
+    transition: transform 0.42s cubic-bezier(0.22, 1, 0.36, 1);
     will-change: transform;
   }
   .bk-mobile-slide {
     min-width: 100%;
     width: 100%;
-    height: 100%;
-    min-height: 0;
+    height: auto;
     box-sizing: border-box;
-    padding: 0 10px;
+    padding: 0 8px;
     display: flex;
     flex-direction: column;
+    opacity: 0.25;
+    transform: scale(0.965);
+    transition: opacity 0.38s ease, transform 0.38s cubic-bezier(0.22, 1, 0.36, 1);
+    pointer-events: none;
+    visibility: hidden;
   }
+  .bk-mobile-slide.is-active {
+    opacity: 1;
+    transform: scale(1);
+    pointer-events: auto;
+    visibility: visible;
+  }
+
+  /* Smooth Page Entrance Keyframes */
+  .bk-mobile-slide.is-active.anim-next .bk-col {
+    animation: bkPageSlideInRight 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .bk-mobile-slide.is-active.anim-prev .bk-col {
+    animation: bkPageSlideInLeft 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  @keyframes bkPageSlideInRight {
+    0% {
+      opacity: 0.65;
+      transform: translate3d(24px, 0, 0);
+    }
+    100% {
+      opacity: 1;
+      transform: translate3d(0, 0, 0);
+    }
+  }
+
+  @keyframes bkPageSlideInLeft {
+    0% {
+      opacity: 0.65;
+      transform: translate3d(-24px, 0, 0);
+    }
+    100% {
+      opacity: 1;
+      transform: translate3d(0, 0, 0);
+    }
+  }
+
+  @keyframes bkBadgeFadeIn {
+    0% {
+      opacity: 0;
+      transform: translateY(-4px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
   .bk-mobile-slide .bk-col {
     width: 100%;
-    height: 100%;
-    min-height: 0;
+    height: auto;
+    min-height: min-content;
     border-radius: 12px;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+    overflow: visible;
     border: 1px solid #e2e8f0;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    box-shadow: 0 2px 10px rgba(12, 45, 94, 0.05);
     background: #ffffff;
+    margin-bottom: 12px;
   }
 
   /* Column Titles */
@@ -1531,27 +1688,38 @@ body {
     align-items: center;
     justify-content: center;
     gap: 6px;
-    padding: 9px 12px;
-    border-radius: 8px;
-    font-size: 12px;
+    padding: 10px 14px;
+    border-radius: 9px;
+    font-size: 12.5px;
     font-weight: 600;
     border: none;
     cursor: pointer;
     font-family: "Poppins", sans-serif;
+    transition: all 0.2s ease, transform 0.1s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .bk-mnav-btn:active:not(:disabled) {
+    transform: scale(0.96);
   }
   .bk-mnav-btn.outline {
     background: white;
     color: #0c2d5e;
     border: 1.5px solid #cbd5e1;
   }
+  .bk-mnav-btn.outline:active {
+    background: #f8fafc;
+  }
   .bk-mnav-btn.primary {
-    background: #1769aa;
+    background: linear-gradient(135deg, #1769aa, #0c2d5e);
     color: white;
+    box-shadow: 0 2px 6px rgba(12, 45, 94, 0.2);
   }
   .bk-mnav-btn.primary:disabled {
     background: #cbd5e1;
     color: #94a3b8;
+    box-shadow: none;
     cursor: not-allowed;
+    transform: none;
   }
   .bk-mnav-single {
     flex: none;
@@ -1579,10 +1747,10 @@ body {
     border-radius: 14px;
   }
   .bk-mobile .bk-room-list {
-    flex: 1;
-    min-height: 0;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
+    flex: none;
+    height: auto;
+    max-height: none;
+    overflow: visible;
     padding: 8px 12px;
     display: flex;
     flex-direction: column;
@@ -1666,11 +1834,11 @@ body {
 
   /* ── SLIDE 2 (TANGGAL & WAKTU) ── */
   .bk-mobile .bk-datetime-scroll {
-    flex: 1;
-    min-height: 0;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-    padding: 4px 12px;
+    flex: none;
+    height: auto;
+    max-height: none;
+    overflow: visible;
+    padding: 4px 12px 12px;
   }
   .bk-mobile .bk-month-selector {
     padding: 4px 0 6px;
@@ -1796,7 +1964,7 @@ body {
     border-radius: 6px;
   }
 
-  /* ── SLIDE 3 (DETAIL PEMESANAN) ── */
+  /* ── SLIDE 3 & 4 (DETAIL PEMESANAN & KONFIRMASI) ── */
   .bk-mobile .bk-detail-card {
     flex: 1;
     min-height: 0;
@@ -1806,53 +1974,63 @@ body {
     display: flex;
     flex-direction: column;
   }
-  .bk-mobile .bk-detail-room {
+
+  /* Summary Chip of selected room & time (Slide 3) */
+  .bk-mobile-step-summary-bar {
     display: flex;
+    align-items: center;
+    justify-content: space-between;
     gap: 8px;
-    margin-bottom: 6px;
-    padding: 5px 8px;
-    background: #f8fafc;
-    border-radius: 6px;
-    border: 1px solid #e2e8f0;
-  }
-  .bk-mobile .bk-detail-room img {
-    width: 44px;
-    height: 34px;
-    border-radius: 4px;
-  }
-  .bk-mobile .bk-detail-room h3 {
-    font-size: 11px;
-    margin: 0 0 1px;
-  }
-  .bk-mobile .bk-detail-room .bk-room-meta {
-    font-size: 9px;
-    gap: 4px;
-    margin-bottom: 0px;
-  }
-  .bk-mobile .bk-detail-datetime {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    gap: 3px 6px;
-    padding: 5px 8px;
+    padding: 7px 10px;
     background: #f0f7ff;
     border: 1px solid #bae6fd;
+    border-radius: 8px;
+    margin: 8px 10px 4px;
+    flex-shrink: 0;
+  }
+  .bk-mssb-info {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+  }
+  .bk-mssb-info strong {
+    font-size: 11.5px;
+    color: #0c2d5e;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .bk-mssb-info span {
+    font-size: 9.5px;
+    color: #0284c7;
+    font-weight: 500;
+  }
+  .bk-mssb-change {
+    padding: 4px 8px;
     border-radius: 6px;
-    margin-bottom: 6px;
-    align-items: center;
-  }
-  .bk-mobile .bk-detail-datetime div:nth-child(odd) {
-    font-size: 10px;
-    gap: 4px;
-  }
-  .bk-mobile .bk-val {
+    border: 1px solid #93c5fd;
+    background: #ffffff;
+    color: #1d4ed8;
     font-size: 10px;
     font-weight: 600;
+    cursor: pointer;
+    flex-shrink: 0;
+    font-family: inherit;
   }
-  .bk-mobile .bk-icon-dark {
-    font-size: 11px;
+
+  /* Slide 3 (Form Scroll) */
+  .bk-mobile-form-scroll {
+    flex: none;
+    height: auto;
+    max-height: none;
+    overflow: visible;
+    padding: 6px 12px 14px;
+    display: flex;
+    flex-direction: column;
   }
   .bk-mobile .bk-form {
-    gap: 6px;
+    gap: 7px;
     display: flex;
     flex-direction: column;
   }
@@ -1860,46 +2038,180 @@ body {
     margin-bottom: 0;
   }
   .bk-mobile .bk-form-group label {
-    font-size: 10px;
+    font-size: 10.5px;
     margin-bottom: 2px;
-    gap: 4px;
+    gap: 5px;
+    font-weight: 600;
+    color: #334155;
   }
   .bk-mobile .bk-form-group textarea,
   .bk-mobile .bk-form-group select,
   .bk-mobile .bk-form-group input {
-    padding: 6px 8px;
-    font-size: 11px;
-    border-radius: 6px;
+    padding: 7px 9px;
+    font-size: 11.5px;
+    border-radius: 7px;
+    border: 1px solid #cbd5e1;
   }
   .bk-mobile .bk-input-custom-bagian {
-    margin-top: 4px;
+    margin-top: 5px;
   }
   .bk-mobile .bk-form-group textarea {
-    min-height: 40px;
-    height: 40px;
+    min-height: 48px;
+    height: 48px;
     resize: none;
   }
-  .bk-mobile .bk-form-group.inline {
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
+  .bk-mobile .bk-peserta-input-wrap input {
+    font-size: 11.5px;
+    padding: 7px 9px;
   }
-  .bk-mobile .bk-form-group.inline label {
-    margin: 0;
+  .bk-mobile .bk-add-material-btn {
+    min-height: 32px;
+    padding: 6px 10px;
+    font-size: 10.5px;
   }
-  .bk-mobile .bk-input-row {
-    width: auto;
-  }
-  .bk-mobile .bk-input-row input {
-    width: 70px;
-    padding: 5px 6px;
-    font-size: 11px;
-  }
-  .bk-mobile .bk-input-row span {
-    font-size: 10px;
+  .bk-mobile .bk-booking-materials > small {
+    font-size: 9px;
   }
   .bk-mobile .bk-form .bk-submit-btn {
-    display: none; /* Hidden on mobile because it's in the fixed footer navigation */
+    display: none; /* Controlled by bottom navigation */
+  }
+
+  /* Slide 4 (Konfirmasi Scroll & Card) */
+  .bk-confirmation-scroll {
+    flex: none;
+    height: auto;
+    max-height: none;
+    overflow: visible;
+    padding: 8px 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .bk-conf-banner {
+    padding: 8px 10px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+  }
+  .bk-conf-badge {
+    display: inline-block;
+    padding: 2px 7px;
+    background: #e0f2fe;
+    color: #0369a1;
+    border-radius: 10px;
+    font-size: 9.5px;
+    font-weight: 700;
+    margin-bottom: 3px;
+  }
+  .bk-conf-banner h3 {
+    margin: 0 0 2px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #0c2d5e;
+  }
+  .bk-conf-banner p {
+    margin: 0;
+    font-size: 10px;
+    color: #64748b;
+    line-height: 1.35;
+  }
+  .bk-conf-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    box-shadow: 0 1px 4px rgba(12, 45, 94, 0.04);
+  }
+  .bk-conf-room-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .bk-conf-room-img {
+    width: 62px;
+    height: 48px;
+    border-radius: 6px;
+    object-fit: cover;
+    flex-shrink: 0;
+  }
+  .bk-conf-room-details h4 {
+    margin: 0 0 2px;
+    font-size: 12.5px;
+    color: #0c2d5e;
+  }
+  .bk-conf-room-meta {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    color: #64748b;
+    margin-top: 1px;
+  }
+  .bk-conf-divider {
+    height: 1px;
+    background: #f1f5f9;
+    margin: 2px 0;
+  }
+  .bk-conf-details-list {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+  .bk-conf-row {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .bk-conf-label {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 9.5px;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  .bk-conf-label svg {
+    color: #1769aa;
+    font-size: 10px;
+  }
+  .bk-conf-val {
+    font-size: 11.5px;
+    color: #0c2d5e;
+    font-weight: 600;
+    line-height: 1.35;
+  }
+  .bk-conf-val.bk-time-highlight {
+    color: #0284c7;
+    font-weight: 700;
+  }
+  .bk-conf-materials-preview {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 2px;
+  }
+  .bk-conf-mat-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 5px;
+    font-size: 10px;
+    color: #334155;
+  }
+  .bk-conf-mat-pill svg {
+    color: #1769aa;
+    font-size: 10px;
+  }
+  .bk-conf-mat-pill small {
+    color: #94a3b8;
   }
 }
 
