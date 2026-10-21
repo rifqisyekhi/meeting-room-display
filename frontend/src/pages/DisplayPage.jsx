@@ -207,17 +207,18 @@ function RoomPanel({ room, todayEvents, upcomingEvents, now }) {
     if (isEventFinished(event, now)) return false
     const s = String(event.status || '').toLowerCase().trim()
     if (s.includes('menunggu') || s === 'pending') return false
-    if (event.status === 'IN_PROGRESS') return true
+    if (s === 'selesai' || s === 'available') return false
 
+    /* Jam rapat yang menentukan, bukan status. Dulu status IN_PROGRESS
+       langsung dianggap sedang berjalan tanpa melihat jam, sehingga papan
+       menulis "Ruangan sedang digunakan" dengan meter "Sisa waktu" padahal
+       rapatnya belum dimulai — cukup satu check-in lebih awal, atau backend
+       menandainya "Berjalan", untuk memicunya. */
+    if (!event.mulai || !event.selesai) return false
     const dateStr = event.tanggalIso || now.format('YYYY-MM-DD')
-    if (event.mulai && event.selesai) {
-      const startMoment = dayjs(`${dateStr}T${event.mulai}:00`)
-      const endMoment = dayjs(`${dateStr}T${event.selesai}:00`)
-      if (now.isAfter(startMoment) && now.isBefore(endMoment)) {
-        if (s !== 'selesai' && s !== 'available') return true
-      }
-    }
-    return false
+    const startMoment = dayjs(`${dateStr}T${event.mulai}:00`)
+    const endMoment = dayjs(`${dateStr}T${event.selesai}:00`)
+    return !now.isBefore(startMoment) && now.isBefore(endMoment)
   })
 
   // 2. Rapat berikutnya: HANYA yang masih akan datang dan BELUM selesai dan SUDAH DISETUJUI
@@ -305,7 +306,12 @@ function RoomPanel({ room, todayEvents, upcomingEvents, now }) {
               )}
             </div>
           ) : (
-            <div className="slot__foot slot__foot--with-qr">
+            /* Tanpa QR presensi di sini: cabang ini berarti tidak ada rapat
+               yang sedang berlangsung, dan QR check-in hanya boleh muncul
+               selama jam yang diajukan. Sebelumnya QR rapat berikutnya sudah
+               terpampang sejak pagi, sehingga peserta bisa presensi berjam-jam
+               sebelum rapatnya dimulai. */
+            <div className="slot__foot">
               <div className="slot__next-wrap">
                 <span className="eyebrow">Booking berikutnya</span>
                 {next ? (
@@ -317,23 +323,6 @@ function RoomPanel({ room, todayEvents, upcomingEvents, now }) {
                   <strong className="is-empty">Belum ada booking</strong>
                 )}
               </div>
-              {next?.id && (
-                <div className="slot__qr-pass">
-                  <div className="slot__qr-pass-code">
-                    <QRCodeSVG
-                      value={`${typeof window !== 'undefined' ? window.location.origin : ''}/meeting/${next.id}`}
-                      size={58}
-                      level="M"
-                      bgColor="#ffffff"
-                      fgColor="#0f244f"
-                      marginSize={1}
-                    />
-                  </div>
-                  <div className="slot__qr-pass-label">
-                    <span>Presensi Mandiri</span>
-                  </div>
-                </div>
-              )}
             </div>
           )}
         </div>
@@ -440,12 +429,13 @@ function DisplayPage() {
 
       // 3. Gabungkan rapat lokal dari localStorage dan dashboard database
       try {
-        let storedMeetings = []
-        try {
-          storedMeetings = JSON.parse(localStorage.getItem('app_meetings') || '[]')
-        } catch (e) {}
-
-        const combinedList = [...fetchedDashboardMeetings, ...storedMeetings]
+        /* Papan TV hanya boleh menampilkan data server. Dulu
+           localStorage.app_meetings ikut digabung di sini, dan karena isi
+           localStorage berbeda di tiap perangkat, URL yang sama menampilkan
+           jadwal yang berbeda-beda: perangkat admin membawa seluruh daftar
+           rapat yang ditulis dashboard ke localStorage, sedangkan perangkat
+           user dan approval hanya membawa miliknya sendiri. */
+        const combinedList = fetchedDashboardMeetings
         const todayIso = dayjs().format('YYYY-MM-DD')
 
         combinedList.forEach((m) => {
@@ -464,13 +454,19 @@ function DisplayPage() {
 
           const mStart = dayjs(`${m.date}T${m.start}:00`)
           const mEnd = dayjs(`${m.date}T${m.end}:00`)
-          const isNow = dayjs().isAfter(mStart) && dayjs().isBefore(mEnd)
+          const isNow = !dayjs().isBefore(mStart) && dayjs().isBefore(mEnd)
           const isDone = sLower === 'selesai' || sLower === 'available' || sLower === 'completed' || dayjs().isAfter(mEnd) || !!m.checkOutAt
 
           let evStatus = 'UPCOMING'
           if (isDone) {
             evStatus = 'AVAILABLE' // Selesai / Ruangan kembali tersedia
-          } else if (sLower === 'berjalan' || isNow) {
+          } else if (isNow) {
+            /* Hanya jam yang boleh menjadikannya IN_PROGRESS. Dulu status
+               "Berjalan" dari database ikut dipakai, sehingga rapat yang belum
+               dimulai ditandai sedang berlangsung — dan setelah papan berhenti
+               mempercayai penanda itu, rapatnya malah hilang sama sekali:
+               bukan "sedang digunakan", tapi juga tidak masuk daftar
+               "Booking berikutnya" karena statusnya bukan UPCOMING. */
             evStatus = 'IN_PROGRESS'
           }
 
@@ -652,7 +648,7 @@ function DisplayPage() {
               <span className="contact__icon" style={{ color: '#90caf9' }}>A</span>
               <div className="contact__info contact__info--reversed">
                 <span>Admin</span>
-                <strong>Windy Nur</strong>
+                <strong>SisKA</strong>
               </div>
             </li>
             <li>
