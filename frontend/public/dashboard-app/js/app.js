@@ -1704,15 +1704,13 @@ function dashboard() {
         sLower === "dibatalkan" ||
         sLower === "rejected" ||
         sLower === "cancelled";
-      const canShowQr = !isPendingStatus && !isCanceledOrRejected;
 
       const starSvg = `<svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
-      const qrSvg = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>`;
 
       const viewBtn = `<button type="button" style="background-color:#f1f5f9;color:#0c2d5e;border:1px solid #e2e8f0;border-radius:6px;width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:background 0.15s;" title="Lihat Detail Rapat" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'" onclick="viewMeeting('${m.id}')">${faEye}</button>`;
-      const qrBtn = canShowQr
-        ? `<button type="button" style="background-color:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:6px;padding:0 7px;height:28px;display:inline-flex;align-items:center;gap:3px;cursor:pointer;font-size:11px;font-weight:700;transition:background 0.15s;" title="Buka QR Pass & Presensi Rapat" onclick="openMeetingQRModal('${m.id}')">${qrSvg}<span>QR</span></button>`
-        : "";
+      // Tombol QR/scan barcode ditiadakan di dashboard: presensi dipindai
+      // peserta lewat papan TV di ruangan, bukan dibuka dari sini.
+      const qrBtn = "";
       const revBtn =
         isCompleted && rev
           ? `<button type="button" style="background-color:#fff8e6;color:#d97706;border:1px solid #fde68a;border-radius:6px;padding:0 6px;height:28px;display:inline-flex;align-items:center;gap:3px;cursor:pointer;font-size:11px;font-weight:700;" title="Lihat Rating & Review Pengguna" onclick="openMeetingReviewModal('${m.id}')">${starSvg}<span>${rev.rating ? Number(rev.rating).toFixed(1) : "5.0"}</span></button>`
@@ -1915,7 +1913,10 @@ function dashboard() {
               <div class="rc-text-compact"><strong style="color:#b45309;">${stats.soonCount}</strong><span>Rapat Mendatang</span></div>
             </div>
             <div class="rep-card-compact">
-              <div class="rc-icon-compact" style="background:#e0f2fe;color:#0284c7;">${bsBuilding}</div>
+              <!-- Ikon centang, bukan ikon gedung: kartu ini menghitung rapat
+                   yang sudah selesai, bukan ruangan. Sama dengan kartu
+                   "Rapat Selesai" di dashboard Admin. -->
+              <div class="rc-icon-compact" style="background:#e0f2fe;color:#0284c7;">${ICONS.meetingCheck}</div>
               <div class="rc-text-compact"><strong style="color:#0284c7;">${stats.doneCount}</strong><span>Rapat Selesai</span></div>
             </div>
           </div>
@@ -2076,16 +2077,9 @@ function meetingTable(data, actions = true, allowDelete = true) {
             const isCompleted =
               (m.status || "").toLowerCase() === "selesai" ||
               (m.status || "").toLowerCase() === "completed";
-            const rev =
-              typeof getMeetingReview === "function"
-                ? getMeetingReview(m)
-                : m.review;
-            const hasRev = isCompleted && !!rev;
-            const starSvg = `<span class="meeting-inline-star">${ICONS.reviewStar}</span>`;
-
-            const reviewBtn = hasRev
-              ? `<button style="background-color:#fff8e6;color:#d97706;border:1px solid #fde68a;border-radius:10px;padding:0 10px;height:34px;display:inline-flex;align-items:center;gap:5px;cursor:pointer;margin-right:8px;font-size:12px;font-weight:700;box-shadow:0 2px 4px rgba(217,119,6,0.08);transition:all 0.15s ease;" title="Lihat Rating & Review Pengguna" onclick="openMeetingReviewModal('${m.id}')">${starSvg}<span>${rev.rating ? Number(rev.rating).toFixed(1) : "5.0"}</span></button>`
-              : `<button style="background-color:#f8fafc;color:#94a3b8;border:1px solid #e2e8f0;border-radius:10px;padding:0 9px;height:34px;display:inline-flex;align-items:center;gap:4px;cursor:pointer;margin-right:8px;font-size:11.5px;font-weight:600;transition:all 0.15s ease;" title="Rating & Review Ruangan (Tersedia setelah rapat selesai)" onclick="openMeetingReviewModal('${m.id}')">${starSvg}<span>Review</span></button>`;
+            // Kolom "Rating & Review" sudah memuat keping ratingnya, jadi
+            // tombol kembar di kolom Aksi ditiadakan.
+            const reviewBtn = "";
 
             const statusStr = (m.status || "").trim();
             const statusLower = statusStr.toLowerCase();
@@ -2105,12 +2099,10 @@ function meetingTable(data, actions = true, allowDelete = true) {
               statusLower === "cancelled";
             const isRejected =
               statusLower === "ditolak" || statusLower === "rejected";
-            const canShowQr = !isPending && !isCanceled && !isRejected;
 
-            const qrSvg = ICONS.meetingQr;
-            const qrBtn = canShowQr
-              ? `<button style="background-color:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:10px;padding:0 9px;height:34px;display:inline-flex;align-items:center;gap:4px;cursor:pointer;margin-right:8px;font-size:11.5px;font-weight:700;transition:all 0.15s ease;" title="Tampilkan QR Code Rapat" onclick="openMeetingQRModal('${m.id}')">${qrSvg}<span>QR</span></button>`
-              : "";
+            // Lihat catatan di daftar ringkas: scan barcode/QR tidak lagi
+            // ditawarkan dari Manajemen Rapat.
+            const qrBtn = "";
 
             let actionButtons = `<button style="background-color:#f4f6f9;color:#0c2d5e;border:none;border-radius:10px;width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;margin-right:8px;box-shadow:0 2px 5px rgba(0,0,0,0.03);" title="Lihat Detail Rapat" onclick="viewMeeting('${m.id}')">${faEye}</button>${qrBtn}${reviewBtn}`;
             if (actions && allowDelete && can("manageMeeting", user)) {
@@ -2175,12 +2167,14 @@ function meetingTable(data, actions = true, allowDelete = true) {
               0,
               Math.min(5, Number(m.review?.rating) || 0),
             );
-            const ratingStars = Array.from({ length: 5 }, (_, starIndex) =>
-              `<span class="${starIndex < Math.floor(rating) ? "is-filled" : "is-empty"}">${ICONS.reviewStar}</span>`,
-            ).join("");
+            /* Diringkas menjadi satu keping angka yang bisa diklik. Sebelumnya
+               kolom ini memuat lima bintang DAN tombol "Lihat Review", padahal
+               di kolom Aksi masih ada tombol bintang lagi untuk rapat yang
+               sama — tiga jalan ke informasi yang sama, dan tombol di kolom
+               ini malah membuka detail rapat, bukan review-nya. */
             const reviewCell = isCompleted
               ? m.review
-                ? `<div style="display:flex;flex-direction:column;align-items:flex-start;gap:3px;min-width:105px;"><span class="meeting-rating-stars" aria-label="Rating ${rating} dari 5">${ratingStars}</span><button type="button" onclick="viewMeeting('${m.id}')" style="padding:3px 7px;border:1px solid #c9d9ef;border-radius:6px;color:#15508d;background:#f3f8ff;font:600 10px inherit;cursor:pointer;">Lihat Review</button></div>`
+                ? `<button type="button" class="meeting-review-chip" title="Lihat rating dan ulasan ruangan dari pemesan" onclick="openMeetingReviewModal('${m.id}')"><span class="meeting-inline-star">${ICONS.reviewStar}</span><span>${rating ? rating.toFixed(1) : "5.0"}</span></button>`
                 : `<span style="color:#8291a5;font-size:11px;">Belum ada review</span>`
               : `<span style="color:#9aa8b8;">-</span>`;
 
@@ -5054,12 +5048,8 @@ function viewMeeting(id) {
     statusLower === "running";
   const isCompleted = statusLower === "selesai" || statusLower === "completed";
   const isRejected = statusLower === "ditolak" || statusLower === "rejected";
-  const canShowQr = !isPending && !isCanceled && !isRejected;
 
   let actionBtns = `<button class="btn btn-light" style="display:inline-flex;align-items:center;gap:6px;" onclick="exportNotulensiPDF('${m.id}')">${ICONS.export} <span>Notulensi</span></button>`;
-  if (canShowQr) {
-    actionBtns += `<button class="btn btn-light" style="display:inline-flex;align-items:center;gap:6px;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;font-weight:700;" onclick="closeModal(); openMeetingQRModal('${m.id}')"><span>QR Pass &amp; Presensi</span></button>`;
-  }
 
   if (isPending) {
     if (can("approve")) {

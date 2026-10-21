@@ -2425,6 +2425,19 @@ button {
 #meetingTable .meeting-rating-stars > span { display:inline-flex; color:#cbd5e1; }
 #meetingTable .meeting-rating-stars > span.is-filled { color:#e4a719; }
 #meetingTable .meeting-rating-stars svg { width:13px !important; height:13px !important; }
+
+/* Keping rating ringkas di kolom "Rating & Review": satu angka yang bisa
+   diklik, menggantikan lima bintang plus tombol "Lihat Review". */
+#meetingTable .meeting-review-chip {
+  display:inline-flex; align-items:center; gap:4px;
+  padding:3px 9px; height:26px;
+  background:#fff8e6; color:#b4740a;
+  border:1px solid #fde68a; border-radius:8px;
+  font:700 11.5px inherit; cursor:pointer;
+  transition:background 0.15s ease;
+}
+#meetingTable .meeting-review-chip:hover { background:#fef3c7; }
+#meetingTable .meeting-review-chip svg { width:12px !important; height:12px !important; }
 #meetingTable .meeting-method-tag {
   display:inline-flex;
   width:max-content;
