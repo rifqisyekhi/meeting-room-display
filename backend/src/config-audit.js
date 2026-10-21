@@ -58,7 +58,11 @@ function auditKonfigurasi() {
   console.warn("  PERINGATAN KONFIGURASI — belum aman untuk dipakai banyak orang");
   console.warn("=".repeat(68));
   masalah.forEach((m, i) => console.warn(`  ${i + 1}. ${m}`));
-  console.warn("  Perbaiki di backend/.env lalu jalankan: pm2 restart meeting-room-display-api");
+  /* Nama proses pm2 berbeda antar server (meeting-backend, 
+     meeting-room-display-api, ...), jadi jangan dipatok di kode — pesan
+     yang menyebut nama yang salah justru menyesatkan saat deploy. */
+  const namaProses = process.env.name || process.env.PM2_PROCESS_NAME || "<nama-proses-pm2>";
+  console.warn(`  Perbaiki di backend/.env lalu jalankan: pm2 restart ${namaProses}`);
   console.warn("=".repeat(68) + "\n");
 }
 
