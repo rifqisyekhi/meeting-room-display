@@ -121,7 +121,10 @@ router.post("/meetings", wajibLogin, async (req, res) => {
 
     res.json({ success: true, meeting: saved });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    /* 409 untuk bentrok jadwal dan 400 untuk masukan tidak lengkap, supaya
+       frontend bisa menampilkan pesannya apa adanya ke pemesan alih-alih
+       "terjadi kesalahan" yang tidak membantu. */
+    res.status(err.statusCode || 500).json({ success: false, error: err.message });
   }
 });
 

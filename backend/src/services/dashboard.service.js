@@ -30,6 +30,107 @@ function verifyPassword(password, storedHash) {
   }
 }
 
+/* ===== VALIDASI & PENCEGAHAN BENTROK JADWAL ==========================
+
+   Sebelumnya satu-satunya pencegahan tabrakan ada di BookingPage.jsx —
+   di browser. Artinya tiga celah terbuka: dua orang menekan Kirim pada
+   detik yang sama sama-sama lolos, panggilan API langsung melewatinya,
+   dan tidak ada apa pun yang menahan pimpinan menyetujui dua permohonan
+   yang jamnya bertabrakan.
+
+   Pemeriksaan ditaruh di saveMeeting, bukan di route, karena SEMUA jalur
+   bermuara ke sini: pembuatan dari web, persetujuan lewat WhatsApp, dan
+   penyuntingan dari dashboard. Satu aturan, berlaku di semua pintu.
+
+   Yang TIDAK diubah: rapat berstatus "Menunggu Approval" tetap tidak
+   memblokir slot. Itu keputusan produk yang sudah ada ("Syarat dari
+   user" di BookingPage) — dua orang masih boleh mengantre untuk slot
+   yang sama. Yang ditutup adalah akibat terburuknya: dua rapat sama-sama
+   DISETUJUI pada ruangan dan jam yang sama. */
+
+const STATUS_TIDAK_AKTIF = ["menunggu approval", "pending", "dibatalkan", "ditolak", "cancelled"];
+
+function statusAktif(status) {
+  const s = String(status || "").toLowerCase().trim();
+  if (!s) return false; // tanpa status dianggap permohonan baru, belum aktif
+  return !STATUS_TIDAK_AKTIF.includes(s);
+}
+
+function keMenit(waktu) {
+  const cocok = String(waktu || "").match(/^(\d{1,2}):(\d{2})$/);
+  if (!cocok) return null;
+  const jam = Number(cocok[1]);
+  const menit = Number(cocok[2]);
+  if (jam > 23 || menit > 59) return null;
+  return jam * 60 + menit;
+}
+
+function samaRuang(a, b) {
+  const x = String(a || "").toLowerCase().replace(/\s+/g, "");
+  const y = String(b || "").toLowerCase().replace(/\s+/g, "");
+  if (!x || !y) return false;
+  return x.includes(y) || y.includes(x);
+}
+
+function galat(pesan, kode = 400) {
+  const e = new Error(pesan);
+  e.statusCode = kode;
+  return e;
+}
+
+/* Hanya dijalankan saat slotnya benar-benar baru atau berubah. Pembaruan
+   yang tidak menyentuh jadwal — check-in, unggah materi, catat peserta —
+   tidak ikut divalidasi, supaya data lama yang formatnya tidak rapi tidak
+   mendadak membuat presensi gagal. */
+function validasiSlot(meeting) {
+  if (!String(meeting.room || "").trim()) throw galat("Ruangan wajib diisi.");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(meeting.date || ""))) {
+    throw galat("Tanggal rapat wajib diisi dengan format YYYY-MM-DD.");
+  }
+
+  const mulai = keMenit(meeting.start);
+  const selesai = keMenit(meeting.end);
+  if (mulai === null) throw galat("Jam mulai wajib diisi dengan format HH:MM.");
+  if (selesai === null) throw galat("Jam selesai wajib diisi dengan format HH:MM.");
+  if (selesai <= mulai) throw galat("Jam selesai harus lebih akhir daripada jam mulai.");
+
+  if (!String(meeting.title || meeting.agenda || "").trim()) {
+    throw galat("Judul atau agenda rapat wajib diisi.");
+  }
+}
+
+/* Mengembalikan rapat aktif pertama yang jamnya beririsan, atau null. */
+function cariBentrok(daftar, meeting, idSendiri) {
+  const mulai = keMenit(meeting.start);
+  const selesai = keMenit(meeting.end);
+  if (mulai === null || selesai === null) return null;
+
+  return (
+    (daftar || []).find((lain) => {
+      if (!lain) return false;
+
+      /* Jangan bandingkan dengan dirinya sendiri. Dicocokkan lewat beberapa
+         kunci karena satu rapat bisa punya id lokal, originalId, dan
+         googleId sekaligus. */
+      const idLain = [lain.id, lain.originalId, lain.googleId].map(String);
+      if (idSendiri.some((x) => idLain.includes(String(x)))) return false;
+
+      if (!statusAktif(lain.status)) return false;
+      if (String(lain.date || "") !== String(meeting.date || "")) return false;
+      if (!samaRuang(lain.room, meeting.room)) return false;
+
+      const mulaiLain = keMenit(lain.start);
+      const selesaiLain = keMenit(lain.end);
+      if (mulaiLain === null || selesaiLain === null) return false;
+
+      /* Beririsan bila mulai salah satu jatuh sebelum selesai yang lain.
+         Jadwal yang bersambung persis (10:00 selesai, 10:00 mulai) BUKAN
+         bentrok. */
+      return mulai < selesaiLain && selesai > mulaiLain;
+    }) || null
+  );
+}
+
 /* Akun master cadangan.
 
    PASSWORD TIDAK LAGI PUNYA NILAI BAWAAN DI KODE. Sebelumnya setiap akun
@@ -721,7 +822,12 @@ async function getDashboardData() {
     if (idKey && seenMeetingIds.has(idKey)) continue;
     if (gidKey && seenMeetingIds.has(gidKey)) continue;
     if (origKey && seenMeetingIds.has(origKey)) continue;
-    if (m.date && m.start && normRoom && seenSlotKeys.has(slotKey)) continue;
+    /* Dedup berdasarkan SLOT hanya untuk baris tanpa id — itu kasus impor
+       Google Calendar yang belum punya id lokal. Rapat yang punya id sendiri
+       sudah ditangani seenMeetingIds di atas (id lokal dan googleId saling
+       dikenali), jadi menerapkan aturan slot pada mereka justru MENGHAPUS
+       permohonan kedua yang sah dari layar approval. */
+    if (!idKey && m.date && m.start && normRoom && seenSlotKeys.has(slotKey)) continue;
 
     if (idKey) seenMeetingIds.add(idKey);
     if (gidKey) seenMeetingIds.add(gidKey);
@@ -819,6 +925,19 @@ async function saveMeeting(meeting) {
     if (originalId && (String(m.id) === String(originalId) || (m.originalId && String(m.originalId) === String(originalId)))) return true;
     if (meeting.id && (String(m.id) === String(meeting.id) || (m.originalId && String(m.originalId) === String(meeting.id)))) return true;
     if (meeting.googleId && (m.googleId === meeting.googleId || String(m.id) === String(meeting.googleId))) return true;
+    /* Pencocokan berdasarkan slot HANYA untuk rapat yang datang tanpa
+       identitas apa pun — biasanya hasil impor dari Google Calendar yang
+       belum punya id lokal.
+
+       Sebelumnya aturan ini berlaku untuk semua, sehingga dua pemesanan
+       BERBEDA yang kebetulan sama ruang, tanggal, dan jam mulainya
+       dianggap satu rapat: yang kedua menimpa yang pertama — lengkap
+       dengan nama pemesan, agenda, dan materinya — tanpa pesan apa pun.
+       Terbukti saat pengujian: tiga pemesanan di slot yang sama hanya
+       menyisakan satu baris di store. */
+    const punyaIdentitas = Boolean(originalId || meeting.id || meeting.googleId);
+    if (punyaIdentitas) return false;
+
     const sameDate = m.date === meeting.date;
     const sameTime = m.start === meeting.start;
     const normMRoom = (m.room || "").toLowerCase().replace(/\s+/g, "");
@@ -826,6 +945,80 @@ async function saveMeeting(meeting) {
     const sameRoom = normMRoom && normMeetRoom && (normMRoom.includes(normMeetRoom) || normMeetRoom.includes(normMRoom));
     return sameDate && sameTime && sameRoom;
   });
+
+  /* --- Validasi slot & pencegahan bentrok ------------------------------
+     Hanya dijalankan bila jadwalnya memang sedang disentuh, atau rapatnya
+     baru beralih menjadi aktif (disetujui). Pembaruan lain — check-in,
+     unggah materi, catat peserta — dilewati supaya tidak ikut gagal. */
+  const akanAktif = statusAktif(meeting.status);
+  const dulunyaAktif = matchedStored ? statusAktif(matchedStored.status) : false;
+  const slotBerubah =
+    !matchedStored ||
+    String(matchedStored.date || "") !== String(meeting.date || "") ||
+    String(matchedStored.start || "") !== String(meeting.start || "") ||
+    String(matchedStored.end || "") !== String(meeting.end || "") ||
+    !samaRuang(matchedStored.room, meeting.room);
+
+  if (slotBerubah) {
+    validasiSlot(meeting);
+  }
+
+  /* Dijalankan saat slotnya baru/berubah (termasuk permohonan yang masih
+     menunggu approval — aturannya harus sama dengan yang dipakai halaman
+     booking), ATAU saat rapat beralih menjadi aktif. Yang kedua inilah
+     yang menahan pimpinan menyetujui permohonan yang jamnya sudah keburu
+     diambil rapat lain. Pembandingnya selalu hanya rapat yang AKTIF, jadi
+     dua permohonan yang sama-sama menunggu tetap boleh mengantre. */
+  if (slotBerubah || (akanAktif && !dulunyaAktif)) {
+    const idSendiri = [
+      meeting.id,
+      originalId,
+      meeting.googleId,
+      matchedStored && matchedStored.id,
+      matchedStored && matchedStored.originalId,
+      matchedStored && matchedStored.googleId,
+    ].filter(Boolean);
+
+    /* Store JSON dipakai sebagai dasar, lalu ditambah isi database bila
+       terhubung. Keduanya diperiksa karena store bisa tertinggal sesaat
+       dari database, dan melewatkan satu rapat di sini berarti dua rapat
+       disetujui untuk ruangan yang sama. */
+    let kandidat = [...(store.meetings || [])];
+
+    if (getIsConnected()) {
+      try {
+        const dbRows = await query(
+          `SELECT id, google_id, room_name, date, start_time, end_time, status
+             FROM meetings
+            WHERE date = $1`,
+          [meeting.date]
+        );
+        kandidat = kandidat.concat(
+          (dbRows.rows || []).map((r) => ({
+            id: r.id,
+            googleId: r.google_id,
+            room: r.room_name,
+            date: r.date,
+            start: r.start_time,
+            end: r.end_time,
+            status: r.status,
+          }))
+        );
+      } catch (dbErr) {
+        console.warn("[bentrok] Gagal membaca jadwal dari database:", dbErr.message);
+      }
+    }
+
+    const bentrok = cariBentrok(kandidat, meeting, idSendiri);
+    if (bentrok) {
+      throw galat(
+        `${meeting.room} sudah dipakai pada ${meeting.date} pukul ${bentrok.start}-${bentrok.end}` +
+          `${bentrok.title ? ` untuk "${bentrok.title}"` : ""}. ` +
+          `Silakan pilih jam lain.`,
+        409
+      );
+    }
+  }
 
   const gcal = getGoogleCalendarClient();
   let googleEvent = null;
@@ -952,6 +1145,11 @@ async function saveMeeting(meeting) {
     if (originalId && (String(m.id) === String(originalId) || (m.originalId && String(m.originalId) === String(originalId)))) return true;
     if (meeting.id && (String(m.id) === String(meeting.id) || (m.originalId && String(m.originalId) === String(meeting.id)))) return true;
     if (meeting.googleId && (m.googleId === meeting.googleId || String(m.id) === String(meeting.googleId))) return true;
+    /* Guard yang sama seperti pada matchedStored: tanpa ini, pemesanan
+       berbeda yang sama slotnya akan saling menimpa saat ditulis ke store. */
+    const punyaIdentitas = Boolean(originalId || meeting.id || meeting.googleId);
+    if (punyaIdentitas) return false;
+
     const sameDate = m.date === meeting.date;
     const sameTime = m.start === meeting.start;
     const normMRoom = (m.room || "").toLowerCase().replace(/\s+/g, "");
@@ -987,6 +1185,17 @@ async function saveMeeting(meeting) {
     if (String(m.id) === primaryId) return false;
     if (originalId && String(m.id) === String(originalId)) return false;
     if (matchedStored?.id && String(m.id) === String(matchedStored.id)) return false;
+    /* Pembersihan berdasarkan SLOT dibatasi pada rapat tanpa identitas.
+
+       Baris ini dulu MENGHAPUS pemesanan lain yang kebetulan sama ruang,
+       tanggal, dan jam mulainya — bukan sekadar menimpa. Jadi ketika orang
+       kedua memesan slot yang sama, permohonan orang pertama lenyap dari
+       sistem tanpa jejak dan tanpa pemberitahuan kepada siapa pun.
+
+       Pembersihan duplikat yang sah sudah ditangani tiga baris id di atas
+       (primaryId, originalId, matchedStored.id). */
+    if (meeting.id || originalId || meeting.googleId) return true;
+
     const sameDate = m.date === meeting.date;
     const sameTime = m.start === meeting.start;
     const normMRoom = (m.room || "").toLowerCase().replace(/\s+/g, "");
