@@ -481,6 +481,11 @@ export default function BookingPage() {
   };
 
   const [allMeetings, setAllMeetings] = useState([]);
+  // Ruangan dari database. null = belum terjawab, sehingga daftar bawaan di
+  // kode masih dipakai. Daftar kosong dari server tidak pernah dipasang:
+  // tabel rooms yang belum terisi bukan alasan menyembunyikan ruangan dari
+  // pegawai yang mau memesan.
+  const [apiRooms, setApiRooms] = useState(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -491,6 +496,17 @@ export default function BookingPage() {
           const data = await res.json();
           if (isMounted && Array.isArray(data.meetings)) {
             setAllMeetings(data.meetings);
+          }
+          if (isMounted && Array.isArray(data.rooms) && data.rooms.length > 0) {
+            setApiRooms(data.rooms);
+            // Disimpan supaya halaman lain yang masih membaca app_rooms
+            // (riwayat booking) ikut memakai data database yang sama.
+            try {
+              localStorage.setItem("app_rooms", JSON.stringify(data.rooms));
+            } catch {
+              /* Mode privat atau kuota penuh. Daftar ruangan tetap jalan dari
+                 apiRooms, jadi kegagalan menyimpan salinan ini tidak fatal. */
+            }
           }
         }
       } catch (err) {
@@ -1004,46 +1020,61 @@ export default function BookingPage() {
     navigate("/booking/history");
   };
 
+  /* Melengkapi data ruangan apa pun asalnya (database atau localStorage) dengan
+     nilai bawaan di kode, supaya kolom yang belum diisi admin tidak membuat
+     kartu ruangan tampak rusak. */
+  const normalisasiRuangan = (list) =>
+    list.map((r, idx) => {
+      /* Hanya ruangan dengan nama yang sama yang boleh meminjam nilai bawaan.
+         Sebelumnya ada cadangan defaultRooms[idx % panjang], sehingga ruangan
+         baru yang admin tambah ikut mewarisi fasilitas ruangan lain — "Ruang
+         Rapat Kecil" tampil dengan kapasitas 46, Smart TV 85 inch, dan 6 mic.
+         Lebih baik tampil apa adanya daripada menjanjikan fasilitas yang
+         tidak ada di ruangan itu. */
+      const defaultItem =
+        defaultRooms.find(
+          (dr) => dr.name.toLowerCase() === (r.name || "").toLowerCase(),
+        ) || {};
+      const imgs =
+        Array.isArray(r.images) && r.images.length > 0
+          ? r.images
+          : [r.img || r.image || defaultItem.img || imgRuangRapatBesar];
+      return {
+        ...defaultItem,
+        ...r,
+        id: r.id || defaultItem.id || `R_${idx}`,
+        name: r.name || defaultItem.name,
+        capacity: r.capacity || defaultItem.capacity || 20,
+        location: r.location || defaultItem.location || "Gedung A - Lantai 3",
+        category: (r.name || "").toLowerCase().includes("konsultasi")
+          ? "Ruang Konsultasi"
+          : "Ruang Besar",
+        img: imgs[0],
+        images: imgs,
+        facilities:
+          Array.isArray(r.facilities) && r.facilities.length > 0
+            ? r.facilities
+            : defaultItem.facilities || [
+                { label: "Kapasitas", value: String(r.capacity || 20) },
+                { label: "TV", value: "Smart TV" },
+                { label: "AC", value: "Tersedia" },
+              ],
+      };
+    });
+
+  /* Urutan sumber: database dulu, lalu salinan terakhir di browser, baru
+     daftar bawaan. Database didahulukan supaya ruangan yang admin tambah atau
+     ubah terlihat oleh semua pegawai, bukan hanya di browser admin sendiri. */
   const getRoomsList = () => {
+    if (Array.isArray(apiRooms) && apiRooms.length > 0) {
+      return normalisasiRuangan(apiRooms);
+    }
     try {
       const stored = localStorage.getItem("app_rooms");
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed.map((r, idx) => {
-            const defaultItem =
-              defaultRooms.find(
-                (dr) => dr.name.toLowerCase() === (r.name || "").toLowerCase(),
-              ) ||
-              defaultRooms[idx % defaultRooms.length] ||
-              {};
-            const imgs =
-              Array.isArray(r.images) && r.images.length > 0
-                ? r.images
-                : [r.image || defaultItem.img || imgRuangRapatBesar];
-            return {
-              ...defaultItem,
-              ...r,
-              id: r.id || defaultItem.id || `R_${idx}`,
-              name: r.name || defaultItem.name,
-              capacity: r.capacity || defaultItem.capacity || 20,
-              location:
-                r.location || defaultItem.location || "Gedung A - Lantai 3",
-              category: (r.name || "").toLowerCase().includes("konsultasi")
-                ? "Ruang Konsultasi"
-                : "Ruang Besar",
-              img: imgs[0],
-              images: imgs,
-              facilities:
-                Array.isArray(r.facilities) && r.facilities.length > 0
-                  ? r.facilities
-                  : defaultItem.facilities || [
-                      { label: "Kapasitas", value: String(r.capacity || 20) },
-                      { label: "TV", value: "Smart TV" },
-                      { label: "AC", value: "Tersedia" },
-                    ],
-            };
-          });
+          return normalisasiRuangan(parsed);
         }
       }
     } catch (e) {}

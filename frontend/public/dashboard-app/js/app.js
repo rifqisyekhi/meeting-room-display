@@ -7769,7 +7769,14 @@ async function fetchDashboardData(showToast = false) {
       state.meetings = meetings;
       getAppStorage().setItem("app_meetings", JSON.stringify(state.meetings));
     }
-    if (Array.isArray(data.rooms)) {
+    // Daftar ruangan kosong dari server berarti tabel `rooms` belum terisi
+    // atau database sedang tidak terjangkau — bukan perintah mengosongkan
+    // halaman Manajemen Ruangan. Dulu [] ikut ditimpakan ke state DAN ke
+    // localStorage, jadi daftar ruangan di dashboard admin hilang permanen
+    // sementara halaman booking pengguna tetap memakai daftar bawaannya.
+    // Penghapusan ruangan yang sungguhan tetap langsung terlihat karena
+    // deleteRoom memperbarui state.rooms sendiri.
+    if (Array.isArray(data.rooms) && data.rooms.length > 0) {
       const rooms = data.rooms.filter((r) => {
         const n = (r.name || "").toLowerCase();
         return !n.includes("nusantara") && !n.includes("garuda");
@@ -7778,7 +7785,10 @@ async function fetchDashboardData(showToast = false) {
       state.rooms = rooms;
       getAppStorage().setItem("app_rooms", JSON.stringify(state.rooms));
     }
-    if (Array.isArray(data.users)) {
+    // Sama seperti rooms: daftar pengguna kosong berarti database tidak
+    // terjangkau, bukan bahwa semua akun terhapus. Menimpanya dengan []
+    // mengosongkan app_login_users sehingga tidak ada yang bisa masuk lagi.
+    if (Array.isArray(data.users) && data.users.length > 0) {
       changed ||= JSON.stringify(data.users) !== JSON.stringify(state.users);
       state.users = data.users;
       try {
@@ -7786,7 +7796,9 @@ async function fetchDashboardData(showToast = false) {
         getAppStorage().setItem("app_login_users", JSON.stringify(state.users));
       } catch (e) {}
     }
-    if (Array.isArray(data.roles)) {
+    // Peran kosong akan mencabut seluruh izin (can() menolak semuanya), jadi
+    // dashboard tampak tanpa menu sama sekali. Pertahankan peran yang sudah ada.
+    if (Array.isArray(data.roles) && data.roles.length > 0) {
       changed ||= JSON.stringify(data.roles) !== JSON.stringify(state.roles);
       state.roles = data.roles;
       getAppStorage().setItem("app_roles", JSON.stringify(state.roles));
