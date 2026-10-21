@@ -374,10 +374,10 @@ function getMeetingStatus(startDate, endDate, now = new Date()) {
     return "Berjalan";
   }
   if (now < startDate) {
-    const isToday =
-      startDate.getFullYear() === now.getFullYear() &&
-      startDate.getMonth() === now.getMonth() &&
-      startDate.getDate() === now.getDate();
+    // Batas hari mengikuti CALENDAR_TIME_ZONE, bukan jam server: di VPS yang
+    // berjalan pada UTC, rapat pukul 03:00 WIB jatuh pada "kemarin" versi
+    // server sehingga ditandai "Akan Datang" padahal hari ini.
+    const isToday = formatDateISO(startDate) === formatDateISO(now);
     return isToday ? "Segera" : "Akan Datang";
   }
   return "Selesai";
@@ -447,8 +447,8 @@ function normalizeMeetingLifecycle(meeting, now = new Date()) {
       const [y, mth, d] = String(meeting.date).split("-").map(Number);
       const [sh, sm] = String(meeting.start || meeting.startTime || "08:00").split(":").map(Number);
       const [eh, em] = String(meeting.end || meeting.endTime || "17:00").split(":").map(Number);
-      const startDt = new Date(y, mth - 1, d, sh || 0, sm || 0, 0);
-      const endDt = new Date(y, mth - 1, d, eh || 0, em || 0, 0);
+      const startDt = waktuDiZona(y, mth, d, sh || 0, sm || 0);
+      const endDt = waktuDiZona(y, mth, d, eh || 0, em || 0);
 
       // 1. Waktu rapat sudah lewat -> PASTI Selesai
       if (now >= endDt) {
@@ -467,10 +467,8 @@ function normalizeMeetingLifecycle(meeting, now = new Date()) {
         if (meeting.checkInAt || sLower === "berjalan") {
           meeting.status = "Berjalan";
         } else {
-          const isToday =
-            startDt.getFullYear() === now.getFullYear() &&
-            startDt.getMonth() === now.getMonth() &&
-            startDt.getDate() === now.getDate();
+          // Lihat catatan di getMeetingStatus: batas hari ikut zona waktu.
+          const isToday = formatDateISO(startDt) === formatDateISO(now);
           meeting.status = isToday ? "Segera" : "Akan Datang";
         }
         return meeting;
@@ -481,16 +479,75 @@ function normalizeMeetingLifecycle(meeting, now = new Date()) {
   return meeting;
 }
 
-function formatTwoDigits(n) {
-  return String(n).padStart(2, "0");
+/* Google Calendar mengirim waktu absolut, misalnya 2026-10-21T11:20:00+07:00.
+   Dulu kedua fungsi di bawah menerjemahkannya dengan date.getHours() dan
+   date.getDate(), yang memakai zona waktu SISTEM. VPS produksi berjalan pada
+   Etc/UTC, sehingga 11:20 WIB terbaca 04:20 dan rapat sebelum pukul 07:00 WIB
+   bahkan mundur satu hari — status rapat lalu dihitung dari jam yang salah,
+   dan jadwal yang sudah disetujui tampak sudah berjalan atau sudah selesai.
+
+   Di laptop pengembang yang zonanya UTC+7 selisih ini nol, jadi bug ini tidak
+   pernah terlihat saat pengembangan dan hanya muncul setelah deploy. Karena
+   itu konversi sekarang dipaksa memakai CALENDAR_TIME_ZONE, bukan jam server. */
+const ZONA_WAKTU = process.env.CALENDAR_TIME_ZONE || "Asia/Jakarta";
+
+function bagianWaktuLokal(date) {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: ZONA_WAKTU,
+    hourCycle: "h23",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  })
+    .formatToParts(date)
+    .reduce((hasil, bagian) => {
+      hasil[bagian.type] = bagian.value;
+      return hasil;
+    }, {});
+}
+
+/* Selisih ZONA_WAKTU terhadap UTC pada satu titik waktu, dalam milidetik. */
+function offsetZona(date) {
+  const p = bagianWaktuLokal(date);
+  const sebagaiUtc = Date.UTC(
+    Number(p.year),
+    Number(p.month) - 1,
+    Number(p.day),
+    Number(p.hour),
+    Number(p.minute),
+    Number(p.second)
+  );
+  return sebagaiUtc - date.getTime();
+}
+
+/* Membangun Date dari jam dinding yang tersimpan, misalnya ("2026-10-21",
+   "11:20"). Sebelumnya dipakai new Date(y, bulan, hari, jam, menit), yang
+   menafsirkan angka-angka itu memakai zona waktu SISTEM. Di VPS yang berjalan
+   pada UTC, 11:20 WIB menjadi 11:20 UTC — alias 18:20 WIB, tujuh jam di masa
+   depan — sehingga rapat yang sudah selesai tetap berstatus "Segera" dan
+   status tidak pernah berubah setelah disetujui.
+
+   Offset dihitung pada tanggal yang bersangkutan, lalu diperiksa sekali lagi,
+   supaya zona yang mengenal DST tetap benar di sekitar pergantiannya. */
+function waktuDiZona(tahun, bulan, tanggal, jam, menit) {
+  const perkiraan = Date.UTC(tahun, bulan - 1, tanggal, jam, menit, 0);
+  const offsetAwal = offsetZona(new Date(perkiraan));
+  const percobaan = new Date(perkiraan - offsetAwal);
+  const offsetPasti = offsetZona(percobaan);
+  return offsetPasti === offsetAwal ? percobaan : new Date(perkiraan - offsetPasti);
 }
 
 function formatDateISO(date) {
-  return `${date.getFullYear()}-${formatTwoDigits(date.getMonth() + 1)}-${formatTwoDigits(date.getDate())}`;
+  const p = bagianWaktuLokal(date);
+  return `${p.year}-${p.month}-${p.day}`;
 }
 
 function formatTimeHHMM(date) {
-  return `${formatTwoDigits(date.getHours())}:${formatTwoDigits(date.getMinutes())}`;
+  const p = bagianWaktuLokal(date);
+  return `${p.hour}:${p.minute}`;
 }
 
 async function getGoogleCalendarEvents() {
@@ -784,8 +841,8 @@ async function getDashboardData() {
         const [y, mth, d] = (m.date || "").split("-").map(Number);
         const [sh, sm] = (m.start || "").split(":").map(Number);
         const [eh, em] = (m.end || "").split(":").map(Number);
-        const start = new Date(y, mth - 1, d, sh, sm);
-        const end = new Date(y, mth - 1, d, eh, em);
+        const start = waktuDiZona(y, mth, d, sh, sm);
+        const end = waktuDiZona(y, mth, d, eh, em);
         const sLower = String(m.status || "").toLowerCase().trim();
         let s = m.status;
         if (sLower.includes("menunggu") || sLower === "pending" || sLower === "dibatalkan" || sLower === "ditolak") {
