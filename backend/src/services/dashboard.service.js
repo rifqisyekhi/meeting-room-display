@@ -1224,11 +1224,15 @@ async function saveMeeting(meeting) {
         await query(`DELETE FROM meetings WHERE id = $1`, [oldId]);
       }
 
-      // Hapus baris lama yang memiliki slot ruangan dan jam yang persis sama tapi ID berbeda
-      await query(`
-        DELETE FROM meetings 
-        WHERE date = $1 AND start_time = $2 AND room_name = $3 AND id <> $4
-      `, [meeting.date, meeting.start, meeting.room, String(meeting.id)]);
+      /* DIHAPUS: dulu di sini ada DELETE yang membuang baris lain dengan
+         ruang + tanggal + jam mulai sama. Itu bukan membersihkan duplikat,
+         melainkan menghapus PEMESANAN ORANG LAIN dari database — versi
+         paling merusak dari pola yang sama di store JSON.
+
+         Pembersihan duplikat yang sah sudah ditangani oldIdsToDelete di
+         atas (originalId dan matchedStored.id). Dan tabrakan yang nyata
+         kini ditolak oleh batasan meetings_tanpa_bentrok, bukan diselesaikan
+         dengan menimpa korban. */
 
       await query(`
         INSERT INTO meetings (
@@ -1309,6 +1313,25 @@ async function saveMeeting(meeting) {
         ]);
       }
     } catch (dbErr) {
+      /* 23P01 = exclusion_violation, yaitu batasan meetings_tanpa_bentrok.
+         Ini jaring pengaman terakhir: pemeriksaan di awal saveMeeting sudah
+         menolak hampir semua tabrakan, tapi dua permintaan yang tiba pada
+         saat yang sama persis bisa lolos pembacaan dan baru ketahuan di
+         sini. Pesannya diubah agar pemesan membaca alasannya, bukan galat
+         SQL mentah.
+
+         writeStore() sengaja dipanggil setelah blok ini, sehingga rapat
+         yang ditolak database tidak ikut tersimpan di store. */
+      if (dbErr && dbErr.code === "23P01") {
+        const bentrokErr = new Error(
+          meeting.room + " baru saja dipesan orang lain untuk " + meeting.date +
+            " pukul " + meeting.start + "-" + meeting.end +
+            ". Silakan pilih jam lain."
+        );
+        bentrokErr.statusCode = 409;
+        console.warn("[PostgreSQL] Bentrok jadwal ditolak oleh batasan database:", meeting.room, meeting.date, meeting.start);
+        throw bentrokErr;
+      }
       console.warn("[PostgreSQL] Gagal sync meeting ke DB:", dbErr.message);
       throw dbErr;
     }
