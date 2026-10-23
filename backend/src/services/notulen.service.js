@@ -181,6 +181,17 @@ async function panggilAI(method, urlPath, body, timeoutMs = 15000) {
   return data;
 }
 
+/* Pilihan model untuk layar Proses. Daftar yang diizinkan diatur di
+   ai-service/.env (WHISPER_ALLOWED_MODELS, OLLAMA_ALLOWED_MODELS). */
+async function daftarModel() {
+  return panggilAI("GET", "/models", undefined, 8000);
+}
+
+function teksModel(v) {
+  const t = String(v || "").trim();
+  return t ? t.slice(0, 200) : null;
+}
+
 async function statusServiceAI() {
   try {
     return { reachable: true, ...(await panggilAI("GET", "/health", undefined, 5000)) };
@@ -420,6 +431,8 @@ async function mulaiProses(meeting, ruangan, opsi = {}, oleh = "Admin") {
       ...(opsi.diarization === false ? { diarization: false } : {}),
       ...(numSpeakers ? { num_speakers: Math.min(50, Math.max(1, numSpeakers)) } : {}),
       summarize: opsi.summarize !== false,
+      ...(teksModel(opsi.whisperModel) ? { whisper_model: teksModel(opsi.whisperModel) } : {}),
+      ...(teksModel(opsi.llmModel) ? { llm_model: teksModel(opsi.llmModel) } : {}),
     },
   };
   const job = await panggilAI("POST", "/jobs", body);
@@ -437,7 +450,7 @@ async function mulaiProses(meeting, ruangan, opsi = {}, oleh = "Admin") {
 
 /* Buat ulang notulen dari transkrip yang sudah ada, memakai nama pembicara
    yang diisi admin (SPEAKER_1 → "Pak Budi"). */
-async function buatUlangNotulen(meeting, ruangan, oleh = "Admin") {
+async function buatUlangNotulen(meeting, ruangan, opsi = {}, oleh = "Admin") {
   wajibDatabase();
   await tolakJikaSedangDiproses(meeting.id);
   const baris = await ambilBarisNotulen(meeting.id);
@@ -449,6 +462,7 @@ async function buatUlangNotulen(meeting, ruangan, oleh = "Admin") {
     segments: baris.transcript.map((s) => ({ start: s.start, end: s.end, speaker: s.speaker || null, text: s.text || "" })),
     speaker_names: baris.speakers || {},
     meeting: metadataRapat(meeting, ruangan),
+    options: teksModel(opsi.llmModel) ? { llm_model: teksModel(opsi.llmModel) } : {},
   }, 60000);
   await query(
     `UPDATE meeting_minutes SET status = 'PROCESSING', job_id = $2, job_type = 'summarize', stage = NULL,
@@ -634,6 +648,7 @@ module.exports = {
   STORAGE_DIR,
   galat,
   statusServiceAI,
+  daftarModel,
   mulaiSesiRekam,
   tambahPotongan,
   selesaiRekam,

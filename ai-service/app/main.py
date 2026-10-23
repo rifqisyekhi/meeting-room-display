@@ -24,6 +24,7 @@ from .config import Settings, get_settings
 from .diarizer import diarization_installed, model_paths
 from .memory import ram_info
 from .schemas import JobCreate, JobOut
+from .transcriber import is_downloaded
 from .worker import STAGE_LABELS, worker_main
 
 log = logging.getLogger("ai-service")
@@ -128,6 +129,43 @@ def _diarization_models_ready(s: Settings) -> bool:
         return False
 
 
+async def _ollama_models(s: Settings) -> list[dict] | None:
+    """Model yang terpasang di Ollama, atau None bila Ollama tidak dapat dihubungi."""
+    try:
+        async with httpx.AsyncClient(timeout=3) as c:
+            r = await c.get(f"{s.ollama_url}/api/tags")
+            return r.json().get("models", [])
+    except (httpx.HTTPError, ValueError):
+        return None
+
+
+def _ollama_name_ok(name: str, installed: set[str]) -> bool:
+    return name in installed or f"{name}:latest" in installed
+
+
+@app.get("/models", dependencies=[Depends(require_token)])
+async def list_models():
+    """Pilihan model untuk layar Proses: Whisper (transkripsi) dan Ollama (notulen)."""
+    s = get_settings()
+    whisper = [{
+        "name": m,
+        "default": m == s.whisper_model,
+        "required_ram_mb": s.whisper_required_ram_mb(m),
+        "downloaded": is_downloaded(m, s.whisper_download_root),
+    } for m in s.whisper_choices()]
+    tags = await _ollama_models(s)
+    allowed = s.ollama_choices()
+    llm = []
+    if tags is not None:
+        for t in tags:
+            name = t.get("name", "")
+            if allowed is None or _ollama_name_ok(name, set(allowed)) or name.removesuffix(":latest") in allowed:
+                llm.append({"name": name, "default": name in (s.ollama_model, f"{s.ollama_model}:latest"),
+                            "size_mb": int(t.get("size", 0)) // (1024 * 1024)})
+    return {"whisper": whisper, "llm": llm, "ollama_reachable": tags is not None,
+            "default_whisper": s.whisper_model, "default_llm": s.ollama_model}
+
+
 @app.get("/health")
 async def health():
     s = get_settings()
@@ -168,6 +206,17 @@ async def create_job(body: JobCreate):
     s = get_settings()
     store: J.JobStore = app.state.store
     payload = body.model_dump()
+    wm, lm = body.options.whisper_model, body.options.llm_model
+    if wm and wm not in s.whisper_choices():
+        raise HTTPException(400, f"Model transkripsi '{wm}' tidak diizinkan di server ini. "
+                                 f"Pilihan: {', '.join(s.whisper_choices())} (atur WHISPER_ALLOWED_MODELS).")
+    if lm:
+        allowed = s.ollama_choices()
+        if allowed is not None and lm.removesuffix(":latest") not in [a.removesuffix(":latest") for a in allowed]:
+            raise HTTPException(400, f"Model notulen '{lm}' tidak diizinkan di server ini (atur OLLAMA_ALLOWED_MODELS).")
+        tags = await _ollama_models(s)
+        if tags is not None and not _ollama_name_ok(lm, {t.get("name", "") for t in tags}):
+            raise HTTPException(400, f"Model notulen '{lm}' belum terpasang di Ollama. Jalankan: ollama pull {lm}")
     if body.type == "transcribe":
         try:
             payload["audio_files"] = [str(resolve_audio_path(f, s.storage_dir, s.audio_extensions))
@@ -178,12 +227,12 @@ async def create_job(body: JobCreate):
             raise HTTPException(400, "Pemisahan pembicara tidak aktif di server (ENABLE_DIARIZATION=false).")
         counts = store.counts()
         avail = ram_info()["available_mb"]
-        need = s.whisper_required_ram_mb()
+        need = s.whisper_required_ram_mb(wm)
         # Tolak langsung bila antrean kosong tetapi RAM saat ini jelas tidak cukup.
         if counts[J.QUEUED] == 0 and counts[J.RUNNING] == 0 and avail < need:
             raise HTTPException(
                 503,
-                f"RAM tersedia hanya {avail} MB, sedangkan model Whisper '{s.whisper_model}' membutuhkan "
+                f"RAM tersedia hanya {avail} MB, sedangkan model Whisper '{wm or s.whisper_model}' membutuhkan "
                 f"minimal {need} MB. Coba lagi nanti saat server lebih longgar, atau pakai model yang lebih kecil.",
             )
     job = store.create(body.type, payload)

@@ -99,7 +99,7 @@ class Pipeline:
 
     # ------------------------------------------------------------------ transcription
     def _require_whisper_ram(self) -> None:
-        if self.transcriber.model is None:
+        if self.transcriber.loaded_name != self.s.whisper_model:
             require_ram(self.s.whisper_required_ram_mb(), f"model Whisper '{self.s.whisper_model}'",
                         "Tunggu layanan lain selesai, atau pakai WHISPER_MODEL yang lebih kecil / "
                         "turunkan WHISPER_MIN_FREE_RAM_MB jika yakin.")
@@ -287,7 +287,22 @@ class Pipeline:
                     "_timings": {}}
 
     def run(self, job: dict) -> None:
-        log.info("Mulai job %s (%s, percobaan ke-%d)", job["id"], job["type"], job["attempts"])
+        # Model pilihan admin untuk rapat ini (sudah divalidasi saat job dibuat). Pengaturan
+        # dasar dipulihkan setelah job selesai.
+        opts = job["payload"].get("options") or {}
+        pilihan = {k: v for k, v in (("whisper_model", opts.get("whisper_model")),
+                                     ("ollama_model", opts.get("llm_model"))) if v}
+        dasar = self.s
+        if pilihan:
+            self.s = self.transcriber.s = dasar.model_copy(update=pilihan)
+        try:
+            self._run(job)
+        finally:
+            self.s = self.transcriber.s = dasar
+
+    def _run(self, job: dict) -> None:
+        log.info("Mulai job %s (%s, percobaan ke-%d, Whisper=%s, LLM=%s)", job["id"], job["type"],
+                 job["attempts"], self.s.whisper_model, self.s.ollama_model)
         try:
             if job["type"] == "summarize":
                 result = self.run_summarize(job)

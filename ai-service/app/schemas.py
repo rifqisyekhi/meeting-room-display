@@ -21,6 +21,9 @@ class JobOptions(BaseModel):
     # Jumlah pembicara bila sudah diketahui (hasil lebih stabil). Kosong = otomatis.
     num_speakers: int | None = Field(default=None, ge=1, le=50)
     summarize: bool = True
+    # Kosong = model default di .env. Harus termasuk WHISPER_ALLOWED_MODELS / model Ollama yang terpasang.
+    whisper_model: str | None = Field(default=None, max_length=200)
+    llm_model: str | None = Field(default=None, max_length=200)
 
 
 class Segment(BaseModel):

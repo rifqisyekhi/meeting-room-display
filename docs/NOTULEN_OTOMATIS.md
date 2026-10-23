@@ -33,7 +33,7 @@ cd ai-service
 python -m uv venv --python 3.11 .venv
 python -m uv pip install --python .venv\Scripts\python.exe -r requirements.txt
 copy .env.example .env
-#    di .env: STORAGE_DIR=../backend/data/notulen   (dan ENABLE_DIARIZATION=true bila ingin uji pembicara)
+#    di .env: ENABLE_DIARIZATION=true bila ingin uji pemisahan pembicara (STORAGE_DIR default sudah benar)
 .venv\Scripts\python.exe scripts\download_models.py --diarization
 .venv\Scripts\python.exe -m app                     # http://127.0.0.1:8000/docs
 
@@ -52,6 +52,21 @@ cd frontend && npm install && npm run dev            # http://localhost:5173 →
 - Fitur ini **butuh PostgreSQL**. Di mode fallback file JSON, semua rute notulen menjawab 503.
 - Deploy ke server: [DEPLOY_NOTULEN.md](DEPLOY_NOTULEN.md).
 
+## Memilih model
+
+Di layar Notulen (kartu "3. Proses") admin memilih **model transkripsi** (Whisper) dan **model
+notulen** (Ollama) per rapat. Daftar pilihannya diatur di `ai-service/.env`:
+
+```ini
+WHISPER_MODEL=small                         # default
+WHISPER_ALLOWED_MODELS=small,medium,turbo   # yang boleh dipilih
+OLLAMA_MODEL=qwen3:4b                       # default
+OLLAMA_ALLOWED_MODELS=                      # kosong = semua yang sudah di-"ollama pull"
+```
+
+Model Whisper yang belum diunduh ditandai "belum diunduh" dan diunduh otomatis saat pertama dipakai
+(butuh internet). Model Ollama harus di-`ollama pull` dulu. Ambang RAM dihitung sesuai model yang dipilih.
+
 ## Variabel `backend/.env`
 
 | Variabel | Default | Keterangan |
@@ -69,6 +84,7 @@ cd frontend && npm install && npm run dev            # http://localhost:5173 →
 | Method | Path | Fungsi |
 |---|---|---|
 | GET | `/status-ai` | Status service AI (RAM, model, antrean, Ollama) |
+| GET | `/models` | Pilihan model Whisper & Ollama (+ RAM, status unduh) |
 | GET | `/meetings/:id` | Data rapat + daftar file audio + transkrip + notulen |
 | GET | `/meetings/:id/status` | Status ringan untuk polling progress |
 | POST | `/meetings/:id/recordings` | Mulai sesi rekam baru → `{ file.id }`. Body: `{ mimeType }` |
@@ -77,8 +93,8 @@ cd frontend && npm install && npm run dev            # http://localhost:5173 →
 | POST | `/meetings/:id/audio` | Unggah file (body biner, dialirkan ke disk). Header `X-File-Name` (URL-encoded), `X-File-Type` |
 | GET | `/meetings/:id/audio/:fileId` | Putar/unduh file audio (mendukung Range) |
 | DELETE | `/meetings/:id/audio/:fileId` | Hapus file audio (ditolak saat sedang diproses) |
-| POST | `/meetings/:id/process` | Proses semua file berurutan. Body: `{ numSpeakers?, diarization?, summarize? }` |
-| POST | `/meetings/:id/regenerate` | Buat ulang notulen dari transkrip + nama pembicara |
+| POST | `/meetings/:id/process` | Proses semua file berurutan. Body: `{ numSpeakers?, diarization?, summarize?, whisperModel?, llmModel? }` |
+| POST | `/meetings/:id/regenerate` | Buat ulang notulen dari transkrip + nama pembicara. Body: `{ llmModel? }` |
 | POST | `/meetings/:id/cancel` | Batalkan proses yang berjalan |
 | PUT | `/meetings/:id/speakers` | `{ speakers: { "SPEAKER_1": "Pak Budi" } }` |
 | PUT | `/meetings/:id/minutes` | `{ markdown, reviewed }`: simpan hasil sunting notulis |

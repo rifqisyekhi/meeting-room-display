@@ -170,6 +170,9 @@ Jika `API_TOKEN` diisi di `.env`, semua endpoint kecuali `/health` wajib mengiri
 | Upgrade: 8–16 vCPU, RAM 32 GB | `turbo` | `cpu` / `int8` | jumlah vCPU − 2 | `qwen3:8b` |
 | Ada GPU NVIDIA (16 GB+) | `turbo` atau `large-v3` | `cuda` / `float16` | (tidak berpengaruh) | `qwen3:14b` |
 
+- Admin bisa memilih model per rapat di layar Notulen. Daftarnya dibatasi `WHISPER_ALLOWED_MODELS`
+  (default `small,medium,turbo`) dan `OLLAMA_ALLOWED_MODELS` (kosong = semua model Ollama yang terpasang).
+  Endpoint `GET /models` mengembalikan pilihan itu beserta kebutuhan RAM dan status unduhnya.
 - Model berakhiran `.en` dan `distil-*` (khusus bahasa Inggris) **ditolak** saat service start.
 - `tiny`/`base` diizinkan, tetapi muncul peringatan di log karena akurasi bahasa Indonesia rendah.
 - Isi `WHISPER_INITIAL_PROMPT` dengan istilah dan nama khas instansi (singkatan unit, nama aplikasi, dsb.).

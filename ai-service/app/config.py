@@ -67,14 +67,17 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
 
     # --- Penyimpanan ---
-    # Folder bersama dengan aplikasi Next.js. Service hanya boleh membaca file di dalamnya.
-    storage_dir: Path = SERVICE_DIR.parent / "storage"
+    # Folder audio bersama backend Express (NOTULEN_STORAGE_DIR). Service hanya boleh membaca file di dalamnya.
+    storage_dir: Path = SERVICE_DIR.parent / "backend" / "data" / "notulen"
     # Folder kerja service (database job, file sementara).
     data_dir: Path = SERVICE_DIR / "data"
     allowed_audio_extensions: str = ".webm,.ogg,.oga,.opus,.mp3,.m4a,.mp4,.aac,.wav,.flac,.mkv"
 
     # --- Whisper ---
     whisper_model: str = "small"
+    # Model yang boleh dipilih admin per rapat (pisahkan dengan koma). WHISPER_MODEL selalu ikut.
+    # Batasi sesuai RAM server: model yang terlalu berat akan ditolak saat RAM tidak cukup.
+    whisper_allowed_models: str = "small,medium,turbo"
     whisper_device: str = "cpu"  # cpu | cuda | auto
     whisper_compute_type: str = "int8"  # cpu: int8 | cuda: float16 / int8_float16
     whisper_cpu_threads: int = 3
@@ -129,6 +132,8 @@ class Settings(BaseSettings):
     # --- LLM (Ollama) ---
     ollama_url: str = "http://127.0.0.1:11434"
     ollama_model: str = "qwen3:4b"
+    # Model Ollama yang boleh dipilih per rapat. Kosong = semua model yang sudah di-"ollama pull".
+    ollama_allowed_models: str = ""
     # keep_alive setelah job selesai. "0" = model langsung dilepas dari RAM.
     ollama_keep_alive: str = "0"
     # keep_alive di antara panggilan dalam satu job (agar model tidak dimuat ulang tiap potongan).
@@ -148,6 +153,14 @@ class Settings(BaseSettings):
     def _validate_model(cls, v: str) -> str:
         v = v.strip()
         check_whisper_model_name(v)
+        return v
+
+    @field_validator("whisper_allowed_models")
+    @classmethod
+    def _validate_allowed(cls, v: str) -> str:
+        for name in (x.strip() for x in v.split(",")):
+            if name:
+                check_whisper_model_name(name)
         return v
 
     @field_validator("whisper_device")
@@ -175,10 +188,21 @@ class Settings(BaseSettings):
     def tmp_dir(self) -> Path:
         return self.data_dir / "tmp"
 
-    def whisper_required_ram_mb(self) -> int:
-        if self.whisper_min_free_ram_mb > 0:
+    def whisper_required_ram_mb(self, model: str | None = None) -> int:
+        model = model or self.whisper_model
+        if self.whisper_min_free_ram_mb > 0 and model == self.whisper_model:
             return self.whisper_min_free_ram_mb
-        return _WHISPER_RAM_MB.get(Path(self.whisper_model).name.lower(), 2400)
+        return _WHISPER_RAM_MB.get(Path(model).name.lower(), 2400)
+
+    def whisper_choices(self) -> list[str]:
+        """Model Whisper yang boleh dipilih per job; model default selalu pertama."""
+        names = [self.whisper_model] + [x.strip() for x in self.whisper_allowed_models.split(",")]
+        return list(dict.fromkeys(n for n in names if n))
+
+    def ollama_choices(self) -> list[str] | None:
+        """None = semua model yang terpasang di Ollama boleh dipakai."""
+        names = [x.strip() for x in self.ollama_allowed_models.split(",") if x.strip()]
+        return list(dict.fromkeys([self.ollama_model] + names)) if names else None
 
 
 @lru_cache

@@ -57,6 +57,11 @@ router.get("/status-ai", rute(async (_req, res) => {
   res.json({ success: true, ai: await notulen.statusServiceAI() });
 }));
 
+// Pilihan model transkripsi (Whisper) & notulen (Ollama) untuk layar Proses.
+router.get("/models", rute(async (_req, res) => {
+  res.json({ success: true, ...(await notulen.daftarModel()) });
+}));
+
 router.get("/meetings/:id", muatRapat, rute(async (req, res) => {
   const data = await notulen.ringkasan(req.rapat.id);
   res.json({
@@ -131,7 +136,7 @@ router.post("/meetings/:id/process", muatRapat, rute(async (req, res) => {
 }));
 
 router.post("/meetings/:id/regenerate", muatRapat, rute(async (req, res) => {
-  const minutes = await notulen.buatUlangNotulen(req.rapat, req.ruangan, namaPengguna(req));
+  const minutes = await notulen.buatUlangNotulen(req.rapat, req.ruangan, req.body || {}, namaPengguna(req));
   res.json({ success: true, minutes });
 }));
 

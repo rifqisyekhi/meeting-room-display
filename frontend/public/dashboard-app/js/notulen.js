@@ -34,6 +34,18 @@
     editing: false,
     pollTimer: null,
     rec: null, // status perekam aktif
+    models: null, // pilihan model dari service AI
+    pilih: { whisper: "", llm: "" }, // "" = model default server
+  };
+
+  const KETERANGAN_WHISPER = {
+    tiny: "sangat cepat, akurasi rendah",
+    base: "cepat, akurasi rendah",
+    small: "cepat, akurasi cukup",
+    medium: "lebih akurat, lebih lambat",
+    turbo: "akurat, cukup cepat",
+    "large-v3-turbo": "akurat, cukup cepat",
+    "large-v3": "paling akurat, sangat lambat tanpa GPU",
   };
 
   /* ---------- utilitas ---------- */
@@ -209,6 +221,13 @@
     } catch {
       nv.ai = { reachable: false, error: "Status service AI tidak dapat dibaca." };
     }
+    try {
+      nv.models = nv.ai.reachable ? await api("/models") : null;
+    } catch {
+      nv.models = null;
+    }
+    const sel = document.getElementById("nvModelSel");
+    if (sel) sel.innerHTML = htmlPilihModel();
     const slot = document.getElementById("nvAiStatus");
     if (slot) slot.innerHTML = htmlStatusAI();
     const diar = document.getElementById("nvDiarWrap");
@@ -227,6 +246,35 @@
       Service AI aktif · ${e(a.whisper?.model || "")} · RAM ${ram.available_mb ?? "?"} MB${cukup ? "" : " (kurang)"}</span>
       ${a.ollama && !a.ollama.reachable ? `<span class="nv-chip nv-chip-warn">Ollama tidak aktif: notulen tidak bisa dibuat</span>` : ""}
       ${(a.queue?.queued || 0) + (a.queue?.running || 0) > 0 ? `<span class="nv-chip">Antrean: ${(a.queue.running || 0) + (a.queue.queued || 0)} job</span>` : ""}`;
+  }
+
+  function htmlPilihModel() {
+    const m = nv.models;
+    if (!m) return `<p class="nv-muted nv-small">Pilihan model dimuat saat service AI aktif; tanpa itu dipakai model default server.</p>`;
+    const gb = (mb) => `${(mb / 1024).toFixed(1).replace(".", ",")} GB`;
+    const opsiW = (m.whisper || []).map((w) => `<option value="${e(w.default ? "" : w.name)}" ${(nv.pilih.whisper || "") === (w.default ? "" : w.name) ? "selected" : ""}>
+      ${e(w.name)}${w.default ? " (default)" : ""} — ${e(KETERANGAN_WHISPER[w.name] || "model kustom")} · RAM ±${gb(w.required_ram_mb)}${w.downloaded ? "" : " · belum diunduh"}</option>`).join("");
+    const opsiL = (m.llm || []).map((l) => `<option value="${e(l.default ? "" : l.name)}" ${(nv.pilih.llm || "") === (l.default ? "" : l.name) ? "selected" : ""}>
+      ${e(l.name)}${l.default ? " (default)" : ""}${l.size_mb ? ` · ±${gb(l.size_mb)}` : ""}</option>`).join("");
+    const belumUnduh = (m.whisper || []).find((w) => (nv.pilih.whisper ? w.name === nv.pilih.whisper : w.default) && !w.downloaded);
+    return `
+      <div class="nv-models">
+        <label>Model transkripsi (Whisper)
+          <select class="nv-input" onchange="nvPilihModel('whisper', this.value)">${opsiW}</select></label>
+        <label>Model notulen (Ollama) <span class="nv-muted nv-small">— juga dipakai "Buat ulang notulen"</span>
+          ${m.ollama_reachable
+            ? (opsiL ? `<select class="nv-input" onchange="nvPilihModel('llm', this.value)">${opsiL}</select>`
+              : `<div class="nv-alert nv-alert-warn">Belum ada model di Ollama. Jalankan: <code>ollama pull ${e(m.default_llm)}</code></div>`)
+            : `<div class="nv-alert nv-alert-warn">Ollama tidak aktif: transkrip tetap dibuat, notulen bisa dibuat ulang nanti.</div>`}</label>
+      </div>
+      ${belumUnduh ? `<p class="nv-muted nv-small">Model ${e(belumUnduh.name)} belum ada di server; diunduh otomatis saat dipakai pertama kali
+        (butuh internet, bisa beberapa menit). Di server offline, unduh dulu dengan scripts/download_models.py.</p>` : ""}`;
+  }
+
+  function nvPilihModel(jenis, nilai) {
+    nv.pilih[jenis] = nilai;
+    const sel = document.getElementById("nvModelSel");
+    if (sel) sel.innerHTML = htmlPilihModel();
   }
 
   function badgeStatus(s) {
@@ -363,6 +411,7 @@
         <button class="nv-btn nv-btn-ghost-red" onclick="nvBatal()">Batalkan proses</button>`;
     } else {
       isi = `
+        <div id="nvModelSel">${htmlPilihModel()}</div>
         <div class="nv-row nv-wrap">
           <label id="nvDiarWrap" class="nv-check" style="${nv.ai?.diarization?.enabled ? "" : "display:none"}">
             <input type="checkbox" id="nvDiar" checked> Pisahkan pembicara
@@ -562,6 +611,8 @@
     if (diar && document.getElementById("nvDiarWrap")?.style.display !== "none") body.diarization = diar.checked;
     const n = Number(document.getElementById("nvNumSpk")?.value);
     if (n > 0) body.numSpeakers = n;
+    if (nv.pilih.whisper) body.whisperModel = nv.pilih.whisper;
+    if (nv.pilih.llm) body.llmModel = nv.pilih.llm;
     try {
       await api(`/meetings/${encodeURIComponent(nv.meetingId)}/process`, {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
@@ -597,7 +648,10 @@
     if (mn?.hasMinutes && !confirm("Notulen yang ada (termasuk hasil suntingan) akan diganti dengan draf baru dari AI. Lanjutkan?")) return;
     if (document.querySelector("[data-spk]") && !(await nvSimpanNama(true))) return;
     try {
-      await api(`/meetings/${encodeURIComponent(nv.meetingId)}/regenerate`, { method: "POST" });
+      await api(`/meetings/${encodeURIComponent(nv.meetingId)}/regenerate`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(nv.pilih.llm ? { llmModel: nv.pilih.llm } : {}),
+      });
       beritahu("Notulen sedang dibuat ulang.");
       nv.tab = "notulen";
       await muatUlang();
@@ -961,7 +1015,7 @@
   /* ---------- ekspos global (dipanggil dari atribut onclick) ---------- */
   Object.assign(window, {
     openNotulen, closeNotulen, nvUnggah, nvPutar, nvHapusFile, nvProses, nvBatal, nvSimpanNama, nvBuatUlang,
-    nvTab, nvEdit, nvBatalEdit, nvSimpanNotulen, nvUnduhMd, nvUnduhTranskrip, nvCetak, nvMuatMic,
+    nvTab, nvPilihModel, nvEdit, nvBatalEdit, nvSimpanNotulen, nvUnduhMd, nvUnduhTranskrip, nvCetak, nvMuatMic,
     nvRekamMulai, nvRekamJeda, nvRekamSelesai,
   });
 

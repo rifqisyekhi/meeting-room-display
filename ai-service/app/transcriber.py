@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import time
 from collections.abc import Iterator
+from pathlib import Path
 
 import numpy as np
 
@@ -27,6 +28,27 @@ def resolve_device(device: str) -> str:
         return "cpu"
 
 
+# Nama singkat → repo Hugging Face (sama dengan faster_whisper.utils._MODELS, tanpa model .en/distil).
+_HF_REPOS = {
+    **{n: f"Systran/faster-whisper-{n}" for n in ("tiny", "base", "small", "medium", "large-v1", "large-v2", "large-v3")},
+    "large": "Systran/faster-whisper-large-v3",
+    "large-v3-turbo": "mobiuslabsgmbh/faster-whisper-large-v3-turbo",
+    "turbo": "mobiuslabsgmbh/faster-whisper-large-v3-turbo",
+}
+
+
+def is_downloaded(name: str, download_root: Path) -> bool:
+    """Cek model sudah ada di disk tanpa mengimpor faster-whisper (supaya proses API tetap ringan)."""
+    p = Path(name)
+    if p.is_dir():
+        return (p / "model.bin").exists()
+    repo = _HF_REPOS.get(name.lower(), name if "/" in name else None)
+    if not repo:
+        return False
+    snaps = download_root / f"models--{repo.replace('/', '--')}" / "snapshots"
+    return any((d / "model.bin").exists() for d in snaps.glob("*")) if snaps.is_dir() else False
+
+
 def build_initial_prompt(base: str, meeting: dict | None) -> str | None:
     """Prompt awal Whisper: teks dari .env + nama peserta/judul agar ejaan nama lebih tepat."""
     parts = [base.strip()] if base.strip() else []
@@ -43,11 +65,14 @@ class Transcriber:
     def __init__(self, s: Settings):
         self.s = s
         self.model = None
+        self.loaded_name: str | None = None
         self.load_seconds = 0.0
 
     def load(self) -> None:
-        if self.model is not None:
+        if self.model is not None and self.loaded_name == self.s.whisper_model:
             return
+        if self.model is not None:  # job ini memakai model lain: lepas yang lama dulu
+            self.unload()
         from faster_whisper import WhisperModel
 
         device = resolve_device(self.s.whisper_device)
@@ -62,6 +87,7 @@ class Transcriber:
             num_workers=1,
             download_root=str(self.s.whisper_download_root),
         )
+        self.loaded_name = self.s.whisper_model
         self.load_seconds = time.monotonic() - t0
         log.info("Model Whisper dimuat dalam %.1f detik", self.load_seconds)
 
@@ -70,6 +96,7 @@ class Transcriber:
             return
         del self.model
         self.model = None
+        self.loaded_name = None
         release_memory()
         log.info("Model Whisper dilepas dari memori")
 
