@@ -135,6 +135,12 @@ class JobStore:
         """Saat service mulai: job yang terputus (status running) diantrekan ulang."""
         now = time.time()
         with self._conn() as c:
+            # Sudah diminta dibatalkan sebelum service berhenti: jangan diulang.
+            c.execute(
+                "UPDATE jobs SET status = ?, finished_at = ?, updated_at = ?, error = ? "
+                "WHERE status = ? AND cancel_requested = 1",
+                (CANCELLED, now, now, "Dibatalkan oleh pengguna.", RUNNING),
+            )
             c.execute(
                 "UPDATE jobs SET status = ?, finished_at = ?, updated_at = ?, error = ? "
                 "WHERE status = ? AND attempts >= ?",
