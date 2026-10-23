@@ -158,7 +158,8 @@ class Pipeline:
         samples = None
         try:
             prog.update("reading_audio", 0, force=True)
-            durations = decode_to_f32(files, raw, lambda i: prog.update("reading_audio", (i + 1) / len(files)))
+            durations = decode_to_f32(files, raw, lambda i: prog.update("reading_audio", (i + 1) / len(files)),
+                                      prog.check_cancel)
             total = sum(durations) or 1.0
             files_info, acc = [], 0.0
             for f, d in zip(files, durations):
@@ -278,6 +279,14 @@ class Pipeline:
                                   lambda f, eta: prog.update("summarizing", f, eta), prog.check_cancel)
             return {"minutes_markdown": md, "minutes_error": None, "llm_model": self.s.ollama_model,
                     "_timings": {"summary_seconds": round(time.monotonic() - t0, 1)}}
+        except JobCancelled:
+            if raise_errors:
+                raise
+            # Dibatalkan saat menyusun notulen: transkrip yang sudah jadi tetap dikirim sebagai hasil.
+            log.info("Pembuatan notulen job %s dibatalkan; transkrip tetap disimpan", job["id"])
+            return {"minutes_markdown": None, "llm_model": self.s.ollama_model, "_timings": {},
+                    "minutes_error": "Pembuatan notulen dibatalkan. Transkrip tetap tersimpan; "
+                                     "klik \"Buat ulang notulen\" untuk mencoba lagi."}
         except (LLMError, NotEnoughMemory) as e:
             if raise_errors:
                 raise

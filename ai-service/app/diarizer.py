@@ -96,7 +96,13 @@ def diarize(s: Settings, samples: np.ndarray, on_progress: Callable[[float], Non
             return 1
 
     try:
-        result = sd.process(samples, callback=cb).sort_by_start_time()
+        try:
+            result = sd.process(samples, callback=cb).sort_by_start_time()
+        except BaseException:
+            # sherpa bisa melempar error sendiri setelah dihentikan callback: utamakan alasan aslinya.
+            if failure:
+                raise failure[0] from None
+            raise
         if failure:
             raise failure[0]
         turns = [(float(r.start), float(r.end), str(r.speaker)) for r in result]

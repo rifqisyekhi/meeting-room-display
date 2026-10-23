@@ -120,7 +120,8 @@ def iter_windows(path: Path, window_seconds: float) -> Iterator[AudioWindow]:
         yield AudioWindow(consumed / SAMPLE_RATE, buf.astype(np.float32) / 32768.0)
 
 
-def decode_to_f32(paths: list[Path], out: Path, on_file_done: Callable[[int], None] | None = None) -> list[float]:
+def decode_to_f32(paths: list[Path], out: Path, on_file_done: Callable[[int], None] | None = None,
+                  check_cancel: Callable[[], None] | None = None) -> list[float]:
     """Gabungkan beberapa file menjadi satu file mentah float32 16 kHz mono di disk (streaming).
     File ini dibuka dengan np.memmap: halamannya milik page cache (bisa dibuang OS saat RAM
     sempit), bukan memori proses. Mengembalikan durasi tiap file (detik)."""
@@ -131,6 +132,8 @@ def decode_to_f32(paths: list[Path], out: Path, on_file_done: Callable[[int], No
             for chunk in _iter_frames_16k(p):
                 f.write((chunk.astype(np.float32) / 32768.0).astype("<f4").tobytes())
                 n += len(chunk)
+                if check_cancel:
+                    check_cancel()
             durations.append(n / SAMPLE_RATE)
             if on_file_done:
                 on_file_done(i)

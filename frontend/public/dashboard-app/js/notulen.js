@@ -37,6 +37,7 @@
     models: null, // pilihan model dari service AI
     pilih: { whisper: "", llm: "" }, // "" = model default server
     info: null, // panel (i) yang terbuka: "whisper" | "llm" | null
+    membatalkan: false, // permintaan batal sudah dikirim, menunggu worker berhenti
   };
 
   /* Spesifikasi minimal per model untuk panel (i). Hanya "small" yang sudah
@@ -255,6 +256,7 @@
     nv.view = "rapat";
     nv.tab = "transkrip";
     nv.editing = false;
+    nv.membatalkan = false;
     const el = root();
     el.innerHTML = `<div class="nv-loading">Memuat data notulen...</div>`;
     el.classList.add("show");
@@ -547,7 +549,10 @@
         </div>
         <p class="nv-muted nv-small">Proses berjalan di server; halaman ini boleh ditutup dan dibuka lagi nanti.
           Rapat panjang bisa memakan waktu beberapa jam di server tanpa GPU.</p>
-        <button class="nv-btn nv-btn-ghost-red" onclick="nvBatal()">Batalkan proses</button>`;
+        ${nv.membatalkan
+          ? `<button class="nv-btn nv-btn-ghost-red" disabled>Membatalkan…</button>
+             <span class="nv-muted nv-small">Menunggu proses berhenti (beberapa detik).</span>`
+          : `<button class="nv-btn nv-btn-ghost-red" onclick="nvBatal()">Batalkan proses</button>`}`;
     } else {
       isi = `
         <div id="nvModelSel">${htmlPilihModel()}</div>
@@ -654,20 +659,33 @@
         const { minutes } = await api(`/meetings/${encodeURIComponent(nv.meetingId)}/status`);
         if (!minutes || minutes.status !== "PROCESSING") {
           berhentiPolling();
+          const dibatalkan = nv.membatalkan;
+          nv.membatalkan = false;
           await muatUlang();
           cekAI();
-          if (minutes?.status === "DONE") beritahu(minutes.minutesError ? "Transkrip selesai, tetapi notulen gagal dibuat." : "Pemrosesan selesai.");
-          if (minutes?.status === "FAILED") beritahu("Pemrosesan gagal. Lihat keterangan di halaman notulen.");
+          if (dibatalkan) {
+            beritahu(/dibatalkan/i.test(minutes?.minutesError || "")
+              ? "Pembuatan notulen dibatalkan. Transkrip tetap tersimpan."
+              : "Proses dibatalkan. Hasil sebelumnya (jika ada) tidak berubah.");
+          } else if (minutes?.status === "DONE") {
+            beritahu(minutes.minutesError ? "Transkrip selesai, tetapi notulen gagal dibuat." : "Pemrosesan selesai.");
+          } else if (minutes?.status === "FAILED") {
+            beritahu("Pemrosesan gagal. Lihat keterangan di halaman notulen.");
+          }
           return;
         }
         nv.data.minutes = { ...nv.data.minutes, ...minutes };
-        const kartu = document.querySelectorAll(".nv-card h2");
-        const target = [...kartu].find((h) => h.textContent.startsWith("3."));
-        if (target) target.parentElement.innerHTML = `<h2>3. Proses menjadi transkrip & notulen</h2>${htmlProses(nv.data.minutes, nv.data.files)}`;
+        perbaruiKartuProses();
       } catch (err) {
         if (err.status === 401 || err.status === 403) { berhentiPolling(); beritahu(err.message); }
       }
     }, POLL_MS);
+  }
+
+  function perbaruiKartuProses() {
+    if (!nv.data?.minutes) return;
+    const target = [...document.querySelectorAll(".nv-card h2")].find((h) => h.textContent.startsWith("3."));
+    if (target) target.parentElement.innerHTML = `<h2>3. Proses menjadi transkrip & notulen</h2>${htmlProses(nv.data.minutes, nv.data.files)}`;
   }
 
   function berhentiPolling() {
@@ -764,12 +782,22 @@
   }
 
   async function nvBatal() {
-    if (!(await tanya("Proses yang sedang berjalan akan dihentikan. Hasil tahap yang sudah selesai tetap disimpan.",
+    if (nv.membatalkan) return;
+    if (!(await tanya("Proses berhenti dalam beberapa detik. Jika transkrip sudah selesai dibuat, transkrip itu "
+      + "tetap disimpan. Hasil dari proses sebelumnya tidak berubah.",
       { judul: "Batalkan proses?", ok: "Batalkan proses", batal: "Tidak", jenis: "bahaya" }))) return;
+    nv.membatalkan = true;
+    perbaruiKartuProses();
     try {
       await api(`/meetings/${encodeURIComponent(nv.meetingId)}/cancel`, { method: "POST" });
-      beritahu("Permintaan pembatalan dikirim. Proses berhenti dalam beberapa detik.");
-    } catch (err) { gagal(err.message); }
+      if (!nv.pollTimer) mulaiPolling();
+    } catch (err) {
+      nv.membatalkan = false;
+      perbaruiKartuProses();
+      // Proses ternyata sudah selesai/berhenti lebih dulu: tampilkan keadaan terbaru.
+      if (err.status === 409) { await muatUlang(); return; }
+      gagal(err.message);
+    }
   }
 
   async function nvSimpanNama(diam = false) {
