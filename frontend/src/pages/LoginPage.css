@@ -8,7 +8,7 @@
   min-height: 100vh;
   width: 100%;
   font-family: 'Poppins', sans-serif;
-  background-color: #f8fafc;
+  background-color: #F6F6F6;
   overflow-x: hidden;
 }
 
@@ -17,7 +17,7 @@
 ──────────────────────────────────────────── */
 .login-left-panel {
   flex: 0 0 38%;
-  background: linear-gradient(145deg, #091e40 0%, #0d2856 50%, #0f3066 100%);
+  background: linear-gradient(145deg, #0d2b45 0%, #123B5D 50%, #184872 100%);
   position: relative;
   overflow: hidden;
   display: flex;
@@ -35,7 +35,7 @@
   left: 30%;
   width: 320px;
   height: 320px;
-  background: radial-gradient(circle, rgba(23, 105, 170, 0.25) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(52, 115, 167, 0.25) 0%, transparent 70%);
   pointer-events: none;
 }
 
@@ -121,7 +121,7 @@
   align-items: center;
   justify-content: center;
   padding: 48px 32px;
-  background-color: #f8fafc;
+  background-color: #F6F6F6;
   box-sizing: border-box;
 }
 

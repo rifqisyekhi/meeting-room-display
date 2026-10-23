@@ -139,6 +139,7 @@ async function initDatabase() {
         ALTER TABLE meetings ADD COLUMN IF NOT EXISTS checked_out_by VARCHAR(150);
         ALTER TABLE meetings ADD COLUMN IF NOT EXISTS check_out_method VARCHAR(50);
         ALTER TABLE meetings ADD COLUMN IF NOT EXISTS check_out_method_label VARCHAR(100);
+        ALTER TABLE meetings ADD COLUMN IF NOT EXISTS review JSONB;
       `);
 
       // Index untuk optimasi pencarian jadwal dan bentrok
@@ -159,8 +160,16 @@ async function initDatabase() {
           admin_reply TEXT,
           reply_date TIMESTAMPTZ,
           reply_by VARCHAR(150),
+          metadata JSONB DEFAULT '{}'::jsonb,
           created_at TIMESTAMPTZ DEFAULT NOW()
         );
+      `);
+
+      await client.query(`
+        ALTER TABLE reviews ADD COLUMN IF NOT EXISTS admin_reply TEXT;
+        ALTER TABLE reviews ADD COLUMN IF NOT EXISTS reply_date TIMESTAMPTZ;
+        ALTER TABLE reviews ADD COLUMN IF NOT EXISTS reply_by VARCHAR(150);
+        ALTER TABLE reviews ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'::jsonb;
       `);
 
       // 5. Tabel Notifications

@@ -2157,33 +2157,49 @@ export default function BookingPage() {
           const stored = localStorage.getItem("app_meetings");
           if (stored) {
             const parsed = JSON.parse(stored);
-            if (Array.isArray(parsed)) sourceMeetings = parsed;
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              const mapById = new Map();
+              parsed.forEach((m) => {
+                if (m && m.id) mapById.set(String(m.id), m);
+              });
+              allMeetings.forEach((m) => {
+                if (m && m.id) {
+                  const prev = mapById.get(String(m.id));
+                  mapById.set(String(m.id), {
+                    ...(prev || {}),
+                    ...m,
+                    review: m.review || prev?.review
+                      ? {
+                          ...(prev?.review || {}),
+                          ...(m.review || {}),
+                          adminReply: m.review?.adminReply || prev?.review?.adminReply || null,
+                        }
+                      : null,
+                  });
+                }
+              });
+              sourceMeetings = Array.from(mapById.values());
+            }
           }
         } catch (e) {}
 
         const roomReviews = sourceMeetings
           .filter((m) => {
-            if (!m) return false;
+            if (!m || !m.review) return false;
             const normRoom = (m.room || "").toLowerCase().trim();
             const match =
               normRoom.includes(normSelected) ||
               normSelected.includes(normRoom) ||
               (normSelected.includes("besar") && normRoom.includes("besar")) ||
               (normSelected.includes("konsultasi") && normRoom.includes("konsultasi"));
-            return match && (m.status === "Selesai" || m.review);
+            return match;
           })
           .map((m) => {
-            const rev = m.review || {
-              rating: normSelected.includes("konsultasi") ? 4.8 : 5.0,
-              cleanliness: 5,
-              facilities: normSelected.includes("konsultasi") ? 4.8 : 5,
-              comfort: 5,
-              comment: normSelected.includes("konsultasi")
-                ? "Ruangan sangat nyaman dan kondusif untuk konsultasi. Smart TV dan stopkontak berfungsi dengan baik."
-                : "Ruangan bersih, tertata rapi, dan fasilitas Smart TV 85 inch serta sound system berfungsi sangat baik.",
-              reviewer: m.requester || "User Pemesan",
-              submittedAt: m.date ? `${m.date}T${m.end || "12:00"}:00.000Z` : "",
-              tags: ["Fasilitas Lengkap", "Sangat Bersih", "AC Dingin"]
+            const rev = {
+              ...m.review,
+              comment: m.review.comment ?? m.review.text ?? "",
+              text: m.review.text ?? m.review.comment ?? "",
+              reviewer: m.review.reviewer || m.bookedBy || m.requester || "User Pemesan",
             };
             return { meeting: m, review: rev };
           });
@@ -2257,7 +2273,7 @@ export default function BookingPage() {
                         </div>
 
                         <p className="bk-review-item-comment">
-                          "{r.comment}"
+                          "{r.comment || r.text || "Tidak ada komentar tertulis."}"
                         </p>
 
                         {/* Tag fasilitas */}

@@ -702,7 +702,7 @@ export default function MeetingPassPage() {
             className="mp-card"
             style={{ textAlign: "center", padding: "40px 24px" }}
           >
-            <h2 style={{ color: "#0c2d5e", margin: "0 0 10px" }}>
+            <h2 style={{ color: "#123B5D", margin: "0 0 10px" }}>
               Rapat Tidak Ditemukan
             </h2>
             <p

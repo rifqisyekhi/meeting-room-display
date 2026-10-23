@@ -1,9 +1,17 @@
 :root {
   /* ---- palet -------------------------------------------------------- */
-  --c-blue:  #104b9b;  /* biru aksen        */
-  --c-mid:   #0f326e;  /* biru gelap        */
-  --c-deep:  #0f244f;  /* biru paling gelap */
-  --c-paper: #f0eaee;  /* putih hangat      */
+  --c-primary-navy: #123B5D;
+  --c-primary-blue: #3473A7;
+  --c-primary-grey: #F6F6F6;
+  --c-accent-gold:  #FFD52E;
+  --c-accent-amber: #FFCD5F;
+  --c-accent-green: #9BC264;
+  --c-accent-teal:  #00BFA6;
+  --c-pure-white:   #FFFFFF;
+  --c-blue:  #3473A7;  /* biru aksen        */
+  --c-mid:   #1a456d;  /* biru gelap        */
+  --c-deep:  #123B5D;  /* biru paling gelap */
+  --c-paper: #F6F6F6;  /* putih hangat      */
   /* Empat status timeline, masing-masing satu warna khas. Dua yang bertanda
      "fix" ditetapkan manual dan menjadi jangkar; dua lainnya dipilih agar
      terbedakan dari keduanya:
@@ -19,8 +27,8 @@
      CATATAN: --c-slate dan --c-sky saat ini berjarak hue hanya 2° dengan
      rasio terang 1.02 : 1, jadi sel "selesai" dan "terjadwal" praktis tidak
      terbedakan di timeline. Salah satu dari keduanya perlu pindah hue. */
-  --c-green: #80ed99; /* fix */
-  --c-sky:   #64b5f6;
+  --c-green: #9BC264; /* fix */
+  --c-sky:   #00BFA6;
   --c-slate: #9eb3c2;
 
   /* ---- peran -------------------------------------------------------- */
@@ -28,11 +36,11 @@
   --bg: var(--c-deep);
   --surface: var(--c-mid);   /* selisih 1.23 : 1 terhadap latar */
 
-  --line: #104188;   /* divider di dalam kartu */
+  --line: #22517d;   /* divider di dalam kartu */
   /* Sel kosong lebih GELAP dari kartu, bukan lebih terang: satu-satunya
      arah yang sekaligus terlihat di kartu dan menyisakan kontras cukup
      untuk keempat warna sel yang duduk di atasnya. */
-  --track: #0f2d63;
+  --track: #103250;
   --past: var(--c-slate);  /* 5.8 : 1 di atas sel kosong */
 
   --text: var(--c-paper);  /* 10.4 : 1 di atas kartu */
@@ -40,7 +48,7 @@
   --text-faint: #929db8;   /*  4.6 : 1 */
 
   --free: var(--c-green);  /* 8.5 : 1 */
-  --busy: #edae49; /* fix */   /* 6.3 : 1 */
+  --busy: #FFD52E; /* fix */   /* 6.3 : 1 */
   --scheduled: var(--c-sky);   /* 6.0 : 1 di atas sel kosong */
   /* Netral, mengikuti warna teks. Amber lama hanya berjarak 1.35 : 1 dari
      emas --busy, sehingga penanda tenggelam di atas sel yang sedang dipakai. */

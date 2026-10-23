@@ -122,9 +122,11 @@ export default function LoginPage() {
       localStorage.getItem("isAuthenticated") === "true";
 
     if (isAuth && activeUser) {
-      const role = (activeUser.role || "").toLowerCase();
-      const uname = (activeUser.username || "").toLowerCase();
+      const role = (activeUser.role || "").trim().toLowerCase();
+      const uname = (activeUser.username || "").trim().toLowerCase();
+      const isRegularUserRole = !role || role === "user" || role === "staff" || role === "pegawai";
       const isAdminOrPimpinan =
+        !isRegularUserRole ||
         role.includes("admin") ||
         role.includes("pimpinan") ||
         role.includes("approval") ||
@@ -279,9 +281,11 @@ export default function LoginPage() {
         dept: authenticatedUser.dept || "",
       };
 
-      const userRole = (userData.role || "").toLowerCase();
-      const uname = (userData.username || "").toLowerCase();
+      const userRole = (userData.role || "").trim().toLowerCase();
+      const uname = (userData.username || "").trim().toLowerCase();
+      const isRegularUserRole = !userRole || userRole === "user" || userRole === "staff" || userRole === "pegawai";
       const isAdminOrPimpinan =
+        !isRegularUserRole ||
         userRole.includes("admin") ||
         userRole.includes("pimpinan") ||
         userRole.includes("approval") ||

@@ -177,11 +177,31 @@ export default function BookingHistoryPage() {
             matchedLocalIds.add(String(localMeeting.id));
             if (localMeeting.googleId) matchedLocalIds.add(String(localMeeting.googleId));
           }
+          const mergedReview =
+            meeting.review || localMeeting?.review
+              ? {
+                  ...(localMeeting?.review || {}),
+                  ...(meeting.review || {}),
+                  comment:
+                    meeting.review?.comment ??
+                    meeting.review?.text ??
+                    localMeeting?.review?.comment ??
+                    localMeeting?.review?.text ??
+                    "",
+                  text:
+                    meeting.review?.text ??
+                    meeting.review?.comment ??
+                    localMeeting?.review?.text ??
+                    localMeeting?.review?.comment ??
+                    "",
+                  adminReply: meeting.review?.adminReply || localMeeting?.review?.adminReply || null,
+                }
+              : null;
           return {
             ...meeting,
             bookedBy: meeting.bookedBy || localMeeting?.bookedBy || "",
             bookedByUsername: meeting.bookedByUsername || localMeeting?.bookedByUsername || "",
-            review: meeting.review || localMeeting?.review || null,
+            review: mergedReview,
             attendees: meeting.attendees || localMeeting?.attendees || [],
             createdAt: meeting.createdAt || localMeeting?.createdAt || null,
           };
@@ -417,14 +437,35 @@ export default function BookingHistoryPage() {
   const submitReview = async () => {
     if (!reviewTarget || !reviewRating) return;
     const submittedAt = new Date().toISOString();
+    const ratingNum = Number(reviewRating) || 5;
+    const commentText = reviewText.trim();
+    const reviewerName =
+      currentUser.name ||
+      reviewTarget.bookedBy ||
+      currentUser.username ||
+      reviewTarget.requester ||
+      "User";
     const review = {
-      rating: reviewRating,
-      text: reviewText.trim(),
-      reviewer: currentUser.name || currentUser.username || "User",
-      reviewerUsername: currentUser.username || "",
+      rating: ratingNum,
+      cleanliness: ratingNum,
+      facilities: ratingNum,
+      comfort: ratingNum,
+      service: ratingNum,
+      text: commentText,
+      comment: commentText,
+      reviewer: reviewerName,
+      reviewerUsername: currentUser.username || reviewTarget.bookedByUsername || "",
       submittedAt,
+      tags:
+        ratingNum >= 5
+          ? ["Fasilitas Berfungsi Baik", "Sangat Bersih", "Sangat Memuaskan"]
+          : ratingNum === 4
+            ? ["Fasilitas Baik", "Kondusif"]
+            : ratingNum === 3
+              ? ["Cukup Baik"]
+              : ["Perlu Perbaikan"],
     };
-    const updatedMeeting = { ...reviewTarget, review };
+    const updatedMeeting = { ...reviewTarget, status: "Selesai", review };
     const updatedMeetings = meetings.map((meeting) => String(meeting.id) === String(reviewTarget.id) ? updatedMeeting : meeting);
     const notification = {
       id: `review-${reviewTarget.id}-${submittedAt}`,
@@ -438,8 +479,9 @@ export default function BookingHistoryPage() {
       time: `${reviewTarget.start || reviewTarget.startTime} - ${reviewTarget.end || reviewTarget.endTime}`,
       rating: review.rating,
       review: review.text,
+      comment: review.comment,
       status: "Ulasan Baru",
-      targetRoles: ["Administrator", "Approval 1", "Approval 2"],
+      targetRoles: ["Admin", "Administrator", "Pimpinan", "Approval", "Approval 1", "Approval 2"],
       createdAt: submittedAt,
       readBy: [],
     };
@@ -449,8 +491,12 @@ export default function BookingHistoryPage() {
       const existingNotifications = Array.isArray(savedNotifications) ? savedNotifications : [];
       localStorage.setItem("app_notifications", JSON.stringify([notification, ...existingNotifications]));
       localStorage.setItem("app_meetings", JSON.stringify(updatedMeetings));
+      window.dispatchEvent(new Event("app_meetings_updated"));
       window.dispatchEvent(new Event("app_notifications_updated"));
-      if (window.parent && window.parent !== window) window.parent.dispatchEvent(new Event("app_notifications_updated"));
+      if (window.parent && window.parent !== window) {
+        window.parent.dispatchEvent(new Event("app_meetings_updated"));
+        window.parent.dispatchEvent(new Event("app_notifications_updated"));
+      }
     } catch (error) {
       console.warn("Gagal menyimpan ulasan lokal:", error);
     }
@@ -460,12 +506,19 @@ export default function BookingHistoryPage() {
     setReviewRating(0);
     setReviewText("");
     try {
-      const response = await fetch("/api/dashboard/meetings", {
+      const reviewRes = await fetch(`/api/dashboard/meetings/${encodeURIComponent(reviewTarget.id)}/review`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updatedMeeting),
+        body: JSON.stringify({ review, meeting: updatedMeeting }),
       });
-      if (!response.ok) throw new Error("Gagal menyinkronkan ulasan ke server.");
+      if (!reviewRes.ok) {
+        const fallbackRes = await fetch("/api/dashboard/meetings", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(updatedMeeting),
+        });
+        if (!fallbackRes.ok) throw new Error("Gagal menyinkronkan ulasan ke server.");
+      }
     } catch (error) {
       console.warn("Sinkronisasi ulasan:", error);
       setNotice("Ulasan tersimpan di halaman ini, tetapi gagal disinkronkan ke server.");
@@ -618,7 +671,15 @@ export default function BookingHistoryPage() {
                     <span><strong>Tambahan waktu:</strong> {meeting.extensionHistory.map((item) => `+${item.hours} jam`).join(", ")}</span>
                   )}
                   {meeting.review && (
-                    <span><strong>Ulasan Anda:</strong> {"★".repeat(meeting.review.rating || 0)}{meeting.review.text ? ` — ${meeting.review.text}` : ""}</span>
+                    <span>
+                      <strong>Ulasan Anda:</strong> {"★".repeat(meeting.review.rating || 0)}
+                      {(meeting.review.text || meeting.review.comment) ? ` — "${meeting.review.text || meeting.review.comment}"` : ""}
+                    </span>
+                  )}
+                  {meeting.review?.adminReply?.text && (
+                    <span style={{ display: "block", marginTop: "6px", padding: "6px 10px", background: "#f0fdf4", borderLeft: "3px solid #16a34a", borderRadius: "6px", color: "#14532d", fontSize: "12.5px" }}>
+                      <strong>🏢 Balasan Admin Utama ({meeting.review.adminReply.sender || "Pengelola Ruang Rapat"}):</strong> &ldquo;{meeting.review.adminReply.text}&rdquo;
+                    </span>
                   )}
                 </div>
               )}

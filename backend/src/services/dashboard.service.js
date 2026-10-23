@@ -409,7 +409,54 @@ function sanitizeMeetingMaterials(materials) {
   return result;
 }
 
+function normalizeReviewObject(rev, meeting = {}) {
+  if (!rev || typeof rev !== "object") return null;
+  const ratingNum = Math.max(1, Math.min(5, Number(rev.rating) || 5));
+  const commentStr = String(rev.comment ?? rev.text ?? "").trim();
+  const reviewerName =
+    String(rev.reviewer || meeting?.bookedBy || meeting?.requester || "User").trim() || "User";
+  const reviewerUsername = String(rev.reviewerUsername || meeting?.bookedByUsername || "").trim();
+  const submittedAt = rev.submittedAt || rev.createdAt || new Date().toISOString();
+  const defaultTags =
+    ratingNum >= 5
+      ? ["Fasilitas Berfungsi Baik", "Sangat Bersih", "Sangat Memuaskan"]
+      : ratingNum === 4
+        ? ["Fasilitas Baik", "Kondusif"]
+        : ratingNum === 3
+          ? ["Cukup Baik"]
+          : ["Perlu Perbaikan"];
+  const tags = Array.isArray(rev.tags) && rev.tags.length > 0 ? rev.tags : defaultTags;
+
+  let adminReply = null;
+  if (rev.adminReply && typeof rev.adminReply === "object" && String(rev.adminReply.text || "").trim()) {
+    adminReply = {
+      text: String(rev.adminReply.text).trim(),
+      sender: String(rev.adminReply.sender || "Admin Utama - Pengelola Ruang Rapat Kemnaker").trim(),
+      repliedAt: rev.adminReply.repliedAt || new Date().toISOString(),
+    };
+  }
+
+  return {
+    ...rev,
+    rating: ratingNum,
+    cleanliness: Number(rev.cleanliness) || ratingNum,
+    facilities: Number(rev.facilities) || ratingNum,
+    comfort: Number(rev.comfort) || ratingNum,
+    service: Number(rev.service) || ratingNum,
+    comment: commentStr,
+    text: commentStr,
+    reviewer: reviewerName,
+    reviewerUsername,
+    submittedAt,
+    tags,
+    adminReply,
+  };
+}
+
 function normalizeMeetingLifecycle(meeting, now = new Date()) {
+  if (meeting && meeting.review) {
+    meeting.review = normalizeReviewObject(meeting.review, meeting);
+  }
   if (!meeting) return meeting;
   if (Array.isArray(meeting.materials)) {
     meeting.materials = sanitizeMeetingMaterials(meeting.materials);
@@ -699,7 +746,21 @@ async function syncStoreFromDatabase() {
         permissions: Array.isArray(role.permissions) ? role.permissions : [],
         isSystem: !!role.is_system,
       }));
-    store.meetings = meetingsRes.rows.map((m) => ({
+    const prevMeetings = Array.isArray(store.meetings) ? store.meetings : [];
+    store.meetings = meetingsRes.rows.map((m) => {
+      const prev = prevMeetings.find(
+        (pm) =>
+          String(pm.id) === String(m.id) ||
+          (m.google_id && (String(pm.id) === String(m.google_id) || String(pm.googleId) === String(m.google_id))) ||
+          (pm.originalId && String(pm.originalId) === String(m.id))
+      );
+      const baseMeeting = { bookedBy: m.booked_by_name, bookedByUsername: m.booked_by_username, requester: m.requester };
+      const initialReview = m.review
+        ? normalizeReviewObject({ ...(prev?.review || {}), ...m.review, adminReply: m.review.adminReply || prev?.review?.adminReply || null }, baseMeeting)
+        : prev?.review
+          ? normalizeReviewObject(prev.review, baseMeeting)
+          : undefined;
+      return {
         id: m.id,
         googleId: m.google_id,
         title: m.title,
@@ -726,17 +787,40 @@ async function syncStoreFromDatabase() {
         checkOutMethod: m.check_out_method,
         checkOutMethodLabel: m.check_out_method_label,
         createdAt: m.created_at,
-      }));
+        ...(initialReview ? { review: initialReview } : {}),
+      };
+    });
     if (reviewsRes.rows && reviewsRes.rows.length > 0) {
       reviewsRes.rows.forEach((rev) => {
-        const m = (store.meetings || []).find((meet) => String(meet.id) === String(rev.meeting_id));
-        if (m && !m.review) {
-          m.review = {
-            rating: rev.rating,
-            text: rev.comment,
-            reviewer: rev.user_name,
-            submittedAt: rev.created_at,
-          };
+        const m = (store.meetings || []).find(
+          (meet) =>
+            String(meet.id) === String(rev.meeting_id) ||
+            (meet.googleId && String(meet.googleId) === String(rev.meeting_id)) ||
+            (meet.originalId && String(meet.originalId) === String(rev.meeting_id))
+        );
+        if (m) {
+          const meta = rev.metadata && typeof rev.metadata === "object" ? rev.metadata : {};
+          const existingRev = m.review && typeof m.review === "object" ? m.review : {};
+          const dbAdminReply = rev.admin_reply
+            ? {
+                text: rev.admin_reply,
+                sender: rev.reply_by || "Admin Utama - Pengelola Ruang Rapat Kemnaker",
+                repliedAt: rev.reply_date || rev.created_at,
+              }
+            : null;
+          m.review = normalizeReviewObject(
+            {
+              ...existingRev,
+              ...meta,
+              rating: rev.rating ?? meta.rating ?? existingRev.rating ?? 5,
+              comment: rev.comment ?? meta.comment ?? meta.text ?? existingRev.comment ?? existingRev.text ?? "",
+              text: rev.comment ?? meta.text ?? meta.comment ?? existingRev.text ?? existingRev.comment ?? "",
+              reviewer: rev.user_name || meta.reviewer || existingRev.reviewer || m.bookedBy || m.requester || "User",
+              submittedAt: meta.submittedAt || existingRev.submittedAt || rev.created_at,
+              adminReply: dbAdminReply || meta.adminReply || existingRev.adminReply || null,
+            },
+            m
+          );
         }
       });
     }
@@ -1221,6 +1305,18 @@ async function saveMeeting(meeting) {
   ]);
   meeting.materials = mergedMaterials;
 
+  const existingReview = idx !== -1 ? store.meetings[idx]?.review : matchedStored?.review;
+  if (meeting.review || existingReview) {
+    meeting.review = normalizeReviewObject(
+      {
+        ...(existingReview || {}),
+        ...(meeting.review || {}),
+        adminReply: meeting.review?.adminReply || existingReview?.adminReply || null,
+      },
+      meeting
+    );
+  }
+
   if (idx !== -1) {
     store.meetings[idx] = {
       ...store.meetings[idx],
@@ -1230,6 +1326,7 @@ async function saveMeeting(meeting) {
       attendees: meeting.attendees || store.meetings[idx].attendees || [],
       bookedBy: meeting.bookedBy || store.meetings[idx].bookedBy || "",
       bookedByUsername: meeting.bookedByUsername || store.meetings[idx].bookedByUsername || "",
+      ...(meeting.review ? { review: meeting.review } : {}),
     };
   } else {
     store.meetings.unshift(meeting);
@@ -1298,8 +1395,9 @@ async function saveMeeting(meeting) {
           attendees, materials,
           checked_in_at, checked_in_by, check_in_method, check_in_method_label,
           checked_out_at, checked_out_by, check_out_method, check_out_method_label,
+          review,
           created_at, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, NOW())
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, NOW())
         ON CONFLICT (id) DO UPDATE SET
           google_id = EXCLUDED.google_id,
           title = EXCLUDED.title,
@@ -1324,6 +1422,7 @@ async function saveMeeting(meeting) {
           checked_out_by = COALESCE(EXCLUDED.checked_out_by, meetings.checked_out_by),
           check_out_method = COALESCE(EXCLUDED.check_out_method, meetings.check_out_method),
           check_out_method_label = COALESCE(EXCLUDED.check_out_method_label, meetings.check_out_method_label),
+          review = COALESCE(EXCLUDED.review, meetings.review),
           updated_at = NOW();
       `, [
         String(meeting.id),
@@ -1350,23 +1449,39 @@ async function saveMeeting(meeting) {
         meeting.checkedOutBy || null,
         meeting.checkOutMethod || null,
         meeting.checkOutMethodLabel || null,
+        meeting.review ? JSON.stringify(meeting.review) : null,
         meeting.createdAt ? new Date(meeting.createdAt) : new Date(),
       ]);
 
       if (meeting.review) {
+        const revComment = String(meeting.review.comment ?? meeting.review.text ?? "").trim();
+        const revRating = Number(meeting.review.rating) || 5;
+        const revReviewer = meeting.review.reviewer || meeting.bookedBy || meeting.requester || "User";
+        const adminReplyText = meeting.review.adminReply?.text || null;
+        const adminReplySender = meeting.review.adminReply?.sender || null;
+        const adminReplyDate = meeting.review.adminReply?.repliedAt ? new Date(meeting.review.adminReply.repliedAt) : null;
         await query(`
-          INSERT INTO reviews (id, meeting_id, room_name, user_name, rating, comment, created_at)
-          VALUES ($1, $2, $3, $4, $5, $6, NOW())
+          INSERT INTO reviews (id, meeting_id, room_name, user_name, rating, comment, admin_reply, reply_date, reply_by, metadata, created_at)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
           ON CONFLICT (id) DO UPDATE SET
             rating = EXCLUDED.rating,
-            comment = EXCLUDED.comment;
+            comment = EXCLUDED.comment,
+            user_name = EXCLUDED.user_name,
+            admin_reply = COALESCE(EXCLUDED.admin_reply, reviews.admin_reply),
+            reply_date = COALESCE(EXCLUDED.reply_date, reviews.reply_date),
+            reply_by = COALESCE(EXCLUDED.reply_by, reviews.reply_by),
+            metadata = EXCLUDED.metadata;
         `, [
           `rev_${meeting.id}`,
           String(meeting.id),
           meeting.room || meeting.roomName || "",
-          meeting.review.reviewer || meeting.requester || "User",
-          Number(meeting.review.rating) || 5,
-          meeting.review.text || ""
+          revReviewer,
+          revRating,
+          revComment,
+          adminReplyText,
+          adminReplyDate,
+          adminReplySender,
+          JSON.stringify(meeting.review),
         ]);
       }
     } catch (dbErr) {
@@ -2251,6 +2366,200 @@ async function deleteUser(id) {
   return true;
 }
 
+async function saveMeetingReview(id, payload = {}) {
+  const store = readStore();
+  if (!Array.isArray(store.meetings)) store.meetings = [];
+  const target = String(id || "").trim();
+  const reviewInput = payload.review && typeof payload.review === "object" ? payload.review : payload;
+  const fallbackMeeting = payload.meeting && typeof payload.meeting === "object" ? payload.meeting : {};
+
+  let idx = store.meetings.findIndex(
+    (m) =>
+      String(m.id) === target ||
+      (m.googleId && String(m.googleId) === target) ||
+      (m.originalId && String(m.originalId) === target)
+  );
+
+  if (idx === -1 && fallbackMeeting.date && fallbackMeeting.start && fallbackMeeting.room) {
+    idx = store.meetings.findIndex(
+      (m) =>
+        String(m.date) === String(fallbackMeeting.date) &&
+        String(m.start) === String(fallbackMeeting.start) &&
+        samaRuang(m.room, fallbackMeeting.room)
+    );
+  }
+
+  let meeting = idx !== -1 ? store.meetings[idx] : null;
+  if (!meeting) {
+    const found = await getMeetingById(target);
+    if (found) {
+      meeting = { ...found };
+      store.meetings.unshift(meeting);
+      idx = 0;
+    } else if (fallbackMeeting && (fallbackMeeting.id || fallbackMeeting.room)) {
+      meeting = {
+        ...fallbackMeeting,
+        id: fallbackMeeting.id || target,
+        status: fallbackMeeting.status || "Selesai",
+      };
+      store.meetings.unshift(meeting);
+      idx = 0;
+    }
+  }
+
+  if (!meeting) return null;
+
+  const normalizedReview = normalizeReviewObject(
+    {
+      ...(meeting.review || {}),
+      ...reviewInput,
+      adminReply: reviewInput.adminReply || meeting.review?.adminReply || null,
+    },
+    meeting
+  );
+
+  meeting.review = normalizedReview;
+  if (!meeting.status || meeting.status === "Berjalan" || meeting.status === "Segera" || meeting.status === "Akan Datang") {
+    meeting.status = "Selesai";
+  }
+  store.meetings[idx] = meeting;
+
+  if (getIsConnected()) {
+    try {
+      const meetingIds = [...new Set([target, meeting.id, meeting.googleId, meeting.originalId].filter(Boolean).map(String))];
+      await query(
+        "UPDATE meetings SET review = $1, status = 'Selesai', updated_at = NOW() WHERE id = ANY($2::text[]) OR google_id = ANY($2::text[])",
+        [JSON.stringify(normalizedReview), meetingIds]
+      );
+      const revComment = String(normalizedReview.comment ?? normalizedReview.text ?? "").trim();
+      const revRating = Number(normalizedReview.rating) || 5;
+      const revReviewer = normalizedReview.reviewer || meeting.bookedBy || meeting.requester || "User";
+      const adminReplyText = normalizedReview.adminReply?.text || null;
+      const adminReplySender = normalizedReview.adminReply?.sender || null;
+      const adminReplyDate = normalizedReview.adminReply?.repliedAt ? new Date(normalizedReview.adminReply.repliedAt) : null;
+      await query(
+        `
+        INSERT INTO reviews (id, meeting_id, room_name, user_name, rating, comment, admin_reply, reply_date, reply_by, metadata, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
+        ON CONFLICT (id) DO UPDATE SET
+          rating = EXCLUDED.rating,
+          comment = EXCLUDED.comment,
+          user_name = EXCLUDED.user_name,
+          admin_reply = COALESCE(EXCLUDED.admin_reply, reviews.admin_reply),
+          reply_date = COALESCE(EXCLUDED.reply_date, reviews.reply_date),
+          reply_by = COALESCE(EXCLUDED.reply_by, reviews.reply_by),
+          metadata = EXCLUDED.metadata;
+      `,
+        [
+          `rev_${meeting.id}`,
+          String(meeting.id),
+          meeting.room || meeting.roomName || "",
+          revReviewer,
+          revRating,
+          revComment,
+          adminReplyText,
+          adminReplyDate,
+          adminReplySender,
+          JSON.stringify(normalizedReview),
+        ]
+      );
+    } catch (dbErr) {
+      console.warn("[PostgreSQL] Gagal simpan review ke DB:", dbErr.message);
+    }
+  }
+
+  writeStore(store);
+  return { meeting, review: normalizedReview };
+}
+
+async function saveMeetingReviewReply(id, replyPayload = {}) {
+  const store = readStore();
+  if (!Array.isArray(store.meetings)) store.meetings = [];
+  const target = String(id || "").trim();
+
+  let idx = store.meetings.findIndex(
+    (m) =>
+      String(m.id) === target ||
+      (m.googleId && String(m.googleId) === target) ||
+      (m.originalId && String(m.originalId) === target)
+  );
+
+  let meeting = idx !== -1 ? store.meetings[idx] : null;
+  if (!meeting) {
+    const found = await getMeetingById(target);
+    if (found) {
+      meeting = { ...found };
+      store.meetings.unshift(meeting);
+      idx = 0;
+    }
+  }
+
+  if (!meeting || !meeting.review) return null;
+
+  const replyText = String(replyPayload.text || "").trim();
+  if (!replyText) {
+    throw galat("Teks balasan ulasan wajib diisi.", 400);
+  }
+
+  const adminReply = {
+    text: replyText,
+    sender: String(replyPayload.sender || "Admin Utama - Pengelola Ruang Rapat Kemnaker").trim(),
+    repliedAt: replyPayload.repliedAt || new Date().toISOString(),
+  };
+
+  const normalizedReview = normalizeReviewObject(
+    {
+      ...meeting.review,
+      adminReply,
+    },
+    meeting
+  );
+
+  meeting.review = normalizedReview;
+  store.meetings[idx] = meeting;
+
+  if (getIsConnected()) {
+    try {
+      const meetingIds = [...new Set([target, meeting.id, meeting.googleId, meeting.originalId].filter(Boolean).map(String))];
+      await query(
+        "UPDATE meetings SET review = $1, updated_at = NOW() WHERE id = ANY($2::text[]) OR google_id = ANY($2::text[])",
+        [JSON.stringify(normalizedReview), meetingIds]
+      );
+      const revComment = String(normalizedReview.comment ?? normalizedReview.text ?? "").trim();
+      const revRating = Number(normalizedReview.rating) || 5;
+      const revReviewer = normalizedReview.reviewer || meeting.bookedBy || meeting.requester || "User";
+      await query(
+        `
+        INSERT INTO reviews (id, meeting_id, room_name, user_name, rating, comment, admin_reply, reply_date, reply_by, metadata, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
+        ON CONFLICT (id) DO UPDATE SET
+          admin_reply = EXCLUDED.admin_reply,
+          reply_date = EXCLUDED.reply_date,
+          reply_by = EXCLUDED.reply_by,
+          metadata = EXCLUDED.metadata;
+      `,
+        [
+          `rev_${meeting.id}`,
+          String(meeting.id),
+          meeting.room || meeting.roomName || "",
+          revReviewer,
+          revRating,
+          revComment,
+          adminReply.text,
+          new Date(adminReply.repliedAt),
+          adminReply.sender,
+          JSON.stringify(normalizedReview),
+        ]
+      );
+    } catch (dbErr) {
+      console.warn("[PostgreSQL] Gagal simpan balasan review ke DB:", dbErr.message);
+    }
+  }
+
+  writeStore(store);
+  return { meeting, review: normalizedReview };
+}
+
 module.exports = {
   /* Diekspor supaya skrip seeder memakai skema hash yang persis sama.
      Menyalin implementasinya ke skrip lain berisiko melenceng diam-diam,
@@ -2259,6 +2568,8 @@ module.exports = {
   verifyPassword,
   getDashboardData,
   saveMeeting,
+  saveMeetingReview,
+  saveMeetingReviewReply,
   deleteMeeting,
   getMeetingById,
   checkInMeeting,
