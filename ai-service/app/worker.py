@@ -19,7 +19,7 @@ import psutil
 from . import jobs as J
 from .audio import (SAMPLE_RATE, AudioPathError, decode_to_f32, iter_array_windows, iter_windows, open_f32,
                     probe_duration, resolve_audio_path)
-from .config import Settings, get_settings
+from .config import Settings, get_settings, is_cloud_model
 from .memory import NotEnoughMemory, require_ram
 from .summarizer import LLMError, generate_minutes
 from .textproc import assign_speakers
@@ -273,8 +273,9 @@ class Pipeline:
         prog.update("summarizing", 0, force=True)
         t0 = time.monotonic()
         try:
-            require_ram(self.s.llm_min_free_ram_mb, f"LLM '{self.s.ollama_model}'",
-                        "Transkrip tetap tersimpan; buat ulang notulen nanti atau pakai model Ollama yang lebih kecil.")
+            if not is_cloud_model(self.s.ollama_model):  # Claude berjalan di luar server: tanpa cek RAM
+                require_ram(self.s.llm_min_free_ram_mb, f"LLM '{self.s.ollama_model}'",
+                            "Transkrip tetap tersimpan; buat ulang notulen nanti atau pakai model Ollama yang lebih kecil.")
             md = generate_minutes(self.s, segments, meeting, speaker_names,
                                   lambda f, eta: prog.update("summarizing", f, eta), prog.check_cancel)
             return {"minutes_markdown": md, "minutes_error": None, "llm_model": self.s.ollama_model,
@@ -301,6 +302,10 @@ class Pipeline:
         opts = job["payload"].get("options") or {}
         pilihan = {k: v for k, v in (("whisper_model", opts.get("whisper_model")),
                                      ("ollama_model", opts.get("llm_model"))) if v}
+        if is_cloud_model(pilihan.get("ollama_model")) and not opts.get("allow_cloud"):
+            # Lapis kedua: API sudah menolak ini, tetapi job lama/rusak tidak boleh lolos ke cloud.
+            self.store.finish(job["id"], J.FAILED, error="Model cloud (Claude) hanya untuk rapat berklasifikasi Biasa.")
+            return
         dasar = self.s
         if pilihan:
             self.s = self.transcriber.s = dasar.model_copy(update=pilihan)

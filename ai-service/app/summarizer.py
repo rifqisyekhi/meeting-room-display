@@ -14,7 +14,7 @@ from urllib.parse import urlsplit
 import httpx
 
 from . import prompts
-from .config import Settings
+from .config import Settings, is_cloud_model
 from .textproc import chunk_lines, clean_llm_output, transcript_lines
 
 log = logging.getLogger(__name__)
@@ -168,6 +168,69 @@ class OllamaClient:
         self.http.close()
 
 
+class ClaudeClient:
+    """Claude lewat Anthropic API (cloud). Teks transkrip dikirim ke luar server, jadi hanya
+    dipakai untuk rapat yang diklasifikasikan "Biasa" (dicek di API dan worker)."""
+
+    # Model yang mendukung fallback sisi server bila permintaan ditolak pengaman model.
+    _FALLBACK_MODELS = {"claude-opus-5-5", "claude-opus-5", "claude-sonnet-5-5", "claude-fable-5-1"}
+
+    def __init__(self, s: Settings):
+        import anthropic  # impor malas: hanya dimuat bila Claude dipakai
+
+        self.s = s
+        self.anthropic = anthropic
+        self.client = anthropic.Anthropic(api_key=s.anthropic_api_key, timeout=s.claude_timeout_seconds,
+                                          max_retries=3)
+
+    def chat(self, user: str, keep_alive: str, check_cancel: Callable[[], None] | None = None) -> str:
+        a = self.anthropic
+        extra: dict = {}
+        if self.s.ollama_model in self._FALLBACK_MODELS:
+            extra = {"betas": ["server-side-fallback-2026-07-01"], "fallbacks": "default"}
+        try:
+            # Streaming: notulen panjang tidak terkena batas waktu HTTP, dan pembatalan job
+            # diperiksa di sela event (keluar dari "with" menutup koneksi).
+            with self.client.beta.messages.stream(
+                model=self.s.ollama_model,
+                max_tokens=self.s.claude_max_tokens,
+                system=prompts.SYSTEM,
+                messages=[{"role": "user", "content": user}],
+                output_config={"effort": self.s.claude_effort},
+                **extra,
+            ) as stream:
+                for _ in stream:
+                    if check_cancel is not None:
+                        check_cancel()
+                msg = stream.get_final_message()
+        except a.AuthenticationError as e:
+            raise LLMError("ANTHROPIC_API_KEY ditolak Anthropic. Periksa kunci API di .env service AI.") from e
+        except a.PermissionDeniedError as e:
+            raise LLMError(f"Kunci API Anthropic tidak punya akses ke model '{self.s.ollama_model}'.") from e
+        except a.NotFoundError as e:
+            raise LLMError(f"Model '{self.s.ollama_model}' tidak dikenal Anthropic (periksa CLAUDE_MODELS).") from e
+        except a.RateLimitError as e:
+            raise LLMError("Batas pemakaian Anthropic tercapai (rate limit/kuota). Coba lagi nanti.") from e
+        except a.APIStatusError as e:
+            raise LLMError(f"Anthropic API error {e.status_code}: {e.message}") from e
+        except a.APIConnectionError as e:
+            raise LLMError("Tidak dapat menghubungi Anthropic API. Periksa koneksi internet server.") from e
+        if msg.stop_reason == "refusal":
+            raise LLMError("Claude menolak menyusun notulen ini. Gunakan model lokal (Ollama).")
+        content = clean_llm_output("".join(b.text for b in msg.content if b.type == "text"))
+        if not content:
+            raise LLMError("Claude mengembalikan jawaban kosong.")
+        if msg.stop_reason == "max_tokens":
+            log.warning("Jawaban Claude terpotong di CLAUDE_MAX_TOKENS=%d", self.s.claude_max_tokens)
+        return content
+
+    def unload(self) -> None:
+        pass
+
+    def close(self) -> None:
+        self.client.close()
+
+
 def generate_minutes(
     s: Settings,
     segments: list[dict],
@@ -182,10 +245,13 @@ def generate_minutes(
     if not lines:
         return header + "\n\n## Ringkasan\nTidak ada ucapan yang terdeteksi pada rekaman.\n"
 
-    client = OllamaClient(s)
+    cloud = is_cloud_model(s.ollama_model)
+    client = ClaudeClient(s) if cloud else OllamaClient(s)
+    chunk_chars = s.claude_chunk_chars if cloud else s.summary_chunk_chars
+    reduce_max = s.claude_chunk_chars if cloud else s.summary_reduce_max_chars
     calls_done = 0
     call_seconds: list[float] = []
-    chunks = chunk_lines(lines, s.summary_chunk_chars)
+    chunks = chunk_lines(lines, chunk_chars)
     planned = (len(chunks) if len(chunks) > 1 else 0) + 1  # map + final; reduce ditambah bila perlu
 
     def call(prompt: str) -> str:
@@ -205,8 +271,8 @@ def generate_minutes(
         else:
             notes = [call(prompts.map_prompt(meeting, c, i + 1, len(chunks))) for i, c in enumerate(chunks)]
             # Reduce bertahap sampai gabungan catatan cukup pendek untuk satu panggilan.
-            while sum(len(n) for n in notes) > s.summary_reduce_max_chars and len(notes) > 1:
-                groups = chunk_lines(notes, s.summary_reduce_max_chars)
+            while sum(len(n) for n in notes) > reduce_max and len(notes) > 1:
+                groups = chunk_lines(notes, reduce_max)
                 if len(groups) >= len(notes):  # tiap catatan sudah sepanjang batas: gabung berpasangan
                     groups = ["\n\n".join(notes[i:i + 2]) for i in range(0, len(notes), 2)]
                 planned += len(groups)

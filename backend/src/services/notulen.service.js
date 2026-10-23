@@ -123,6 +123,10 @@ function barisNotulen(r, { lengkap = true } = {}) {
     startedAt: r.started_at,
     finishedAt: r.finished_at,
     updatedAt: r.updated_at,
+    // RAHASIA (bawaan) = hanya model lokal; BIASA = notulen boleh disusun Claude (cloud).
+    classification: r.classification || "RAHASIA",
+    classificationBy: r.classification_by,
+    classificationAt: r.classification_at,
     hasTranscript: Array.isArray(r.transcript) && r.transcript.length > 0,
     // Transkrip proses yang sedang berjalan sudah tampil; notulen masih disusun.
     transcriptBaru: r.status === "PROCESSING" && Boolean(r.job_id) && r.transcript_job_id === r.job_id,
@@ -446,9 +450,42 @@ function formatTanggal(iso) {
   return `${hari}, ${d} ${BULAN[m - 1]} ${y}`;
 }
 
+const KLASIFIKASI = ["RAHASIA", "BIASA"];
+
+function modelCloud(nama) {
+  return /^claude-/i.test(String(nama || ""));
+}
+
+/* Claude memproses teks di luar server instansi: hanya untuk rapat yang oleh admin
+   diklasifikasikan BIASA. Mengembalikan opsi izin untuk service AI (yang juga mengecek). */
+async function izinModelNotulen(meetingId, llmModel) {
+  if (!modelCloud(llmModel)) return {};
+  const baris = await ambilBarisNotulen(meetingId);
+  if ((baris && baris.classification) !== "BIASA") {
+    throw galat("Rapat ini berklasifikasi Rahasia/Penting, jadi notulen hanya boleh disusun dengan model lokal. "
+      + "Ubah klasifikasi ke Biasa bila rapat ini memang boleh memakai Claude (cloud).", 403);
+  }
+  return { allow_cloud: true };
+}
+
+async function aturKlasifikasi(meetingId, nilai, oleh = "Admin") {
+  wajibDatabase();
+  const k = String(nilai || "").toUpperCase();
+  if (!KLASIFIKASI.includes(k)) throw galat("Klasifikasi harus RAHASIA atau BIASA.");
+  await tolakJikaSedangDiproses(meetingId);
+  await pastikanBarisNotulen(meetingId);
+  await query(
+    `UPDATE meeting_minutes SET classification = $2, classification_by = $3, classification_at = NOW(),
+       updated_at = NOW() WHERE meeting_id = $1`,
+    [String(meetingId), k, oleh],
+  );
+  return barisNotulen(await ambilBarisNotulen(meetingId), { lengkap: false });
+}
+
 async function mulaiProses(meeting, ruangan, opsi = {}, oleh = "Admin") {
   wajibDatabase();
   await tolakJikaSedangDiproses(meeting.id);
+  const izinCloud = await izinModelNotulen(meeting.id, teksModel(opsi.llmModel));
   const files = (await daftarFile(meeting.id)).filter((f) => Number(f.size_bytes) > 0);
   if (!files.length) throw galat("Belum ada file audio untuk rapat ini. Rekam atau unggah audio terlebih dulu.");
 
@@ -463,6 +500,7 @@ async function mulaiProses(meeting, ruangan, opsi = {}, oleh = "Admin") {
       summarize: opsi.summarize !== false,
       ...(teksModel(opsi.whisperModel) ? { whisper_model: teksModel(opsi.whisperModel) } : {}),
       ...(teksModel(opsi.llmModel) ? { llm_model: teksModel(opsi.llmModel) } : {}),
+      ...izinCloud,
     },
   };
   const job = await panggilAI("POST", "/jobs", body);
@@ -487,12 +525,13 @@ async function buatUlangNotulen(meeting, ruangan, opsi = {}, oleh = "Admin") {
   if (!baris || !Array.isArray(baris.transcript) || !baris.transcript.length) {
     throw galat("Transkrip belum ada. Proses audio terlebih dulu.");
   }
+  const izinCloud = await izinModelNotulen(meeting.id, teksModel(opsi.llmModel));
   const job = await panggilAI("POST", "/jobs", {
     type: "summarize",
     segments: baris.transcript.map((s) => ({ start: s.start, end: s.end, speaker: s.speaker || null, text: s.text || "" })),
     speaker_names: baris.speakers || {},
     meeting: metadataRapat(meeting, ruangan),
-    options: teksModel(opsi.llmModel) ? { llm_model: teksModel(opsi.llmModel) } : {},
+    options: teksModel(opsi.llmModel) ? { llm_model: teksModel(opsi.llmModel), ...izinCloud } : {},
   }, 60000);
   await query(
     `UPDATE meeting_minutes SET status = 'PROCESSING', job_id = $2, job_type = 'summarize', stage = NULL,
@@ -707,6 +746,7 @@ module.exports = {
   buatUlangNotulen,
   batalkanProses,
   hapusHasil,
+  aturKlasifikasi,
   simpanNamaPembicara,
   simpanNotulen,
   ringkasan,

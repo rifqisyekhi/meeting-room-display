@@ -175,6 +175,11 @@ router.put("/meetings/:id/minutes", muatRapat, rute(async (req, res) => {
   res.json({ success: true, minutes });
 }));
 
+router.put("/meetings/:id/classification", muatRapat, rute(async (req, res) => {
+  const minutes = await notulen.aturKlasifikasi(req.rapat.id, req.body?.classification, namaPengguna(req));
+  res.json({ success: true, minutes });
+}));
+
 router.delete("/meetings/:id/minutes", muatRapat, rute(async (req, res) => {
   await notulen.hapusHasil(req.rapat.id);
   res.json({ success: true });

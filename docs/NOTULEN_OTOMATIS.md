@@ -140,6 +140,7 @@ Model Whisper yang belum diunduh ditandai "belum diunduh" dan diunduh otomatis s
 | PUT | `/meetings/:id/speakers` | `{ speakers: { "SPEAKER_1": "Pak Budi" } }` |
 | PUT | `/meetings/:id/minutes` | `{ markdown, reviewed }`: simpan hasil sunting notulis |
 | DELETE | `/meetings/:id/minutes` | Hapus transkrip & notulen (audio tetap) |
+| PUT | `/meetings/:id/classification` | Klasifikasi rapat. Body: `{ classification: "RAHASIA" \| "BIASA" }` |
 | GET | `/meetings/:id/minutes.md` | Unduh notulen `.md` |
 | GET | `/perekam` | Daftar perangkat perekam + status + daftar ruangan |
 | POST | `/perekam` | Buat perangkat & kode pemasangan. Body: `{ roomName, label? }` |

@@ -14,3 +14,5 @@ psutil==7.2.2
 sherpa-onnx==1.13.8
 # Hanya untuk scripts/benchmark.py (menghitung WER); boleh dilewati di server.
 jiwer==4.0.0
+# Claude (opsional, cloud): hanya dipakai bila ANTHROPIC_API_KEY diisi, untuk rapat berklasifikasi Biasa.
+anthropic==2.1.0

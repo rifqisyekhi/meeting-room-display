@@ -58,6 +58,16 @@
     "qwen3:14b": { ram: "≥ 12 GB", cpu: "16 core", gpu: "Disarankan, VRAM ≥ 12–16 GB", cepat: "Sangat lambat tanpa GPU*", catatan: "Untuk server ber-GPU" },
   };
 
+  // Claude berjalan di server Anthropic (cloud); hanya untuk rapat berklasifikasi Biasa.
+  const SPEK_CLAUDE = {
+    ram: "Tidak memakai RAM server", cpu: "-", gpu: "-", cepat: "±1–3 menit per rapat*",
+    catatan: "☁ Cloud (Anthropic), berbayar ±Rp3.000–6.000 per jam rapat* · hanya rapat Biasa",
+  };
+
+  function modelCloud(nama) { return /^claude-/i.test(String(nama || "")); }
+
+  function rapatBiasa() { return nv.data?.minutes?.classification === "BIASA"; }
+
   const KETERANGAN_WHISPER = {
     tiny: "sangat cepat, akurasi rendah",
     base: "cepat, akurasi rendah",
@@ -337,8 +347,15 @@
     const gb = (mb) => `${(mb / 1024).toFixed(1).replace(".", ",")} GB`;
     const opsiW = (m.whisper || []).map((w) => `<option value="${e(w.default ? "" : w.name)}" ${(nv.pilih.whisper || "") === (w.default ? "" : w.name) ? "selected" : ""}>
       ${e(w.name)}${w.default ? " (default)" : ""} — ${e(KETERANGAN_WHISPER[w.name] || "model kustom")} · RAM ±${gb(w.required_ram_mb)}${w.downloaded ? "" : " · belum diunduh"}</option>`).join("");
-    const opsiL = (m.llm || []).map((l) => `<option value="${e(l.default ? "" : l.name)}" ${(nv.pilih.llm || "") === (l.default ? "" : l.name) ? "selected" : ""}>
-      ${e(l.name)}${l.default ? " (default)" : ""}${l.size_mb ? ` · ±${gb(l.size_mb)}` : ""}</option>`).join("");
+    const biasa = rapatBiasa();
+    const opsiL = (m.llm || []).map((l) => `<option value="${e(l.default ? "" : l.name)}" ${(nv.pilih.llm || "") === (l.default ? "" : l.name) ? "selected" : ""}
+      ${l.cloud && !biasa ? "disabled" : ""}>
+      ${l.cloud ? "☁ " : ""}${e(l.name)}${l.default ? " (default)" : ""}${l.size_mb ? ` · ±${gb(l.size_mb)}` : ""}${l.cloud ? (biasa ? " · cloud" : " · hanya rapat Biasa") : ""}</option>`).join("");
+    const adaCloud = (m.llm || []).some((l) => l.cloud);
+    const catatanCloud = modelCloud(nv.pilih.llm)
+      ? `<p class="nv-cloud-note">☁ Teks transkrip rapat ini akan dikirim ke Anthropic (Claude) untuk menyusun notulen.
+          Audio dan transkripsi tetap di server instansi.</p>`
+      : adaCloud && !biasa ? `<p class="nv-muted nv-small">Claude (cloud) hanya bisa dipilih untuk rapat berklasifikasi Biasa.</p>` : "";
     const belumUnduh = (m.whisper || []).find((w) => (nv.pilih.whisper ? w.name === nv.pilih.whisper : w.default) && !w.downloaded);
     const tombolInfo = (jenis) => `<button type="button" class="nv-info ${nv.info === jenis ? "open" : ""}"
       onclick="nvInfo('${jenis}')" aria-expanded="${nv.info === jenis}" title="Spesifikasi minimal tiap model">i</button>`;
@@ -349,11 +366,12 @@
           <select class="nv-input" aria-label="Model transkripsi" onchange="nvPilihModel('whisper', this.value)">${opsiW}</select>
         </div>
         <div class="nv-model-field">
-          <div class="nv-model-head"><span>Model notulen (Ollama) <span class="nv-muted nv-small">— juga dipakai "Buat ulang notulen"</span></span>${tombolInfo("llm")}</div>
+          <div class="nv-model-head"><span>Model notulen <span class="nv-muted nv-small">— juga dipakai "Buat ulang notulen"</span></span>${tombolInfo("llm")}</div>
           ${m.ollama_reachable
             ? (opsiL ? `<select class="nv-input" aria-label="Model notulen" onchange="nvPilihModel('llm', this.value)">${opsiL}</select>`
               : `<div class="nv-alert nv-alert-warn">Belum ada model di Ollama. Jalankan: <code>ollama pull ${e(m.default_llm)}</code></div>`)
             : `<div class="nv-alert nv-alert-warn">Ollama tidak aktif: transkrip tetap dibuat, notulen bisa dibuat ulang nanti.</div>`}
+          ${catatanCloud}
         </div>
       </div>
       ${nv.info ? htmlInfoSpek(nv.info) : ""}
@@ -386,7 +404,7 @@
       isi = `<table class="nv-spec"><thead><tr><th>Model</th><th>RAM bebas min.</th><th>CPU</th><th>GPU NVIDIA</th>
         <th>Kecepatan</th><th>Catatan</th></tr></thead><tbody>${
         daftar.map((l) => {
-          const sp = SPEK_LLM[l.name] || SPEK_LLM[String(l.name).replace(/:latest$/, "")] || {};
+          const sp = modelCloud(l.name) ? SPEK_CLAUDE : SPEK_LLM[l.name] || SPEK_LLM[String(l.name).replace(/:latest$/, "")] || {};
           const ram = sp.ram || (l.size_mb ? `≥ ${gb(l.size_mb + 1536)} (ukuran model + 1,5 GB)` : "-");
           return `<tr><td><b>${e(l.name)}</b>${l.size_mb ? `<br><span class="nv-muted nv-small">file ±${gb(l.size_mb)}</span>` : ""}</td>
             <td>${e(ram)}</td><td>${e(sp.cpu || "≥ 4 core")}</td><td>${e(sp.gpu || "Opsional")}</td>
@@ -403,6 +421,45 @@
       <p class="nv-muted nv-small">* Perkiraan, belum diukur di server instansi. Angka pasti: jalankan
         <code>ai-service/scripts/benchmark.py</code> dengan rekaman rapat asli.</p>
     </div>`;
+  }
+
+  /* Klasifikasi menentukan apakah notulen boleh disusun Claude (cloud). Bawaannya Rahasia. */
+  function htmlKlasifikasi(mn, proses) {
+    const biasa = mn.classification === "BIASA";
+    const oleh = mn.classificationBy ? ` Diatur oleh ${e(mn.classificationBy)}${mn.classificationAt ? `, ${waktuLokal(mn.classificationAt)}` : ""}.` : "";
+    return `
+      <div class="nv-klas ${biasa ? "nv-klas-biasa" : "nv-klas-rahasia"}">
+        <div class="nv-row nv-wrap">
+          <b>Klasifikasi rapat</b>
+          <div class="nv-seg" role="radiogroup" aria-label="Klasifikasi rapat">
+            <button type="button" role="radio" aria-checked="${!biasa}" class="${biasa ? "" : "on"}"
+              onclick="nvKlasifikasi('RAHASIA')" ${proses ? "disabled" : ""}>🔒 Rahasia / Penting</button>
+            <button type="button" role="radio" aria-checked="${biasa}" class="${biasa ? "on" : ""}"
+              onclick="nvKlasifikasi('BIASA')" ${proses ? "disabled" : ""}>Biasa</button>
+          </div>
+        </div>
+        <p>${biasa
+          ? "Audio dan transkripsi tetap diproses di server instansi. Notulen <b>boleh</b> disusun dengan Claude (cloud): bila dipilih, teks transkrip dikirim ke server Anthropic."
+          : "Audio, transkrip, dan notulen diproses sepenuhnya di server instansi dan tidak dikirim ke layanan cloud."}${oleh}</p>
+      </div>`;
+  }
+
+  async function nvKlasifikasi(nilai) {
+    const mn = nv.data?.minutes;
+    if ((mn?.classification || "RAHASIA") === nilai) return;
+    if (nilai === "BIASA" && !(await tanya("Rapat Biasa boleh memakai Claude (layanan cloud Anthropic) untuk menyusun notulen. "
+      + "Jika model Claude dipilih, teks transkrip rapat ini dikirim ke luar server instansi. "
+      + "Pastikan rapat ini tidak membahas hal rahasia atau penting.",
+      { judul: "Jadikan rapat Biasa?", ok: "Ya, rapat Biasa" }))) return;
+    try {
+      const r = await api(`/meetings/${encodeURIComponent(nv.meetingId)}/classification`, {
+        method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ classification: nilai }),
+      });
+      nv.data.minutes = { ...(nv.data.minutes || {}), ...r.minutes };
+      if (nilai === "RAHASIA" && modelCloud(nv.pilih.llm)) nv.pilih.llm = "";
+      beritahu(nilai === "BIASA" ? "Rapat ditandai Biasa." : "Rapat ditandai Rahasia/Penting: hanya model lokal.");
+      render();
+    } catch (err) { gagal(err.message); }
   }
 
   function nvInfo(jenis) {
@@ -452,7 +509,7 @@
           </div>
           <div>${badgeStatus(mn.status)}</div>
         </div>
-        <div class="nv-note">Audio rapat diproses sepenuhnya di server instansi (lokal) dan tidak dikirim ke layanan cloud.</div>
+        ${htmlKlasifikasi(mn, proses)}
 
         <div class="nv-grid">
           <section class="nv-card">
@@ -1419,7 +1476,7 @@
   Object.assign(window, {
     openNotulen, closeNotulen, nvUnggah, nvPutar, nvHapusFile, nvHapusHasil, nvProses, nvBatal, nvSimpanNama, nvBuatUlang,
     nvMasukUlang, nvBukaPerekam, nvTutupPerekam, nvBuatKode, nvKodeUlang, nvCabutPerekam,
-    nvTab, nvPilihModel, nvInfo, nvEdit, nvBatalEdit, nvSimpanNotulen, nvUnduhMd, nvUnduhTranskrip, nvCetak, nvMuatMic,
+    nvTab, nvPilihModel, nvInfo, nvKlasifikasi, nvEdit, nvBatalEdit, nvSimpanNotulen, nvUnduhMd, nvUnduhTranskrip, nvCetak, nvMuatMic,
     nvRekamMulai, nvRekamJeda, nvRekamSelesai,
   });
 

@@ -148,6 +148,28 @@ class Settings(BaseSettings):
     # Batas panjang gabungan catatan sebelum disusun menjadi notulen akhir.
     summary_reduce_max_chars: int = 12000
 
+    # --- LLM cloud (Claude, Anthropic API) — OPSIONAL ---
+    # Hanya untuk rapat yang oleh admin diklasifikasikan "Biasa"; backend wajib mengirim
+    # options.allow_cloud=true. Kosong = Claude tidak ditawarkan sama sekali.
+    anthropic_api_key: str = ""
+    # Model Claude yang boleh dipilih admin (pisahkan dengan koma).
+    claude_models: str = "claude-opus-5-5"
+    # low | medium | high | xhigh | max — kedalaman berpikir vs biaya.
+    claude_effort: str = "medium"
+    claude_max_tokens: int = 32000
+    claude_timeout_seconds: float = 900
+    # Konteks Claude sangat besar: rapat beberapa jam cukup satu panggilan.
+    claude_chunk_chars: int = 400000
+
+    @field_validator("ollama_model")
+    @classmethod
+    def _local_default(cls, v: str) -> str:
+        v = v.strip()
+        if is_cloud_model(v):
+            raise ValueError("OLLAMA_MODEL harus model lokal. Claude hanya boleh dipilih per rapat "
+                             "untuk rapat berklasifikasi Biasa (CLAUDE_MODELS).")
+        return v
+
     @field_validator("whisper_model")
     @classmethod
     def _validate_model(cls, v: str) -> str:
@@ -203,6 +225,17 @@ class Settings(BaseSettings):
         """None = semua model yang terpasang di Ollama boleh dipakai."""
         names = [x.strip() for x in self.ollama_allowed_models.split(",") if x.strip()]
         return list(dict.fromkeys([self.ollama_model] + names)) if names else None
+
+    def claude_choices(self) -> list[str]:
+        """Model Claude yang ditawarkan; kosong bila ANTHROPIC_API_KEY belum diisi."""
+        if not self.anthropic_api_key.strip():
+            return []
+        return list(dict.fromkeys(x.strip() for x in self.claude_models.split(",") if is_cloud_model(x.strip())))
+
+
+def is_cloud_model(name: str | None) -> bool:
+    """Model yang memproses teks di luar server (Anthropic API)."""
+    return bool(name) and name.lower().startswith("claude-")
 
 
 @lru_cache

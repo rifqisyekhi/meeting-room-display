@@ -20,7 +20,7 @@ from fastapi.responses import JSONResponse
 from . import __version__
 from . import jobs as J
 from .audio import AudioPathError, resolve_audio_path
-from .config import Settings, get_settings
+from .config import Settings, get_settings, is_cloud_model
 from .diarizer import diarization_installed, model_paths
 from .memory import ram_info
 from .schemas import JobCreate, JobOut
@@ -169,6 +169,8 @@ async def list_models():
             if allowed is None or _ollama_name_ok(name, set(allowed)) or name.removesuffix(":latest") in allowed:
                 llm.append({"name": name, "default": name in (s.ollama_model, f"{s.ollama_model}:latest"),
                             "size_mb": int(t.get("size", 0)) // (1024 * 1024)})
+    # Claude (cloud) ditawarkan terpisah; backend hanya mengizinkannya untuk rapat Biasa.
+    llm += [{"name": m, "default": False, "cloud": True} for m in s.claude_choices()]
     return {"whisper": whisper, "llm": llm, "ollama_reachable": tags is not None,
             "default_whisper": s.whisper_model, "default_llm": s.ollama_model}
 
@@ -217,7 +219,12 @@ async def create_job(body: JobCreate):
     if wm and wm not in s.whisper_choices():
         raise HTTPException(400, f"Model transkripsi '{wm}' tidak diizinkan di server ini. "
                                  f"Pilihan: {', '.join(s.whisper_choices())} (atur WHISPER_ALLOWED_MODELS).")
-    if lm:
+    if is_cloud_model(lm):
+        if not body.options.allow_cloud:
+            raise HTTPException(403, "Model cloud (Claude) hanya boleh dipakai untuk rapat berklasifikasi Biasa.")
+        if lm not in s.claude_choices():
+            raise HTTPException(400, f"Model '{lm}' tidak tersedia (atur ANTHROPIC_API_KEY dan CLAUDE_MODELS).")
+    elif lm:
         allowed = s.ollama_choices()
         if allowed is not None and lm.removesuffix(":latest") not in [a.removesuffix(":latest") for a in allowed]:
             raise HTTPException(400, f"Model notulen '{lm}' tidak diizinkan di server ini (atur OLLAMA_ALLOWED_MODELS).")

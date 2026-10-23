@@ -212,3 +212,22 @@ body.nv-open { overflow: hidden; }
   font-size: 13px; font-weight: 600; color: #7f1d1d; cursor: pointer;
 }
 .nv-dlg-cek input { width: 16px; height: 16px; accent-color: #dc2626; cursor: pointer; }
+
+/* ---------- klasifikasi rapat (Rahasia / Biasa) ---------- */
+.nv-klas { border-radius: 12px; padding: 10px 14px; margin-bottom: 14px; border: 1px solid; font-size: 13px; }
+.nv-klas p { margin: 4px 0 0; font-size: 12px; line-height: 1.5; }
+.nv-klas-rahasia { background: #ecfdf3; border-color: #bbf7d0; color: #14532d; }
+.nv-klas-biasa { background: #eff6ff; border-color: #bfdbfe; color: #1e3a8a; }
+.nv-seg { display: inline-flex; background: #fff; border: 1px solid #d6e2f0; border-radius: 10px; padding: 3px; gap: 3px; }
+.nv-seg button {
+  border: 0; background: transparent; border-radius: 8px; padding: 6px 12px; font: inherit; font-size: 12.5px;
+  font-weight: 600; color: #526a85; cursor: pointer;
+}
+.nv-seg button.on { background: #155a97; color: #fff; }
+.nv-klas-rahasia .nv-seg button.on { background: #15803d; }
+.nv-seg button:disabled { cursor: not-allowed; opacity: 0.6; }
+.nv-seg button:focus-visible { outline: 3px solid rgba(21, 90, 151, 0.35); outline-offset: 1px; }
+.nv-cloud-note {
+  margin: 6px 0 0; font-size: 12px; line-height: 1.5; color: #1e3a8a;
+  background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 6px 10px;
+}

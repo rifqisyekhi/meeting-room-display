@@ -24,6 +24,8 @@ class JobOptions(BaseModel):
     # Kosong = model default di .env. Harus termasuk WHISPER_ALLOWED_MODELS / model Ollama yang terpasang.
     whisper_model: str | None = Field(default=None, max_length=200)
     llm_model: str | None = Field(default=None, max_length=200)
+    # Wajib true untuk model cloud (Claude): hanya dikirim backend untuk rapat berklasifikasi Biasa.
+    allow_cloud: bool = False
 
 
 class Segment(BaseModel):
