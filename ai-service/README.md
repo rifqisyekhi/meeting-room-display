@@ -72,43 +72,17 @@ Ollama untuk Windows: unduh dari https://ollama.com/download, lalu jalankan `oll
 
 ## 2. Instalasi di Ubuntu 24.04 (server)
 
-Ubuntu 24.04 membawa Python **3.12**. Python 3.11 dipasang lewat `uv`, jadi tidak mengganggu Python sistem.
+Langkah lengkap (uv + Python 3.11, systemd dengan `Nice=10` dan `MemoryMax`, Ollama, nginx + HTTPS,
+ufw, mode offline) ada di [docs/DEPLOY_NOTULEN.md](../docs/DEPLOY_NOTULEN.md). Ringkasnya:
 
 ```bash
-sudo apt update && sudo apt install -y curl
-sudo useradd --system --create-home --home-dir /srv/notulensi --shell /usr/sbin/nologin notulensi
-# salin folder project ke /srv/notulensi/app (git clone / rsync), lalu:
-sudo chown -R notulensi:notulensi /srv/notulensi
-
-sudo -u notulensi -H bash -c '
-  curl -LsSf https://astral.sh/uv/install.sh | sh
-  cd /srv/notulensi/app/ai-service
-  ~/.local/bin/uv venv --python 3.11 .venv
-  ~/.local/bin/uv pip install --python .venv/bin/python -r requirements.txt
-  cp .env.example .env
-'
-# STORAGE_DIR di .env HARUS sama dengan NOTULEN_STORAGE_DIR di backend/.env (default: backend/data/notulen)
-sudo -u notulensi -H /srv/notulensi/app/ai-service/.venv/bin/python /srv/notulensi/app/ai-service/scripts/download_models.py
+cd /srv/meeting-room-display/ai-service
+uv venv --python 3.11 .venv                 # Ubuntu 24.04 bawaannya Python 3.12
+uv pip install --python .venv/bin/python -r requirements.txt
+cp .env.example .env                        # STORAGE_DIR = NOTULEN_STORAGE_DIR di backend/.env
+.venv/bin/python scripts/download_models.py --diarization
+sudo cp ../deploy/notulen-ai.service /etc/systemd/system/ && sudo systemctl enable --now notulen-ai
 ```
-
-**Ollama** (bind default 127.0.0.1:11434, tidak terbuka ke jaringan):
-
-```bash
-curl -fsSL https://ollama.com/install.sh | sh
-ollama pull qwen3:4b
-# Hemat RAM: hanya satu model & satu permintaan sekaligus
-sudo systemctl edit ollama
-#   [Service]
-#   Environment="OLLAMA_HOST=127.0.0.1:11434"
-#   Environment="OLLAMA_MAX_LOADED_MODELS=1"
-#   Environment="OLLAMA_NUM_PARALLEL=1"
-#   Nice=10
-sudo systemctl restart ollama
-```
-
-Uji jalan manual: `sudo -u notulensi /srv/notulensi/app/ai-service/.venv/bin/python -m app`
-(dari folder `ai-service`). Unit systemd lengkap (dengan `Nice=10`, `MemoryMax`), Nginx, dan ufw dibahas
-di tahap deploy (tahap 4).
 
 ### Mode offline
 

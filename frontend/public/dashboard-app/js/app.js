@@ -2114,6 +2114,10 @@ function meetingTable(data, actions = true, allowDelete = true) {
               const safeMeetingId = String(m.id).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
               const attendeeCount = Array.isArray(m.attendees) ? m.attendees.length : 0;
               actionButtons += `<button type="button" style="background:#eaf3ff;color:#155a97;border:1px solid #c8def5;border-radius:9px;height:34px;padding:0 9px;display:inline-flex;align-items:center;gap:5px;cursor:pointer;margin-right:8px;font-size:10.5px;font-weight:700;white-space:nowrap;" title="Lihat hasil presensi dan export Excel" onclick="viewMeetingAttendance('${safeMeetingId}')">Daftar Hadir (${attendeeCount})</button>`;
+              // Notulen otomatis (rekam/unggah audio → transkrip → notulen), lihat js/notulen.js.
+              if (typeof openNotulen === "function") {
+                actionButtons += `<button type="button" style="background:#f3efff;color:#5b3fb0;border:1px solid #ddd2fb;border-radius:9px;height:34px;padding:0 9px;display:inline-flex;align-items:center;gap:5px;cursor:pointer;margin-right:8px;font-size:10.5px;font-weight:700;white-space:nowrap;" title="Rekam / unggah audio rapat dan buat notulen otomatis" onclick="openNotulen('${safeMeetingId}')">🎙 Notulen</button>`;
+              }
             }
 
             if (actions) {

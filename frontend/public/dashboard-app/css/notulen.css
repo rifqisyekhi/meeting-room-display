@@ -1,0 +1,134 @@
+/* Notulen Otomatis — layar penuh di atas dashboard (prefix nv-) */
+
+body.nv-open { overflow: hidden; }
+
+.nv-root {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 900; /* di bawah #modal & toast milik dashboard */
+  background: #f4f7fb;
+  overflow-y: auto;
+  font-family: "Poppins", system-ui, sans-serif;
+  color: #1f2f46;
+}
+.nv-root.show { display: block; }
+
+.nv-loading { padding: 60px; text-align: center; color: #64748b; }
+
+.nv-shell { max-width: 1180px; margin: 0 auto; padding: 18px 22px 60px; }
+
+.nv-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+.nv-back { background: #fff; border: 1px solid #d6e2f0; color: #0c2d5e; border-radius: 10px; padding: 8px 14px; font-weight: 600; cursor: pointer; font-family: inherit; }
+.nv-back:hover { background: #eaf3ff; }
+.nv-ai { display: flex; gap: 6px; flex-wrap: wrap; }
+
+.nv-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin: 8px 0 6px; }
+.nv-head h1 { margin: 2px 0 4px; font-size: 22px; color: #0c2d5e; }
+.nv-crumb { font-size: 12px; color: #7a8ba3; }
+.nv-meta { font-size: 13px; color: #526a85; }
+.nv-note { font-size: 12px; color: #2f6b3f; background: #ecfdf3; border: 1px solid #bbf7d0; border-radius: 8px; padding: 7px 11px; margin-bottom: 14px; }
+
+.nv-grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 14px; }
+@media (max-width: 860px) { .nv-grid { grid-template-columns: 1fr; } .nv-head { flex-direction: column; } }
+
+.nv-card { background: #fff; border: 1px solid #e1e9f3; border-radius: 14px; padding: 16px 18px; margin-bottom: 14px; box-shadow: 0 2px 8px rgba(12, 45, 94, 0.04); }
+.nv-card h2 { font-size: 15px; margin: 0 0 10px; color: #0c2d5e; }
+
+.nv-row { display: flex; align-items: center; gap: 8px; margin: 8px 0; }
+.nv-wrap { flex-wrap: wrap; }
+.nv-between { justify-content: space-between; }
+.nv-push { margin-left: auto; }
+.nv-nowrap { white-space: nowrap; }
+.nv-muted { color: #7a8ba3; font-weight: 400; }
+.nv-small { font-size: 12px; line-height: 1.5; }
+.nv-err-text { color: #b91c1c; }
+
+.nv-input { border: 1px solid #cfdbe9; border-radius: 9px; padding: 8px 10px; font-family: inherit; font-size: 13px; background: #fff; color: #1f2f46; min-width: 0; }
+.nv-input:focus { outline: 2px solid #9cc3ee; border-color: #6aa3dc; }
+.nv-input-sm { width: 110px; margin-left: 6px; }
+#nvMic { flex: 1; }
+
+.nv-btn { border: 1px solid transparent; border-radius: 10px; padding: 8px 14px; font-weight: 600; font-size: 13px; cursor: pointer; font-family: inherit; display: inline-flex; align-items: center; gap: 6px; }
+.nv-btn:disabled, .nv-disabled { opacity: 0.45; cursor: not-allowed; pointer-events: none; }
+.nv-btn-primary { background: #155a97; color: #fff; }
+.nv-btn-primary:hover { background: #0c2d5e; }
+.nv-btn-light { background: #f1f6fc; color: #0c2d5e; border-color: #d6e2f0; }
+.nv-btn-light:hover { background: #e3eefb; }
+.nv-btn-red { background: #dc2626; color: #fff; }
+.nv-btn-dark { background: #1f2f46; color: #fff; }
+.nv-btn-ghost-red { background: #fff1f2; color: #be123c; border-color: #fecaca; }
+.nv-btn-sm { padding: 5px 9px; font-size: 11.5px; }
+
+.nv-meter { height: 10px; background: #edf2f8; border-radius: 6px; overflow: hidden; margin: 10px 0 4px; }
+.nv-level { height: 100%; width: 0; background: #16a34a; transition: width 0.08s linear; }
+.nv-timer { font-variant-numeric: tabular-nums; font-size: 22px; font-weight: 700; color: #0c2d5e; }
+.nv-rec-info { gap: 14px; flex-wrap: wrap; }
+.nv-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: #dc2626; margin-right: 4px; animation: nv-blink 1s infinite; }
+@keyframes nv-blink { 50% { opacity: 0.2; } }
+
+.nv-chip { font-size: 11.5px; padding: 4px 9px; border-radius: 20px; background: #eef3f9; color: #405d7e; border: 1px solid #d9e4f1; }
+.nv-chip-ok { background: #ecfdf3; color: #166534; border-color: #bbf7d0; }
+.nv-chip-warn { background: #fffbeb; color: #92400e; border-color: #fde68a; }
+.nv-chip-err { background: #fef2f2; color: #991b1b; border-color: #fecaca; }
+
+.nv-badge { font-size: 12px; font-weight: 700; padding: 5px 11px; border-radius: 20px; white-space: nowrap; }
+.nv-b-grey { background: #eef2f7; color: #526a85; }
+.nv-b-blue { background: #e0efff; color: #155a97; }
+.nv-b-green { background: #dcfce7; color: #166534; }
+.nv-b-red { background: #fee2e2; color: #b91c1c; }
+
+.nv-alert { border-radius: 10px; padding: 10px 13px; margin: 10px 0; font-size: 13px; line-height: 1.5; }
+.nv-alert-err { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
+.nv-alert-warn { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; }
+.nv-alert-ok { background: #ecfdf3; border: 1px solid #bbf7d0; color: #166534; }
+.nv-alert-draft { background: #fff7ed; border: 1.5px dashed #fb923c; color: #9a3412; }
+
+.nv-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.nv-table th { text-align: left; color: #64748b; font-weight: 600; font-size: 12px; border-bottom: 1px solid #e5edf6; padding: 7px 6px; }
+.nv-table td { border-bottom: 1px solid #f0f4f9; padding: 7px 6px; vertical-align: middle; }
+#nvPlayer audio { width: 100%; margin-top: 10px; }
+
+.nv-up { display: grid; grid-template-columns: 1fr 140px 70px; gap: 8px; align-items: center; font-size: 12.5px; margin-top: 8px; }
+
+.nv-progress { height: 12px; background: #edf2f8; border-radius: 8px; overflow: hidden; margin: 10px 0 4px; }
+.nv-progress > div { height: 100%; background: linear-gradient(90deg, #155a97, #3b82c4); transition: width 0.4s ease; }
+.nv-progress-sm { height: 8px; margin: 0; }
+
+.nv-steps { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+.nv-step { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: #8a9ab0; padding: 5px 10px 5px 5px; border-radius: 20px; background: #f3f6fa; }
+.nv-step span { width: 20px; height: 20px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: #dfe7f1; font-size: 11px; font-weight: 700; }
+.nv-step.active { color: #0c2d5e; background: #e0efff; font-weight: 600; }
+.nv-step.active span { background: #155a97; color: #fff; }
+.nv-step.done { color: #166534; }
+.nv-step.done span { background: #16a34a; color: #fff; }
+
+.nv-check { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; margin-right: 10px; }
+
+.nv-tabs { display: flex; align-items: center; gap: 6px; border-bottom: 1px solid #e5edf6; margin: -4px 0 12px; flex-wrap: wrap; }
+.nv-tabs button { background: none; border: none; border-bottom: 3px solid transparent; padding: 9px 14px; font-weight: 600; font-family: inherit; font-size: 14px; color: #64748b; cursor: pointer; }
+.nv-tabs button.active { color: #0c2d5e; border-bottom-color: #155a97; }
+
+.nv-speakers { background: #f8fbff; border: 1px solid #e1e9f3; border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; }
+.nv-speakers p { margin: 2px 0 8px; }
+.nv-spk-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px; }
+.nv-spk-grid label { display: flex; align-items: center; gap: 8px; font-size: 12.5px; }
+.nv-spk-grid label span { min-width: 86px; font-weight: 600; color: #155a97; }
+.nv-spk-grid .nv-input { flex: 1; }
+
+.nv-transcript { max-height: 60vh; overflow-y: auto; border: 1px solid #edf2f8; border-radius: 10px; padding: 10px 12px; font-size: 13.5px; line-height: 1.65; background: #fcfdff; }
+.nv-line { margin: 2px 0 6px; }
+.nv-ts { color: #8a9ab0; font-variant-numeric: tabular-nums; margin-right: 6px; font-size: 12px; }
+.nv-spk { font-weight: 700; color: #155a97; }
+
+.nv-editor { width: 100%; min-height: 55vh; box-sizing: border-box; border: 1px solid #cfdbe9; border-radius: 10px; padding: 12px; font-family: Consolas, "Courier New", monospace; font-size: 13px; line-height: 1.55; resize: vertical; }
+
+.nv-md { border: 1px solid #edf2f8; border-radius: 10px; padding: 16px 22px; line-height: 1.65; font-size: 14px; background: #fff; }
+.nv-md h1 { font-size: 20px; color: #0c2d5e; margin: 4px 0 12px; }
+.nv-md h2 { font-size: 16px; color: #0c2d5e; margin: 18px 0 8px; border-bottom: 1px solid #e5edf6; padding-bottom: 4px; }
+.nv-md h3 { font-size: 14.5px; margin: 12px 0 6px; }
+.nv-md table { border-collapse: collapse; width: 100%; margin: 8px 0; font-size: 13px; }
+.nv-md th, .nv-md td { border: 1px solid #d9e4f1; padding: 6px 8px; text-align: left; vertical-align: top; }
+.nv-md th { background: #f1f6fc; }
+.nv-md ul, .nv-md ol { padding-left: 22px; margin: 6px 0; }
+.nv-md blockquote { border-left: 3px solid #cbd5e1; margin: 8px 0; padding: 2px 12px; color: #526a85; }

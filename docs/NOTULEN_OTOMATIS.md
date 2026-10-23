@@ -17,15 +17,40 @@ ai-service (FastAPI, 127.0.0.1:8000) ── Whisper (transkripsi) → sherpa-onn
    └── membaca audio dari folder yang sama: NOTULEN_STORAGE_DIR = STORAGE_DIR (default backend/data/notulen)
 ```
 
-## Menjalankan di pengembangan
+## Menjalankan di pengembangan (Windows, laptop baru)
 
-1. Service AI: lihat [ai-service/README.md](../ai-service/README.md). Pastikan `STORAGE_DIR` di
-   `ai-service/.env` sama dengan `NOTULEN_STORAGE_DIR` di `backend/.env` (default
-   `backend/data/notulen`, cukup `STORAGE_DIR=../backend/data/notulen`).
-2. Ollama: `ollama pull qwen3:4b`.
-3. Backend seperti biasa (`npm run dev`). Tabel `meeting_audio_files` dan `meeting_minutes` dibuat
-   otomatis saat backend menyala.
-4. Fitur ini **butuh PostgreSQL**. Di mode fallback file JSON, semua rute notulen menjawab 503.
+Kebutuhan: Git, Node 20+, PostgreSQL, Python (versi apa pun, hanya untuk memasang `uv`), dan
+[Ollama for Windows](https://ollama.com/download). Disarankan RAM ≥ 16 GB dengan ≥ 6 GB bebas.
+
+```powershell
+git clone <url-repo> meeting-room-display
+cd meeting-room-display
+git switch notulen-sakeh
+
+# 1. Service AI (Python 3.11 lewat uv; terminal 1)
+python -m pip install --user uv
+cd ai-service
+python -m uv venv --python 3.11 .venv
+python -m uv pip install --python .venv\Scripts\python.exe -r requirements.txt
+copy .env.example .env
+#    di .env: STORAGE_DIR=../backend/data/notulen   (dan ENABLE_DIARIZATION=true bila ingin uji pembicara)
+.venv\Scripts\python.exe scripts\download_models.py --diarization
+.venv\Scripts\python.exe -m app                     # http://127.0.0.1:8000/docs
+
+# 2. Ollama (sekali saja)
+ollama pull qwen3:4b
+
+# 3. Backend (terminal 2): .env seperti biasa; variabel notulen opsional di dev (lihat tabel di bawah)
+cd backend && npm install && npm run dev
+
+# 4. Frontend (terminal 3)
+cd frontend && npm install && npm run dev            # http://localhost:5173 → login admin → Manajemen Rapat → 🎙 Notulen
+```
+
+- `localhost` dianggap aman oleh browser, jadi fitur **rekam** bisa diuji di dev tanpa HTTPS.
+- Tabel `meeting_audio_files` dan `meeting_minutes` dibuat otomatis saat backend menyala.
+- Fitur ini **butuh PostgreSQL**. Di mode fallback file JSON, semua rute notulen menjawab 503.
+- Deploy ke server: [DEPLOY_NOTULEN.md](DEPLOY_NOTULEN.md).
 
 ## Variabel `backend/.env`
 
