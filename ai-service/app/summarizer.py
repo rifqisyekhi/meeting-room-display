@@ -68,7 +68,7 @@ class OllamaClient:
             },
         }
         last_err: Exception | None = None
-        for attempt in range(2):
+        for attempt in range(3):
             try:
                 r = self.http.post("/api/chat", json=body)
             except httpx.ConnectError as e:
@@ -93,6 +93,11 @@ class OllamaClient:
                     raise LLMError(f"Ollama kehabisan memori: {detail}. Gunakan model yang lebih kecil "
                                    "atau kurangi OLLAMA_NUM_CTX.")
                 last_err = LLMError(f"Ollama mengembalikan error {r.status_code}: {detail}")
+                # Model tanpa mode berpikir (mis. Gemma) bisa menolak parameter "think":
+                # ulangi tanpa parameter itu, tag <think> tetap dibuang dari output.
+                if "think" in body and "think" in detail.lower():
+                    body.pop("think")
+                    continue
                 time.sleep(3)
                 continue
             content = clean_llm_output(r.json().get("message", {}).get("content", ""))
