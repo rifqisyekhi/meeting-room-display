@@ -232,7 +232,10 @@
       if (nv.data.minutes?.status === "PROCESSING") mulaiPolling();
     } catch (err) {
       root().innerHTML = `<div class="nv-shell"><div class="nv-top"><button class="nv-back" onclick="closeNotulen()">← Kembali</button></div>
-        <div class="nv-alert nv-alert-err">${e(err.message)}</div></div>`;
+        <div class="nv-alert nv-alert-err">${e(err.message)}
+          ${err.status === 401 ? `<div class="nv-row"><button class="nv-btn nv-btn-primary" onclick="nvMasukUlang()">Masuk kembali</button>
+            <span class="nv-small">Dashboard masih menampilkan Anda sebagai login, tetapi sesi di server sudah berakhir
+            (mis. backend di-restart atau sudah lebih dari 12 jam).</span></div>` : ""}</div></div>`;
     }
   }
 
@@ -1257,10 +1260,27 @@
     } catch (err) { alert(err.message); }
   }
 
+  /* Sesi server (cookie) berakhir sementara dashboard masih menyimpan profil di
+     storage browser: bersihkan profil itu (kunci sama dengan logout() di app.js)
+     lalu buka halaman login. */
+  async function nvMasukUlang() {
+    const kunci = ["isAuthenticated", "currentUser", "dashboard_isAuthenticated", "dashboard_currentUser",
+      "booking_isAuthenticated", "booking_currentUser"];
+    try { await fetch("/api/dashboard/logout", { method: "POST", credentials: "same-origin" }); } catch { /* abaikan */ }
+    [window, window.parent, window.top].forEach((w) => {
+      kunci.forEach((k) => {
+        try { w?.sessionStorage?.removeItem(k); } catch { /* abaikan */ }
+        try { w?.localStorage?.removeItem(k); } catch { /* abaikan */ }
+      });
+    });
+    const tujuan = "/login?portal=dashboard&logout=true";
+    try { window.top.location.href = tujuan; } catch { window.location.href = tujuan; }
+  }
+
   /* ---------- ekspos global (dipanggil dari atribut onclick) ---------- */
   Object.assign(window, {
     openNotulen, closeNotulen, nvUnggah, nvPutar, nvHapusFile, nvProses, nvBatal, nvSimpanNama, nvBuatUlang,
-    nvBukaPerekam, nvTutupPerekam, nvBuatKode, nvKodeUlang, nvCabutPerekam,
+    nvMasukUlang, nvBukaPerekam, nvTutupPerekam, nvBuatKode, nvKodeUlang, nvCabutPerekam,
     nvTab, nvPilihModel, nvInfo, nvEdit, nvBatalEdit, nvSimpanNotulen, nvUnduhMd, nvUnduhTranskrip, nvCetak, nvMuatMic,
     nvRekamMulai, nvRekamJeda, nvRekamSelesai,
   });
