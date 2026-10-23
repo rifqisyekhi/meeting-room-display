@@ -134,6 +134,18 @@ body.nv-open { overflow: hidden; }
 .nv-md blockquote { border-left: 3px solid #cbd5e1; margin: 8px 0; padding: 2px 12px; color: #526a85; }
 
 .nv-models { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 6px; }
-.nv-models label { display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; font-weight: 600; color: #405d7e; }
+.nv-model-field { display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; font-weight: 600; color: #405d7e; }
+.nv-model-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.nv-info { width: 20px; height: 20px; flex: none; border-radius: 50%; border: 1.5px solid #155a97; background: #fff; color: #155a97;
+  font: italic 700 12px/1 Georgia, serif; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; padding: 0; }
+.nv-info:hover, .nv-info.open { background: #155a97; color: #fff; }
+.nv-info:focus-visible { outline: 2px solid #9cc3ee; outline-offset: 2px; }
+.nv-info-panel { border: 1px solid #c8def5; background: #f6faff; border-radius: 12px; padding: 10px 14px; margin: 8px 0 10px; overflow-x: auto; }
+.nv-info-panel .nv-row { margin: 0 0 6px; }
+.nv-spec { width: 100%; border-collapse: collapse; font-size: 12px; margin: 6px 0; background: #fff; }
+.nv-spec th, .nv-spec td { border: 1px solid #dbe6f2; padding: 5px 7px; text-align: left; vertical-align: top; }
+.nv-spec th { background: #eaf3ff; color: #0c2d5e; font-weight: 600; }
+.nv-fit-ok { color: #166534; font-weight: 600; white-space: nowrap; }
+.nv-fit-no { color: #b91c1c; font-weight: 600; white-space: nowrap; }
 .nv-models .nv-alert { margin: 0; font-weight: 400; }
 @media (max-width: 860px) { .nv-models { grid-template-columns: 1fr; } }

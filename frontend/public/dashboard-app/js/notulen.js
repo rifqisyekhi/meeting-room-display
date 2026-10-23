@@ -36,6 +36,25 @@
     rec: null, // status perekam aktif
     models: null, // pilihan model dari service AI
     pilih: { whisper: "", llm: "" }, // "" = model default server
+    info: null, // panel (i) yang terbuka: "whisper" | "llm" | null
+  };
+
+  /* Spesifikasi minimal per model untuk panel (i). Hanya "small" yang sudah
+     diukur (laptop Core Ultra 5, 3 thread, RTF ±0,34); sisanya perkiraan.
+     Angka pasti di server: jalankan ai-service/scripts/benchmark.py. */
+  const SPEK_WHISPER = {
+    tiny: { cpu: "2 core", gpu: "-", cepat: "±0,1× durasi", rapat6: "±40 menit", catatan: "Akurasi bahasa Indonesia rendah" },
+    base: { cpu: "2 core", gpu: "-", cepat: "±0,1–0,2× durasi", rapat6: "±1 jam", catatan: "Akurasi bahasa Indonesia rendah" },
+    small: { cpu: "4 core", gpu: "Tidak perlu", cepat: "±0,3–0,5× durasi (terukur)", rapat6: "±2–3 jam", catatan: "Cocok untuk server sekarang" },
+    medium: { cpu: "4 core (disarankan 8)", gpu: "Opsional, VRAM ≥ 4 GB", cepat: "±0,8–1,2× durasi*", rapat6: "±5–7 jam*", catatan: "Lebih akurat dari small" },
+    turbo: { cpu: "8 core disarankan", gpu: "Opsional, VRAM ≥ 4 GB", cepat: "±0,5–1× durasi*", rapat6: "±3–6 jam*", catatan: "Pilihan utama setelah server di-upgrade" },
+    "large-v3-turbo": { cpu: "8 core disarankan", gpu: "Opsional, VRAM ≥ 4 GB", cepat: "±0,5–1× durasi*", rapat6: "±3–6 jam*", catatan: "Sama dengan turbo" },
+    "large-v3": { cpu: "16 core", gpu: "Disarankan, VRAM ≥ 6 GB", cepat: "±2–3× durasi di CPU*", rapat6: "≥ 12 jam di CPU*", catatan: "Paling akurat; praktis hanya dengan GPU" },
+  };
+  const SPEK_LLM = {
+    "qwen3:4b": { ram: "≥ 4 GB", cpu: "4 core", gpu: "Opsional, VRAM ≥ 4 GB", cepat: "±2–3 menit per potongan*", catatan: "Cocok untuk server sekarang" },
+    "qwen3:8b": { ram: "≥ 7 GB", cpu: "8 core", gpu: "Opsional, VRAM ≥ 8 GB", cepat: "±2× lebih lambat dari 4b*", catatan: "Untuk server RAM 32 GB" },
+    "qwen3:14b": { ram: "≥ 12 GB", cpu: "16 core", gpu: "Disarankan, VRAM ≥ 12–16 GB", cepat: "Sangat lambat tanpa GPU*", catatan: "Untuk server ber-GPU" },
   };
 
   const KETERANGAN_WHISPER = {
@@ -257,18 +276,75 @@
     const opsiL = (m.llm || []).map((l) => `<option value="${e(l.default ? "" : l.name)}" ${(nv.pilih.llm || "") === (l.default ? "" : l.name) ? "selected" : ""}>
       ${e(l.name)}${l.default ? " (default)" : ""}${l.size_mb ? ` · ±${gb(l.size_mb)}` : ""}</option>`).join("");
     const belumUnduh = (m.whisper || []).find((w) => (nv.pilih.whisper ? w.name === nv.pilih.whisper : w.default) && !w.downloaded);
+    const tombolInfo = (jenis) => `<button type="button" class="nv-info ${nv.info === jenis ? "open" : ""}"
+      onclick="nvInfo('${jenis}')" aria-expanded="${nv.info === jenis}" title="Spesifikasi minimal tiap model">i</button>`;
     return `
       <div class="nv-models">
-        <label>Model transkripsi (Whisper)
-          <select class="nv-input" onchange="nvPilihModel('whisper', this.value)">${opsiW}</select></label>
-        <label>Model notulen (Ollama) <span class="nv-muted nv-small">— juga dipakai "Buat ulang notulen"</span>
+        <div class="nv-model-field">
+          <div class="nv-model-head"><span>Model transkripsi (Whisper)</span>${tombolInfo("whisper")}</div>
+          <select class="nv-input" aria-label="Model transkripsi" onchange="nvPilihModel('whisper', this.value)">${opsiW}</select>
+        </div>
+        <div class="nv-model-field">
+          <div class="nv-model-head"><span>Model notulen (Ollama) <span class="nv-muted nv-small">— juga dipakai "Buat ulang notulen"</span></span>${tombolInfo("llm")}</div>
           ${m.ollama_reachable
-            ? (opsiL ? `<select class="nv-input" onchange="nvPilihModel('llm', this.value)">${opsiL}</select>`
+            ? (opsiL ? `<select class="nv-input" aria-label="Model notulen" onchange="nvPilihModel('llm', this.value)">${opsiL}</select>`
               : `<div class="nv-alert nv-alert-warn">Belum ada model di Ollama. Jalankan: <code>ollama pull ${e(m.default_llm)}</code></div>`)
-            : `<div class="nv-alert nv-alert-warn">Ollama tidak aktif: transkrip tetap dibuat, notulen bisa dibuat ulang nanti.</div>`}</label>
+            : `<div class="nv-alert nv-alert-warn">Ollama tidak aktif: transkrip tetap dibuat, notulen bisa dibuat ulang nanti.</div>`}
+        </div>
       </div>
+      ${nv.info ? htmlInfoSpek(nv.info) : ""}
       ${belumUnduh ? `<p class="nv-muted nv-small">Model ${e(belumUnduh.name)} belum ada di server; diunduh otomatis saat dipakai pertama kali
         (butuh internet, bisa beberapa menit). Di server offline, unduh dulu dengan scripts/download_models.py.</p>` : ""}`;
+  }
+
+  /* Panel (i): spesifikasi minimal tiap model + apakah muat di RAM server saat ini. */
+  function htmlInfoSpek(jenis) {
+    const m = nv.models || {};
+    const avail = nv.ai?.ram?.available_mb;
+    const gb = (mb) => `${(mb / 1024).toFixed(1).replace(".", ",")} GB`;
+    const muat = (butuh) => (avail == null ? "-" : avail >= butuh
+      ? `<span class="nv-fit-ok">✓ muat</span>` : `<span class="nv-fit-no">✗ RAM kurang</span>`);
+    let isi;
+    if (jenis === "whisper") {
+      isi = `<table class="nv-spec"><thead><tr><th>Model</th><th>RAM bebas min.</th><th>CPU</th><th>GPU NVIDIA</th>
+        <th>Waktu proses</th><th>Rapat 6 jam</th><th>Saat ini</th><th>Catatan</th></tr></thead><tbody>${
+        (m.whisper || []).map((w) => {
+          const sp = SPEK_WHISPER[w.name] || {};
+          return `<tr><td><b>${e(w.name)}</b></td><td>${gb(w.required_ram_mb)}</td><td>${e(sp.cpu || "-")}</td><td>${e(sp.gpu || "-")}</td>
+            <td>${e(sp.cepat || "-")}</td><td>${e(sp.rapat6 || "-")}</td><td>${muat(w.required_ram_mb)}</td><td>${e(sp.catatan || "")}</td></tr>`;
+        }).join("")}</tbody></table>
+        <p class="nv-muted nv-small">Waktu proses = lama transkripsi dibanding durasi audio, di CPU int8 dengan 3–4 thread.
+          Dengan GPU NVIDIA semua model jauh lebih cepat (±0,05× durasi). Pemisahan pembicara menambah ±0,3× durasi
+          dan ±0,5 GB RAM per jam audio. Tahap transkripsi, pemisahan pembicara, dan notulen berjalan bergantian,
+          jadi kebutuhan RAM-nya tidak dijumlahkan.</p>`;
+    } else {
+      const daftar = (m.llm || []).length ? m.llm : Object.keys(SPEK_LLM).map((name) => ({ name }));
+      isi = `<table class="nv-spec"><thead><tr><th>Model</th><th>RAM bebas min.</th><th>CPU</th><th>GPU NVIDIA</th>
+        <th>Kecepatan</th><th>Catatan</th></tr></thead><tbody>${
+        daftar.map((l) => {
+          const sp = SPEK_LLM[l.name] || SPEK_LLM[String(l.name).replace(/:latest$/, "")] || {};
+          const ram = sp.ram || (l.size_mb ? `≥ ${gb(l.size_mb + 1536)} (ukuran model + 1,5 GB)` : "-");
+          return `<tr><td><b>${e(l.name)}</b>${l.size_mb ? `<br><span class="nv-muted nv-small">file ±${gb(l.size_mb)}</span>` : ""}</td>
+            <td>${e(ram)}</td><td>${e(sp.cpu || "≥ 4 core")}</td><td>${e(sp.gpu || "Opsional")}</td>
+            <td>${e(sp.cepat || "-")}</td><td>${e(sp.catatan || "")}</td></tr>`;
+        }).join("")}</tbody></table>
+        <p class="nv-muted nv-small">Dengan konteks 8192 token (OLLAMA_NUM_CTX). Rapat 6 jam ≈ 15–20 potongan transkrip.
+          Ambang RAM yang dipakai server sebelum memanggil LLM diatur di LLM_MIN_FREE_RAM_MB.</p>`;
+    }
+    return `<div class="nv-info-panel" role="region" aria-label="Spesifikasi minimal model">
+      <div class="nv-row nv-between"><b>Spesifikasi minimal — ${jenis === "whisper" ? "model transkripsi" : "model notulen"}</b>
+        <button type="button" class="nv-btn nv-btn-light nv-btn-sm" onclick="nvInfo(null)">Tutup</button></div>
+      ${avail != null ? `<p class="nv-small">RAM bebas server saat ini: <b>${gb(avail)}</b>.</p>` : ""}
+      ${isi}
+      <p class="nv-muted nv-small">* Perkiraan, belum diukur di server instansi. Angka pasti: jalankan
+        <code>ai-service/scripts/benchmark.py</code> dengan rekaman rapat asli.</p>
+    </div>`;
+  }
+
+  function nvInfo(jenis) {
+    nv.info = nv.info === jenis ? null : jenis;
+    const sel = document.getElementById("nvModelSel");
+    if (sel) sel.innerHTML = htmlPilihModel();
   }
 
   function nvPilihModel(jenis, nilai) {
@@ -1015,7 +1091,7 @@
   /* ---------- ekspos global (dipanggil dari atribut onclick) ---------- */
   Object.assign(window, {
     openNotulen, closeNotulen, nvUnggah, nvPutar, nvHapusFile, nvProses, nvBatal, nvSimpanNama, nvBuatUlang,
-    nvTab, nvPilihModel, nvEdit, nvBatalEdit, nvSimpanNotulen, nvUnduhMd, nvUnduhTranskrip, nvCetak, nvMuatMic,
+    nvTab, nvPilihModel, nvInfo, nvEdit, nvBatalEdit, nvSimpanNotulen, nvUnduhMd, nvUnduhTranskrip, nvCetak, nvMuatMic,
     nvRekamMulai, nvRekamJeda, nvRekamSelesai,
   });
 
