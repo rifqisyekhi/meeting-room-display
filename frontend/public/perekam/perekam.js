@@ -74,9 +74,40 @@
     }
   }
 
-  function lepasPemasangan() {
-    if (s.rec && !confirm("Rekaman sedang berjalan. Tetap lepas pemasangan? Rekaman berhenti.")) return;
-    if (!s.rec && !confirm("Lepas pemasangan perangkat ini? Perlu kode baru dari Admin untuk memasang lagi.")) return;
+  /* Pop-up pengganti alert()/confirm() bawaan browser (true = tombol utama). */
+  function dialog({ judul, pesan, jenis = "info", ok = "Mengerti", batal = "" }) {
+    return new Promise((selesai) => {
+      document.querySelector(".dlg")?.remove();
+      const el = document.createElement("div");
+      el.className = "dlg";
+      el.innerHTML = `<div class="dlg-box ${jenis}" role="${batal ? "dialog" : "alertdialog"}" aria-modal="true" aria-labelledby="dlgJudul">
+          <h3 id="dlgJudul"><span class="dlg-ikon">${jenis === "info" ? "i" : "!"}</span><span></span></h3>
+          <p></p>
+          <div class="dlg-aksi">${batal ? `<button type="button" class="light" data-v="0"></button>` : ""}
+            <button type="button" class="${jenis === "bahaya" ? "danger" : ""}" data-v="1"></button></div>
+        </div>`;
+      el.querySelector("h3 span:last-child").textContent = judul;
+      el.querySelector("p").textContent = pesan;
+      el.querySelector('[data-v="1"]').textContent = ok;
+      if (batal) el.querySelector('[data-v="0"]').textContent = batal;
+      const tutup = (v) => { document.removeEventListener("keydown", onKey, true); el.remove(); selesai(v); };
+      const onKey = (ev) => { if (ev.key === "Escape") { ev.preventDefault(); tutup(false); } };
+      el.addEventListener("click", (ev) => {
+        const b = ev.target.closest("[data-v]");
+        if (b) tutup(b.dataset.v === "1");
+        else if (ev.target === el) tutup(false);
+      });
+      document.addEventListener("keydown", onKey, true);
+      document.body.appendChild(el);
+      el.querySelector('[data-v="1"]').focus();
+    });
+  }
+
+  async function lepasPemasangan() {
+    const lanjut = await dialog(s.rec
+      ? { judul: "Rekaman sedang berjalan", pesan: "Jika pemasangan dilepas, rekaman rapat ini langsung berhenti.", jenis: "bahaya", ok: "Tetap lepas", batal: "Batal" }
+      : { judul: "Lepas pemasangan?", pesan: "Perangkat ini perlu kode baru dari Admin untuk dipasang lagi.", jenis: "bahaya", ok: "Lepas", batal: "Batal" });
+    if (!lanjut) return;
     try { localStorage.removeItem(KUNCI); } catch { /* abaikan */ }
     location.reload();
   }
@@ -372,12 +403,12 @@
     $("btnLepas").onclick = lepasPemasangan;
     $("btnMic").onclick = async () => {
       if (s.audioCtx?.state === "suspended") s.audioCtx.resume().catch(() => {});
-      if (s.rec && !s.rec.stopped) { alert("Ganti mic setelah rapat selesai direkam."); return; }
+      if (s.rec && !s.rec.stopped) { dialog({ judul: "Sedang merekam", pesan: "Ganti mic setelah rapat selesai direkam." }); return; }
       tutupMic();
       await cobaBukaMic();
     };
     $("mic").onchange = async () => {
-      if (s.rec && !s.rec.stopped) { alert("Ganti mic setelah rapat selesai direkam."); await isiDaftarMic(); return; }
+      if (s.rec && !s.rec.stopped) { dialog({ judul: "Sedang merekam", pesan: "Ganti mic setelah rapat selesai direkam." }); await isiDaftarMic(); return; }
       simpan({ micId: $("mic").value });
       tutupMic();
       await cobaBukaMic();

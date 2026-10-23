@@ -77,8 +77,61 @@
 
   function beritahu(pesan) {
     if (typeof window.toast === "function") window.toast(pesan);
-    else alert(pesan);
+    else info(pesan);
   }
+
+  /* Pop-up pengganti alert()/confirm() bawaan browser. Hasilnya Promise:
+     true bila tombol utama ditekan, false bila ditutup (Batal, ✕, Esc, klik di luar). */
+  const DLG_IKON = { info: "i", peringatan: "!", bahaya: "!", error: "✕" };
+
+  function dialog({ judul = "Informasi", pesan = "", jenis = "info", ok = "Mengerti", batal = "" } = {}) {
+    return new Promise((selesai) => {
+      document.querySelector(".nv-dlg")?.remove();
+      const fokusLama = document.activeElement;
+      const el = document.createElement("div");
+      el.className = "nv-dlg";
+      el.innerHTML = `<div class="nv-dlg-box nv-dlg-${e(jenis)}" role="${batal ? "dialog" : "alertdialog"}" aria-modal="true"
+          aria-labelledby="nvDlgJudul" aria-describedby="nvDlgPesan">
+          <div class="nv-dlg-head">
+            <span class="nv-dlg-ikon">${DLG_IKON[jenis] || "i"}</span>
+            <h3 id="nvDlgJudul">${e(judul)}</h3>
+            <button type="button" class="nv-dlg-x" data-v="0" title="Tutup" aria-label="Tutup">✕</button>
+          </div>
+          <p id="nvDlgPesan">${e(pesan)}</p>
+          <div class="nv-dlg-aksi">
+            ${batal ? `<button type="button" class="nv-btn nv-btn-light" data-v="0">${e(batal)}</button>` : ""}
+            <button type="button" class="nv-btn ${jenis === "bahaya" ? "nv-btn-red" : "nv-btn-primary"}" data-v="1">${e(ok)}</button>
+          </div>
+        </div>`;
+      const tutup = (v) => {
+        document.removeEventListener("keydown", onKey, true);
+        el.remove();
+        if (fokusLama instanceof HTMLElement && fokusLama.isConnected) fokusLama.focus();
+        selesai(v);
+      };
+      const onKey = (ev) => {
+        if (ev.key === "Escape") { ev.preventDefault(); ev.stopPropagation(); tutup(false); return; }
+        if (ev.key !== "Tab") return;
+        const tombol = [...el.querySelectorAll("button")];
+        const i = tombol.indexOf(document.activeElement);
+        ev.preventDefault();
+        tombol[(i + (ev.shiftKey ? -1 : 1) + tombol.length) % tombol.length].focus();
+      };
+      el.addEventListener("click", (ev) => {
+        const b = ev.target.closest("[data-v]");
+        if (b) tutup(b.dataset.v === "1");
+        else if (ev.target === el) tutup(false);
+      });
+      document.addEventListener("keydown", onKey, true);
+      document.body.appendChild(el);
+      el.querySelector('[data-v="1"]').focus();
+    });
+  }
+
+  const tanya = (pesan, opsi = {}) =>
+    dialog({ judul: "Konfirmasi", jenis: "peringatan", ok: "Lanjutkan", batal: "Batal", ...opsi, pesan });
+  const gagal = (pesan, judul = "Terjadi kesalahan") => dialog({ judul, pesan, jenis: "error", ok: "Tutup" });
+  const info = (pesan, judul = "Informasi") => dialog({ judul, pesan, jenis: "info" });
 
   async function api(path, opts = {}) {
     let res;
@@ -210,13 +263,14 @@
     cekAI();
   }
 
-  function closeNotulen() {
+  async function closeNotulen() {
     if (nv.view === "perekam") return nvTutupPerekam();
     if (nv.rec) {
-      alert("Rekaman masih berjalan. Tekan \"Selesai\" dan tunggu semua potongan terkirim sebelum menutup.");
+      info("Tekan \"Selesai\" dan tunggu semua potongan terkirim sebelum menutup layar ini.", "Rekaman masih berjalan");
       return;
     }
-    if (nv.editing && !confirm("Perubahan notulen belum disimpan. Tutup tanpa menyimpan?")) return;
+    if (nv.editing && !(await tanya("Perubahan notulen belum disimpan. Tutup tanpa menyimpan?",
+      { judul: "Perubahan belum disimpan", ok: "Tutup tanpa menyimpan", batal: "Kembali", jenis: "bahaya" }))) return;
     berhentiPolling();
     nv.meetingId = null;
     nv.data = null;
@@ -678,19 +732,21 @@
   }
 
   async function nvHapusFile(fileId) {
-    if (!confirm("Hapus file audio ini secara permanen?")) return;
+    if (!(await tanya("File audio ini akan dihapus permanen dan tidak bisa dikembalikan.",
+      { judul: "Hapus file audio?", ok: "Hapus", jenis: "bahaya" }))) return;
     try {
       await api(`/meetings/${encodeURIComponent(nv.meetingId)}/audio/${encodeURIComponent(fileId)}`, { method: "DELETE" });
       beritahu("File audio dihapus.");
       await muatUlang();
-    } catch (err) { alert(err.message); }
+    } catch (err) { gagal(err.message); }
   }
 
   /* ---------- aksi: proses ---------- */
 
   async function nvProses() {
     const mn = nv.data?.minutes;
-    if (mn?.hasTranscript && !confirm("Proses ulang akan mengganti transkrip dan notulen yang sudah ada. Lanjutkan?")) return;
+    if (mn?.hasTranscript && !(await tanya("Transkrip dan notulen yang sudah ada akan diganti dengan hasil baru. Proses ini memakan waktu lama.",
+      { judul: "Proses ulang dari audio?", ok: "Proses ulang" }))) return;
     const body = {};
     const diar = document.getElementById("nvDiar");
     if (diar && document.getElementById("nvDiarWrap")?.style.display !== "none") body.diarization = diar.checked;
@@ -704,15 +760,16 @@
       });
       beritahu("Audio dikirim ke antrean pemrosesan.");
       await muatUlang();
-    } catch (err) { alert(err.message); }
+    } catch (err) { gagal(err.message); }
   }
 
   async function nvBatal() {
-    if (!confirm("Batalkan proses yang sedang berjalan?")) return;
+    if (!(await tanya("Proses yang sedang berjalan akan dihentikan. Hasil tahap yang sudah selesai tetap disimpan.",
+      { judul: "Batalkan proses?", ok: "Batalkan proses", batal: "Tidak", jenis: "bahaya" }))) return;
     try {
       await api(`/meetings/${encodeURIComponent(nv.meetingId)}/cancel`, { method: "POST" });
       beritahu("Permintaan pembatalan dikirim. Proses berhenti dalam beberapa detik.");
-    } catch (err) { alert(err.message); }
+    } catch (err) { gagal(err.message); }
   }
 
   async function nvSimpanNama(diam = false) {
@@ -725,12 +782,13 @@
       nv.data.minutes.speakers = r.speakers;
       if (!diam) { beritahu("Nama pembicara disimpan."); render(); }
       return true;
-    } catch (err) { alert(err.message); return false; }
+    } catch (err) { gagal(err.message); return false; }
   }
 
   async function nvBuatUlang() {
     const mn = nv.data?.minutes;
-    if (mn?.hasMinutes && !confirm("Notulen yang ada (termasuk hasil suntingan) akan diganti dengan draf baru dari AI. Lanjutkan?")) return;
+    if (mn?.hasMinutes && !(await tanya("Notulen yang ada, termasuk hasil suntingan, akan diganti dengan draf baru dari AI.",
+      { judul: "Buat ulang notulen?", ok: "Buat ulang" }))) return;
     if (document.querySelector("[data-spk]") && !(await nvSimpanNama(true))) return;
     try {
       await api(`/meetings/${encodeURIComponent(nv.meetingId)}/regenerate`, {
@@ -740,16 +798,21 @@
       beritahu("Notulen sedang dibuat ulang.");
       nv.tab = "notulen";
       await muatUlang();
-    } catch (err) { alert(err.message); }
+    } catch (err) { gagal(err.message); }
   }
 
   /* ---------- aksi: hasil ---------- */
 
-  function nvTab(t) {
-    if (nv.editing && t !== "notulen" && !confirm("Perubahan notulen belum disimpan. Tinggalkan?")) return;
+  async function nvTab(t) {
+    if (nv.editing && t !== "notulen" && !(await tanyaTinggalkan())) return;
     if (t !== "notulen") nv.editing = false;
     nv.tab = t;
     render();
+  }
+
+  function tanyaTinggalkan() {
+    return tanya("Perubahan notulen belum disimpan dan akan hilang.",
+      { judul: "Tinggalkan tanpa menyimpan?", ok: "Tinggalkan", batal: "Tetap di sini", jenis: "bahaya" });
   }
 
   function nvEdit() { nv.editing = true; render(); document.getElementById("nvMdEdit")?.focus(); }
@@ -766,7 +829,7 @@
       nv.editing = false;
       beritahu(reviewed ? "Notulen disimpan dan ditandai sudah ditinjau." : "Notulen disimpan (masih berstatus draf).");
       render();
-    } catch (err) { alert(err.message); }
+    } catch (err) { gagal(err.message); }
   }
 
   function namaBerkas(ext) {
@@ -851,7 +914,7 @@
         .map((d, i) => `<option value="${e(d.deviceId)}">${e(d.label || `Mikrofon ${i + 1}`)}</option>`).join("");
       sel.value = pilih;
     } catch (err) {
-      alert(pesanMic(err));
+      gagal(pesanMic(err), "Mikrofon tidak bisa dipakai");
     }
   }
 
@@ -884,7 +947,7 @@
         },
       });
     } catch (err) {
-      alert(pesanMic(err));
+      gagal(pesanMic(err), "Mikrofon tidak bisa dipakai");
       return;
     }
     const mimeType = pilihMime();
@@ -895,7 +958,7 @@
       });
     } catch (err) {
       stream.getTracks().forEach((t) => t.stop());
-      alert(err.message);
+      gagal(err.message);
       return;
     }
 
@@ -928,9 +991,12 @@
       r.stopped = true;
       kirimAntrean();
     };
-    recorder.onerror = (ev) => alert(`Perekam berhenti karena error: ${ev.error?.message || "tidak diketahui"}`);
+    recorder.onerror = (ev) => gagal(`Perekam berhenti karena error: ${ev.error?.message || "tidak diketahui"}`, "Perekaman berhenti");
     stream.getAudioTracks()[0].onended = () => {
-      if (!r.stopped) { alert("Mikrofon terputus. Rekaman dihentikan; bagian yang sudah terekam tetap disimpan."); nvRekamSelesai(true); }
+      if (!r.stopped) {
+        nvRekamSelesai(true);
+        gagal("Rekaman dihentikan. Bagian yang sudah terekam tetap disimpan.", "Mikrofon terputus");
+      }
     };
 
     recorder.start(TIMESLICE_MS);
@@ -959,10 +1025,12 @@
     perbaruiInfoRekam();
   }
 
-  function nvRekamSelesai(tanpaKonfirmasi = false) {
+  async function nvRekamSelesai(tanpaKonfirmasi = false) {
     const r = nv.rec;
     if (!r || r.recorder.state === "inactive") return;
-    if (!tanpaKonfirmasi && !confirm("Selesai merekam? Bagian rekaman yang tersisa akan dikirim ke server.")) return;
+    if (!tanpaKonfirmasi && !(await tanya("Bagian rekaman yang tersisa akan dikirim ke server.",
+      { judul: "Selesai merekam?", ok: "Selesai", batal: "Lanjut merekam" }))) return;
+    if (r.recorder.state === "inactive") return;
     if (!r.paused) r.elapsedMs += Date.now() - r.startedAt;
     r.paused = false;
     r.recorder.stop();
@@ -1006,7 +1074,7 @@
       r.sending = false;
     }
     if (r.stopped && !r.queue.length && !r.errorTetap) await selesaikanRekaman(r);
-    else if (r.errorTetap) { perbaruiInfoRekam(); alert(r.errorTetap); }
+    else if (r.errorTetap) { perbaruiInfoRekam(); gagal(r.errorTetap, "Rekaman tidak bisa dikirim"); }
   }
 
   async function selesaikanRekaman(r) {
@@ -1101,8 +1169,8 @@
 
   const rekamState = { data: null, error: "", timer: null, kode: null };
 
-  function nvBukaPerekam() {
-    if (nv.editing && !confirm("Perubahan notulen belum disimpan. Tinggalkan?")) return;
+  async function nvBukaPerekam() {
+    if (nv.editing && !(await tanyaTinggalkan())) return;
     nv.editing = false;
     nv.view = "perekam";
     rekamState.kode = null;
@@ -1228,7 +1296,7 @@
 
   async function nvBuatKode() {
     const roomName = document.getElementById("nvRecRoom")?.value;
-    if (!roomName) { alert("Pilih ruangan terlebih dulu."); return; }
+    if (!roomName) { info("Pilih ruangan untuk perangkat perekam ini terlebih dulu.", "Ruangan belum dipilih"); return; }
     const label = document.getElementById("nvRecLabel")?.value.trim();
     try {
       const r = await api("/perekam", {
@@ -1237,27 +1305,29 @@
       rekamState.kode = { ...r, ruang: roomName };
       document.getElementById("nvRecKode").innerHTML = htmlKode();
       muatPerekam();
-    } catch (err) { alert(err.message); }
+    } catch (err) { gagal(err.message); }
   }
 
   async function nvKodeUlang(id) {
-    if (!confirm("Buat kode baru? Perangkat yang sekarang terpasang akan terputus sampai kode baru dimasukkan.")) return;
+    if (!(await tanya("Perangkat yang sekarang terpasang akan terputus sampai kode baru dimasukkan di perangkat itu.",
+      { judul: "Buat kode pemasangan baru?", ok: "Buat kode baru" }))) return;
     try {
       const r = await api(`/perekam/${encodeURIComponent(id)}/kode`, { method: "POST" });
       const p = rekamState.data?.perangkat.find((x) => x.id === id);
       rekamState.kode = { ...r, ruang: p?.ruang };
       document.getElementById("nvRecKode").innerHTML = htmlKode();
       muatPerekam();
-    } catch (err) { alert(err.message); }
+    } catch (err) { gagal(err.message); }
   }
 
   async function nvCabutPerekam(id) {
-    if (!confirm("Cabut perangkat ini? Perangkat langsung berhenti bisa merekam, dan rapat di ruangan itu tidak lagi terekam otomatis.")) return;
+    if (!(await tanya("Perangkat langsung berhenti bisa merekam, dan rapat di ruangan itu tidak lagi terekam otomatis.",
+      { judul: "Cabut perangkat perekam?", ok: "Cabut", jenis: "bahaya" }))) return;
     try {
       await api(`/perekam/${encodeURIComponent(id)}`, { method: "DELETE" });
       beritahu("Perangkat perekam dicabut.");
       muatPerekam();
-    } catch (err) { alert(err.message); }
+    } catch (err) { gagal(err.message); }
   }
 
   /* Sesi server (cookie) berakhir sementara dashboard masih menyimpan profil di
@@ -1286,6 +1356,7 @@
   });
 
   document.addEventListener("keydown", (ev) => {
-    if (ev.key === "Escape" && nv.meetingId && !document.getElementById("modal")?.classList.contains("show")) closeNotulen();
+    if (ev.key === "Escape" && nv.meetingId && !document.querySelector(".nv-dlg")
+      && !document.getElementById("modal")?.classList.contains("show")) closeNotulen();
   });
 })();
