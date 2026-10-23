@@ -182,6 +182,24 @@ flowchart TD
 ### Tabel 6: `notifications` (Notifikasi Sistem)
 * `id` (VARCHAR 100 PRIMARY KEY), `meeting_id`, `type`, `title`, `message`, `status`, `read_by` (JSONB)
 
+### Tabel 7: `meeting_audio_files` (Audio Rapat untuk Notulen Otomatis)
+* `id` (VARCHAR 100 PRIMARY KEY), `meeting_id` (VARCHAR 100 NOT NULL)
+* `kind` – 'rekaman' (direkam di browser, potongan berurutan) / 'unggahan'
+* `original_name`, `file_name` (path relatif terhadap `NOTULEN_STORAGE_DIR`), `mime_type`
+* `size_bytes` (BIGINT), `chunk_count` (INT) – nomor urut potongan berikutnya untuk rekaman
+* `status` – 'merekam' / 'siap', `created_by`, `created_at`, `updated_at`
+
+### Tabel 8: `meeting_minutes` (Transkrip & Notulen Otomatis, satu baris per rapat)
+* `meeting_id` (VARCHAR 100 PRIMARY KEY)
+* `status` – 'DRAFT' → 'PROCESSING' → 'DONE' / 'FAILED'
+* `job_id`, `job_type` ('transcribe' / 'summarize'), `stage`, `stage_label`, `progress`, `stage_progress`, `eta_seconds`, `queue_position` – status job di service AI
+* `error`, `minutes_error`, `warnings` (JSONB)
+* `transcript` (JSONB) – Array of `{ start, end, speaker, text }`; `speakers` (JSONB) – `{ "SPEAKER_1": "Pak Budi" }`
+* `minutes_md` (TEXT) – notulen Markdown; `minutes_reviewed` (BOOLEAN) – FALSE = draf AI yang wajib ditinjau notulis
+* `minutes_edited_by`, `minutes_edited_at`, `whisper_model`, `llm_model`, `diarization`, `duration_seconds`, `started_by`, `started_at`, `finished_at`
+
+> Audio rapat bersifat **rahasia** dan diproses 100% lokal oleh `ai-service/` (Whisper + Ollama). Fitur ini khusus Admin dan butuh PostgreSQL. Rincian: `docs/NOTULEN_OTOMATIS.md`.
+
 ---
 
 ## 6. HUKUM MUTLAK & ATURAN PENGEMBANGAN (COMMANDMENTS)

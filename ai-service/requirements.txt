@@ -1,0 +1,16 @@
+# Dependensi inti service AI (Python 3.11).
+# Versi dikunci agar instalasi di dev (Windows) dan server (Ubuntu) identik.
+faster-whisper==1.2.1
+ctranslate2==4.8.3
+av==18.1.0
+numpy>=1.26,<3
+fastapi==0.161.1
+uvicorn==0.54.0
+pydantic==2.14.1
+pydantic-settings==2.16.1
+httpx==0.28.1
+psutil==7.2.2
+# Pemisahan pembicara (aktif bila ENABLE_DIARIZATION=true). Ringan: ONNX, tanpa torch.
+sherpa-onnx==1.13.8
+# Hanya untuk scripts/benchmark.py (menghitung WER); boleh dilewati di server.
+jiwer==4.0.0

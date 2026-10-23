@@ -21,3 +21,6 @@ backend/data/materials/*
 
 # PDF referensi yang sempat ikut ter-commit
 backend/data/docs/
+
+# Audio & data notulen rapat bersifat RAHASIA — jangan pernah di-commit.
+backend/data/notulen/
