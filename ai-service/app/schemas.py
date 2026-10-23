@@ -71,4 +71,6 @@ class JobOut(BaseModel):
     created_at: float
     started_at: float | None
     finished_at: float | None
+    # Transkrip sudah jadi (tersimpan di checkpoint) sementara notulen masih disusun.
+    transcript_ready: bool = False
     result: dict[str, Any] | None = None

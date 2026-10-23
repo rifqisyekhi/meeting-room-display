@@ -617,6 +617,8 @@
     const baris = (mn.transcript || []).map((s) => `
       <div class="nv-line"><span class="nv-ts">[${jam(s.start)}]</span>${s.speaker ? `<span class="nv-spk">${e(nama[s.speaker] || s.speaker)}:</span>` : ""} ${e(s.text)}</div>`).join("");
     return `
+      ${mn.transcriptBaru ? `<div class="nv-alert nv-alert-warn">Transkrip sudah jadi. Notulen sedang disusun AI (tahap 3).
+        Nama pembicara bisa disimpan setelah proses selesai.</div>` : ""}
       ${ganti}
       <div class="nv-row nv-wrap">
         ${spk.length ? `<button class="nv-btn nv-btn-light" onclick="nvSimpanNama()" ${proses ? "disabled" : ""}>Simpan nama pembicara</button>` : ""}
@@ -629,7 +631,10 @@
   function htmlNotulen(mn) {
     const proses = mn.status === "PROCESSING";
     const draf = mn.hasMinutes && !mn.minutesReviewed;
-    const banner = !mn.hasMinutes
+    const banner = mn.transcriptBaru
+      ? `<div class="nv-alert nv-alert-warn">Notulen sedang disusun AI dari transkrip terbaru (tahap 3).
+          ${mn.hasMinutes ? "Yang tampil di bawah masih notulen dari proses sebelumnya." : "Halaman ini diperbarui sendiri setelah selesai."}</div>`
+      : !mn.hasMinutes
       ? `<div class="nv-alert nv-alert-warn">Notulen belum tersedia.${mn.hasTranscript ? ' Gunakan "Buat ulang notulen" di tab Transkrip.' : ""}</div>`
       : draf
         ? `<div class="nv-alert nv-alert-draft"><b>DRAF HASIL AI — wajib ditinjau notulis.</b> Periksa nama, angka, keputusan, PIC, dan tenggat
@@ -677,6 +682,13 @@
           } else if (minutes?.status === "FAILED") {
             beritahu("Pemrosesan gagal. Lihat keterangan di halaman notulen.");
           }
+          return;
+        }
+        if (minutes.transcriptBaru && !nv.data.minutes?.transcriptBaru) {
+          // Tahap 2 selesai: tampilkan transkrip sambil notulen disusun.
+          if (!nv.editing) nv.tab = "transkrip";
+          await muatUlang();
+          beritahu("Transkrip selesai. Notulen sedang disusun.");
           return;
         }
         nv.data.minutes = { ...nv.data.minutes, ...minutes };

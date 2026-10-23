@@ -124,6 +124,8 @@ function barisNotulen(r, { lengkap = true } = {}) {
     finishedAt: r.finished_at,
     updatedAt: r.updated_at,
     hasTranscript: Array.isArray(r.transcript) && r.transcript.length > 0,
+    // Transkrip proses yang sedang berjalan sudah tampil; notulen masih disusun.
+    transcriptBaru: r.status === "PROCESSING" && Boolean(r.job_id) && r.transcript_job_id === r.job_id,
     hasMinutes: Boolean(r.minutes_md),
   };
   if (lengkap) {
@@ -620,6 +622,19 @@ async function catatGagal(baris, pesan, dibatalkan = false) {
   );
 }
 
+/* Tahap transkripsi selesai, notulen masih disusun: tampilkan transkripnya lebih dulu.
+   Hasil akhir (catatHasil) tetap menimpa kolom yang sama saat job selesai. */
+async function simpanTranskripAwal(baris) {
+  const t = await panggilAI("GET", `/jobs/${baris.job_id}/transcript`, undefined, 60000);
+  await query(
+    `UPDATE meeting_minutes SET transcript = $2::jsonb, speakers = '{}'::jsonb, duration_seconds = $3,
+       whisper_model = $4, diarization = $5, transcript_job_id = $6, updated_at = NOW()
+     WHERE meeting_id = $1 AND job_id = $6`,
+    [baris.meeting_id, JSON.stringify(t.segments || []), t.duration_seconds || null,
+      t.whisper_model || null, Boolean(t.diarization), baris.job_id],
+  );
+}
+
 let sedangMemantau = false;
 async function pantauSekali() {
   if (sedangMemantau || !getIsConnected()) return;
@@ -648,6 +663,9 @@ async function pantauSekali() {
         await catatGagal(baris, null, true);
         await panggilAI("DELETE", `/jobs/${baris.job_id}`).catch(() => {});
       } else {
+        if (job.transcript_ready && baris.job_type !== "summarize" && baris.transcript_job_id !== baris.job_id) {
+          await simpanTranskripAwal(baris).catch((err) => console.warn("[Notulen] Gagal mengambil transkrip awal:", err.message));
+        }
         await query(
           `UPDATE meeting_minutes SET stage = $2, stage_label = $3, progress = $4, stage_progress = $5,
              eta_seconds = $6, queue_position = $7, warnings = $8::jsonb, updated_at = NOW()

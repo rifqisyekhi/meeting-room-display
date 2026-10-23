@@ -117,8 +117,15 @@ def _job_out(store: J.JobStore, job: dict, include_result: bool) -> JobOut:
                                "attempts", "error", "warnings", "created_at", "started_at", "finished_at")},
         stage_label=STAGE_LABELS.get(job["stage"] or ""),
         queue_position=store.queue_position(job),
+        transcript_ready=_checkpoint_transcript(job) is not None,
         result=job["result"] if include_result else None,
     )
+
+
+def _checkpoint_transcript(job: dict) -> dict | None:
+    if job["status"] != J.RUNNING:
+        return None
+    return (job.get("checkpoint") or {}).get("transcript")
 
 
 def _diarization_models_ready(s: Settings) -> bool:
@@ -247,6 +254,18 @@ async def get_job(job_id: str, include_result: bool = Query(True, description="f
     if job is None:
         raise HTTPException(404, "Job tidak ditemukan.")
     return _job_out(store, job, include_result)
+
+
+@app.get("/jobs/{job_id}/transcript", dependencies=[Depends(require_token)])
+async def get_job_transcript(job_id: str):
+    """Transkrip yang sudah jadi saat job masih menyusun notulen (agar bisa ditampilkan lebih dulu)."""
+    job = app.state.store.get(job_id)
+    if job is None:
+        raise HTTPException(404, "Job tidak ditemukan.")
+    transcript = _checkpoint_transcript(job)
+    if transcript is None:
+        raise HTTPException(409, "Transkrip belum selesai.")
+    return transcript
 
 
 @app.post("/jobs/{job_id}/cancel", response_model=JobOut, dependencies=[Depends(require_token)])

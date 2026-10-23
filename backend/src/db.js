@@ -249,6 +249,7 @@ async function initDatabase() {
         );
         ALTER TABLE meeting_audio_files ADD COLUMN IF NOT EXISTS recorder_id VARCHAR(100);
         ALTER TABLE meeting_minutes ADD COLUMN IF NOT EXISTS auto_processed_at TIMESTAMPTZ;
+        ALTER TABLE meeting_minutes ADD COLUMN IF NOT EXISTS transcript_job_id VARCHAR(64);
       `);
 
       // Pastikan akun master awal tersedia jika tabel pengguna kosong
