@@ -52,6 +52,46 @@ cd frontend && npm install && npm run dev            # http://localhost:5173 →
 - Fitur ini **butuh PostgreSQL**. Di mode fallback file JSON, semua rute notulen menjawab 503.
 - Deploy ke server: [DEPLOY_NOTULEN.md](DEPLOY_NOTULEN.md).
 
+## Perekam otomatis ruang rapat (opsi A)
+
+Setiap rapat yang sudah disetujui di ruangan yang punya perekam aktif **direkam otomatis**, lalu
+**diproses otomatis** setelah rapat selesai. Jika ada beberapa rapat, notulennya dibuat bergantian
+sesuai antrean service AI. Jika tidak ada rekaman otomatis (perangkat mati atau mic bermasalah),
+admin tetap bisa merekam atau **mengunggah file** secara manual (opsi B).
+
+```
+Mic Logitech ──USB──▶ PC / mini PC ruang rapat ── Chrome: https://<server>/perekam ──▶ backend ──▶ ai-service
+                                                   (token perangkat, tanpa login)
+Smart TV ── https://<server>/display  →  menampilkan "● SEDANG DIREKAM" selama perekaman
+```
+
+**Memasang perangkat**
+
+1. Admin: Manajemen Rapat → 🎙 Notulen (rapat mana saja) → **📡 Perekam ruangan** → pilih ruangan →
+   **Buat kode pemasangan**. Kodenya berisi 8 karakter, berlaku 30 menit, dan hanya bisa dipakai sekali.
+2. Di PC ruang rapat yang tersambung mic: buka `https://<server>/perekam` di Chrome/Edge, lalu
+   ketik kodenya.
+3. Izinkan mikrofon dan pilih mic Logitech. Biarkan halaman tetap terbuka; agar menyala sendiri,
+   lihat bagian *Mode kiosk* di [DEPLOY_NOTULEN.md](DEPLOY_NOTULEN.md).
+
+**Aturan rekam**
+
+- Hanya rapat yang **disetujui**. Rapat yang menunggu persetujuan, ditolak, dibatalkan, atau sudah
+  check-out tidak direkam.
+- Perekaman berjalan dari jam mulai sampai `NOTULEN_REKAM_LEBIH_MENIT` (default 15) menit setelah jam
+  selesai, untuk rapat yang molor. Rekaman berhenti lebih awal bila sudah check-out atau rapat
+  berikutnya di ruangan yang sama dimulai.
+- Setiap rapat menjadi satu file rekaman (file baru bila halaman perekam sempat dimuat ulang).
+- Rapat diproses otomatis ±1–3 menit setelah rekamannya selesai terkirim. Jika service AI sedang
+  mati atau RAM kurang, pemrosesan dicoba lagi tiap menit.
+- Admin memantau perangkat di halaman **📡 Perekam ruangan**: Siap / ● Merekam / Mengirim /
+  Mic bermasalah / Offline, nama mic, dan peringatan "tidak ada suara terdeteksi" bila 2 menit
+  merekam tanpa suara.
+
+**Keamanan:** halaman `/perekam` tidak memakai login. Perangkat memegang token acak (yang disimpan
+di database hanya hash-nya) dan hanya bisa merekam rapat yang **sedang berjalan di ruangannya
+sendiri**. Admin bisa mencabutnya kapan saja. Papan TV hanya menerima informasi ya/tidak per ruangan.
+
 ## Memilih model
 
 Di layar Notulen (kartu "3. Proses") admin memilih **model transkripsi** (Whisper) dan **model
@@ -75,6 +115,7 @@ Model Whisper yang belum diunduh ditandai "belum diunduh" dan diunduh otomatis s
 | `AI_SERVICE_TOKEN` | kosong | Sama dengan `API_TOKEN` di `ai-service/.env`. Wajib diisi di server. |
 | `NOTULEN_STORAGE_DIR` | `backend/data/notulen` | Folder audio rapat (masuk `.gitignore`). |
 | `NOTULEN_MAX_UPLOAD_MB` | `2048` | Batas ukuran unggahan file audio. |
+| `NOTULEN_REKAM_LEBIH_MENIT` | `15` | Perekam otomatis tetap merekam sekian menit setelah jam selesai (rapat molor). |
 
 ## API backend (`/api/notulen`, semua khusus peran Admin)
 
@@ -99,6 +140,15 @@ Model Whisper yang belum diunduh ditandai "belum diunduh" dan diunduh otomatis s
 | PUT | `/meetings/:id/speakers` | `{ speakers: { "SPEAKER_1": "Pak Budi" } }` |
 | PUT | `/meetings/:id/minutes` | `{ markdown, reviewed }`: simpan hasil sunting notulis |
 | GET | `/meetings/:id/minutes.md` | Unduh notulen `.md` |
+| GET | `/perekam` | Daftar perangkat perekam + status + daftar ruangan |
+| POST | `/perekam` | Buat perangkat & kode pemasangan. Body: `{ roomName, label? }` |
+| POST | `/perekam/:id/kode` | Kode pemasangan baru (token lama gugur) |
+| DELETE | `/perekam/:id` | Cabut perangkat |
+
+API perangkat (`/api/perekam`, header `X-Perangkat-Token`, tanpa login): `POST /pasang {kode}`,
+`POST /detak` (lapor status; jawabannya: rekam atau tidak + rapat aktif), `POST /rekaman {meetingId}`,
+`PUT /rekaman/:fileId/potongan/:seq`, `POST /rekaman/:fileId/selesai`. Publik untuk papan TV:
+`GET /status-ruang` → `{ "Ruang Rapat Besar": true }`.
 
 Status `meeting_minutes.status`: `DRAFT` (belum diproses) → `PROCESSING` → `DONE` / `FAILED`.
 

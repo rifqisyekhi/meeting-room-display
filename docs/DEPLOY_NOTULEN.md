@@ -111,7 +111,31 @@ Agar browser tidak menampilkan peringatan sertifikat, pasang `meeting-room.crt` 
 di laptop admin (Windows: `certmgr.msc` → Trusted Root Certification Authorities → Import), atau
 minta sertifikat dari CA internal instansi.
 
-## 6. Firewall & mode offline
+## 6. Perekam otomatis di ruang rapat (mode kiosk)
+
+Di PC / mini PC ruang rapat yang tersambung mic Logitech (Windows atau Ubuntu), Chrome dibuat menyala
+sendiri ke halaman perekam dan mikrofon diizinkan tanpa ditanya:
+
+1. **Kebijakan Chrome** agar mikrofon selalu diizinkan untuk server ini:
+   - Windows (jalankan sebagai Administrator):
+     ```powershell
+     reg add "HKLM\SOFTWARE\Policies\Google\Chrome\AudioCaptureAllowedUrls" /v 1 /t REG_SZ /d "https://<server>" /f
+     ```
+   - Ubuntu: buat `/etc/opt/chrome/policies/managed/perekam.json` berisi
+     `{"AudioCaptureAllowedUrls": ["https://<server>"]}`.
+2. **Jalankan saat login** (Windows: shortcut di folder `shell:startup`):
+   ```
+   "C:\Program Files\Google\Chrome\Application\chrome.exe" --kiosk --app=https://<server>/perekam
+   ```
+3. Buka sekali, masukkan kode pemasangan dari Admin, dan pilih mic Logitech. Token dan pilihan mic
+   tersimpan di browser itu.
+4. Matikan *sleep* layar/PC di pengaturan daya, dan percayakan sertifikat HTTPS internal di PC itu.
+5. Jika PC yang sama juga menampilkan papan TV lewat HDMI, buka `/display` di jendela lain. Mic tetap
+   direkam oleh jendela `/perekam`.
+
+Pantau perangkat dari Dashboard → Manajemen Rapat → 🎙 Notulen → **📡 Perekam ruangan**.
+
+## 7. Firewall & mode offline
 
 ```bash
 sudo ufw default deny incoming
@@ -128,7 +152,7 @@ yang menghadap jaringan.
 Setelah semua model terunduh, set `HF_HUB_OFFLINE=true` di `ai-service/.env` lalu
 `sudo systemctl restart notulen-ai`. Service tidak akan mengakses internet lagi.
 
-## 7. Cek akhir
+## 8. Cek akhir
 
 1. Login sebagai Admin → Manajemen Rapat → tombol **🎙 Notulen** pada salah satu rapat.
 2. Chip status di kanan atas harus menampilkan "Service AI aktif".

@@ -2279,4 +2279,9 @@ module.exports = {
   readStore,
   writeStore,
   syncStoreFromDatabase,
+  /* Dipakai perekam otomatis (notulen) agar jendela rekam memakai aturan
+     status & zona waktu yang sama persis dengan papan dan dashboard. */
+  normalizeMeetingLifecycle,
+  waktuDiZona,
+  formatDateISO,
 };

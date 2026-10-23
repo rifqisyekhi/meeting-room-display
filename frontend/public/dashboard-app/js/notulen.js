@@ -199,6 +199,7 @@
 
   async function openNotulen(meetingId) {
     nv.meetingId = String(meetingId);
+    nv.view = "rapat";
     nv.tab = "transkrip";
     nv.editing = false;
     const el = root();
@@ -210,6 +211,7 @@
   }
 
   function closeNotulen() {
+    if (nv.view === "perekam") return nvTutupPerekam();
     if (nv.rec) {
       alert("Rekaman masih berjalan. Tekan \"Selesai\" dan tunggu semua potongan terkirim sebelum menutup.");
       return;
@@ -365,6 +367,7 @@
   }
 
   function render() {
+    if (nv.view === "perekam") return renderPerekam();
     const d = nv.data;
     if (!d) return;
     const m = d.meeting;
@@ -373,7 +376,10 @@
     root().innerHTML = `
       <div class="nv-shell">
         <div class="nv-top">
-          <button class="nv-back" onclick="closeNotulen()">← Kembali ke Manajemen Rapat</button>
+          <div class="nv-row">
+            <button class="nv-back" onclick="closeNotulen()">← Kembali ke Manajemen Rapat</button>
+            <button class="nv-btn nv-btn-light" onclick="nvBukaPerekam()" title="Pasang & pantau perekam otomatis di ruang rapat">📡 Perekam ruangan</button>
+          </div>
           <div id="nvAiStatus" class="nv-ai">${htmlStatusAI()}</div>
         </div>
         <div class="nv-head">
@@ -1088,9 +1094,173 @@
     perbaruiInfoRekam();
   }
 
+  /* ---------- perekam otomatis ruang rapat (kelola perangkat) ---------- */
+
+  const rekamState = { data: null, error: "", timer: null, kode: null };
+
+  function nvBukaPerekam() {
+    if (nv.editing && !confirm("Perubahan notulen belum disimpan. Tinggalkan?")) return;
+    nv.editing = false;
+    nv.view = "perekam";
+    rekamState.kode = null;
+    renderPerekam();
+    muatPerekam();
+    clearInterval(rekamState.timer);
+    rekamState.timer = setInterval(muatPerekam, 10000);
+  }
+
+  function nvTutupPerekam() {
+    clearInterval(rekamState.timer);
+    rekamState.timer = null;
+    nv.view = "rapat";
+    render();
+  }
+
+  async function muatPerekam() {
+    if (nv.view !== "perekam") return;
+    try {
+      rekamState.data = await api("/perekam");
+      rekamState.error = "";
+    } catch (err) {
+      rekamState.error = err.message;
+    }
+    if (nv.view !== "perekam") return;
+    const sel = document.getElementById("nvRecRoom");
+    if (sel && sel.options.length <= 1 && rekamState.data) {
+      sel.innerHTML = `<option value="">Pilih ruangan…</option>` +
+        rekamState.data.rooms.map((r) => `<option value="${e(r)}">${e(r)}</option>`).join("");
+    }
+    const list = document.getElementById("nvRecList");
+    if (list) list.innerHTML = htmlDaftarPerekam();
+  }
+
+  function renderPerekam() {
+    const alamat = `${location.origin}/perekam`;
+    root().innerHTML = `
+      <div class="nv-shell">
+        <div class="nv-top"><button class="nv-back" onclick="nvTutupPerekam()">← Kembali ke notulen rapat</button></div>
+        <div class="nv-head"><div>
+          <div class="nv-crumb">Manajemen Rapat › Notulen Otomatis › Perekam ruangan</div>
+          <h1>Perekam otomatis ruang rapat</h1>
+          <div class="nv-meta">Setiap rapat yang sudah disetujui di ruangan yang punya perekam aktif akan direkam otomatis,
+            lalu transkrip & notulennya diproses setelah rapat selesai (bergantian sesuai antrean).</div>
+        </div></div>
+
+        <section class="nv-card">
+          <h2>Pasang perangkat baru</h2>
+          <ol class="nv-list">
+            <li>Di PC / mini PC ruang rapat yang tersambung mic (mis. Logitech), buka
+              <code>${e(alamat)}</code> di Chrome atau Edge. Wajib <b>HTTPS</b> (atau localhost saat uji coba).</li>
+            <li>Pilih ruangan lalu klik <b>Buat kode pemasangan</b>, kemudian ketik kodenya di halaman perekam
+              (berlaku 30 menit, sekali pakai).</li>
+            <li>Izinkan mikrofon, pilih mic Logitech, dan biarkan halaman perekam tetap terbuka.</li>
+          </ol>
+          <div class="nv-row nv-wrap">
+            <select id="nvRecRoom" class="nv-input"><option value="">Memuat ruangan…</option></select>
+            <input id="nvRecLabel" class="nv-input nv-grow" maxlength="150" placeholder="Nama perangkat (opsional), mis. PC Ruang Rapat Besar">
+            <button class="nv-btn nv-btn-primary" onclick="nvBuatKode()">Buat kode pemasangan</button>
+          </div>
+          <div id="nvRecKode">${htmlKode()}</div>
+        </section>
+
+        <section class="nv-card">
+          <h2>Perangkat terpasang <span class="nv-muted nv-small">(diperbarui tiap 10 detik)</span></h2>
+          <div id="nvRecList">${htmlDaftarPerekam()}</div>
+        </section>
+      </div>`;
+  }
+
+  function htmlKode() {
+    const k = rekamState.kode;
+    if (!k) return "";
+    return `<div class="nv-alert nv-alert-ok nv-kode-box">
+      Kode pemasangan untuk <b>${e(k.ruang || "perangkat")}</b>:
+      <div class="nv-kode">${e(k.kode.slice(0, 4))}-${e(k.kode.slice(4))}</div>
+      Berlaku ${k.berlakuMenit} menit dan hanya bisa dipakai sekali. Kode tidak ditampilkan lagi setelah halaman ini ditutup.
+    </div>`;
+  }
+
+  function htmlDaftarPerekam() {
+    if (rekamState.error) return `<div class="nv-alert nv-alert-err">${e(rekamState.error)}</div>`;
+    const d = rekamState.data;
+    if (!d) return `<p class="nv-muted">Memuat…</p>`;
+    const tanpa = d.rooms.filter((r) => !d.perangkat.some((p) => p.ruang === r && p.terpasang && p.online));
+    const baris = d.perangkat.map((p) => {
+      const st = p.status || {};
+      let badge;
+      if (!p.terpasang) {
+        badge = p.kodeBerlakuSampai && new Date(p.kodeBerlakuSampai) > new Date()
+          ? `<span class="nv-badge nv-b-grey">Menunggu kode dimasukkan (s/d ${waktuLokal(p.kodeBerlakuSampai).split(" ").pop()})</span>`
+          : `<span class="nv-badge nv-b-red">Kode kedaluwarsa — buat kode baru</span>`;
+      } else if (!p.online) {
+        badge = `<span class="nv-badge nv-b-red">Offline</span>`;
+      } else if (st.state === "merekam") {
+        badge = `<span class="nv-badge nv-b-red">● Merekam</span>`;
+      } else if (st.state === "mengirim") {
+        badge = `<span class="nv-badge nv-b-blue">Mengirim rekaman${st.pending ? ` (${st.pending})` : ""}</span>`;
+      } else if (st.state === "mic-error") {
+        badge = `<span class="nv-badge nv-b-red">Mic bermasalah</span>`;
+      } else {
+        badge = `<span class="nv-badge nv-b-green">Siap</span>`;
+      }
+      return `<tr>
+        <td><b>${e(p.ruang)}</b></td>
+        <td>${e(p.label || "-")}<br><span class="nv-muted nv-small">dibuat ${e(p.dibuatOleh || "-")}</span></td>
+        <td>${badge}${st.error ? `<div class="nv-small nv-err-text">${e(st.error)}</div>` : ""}</td>
+        <td>${e(st.micLabel || "-")}</td>
+        <td>${p.terakhirTerlihat ? waktuLokal(p.terakhirTerlihat) : "-"}</td>
+        <td class="nv-nowrap">
+          <button class="nv-btn nv-btn-light nv-btn-sm" onclick="nvKodeUlang('${e(p.id)}')">Kode baru</button>
+          <button class="nv-btn nv-btn-ghost-red nv-btn-sm" onclick="nvCabutPerekam('${e(p.id)}')">Cabut</button>
+        </td></tr>`;
+    }).join("");
+    return `
+      ${d.perangkat.length ? `<table class="nv-table"><thead><tr><th>Ruangan</th><th>Perangkat</th><th>Status</th><th>Mic</th><th>Terakhir terhubung</th><th></th></tr></thead>
+        <tbody>${baris}</tbody></table>` : `<p class="nv-muted">Belum ada perangkat perekam.</p>`}
+      ${tanpa.length ? `<div class="nv-alert nv-alert-warn">Tidak ada perekam aktif di: <b>${tanpa.map(e).join(", ")}</b>.
+        Rapat di ruangan tersebut tidak terekam otomatis; gunakan rekam/unggah manual di halaman notulen rapat.</div>` : ""}
+      <p class="nv-muted nv-small">Rekaman diteruskan hingga ${d.menitTambahan} menit setelah jam selesai (rapat molor), kecuali
+        sudah check-out atau rapat berikutnya di ruangan yang sama dimulai. Rapat yang belum disetujui, ditolak, atau dibatalkan tidak direkam.</p>`;
+  }
+
+  async function nvBuatKode() {
+    const roomName = document.getElementById("nvRecRoom")?.value;
+    if (!roomName) { alert("Pilih ruangan terlebih dulu."); return; }
+    const label = document.getElementById("nvRecLabel")?.value.trim();
+    try {
+      const r = await api("/perekam", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ roomName, label }),
+      });
+      rekamState.kode = { ...r, ruang: roomName };
+      document.getElementById("nvRecKode").innerHTML = htmlKode();
+      muatPerekam();
+    } catch (err) { alert(err.message); }
+  }
+
+  async function nvKodeUlang(id) {
+    if (!confirm("Buat kode baru? Perangkat yang sekarang terpasang akan terputus sampai kode baru dimasukkan.")) return;
+    try {
+      const r = await api(`/perekam/${encodeURIComponent(id)}/kode`, { method: "POST" });
+      const p = rekamState.data?.perangkat.find((x) => x.id === id);
+      rekamState.kode = { ...r, ruang: p?.ruang };
+      document.getElementById("nvRecKode").innerHTML = htmlKode();
+      muatPerekam();
+    } catch (err) { alert(err.message); }
+  }
+
+  async function nvCabutPerekam(id) {
+    if (!confirm("Cabut perangkat ini? Perangkat langsung berhenti bisa merekam, dan rapat di ruangan itu tidak lagi terekam otomatis.")) return;
+    try {
+      await api(`/perekam/${encodeURIComponent(id)}`, { method: "DELETE" });
+      beritahu("Perangkat perekam dicabut.");
+      muatPerekam();
+    } catch (err) { alert(err.message); }
+  }
+
   /* ---------- ekspos global (dipanggil dari atribut onclick) ---------- */
   Object.assign(window, {
     openNotulen, closeNotulen, nvUnggah, nvPutar, nvHapusFile, nvProses, nvBatal, nvSimpanNama, nvBuatUlang,
+    nvBukaPerekam, nvTutupPerekam, nvBuatKode, nvKodeUlang, nvCabutPerekam,
     nvTab, nvPilihModel, nvInfo, nvEdit, nvBatalEdit, nvSimpanNotulen, nvUnduhMd, nvUnduhTranskrip, nvCetak, nvMuatMic,
     nvRekamMulai, nvRekamJeda, nvRekamSelesai,
   });

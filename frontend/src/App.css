@@ -891,3 +891,27 @@
   .notes { justify-content: flex-start; gap: 8px 14px; font-size: 13px; }
   .notes span + span { padding-left: 0; border-left: 0; }
 }
+
+/* Penanda perekam otomatis notulen di papan TV */
+.slot__rec {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0 0;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: rgba(220, 38, 38, 0.14);
+  color: #fecaca;
+  font-weight: 700;
+  font-size: 0.85em;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.slot__rec-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #ef4444;
+  animation: slot-rec-blink 1.2s infinite;
+}
+@keyframes slot-rec-blink { 50% { opacity: 0.25; } }

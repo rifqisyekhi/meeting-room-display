@@ -230,6 +230,27 @@ async function initDatabase() {
         );
       `);
 
+      // 8. Perekam otomatis per ruangan (PC/mini PC dengan mic yang membuka halaman /perekam)
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS room_recorders (
+          id VARCHAR(100) PRIMARY KEY,
+          room_name VARCHAR(150) NOT NULL,
+          label VARCHAR(150),
+          token_hash VARCHAR(128),
+          pair_code_hash VARCHAR(128),
+          pair_expires_at TIMESTAMPTZ,
+          paired_at TIMESTAMPTZ,
+          revoked_at TIMESTAMPTZ,
+          last_seen_at TIMESTAMPTZ,
+          last_status JSONB NOT NULL DEFAULT '{}'::jsonb,
+          created_by VARCHAR(150),
+          created_at TIMESTAMPTZ DEFAULT NOW(),
+          updated_at TIMESTAMPTZ DEFAULT NOW()
+        );
+        ALTER TABLE meeting_audio_files ADD COLUMN IF NOT EXISTS recorder_id VARCHAR(100);
+        ALTER TABLE meeting_minutes ADD COLUMN IF NOT EXISTS auto_processed_at TIMESTAMPTZ;
+      `);
+
       // Pastikan akun master awal tersedia jika tabel pengguna kosong
       const userCountRes = await client.query("SELECT COUNT(*)::int AS count FROM users");
       if (userCountRes.rows[0]?.count === 0) {

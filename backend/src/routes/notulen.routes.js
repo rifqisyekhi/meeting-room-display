@@ -4,6 +4,7 @@ const router = express.Router();
 const { bacaSesi, wajibPeran } = require("../middleware/auth");
 const dashboardService = require("../services/dashboard.service");
 const notulen = require("../services/notulen.service");
+const perekam = require("../services/perekam.service");
 
 /* Seluruh fitur notulen otomatis khusus Admin (menu Manajemen Rapat).
    Peran dibaca dari cookie sesi yang ditandatangani server. */
@@ -60,6 +61,24 @@ router.get("/status-ai", rute(async (_req, res) => {
 // Pilihan model transkripsi (Whisper) & notulen (Ollama) untuk layar Proses.
 router.get("/models", rute(async (_req, res) => {
   res.json({ success: true, ...(await notulen.daftarModel()) });
+}));
+
+// ---- Perekam otomatis ruang rapat (pemasangan & pemantauan perangkat) ----
+router.get("/perekam", rute(async (_req, res) => {
+  res.json({ success: true, ...(await perekam.daftarPerangkat()) });
+}));
+
+router.post("/perekam", rute(async (req, res) => {
+  res.status(201).json({ success: true, ...(await perekam.buatPerangkat(req.body || {}, namaPengguna(req))) });
+}));
+
+router.post("/perekam/:id/kode", rute(async (req, res) => {
+  res.json({ success: true, ...(await perekam.kodeUlang(req.params.id)) });
+}));
+
+router.delete("/perekam/:id", rute(async (req, res) => {
+  await perekam.cabutPerangkat(req.params.id);
+  res.json({ success: true });
 }));
 
 router.get("/meetings/:id", muatRapat, rute(async (req, res) => {

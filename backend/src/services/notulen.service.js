@@ -91,6 +91,7 @@ function barisFile(r) {
     chunkCount: r.chunk_count,
     status: r.status,
     createdBy: r.created_by,
+    recorderId: r.recorder_id || null,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
   };
@@ -219,6 +220,13 @@ async function ambilFile(meetingId, fileId) {
   return res.rows[0];
 }
 
+/* Untuk perekam ruangan: cari file tanpa tahu ID rapatnya. */
+async function ambilFileById(fileId) {
+  const res = await query("SELECT * FROM meeting_audio_files WHERE id = $1", [String(fileId)]);
+  if (!res.rows[0]) throw galat("File audio tidak ditemukan.", 404);
+  return res.rows[0];
+}
+
 async function tolakJikaSedangDiproses(meetingId) {
   const baris = await ambilBarisNotulen(meetingId);
   if (baris && baris.status === "PROCESSING") {
@@ -228,17 +236,18 @@ async function tolakJikaSedangDiproses(meetingId) {
 
 /* Sesi rekam baru = file baru. Setiap kali halaman dimuat ulang, perekam
    membuat sesi baru; saat diproses semua file dipakai berurutan. */
-async function mulaiSesiRekam(meetingId, { mimeType } = {}, oleh = "Admin") {
+async function mulaiSesiRekam(meetingId, { mimeType } = {}, oleh = "Admin", recorderId = null) {
   wajibDatabase();
   const id = `rec_${Date.now()}_${crypto.randomBytes(4).toString("hex")}`;
   const fileName = path.posix.join(folderRapat(meetingId), `${id}${ekstensiDariMime(mimeType)}`);
   await fsp.mkdir(path.dirname(pathAbsolut(fileName)), { recursive: true });
   await fsp.writeFile(pathAbsolut(fileName), Buffer.alloc(0), { flag: "wx" });
   const res = await query(
-    `INSERT INTO meeting_audio_files (id, meeting_id, kind, original_name, file_name, mime_type, status, created_by)
-     VALUES ($1, $2, 'rekaman', $3, $4, $5, 'merekam', $6) RETURNING *`,
-    [id, String(meetingId), `Rekaman ${new Date().toLocaleString("id-ID", { timeZone: "Asia/Jakarta" })}`,
-      fileName, String(mimeType || "audio/webm").slice(0, 100), oleh],
+    `INSERT INTO meeting_audio_files (id, meeting_id, kind, original_name, file_name, mime_type, status, created_by, recorder_id)
+     VALUES ($1, $2, 'rekaman', $3, $4, $5, 'merekam', $6, $7) RETURNING *`,
+    [id, String(meetingId),
+      `${recorderId ? "Rekaman otomatis" : "Rekaman"} ${new Date().toLocaleString("id-ID", { timeZone: "Asia/Jakarta" })}`,
+      fileName, String(mimeType || "audio/webm").slice(0, 100), oleh, recorderId],
   );
   await pastikanBarisNotulen(meetingId);
   return barisFile(res.rows[0]);
@@ -650,6 +659,7 @@ module.exports = {
   statusServiceAI,
   daftarModel,
   mulaiSesiRekam,
+  ambilFileById,
   tambahPotongan,
   selesaiRekam,
   simpanUnggahan,
