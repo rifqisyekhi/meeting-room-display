@@ -206,3 +206,9 @@ body.nv-open { overflow: hidden; }
 @keyframes nv-dlg-fade { from { opacity: 0; } }
 @keyframes nv-dlg-naik { from { opacity: 0; transform: translateY(8px) scale(0.98); } }
 @media (prefers-reduced-motion: reduce) { .nv-dlg, .nv-dlg-box { animation: none; } }
+.nv-dlg-cek {
+  display: flex; align-items: center; gap: 9px; margin-top: 12px; padding: 10px 12px;
+  background: #fff7f7; border: 1px solid #fecaca; border-radius: 10px;
+  font-size: 13px; font-weight: 600; color: #7f1d1d; cursor: pointer;
+}
+.nv-dlg-cek input { width: 16px; height: 16px; accent-color: #dc2626; cursor: pointer; }

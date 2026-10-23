@@ -370,6 +370,25 @@ async function hapusFile(meetingId, fileId) {
   return true;
 }
 
+/* Hapus transkrip & notulen; file audio tidak disentuh. Barisnya dikosongkan
+   (bukan dihapus) agar penanda auto_processed_at tetap ada, sehingga rekaman
+   perekam otomatis tidak diproses ulang sendiri. */
+async function hapusHasil(meetingId) {
+  wajibDatabase();
+  await tolakJikaSedangDiproses(meetingId);
+  await query(
+    `UPDATE meeting_minutes SET status = 'DRAFT', job_id = NULL, job_type = NULL, stage = NULL, stage_label = NULL,
+       progress = 0, stage_progress = 0, eta_seconds = NULL, queue_position = NULL, error = NULL,
+       minutes_error = NULL, warnings = '[]'::jsonb, transcript = NULL, speakers = '{}'::jsonb,
+       duration_seconds = NULL, minutes_md = NULL, minutes_reviewed = FALSE, minutes_edited_by = NULL,
+       minutes_edited_at = NULL, whisper_model = NULL, llm_model = NULL, diarization = FALSE,
+       started_by = NULL, started_at = NULL, finished_at = NULL, updated_at = NOW()
+     WHERE meeting_id = $1`,
+    [String(meetingId)],
+  );
+  return true;
+}
+
 async function pathFileUntukDiputar(meetingId, fileId) {
   wajibDatabase();
   const f = await ambilFile(meetingId, fileId);
@@ -669,6 +688,7 @@ module.exports = {
   mulaiProses,
   buatUlangNotulen,
   batalkanProses,
+  hapusHasil,
   simpanNamaPembicara,
   simpanNotulen,
   ringkasan,

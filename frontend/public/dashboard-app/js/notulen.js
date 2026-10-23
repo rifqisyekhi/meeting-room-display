@@ -85,7 +85,8 @@
      true bila tombol utama ditekan, false bila ditutup (Batal, ✕, Esc, klik di luar). */
   const DLG_IKON = { info: "i", peringatan: "!", bahaya: "!", error: "✕" };
 
-  function dialog({ judul = "Informasi", pesan = "", jenis = "info", ok = "Mengerti", batal = "" } = {}) {
+  /* centang: { label, nilai } opsional; nilai diperbarui sesuai kotak centang saat ditutup. */
+  function dialog({ judul = "Informasi", pesan = "", jenis = "info", ok = "Mengerti", batal = "", centang = null } = {}) {
     return new Promise((selesai) => {
       document.querySelector(".nv-dlg")?.remove();
       const fokusLama = document.activeElement;
@@ -99,12 +100,14 @@
             <button type="button" class="nv-dlg-x" data-v="0" title="Tutup" aria-label="Tutup">✕</button>
           </div>
           <p id="nvDlgPesan">${e(pesan)}</p>
+          ${centang ? `<label class="nv-dlg-cek"><input type="checkbox" ${centang.nilai ? "checked" : ""}> ${e(centang.label)}</label>` : ""}
           <div class="nv-dlg-aksi">
             ${batal ? `<button type="button" class="nv-btn nv-btn-light" data-v="0">${e(batal)}</button>` : ""}
             <button type="button" class="nv-btn ${jenis === "bahaya" ? "nv-btn-red" : "nv-btn-primary"}" data-v="1">${e(ok)}</button>
           </div>
         </div>`;
       const tutup = (v) => {
+        if (centang) centang.nilai = el.querySelector(".nv-dlg-cek input").checked;
         document.removeEventListener("keydown", onKey, true);
         el.remove();
         if (fokusLama instanceof HTMLElement && fokusLama.isConnected) fokusLama.focus();
@@ -113,7 +116,7 @@
       const onKey = (ev) => {
         if (ev.key === "Escape") { ev.preventDefault(); ev.stopPropagation(); tutup(false); return; }
         if (ev.key !== "Tab") return;
-        const tombol = [...el.querySelectorAll("button")];
+        const tombol = [...el.querySelectorAll("button, input")];
         const i = tombol.indexOf(document.activeElement);
         ev.preventDefault();
         tombol[(i + (ev.shiftKey ? -1 : 1) + tombol.length) % tombol.length].focus();
@@ -588,6 +591,8 @@
           <span class="nv-muted nv-small nv-push">${mn.durationSeconds ? `Durasi audio ${jam(mn.durationSeconds)}` : ""}
             ${mn.whisperModel ? ` · Whisper ${e(mn.whisperModel)}` : ""}${mn.llmModel ? ` · ${e(mn.llmModel)}` : ""}
             ${mn.finishedAt ? ` · diproses ${waktuLokal(mn.finishedAt)}` : ""}</span>
+          <button class="nv-btn nv-btn-ghost-red nv-btn-sm" onclick="nvHapusHasil()" ${mn.status === "PROCESSING" ? "disabled" : ""}
+            title="Hapus transkrip & notulen (audio tetap)">Hapus hasil</button>
         </div>
         ${tab === "transkrip" ? htmlTranskrip(mn) : htmlNotulen(mn)}
       </section>`;
@@ -750,11 +755,34 @@
   }
 
   async function nvHapusFile(fileId) {
-    if (!(await tanya("File audio ini akan dihapus permanen dan tidak bisa dikembalikan.",
-      { judul: "Hapus file audio?", ok: "Hapus", jenis: "bahaya" }))) return;
+    const mn = nv.data?.minutes;
+    const adaHasil = Boolean(mn?.hasTranscript || mn?.hasMinutes);
+    const fileTerakhir = (nv.data?.files || []).length <= 1;
+    // Audio terakhir dihapus: tawarkan sekalian menghapus transkrip & notulennya.
+    const centang = adaHasil && fileTerakhir ? { label: "Hapus juga transkrip dan notulen rapat ini", nilai: true } : null;
+    const pesan = "File audio ini akan dihapus permanen dan tidak bisa dikembalikan."
+      + (adaHasil && !fileTerakhir ? " Transkrip dan notulen tidak ikut terhapus." : "");
+    if (!(await tanya(pesan, { judul: "Hapus file audio?", ok: "Hapus", jenis: "bahaya", centang }))) return;
     try {
       await api(`/meetings/${encodeURIComponent(nv.meetingId)}/audio/${encodeURIComponent(fileId)}`, { method: "DELETE" });
-      beritahu("File audio dihapus.");
+      if (centang?.nilai) {
+        await api(`/meetings/${encodeURIComponent(nv.meetingId)}/minutes`, { method: "DELETE" });
+        nv.editing = false;
+      }
+      beritahu(centang?.nilai ? "File audio, transkrip, dan notulen dihapus." : "File audio dihapus.");
+      await muatUlang();
+    } catch (err) { gagal(err.message); }
+  }
+
+  async function nvHapusHasil() {
+    if (!(await tanya("Transkrip, nama pembicara, dan notulen rapat ini (termasuk hasil suntingan) akan dihapus "
+      + "permanen. File audio tidak ikut terhapus, jadi rapat masih bisa diproses ulang.",
+      { judul: "Hapus transkrip & notulen?", ok: "Hapus", jenis: "bahaya" }))) return;
+    try {
+      await api(`/meetings/${encodeURIComponent(nv.meetingId)}/minutes`, { method: "DELETE" });
+      nv.editing = false;
+      nv.tab = "transkrip";
+      beritahu("Transkrip dan notulen dihapus.");
       await muatUlang();
     } catch (err) { gagal(err.message); }
   }
@@ -1377,7 +1405,7 @@
 
   /* ---------- ekspos global (dipanggil dari atribut onclick) ---------- */
   Object.assign(window, {
-    openNotulen, closeNotulen, nvUnggah, nvPutar, nvHapusFile, nvProses, nvBatal, nvSimpanNama, nvBuatUlang,
+    openNotulen, closeNotulen, nvUnggah, nvPutar, nvHapusFile, nvHapusHasil, nvProses, nvBatal, nvSimpanNama, nvBuatUlang,
     nvMasukUlang, nvBukaPerekam, nvTutupPerekam, nvBuatKode, nvKodeUlang, nvCabutPerekam,
     nvTab, nvPilihModel, nvInfo, nvEdit, nvBatalEdit, nvSimpanNotulen, nvUnduhMd, nvUnduhTranskrip, nvCetak, nvMuatMic,
     nvRekamMulai, nvRekamJeda, nvRekamSelesai,

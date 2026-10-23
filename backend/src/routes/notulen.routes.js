@@ -175,6 +175,11 @@ router.put("/meetings/:id/minutes", muatRapat, rute(async (req, res) => {
   res.json({ success: true, minutes });
 }));
 
+router.delete("/meetings/:id/minutes", muatRapat, rute(async (req, res) => {
+  await notulen.hapusHasil(req.rapat.id);
+  res.json({ success: true });
+}));
+
 router.get("/meetings/:id/minutes.md", muatRapat, rute(async (req, res) => {
   const md = await notulen.ambilMarkdown(req.rapat.id);
   const nama = `Notulen - ${req.rapat.title || "Rapat"} - ${req.rapat.date || ""}`
