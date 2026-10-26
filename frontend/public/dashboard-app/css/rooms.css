@@ -635,3 +635,23 @@
       .crm-btn-save:hover {
         background: #1769aa;
       }
+
+      .rooms-header { padding: 24px 40px 22px; }
+      .rooms-breadcrumb { font-size: 12px; margin-bottom: 4px; }
+      .rooms-title h1 { font-size: 28px; line-height: 1.15; margin: 0 0 4px; }
+      .rooms-title p { font-size: 14px; line-height: 1.4; }
+      .rooms-stat-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; padding: 0 40px 20px; }
+      .rooms-stat-grid .r-card { height: 76px; min-height: 76px; box-sizing: border-box; padding: 14px 18px; gap: 14px; border: 1px solid #eef3f9; border-radius: 12px; box-shadow: 0 4px 18px rgba(12, 45, 94, 0.04); }
+      .rooms-stat-grid .r-card::after { display: none; }
+      .rooms-stat-grid .r-icon-box { width: 44px; height: 44px; flex: 0 0 44px; border-radius: 12px; }
+      .rooms-stat-grid .r-icon-box.plain { background: #e6f0fa; color: #1769aa; }
+      .rooms-stat-grid .r-info { min-width: 0; }
+      .rooms-stat-grid .r-info strong { font-size: 22px; line-height: 1.15; }
+      .rooms-stat-grid .r-info span { margin-top: 3px; font-size: 12px; line-height: 1.2; white-space: nowrap; }
+      @media (max-width: 900px) {
+        .rooms-stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      }
+      @media (max-width: 640px) {
+        .rooms-header { padding: 20px 16px 18px; }
+        .rooms-stat-grid { grid-template-columns: 1fr; padding: 0 16px 16px; }
+      }

@@ -142,3 +142,17 @@
       
       .dash-table-container .table th { background: #fff; color: #0c2d5e; font-weight: 700; border-bottom: 1px solid #eef3f9; }
       .dash-table-container .table td { border-bottom: 1px solid #f4f8fc; padding: 16px 12px; }
+
+      .users-page-wrapper .dash-cards-users { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; padding: 0 40px 20px; }
+      .users-page-wrapper .d-card-user { width: auto; height: 76px; min-width: 0; box-sizing: border-box; padding: 14px 18px; gap: 14px; border: 1px solid #eef3f9; border-radius: 12px; box-shadow: 0 4px 18px rgba(12, 45, 94, 0.04); }
+      .users-page-wrapper .dc-icon-user { width: 44px; height: 44px; flex: 0 0 44px; border-radius: 12px; }
+      .users-page-wrapper .dc-icon-user svg { width: 22px; height: 22px; }
+      .users-page-wrapper .dc-text-user { min-width: 0; }
+      .users-page-wrapper .dc-text-user strong { font-size: 22px; line-height: 1.15; }
+      .users-page-wrapper .dc-text-user span { margin-top: 3px; font-size: 12px; line-height: 1.2; white-space: nowrap; }
+      @media (max-width: 900px) {
+        .users-page-wrapper .dash-cards-users { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      }
+      @media (max-width: 640px) {
+        .users-page-wrapper .dash-cards-users { grid-template-columns: 1fr; padding: 0 16px 16px; }
+      }

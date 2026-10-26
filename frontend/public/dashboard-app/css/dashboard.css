@@ -27,6 +27,14 @@
         font-size: 14px;
         font-weight: 500;
       }
+      .meetings-page-wrapper .dash-header,
+      .users-page-wrapper .dash-header { padding: 24px 40px 22px; }
+      .meetings-page-wrapper .dash-breadcrumb,
+      .users-page-wrapper .dash-breadcrumb { margin-bottom: 4px; }
+      .meetings-page-wrapper .dash-title h1,
+      .users-page-wrapper .dash-title h1 { margin: 0 0 4px; line-height: 1.15; }
+      .meetings-page-wrapper .dash-title p,
+      .users-page-wrapper .dash-title p { margin: 0; line-height: 1.4; }
       .dash-actions {
         display: flex;
         align-items: center;
@@ -66,8 +74,8 @@
       .dash-cards {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
-        gap: 20px;
-        padding: 0 40px 30px;
+        gap: 16px;
+        padding: 0 40px 20px;
       }
       .d-card {
         background: rgba(255,255,255,0.85);
@@ -113,6 +121,22 @@
         margin-top: 2px;
         font-weight: 500;
       }
+
+      .dash-cards .d-card {
+        height: 76px;
+        min-height: 76px;
+        box-sizing: border-box;
+        padding: 14px 18px;
+        gap: 14px;
+        border: 1px solid #eef3f9;
+        border-radius: 12px;
+        box-shadow: 0 4px 18px rgba(12, 45, 94, 0.04);
+      }
+      .dash-cards .dc-icon { flex: 0 0 44px; width: 44px; height: 44px; border-radius: 12px; }
+      .dash-cards .dc-icon svg { width: 22px; height: 22px; }
+      .dash-cards .dc-text { flex: 1; min-width: 0; }
+      .dash-cards .dc-text strong { font-size: 22px; line-height: 1.15; }
+      .dash-cards .dc-text span { margin-top: 3px; font-size: 12px; line-height: 1.2; white-space: nowrap; }
       
       .dash-table-container {
         flex: 1;

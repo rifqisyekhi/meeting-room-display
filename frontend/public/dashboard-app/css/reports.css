@@ -8,8 +8,11 @@
       .rep-filters-left { display: flex; gap: 12px; align-items: center; }
       .rep-filters-left select, .rep-filters-left button { padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; outline: none; border: 1px solid #e2eaf5; cursor: pointer; }
       .rep-filters-left select { background: #fff; color: #0c2d5e; min-width: 150px; appearance: none; -webkit-appearance: none; padding-right: 32px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%230c2d5e' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; }
+      .rep-filters-left .report-period-select { min-width: 170px; font-weight: 600; }
       .rep-filters-left .btn-white { background: #fff; color: #4b6a90; }
       .rep-filters-left .btn-blue { background: #1769aa; color: #fff; }
+      .rep-filters-left .report-period-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; line-height: 1; }
+      .rep-filters-left .report-period-btn svg { display: block; width: 14px !important; height: 14px !important; flex: 0 0 14px; }
       .rep-export-btn { background: #0c2d5e; color: #fff; border: none; padding: 8px 20px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; }
       
       .rep-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; padding: 0 40px 24px; }
@@ -18,6 +21,13 @@
       .rc-icon.blue1 { background: #e6f0fa; color: #1769aa; }
       .rc-text strong { display: block; font-size: 24px; font-weight: 700; color: #0c2d5e; line-height: 1.1; }
       .rc-text span { display: block; font-size: 12px; font-weight: 500; color: #4b6a90; margin-top: 4px; }
+
+      /* Keep the metric title and summary on the same rows in every report card. */
+      .rep-card { align-items: center; gap: 14px; }
+      .rep-card .rc-icon { flex: 0 0 52px; width: 52px; height: 52px; }
+      .rep-card .rc-text { flex: 1; min-width: 0; align-self: stretch; display: flex; flex-direction: column; }
+      .rep-card .rc-text strong { min-height: 52px; font-size: 22px; line-height: 1.15; }
+      .rep-card .rc-text span { min-height: 34px; margin-top: 4px; font-size: 12px; line-height: 1.4; }
       
       .rep-charts { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 20px; padding: 0 40px 24px; }
       .rep-chart-card { background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 4px 20px rgba(12, 45, 94, 0.04); }
@@ -134,6 +144,12 @@
         color: #64748b;
         font-weight: 500;
       }
+      .admin-chart-title { width: 100%; min-width: 0; }
+      .admin-chart-title-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+      .admin-chart-title-row h2 { margin-bottom: 0; }
+      .admin-chart-title > small { display: block; margin-top: 5px; }
+      .admin-realtime-badge { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 5px; padding: 4px 9px; border: 1px solid #bbf7d0; border-radius: 12px; background: #dcfce7; color: #15803d; font-size: 11px; font-weight: 700; line-height: 1.2; white-space: nowrap; }
+      .admin-realtime-badge > span { width: 6px; height: 6px; flex: 0 0 6px; border-radius: 50%; background: #16a34a; }
 
       /* Compact Stat Cards (Sejajar dengan Tabel Rapat) */
       .rep-cards-compact {
@@ -356,3 +372,54 @@
       
       .mock-stacked-bar { height: 70px; background: #4a4a4a; display: flex; margin-bottom: 24px; }
       .mock-stacked-bar-fill { height: 100%; background: #4285f4; }
+
+      /* Compact, consistent layout for the usage report. */
+      .rep-header { padding: 22px 24px 18px; }
+      .rep-filters-row { padding: 0 24px 16px; }
+      .rep-cards { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; padding: 0 24px 18px; }
+      .rep-card { min-height: 96px; box-sizing: border-box; padding: 14px 16px; gap: 10px; }
+      .rep-card .rc-icon { flex-basis: 48px; width: 48px; height: 48px; }
+      .rep-card .rc-text { justify-content: center; align-items: center; text-align: center; }
+      .rep-card .rc-text strong { min-height: 28px; font-size: 20px; line-height: 1.2; justify-content: center; align-items: center; text-align: center; }
+      .rep-card .rc-text span { min-height: 30px; margin-top: 3px; font-size: 11px; line-height: 1.35; text-align: center; }
+      .rep-charts { grid-template-columns: minmax(0, 2fr) repeat(2, minmax(0, 1fr)); gap: 14px; padding: 0 24px 20px; align-items: stretch; }
+      .rep-chart-card { min-width: 0; min-height: 260px; box-sizing: border-box; padding: 18px; border: 1px solid #e8eff7; display: flex; flex-direction: column; justify-content: flex-start; }
+      .rep-chart-card h2 { font-size: 14px; line-height: 1.35; margin-bottom: 2px; }
+      .rep-chart-card > div > small { font-size: 10.5px; line-height: 1.4; }
+      .rep-charts > .rep-chart-card:first-child > div:first-child { margin-bottom: 8px !important; gap: 8px; }
+      .rep-charts > .rep-chart-card:first-child > div:first-child > span { flex: 0 0 auto; font-size: 10px !important; }
+      .rep-charts .mock-bar-chart { flex: 1; min-height: 170px; height: auto; gap: clamp(5px, 1vw, 12px); padding: 8px 4px 0; }
+      .rep-charts > .rep-chart-card:nth-child(2) > div:last-child { gap: 8px; }
+      .rep-charts > .rep-chart-card:nth-child(2) > div:last-child > div { margin: 0 !important; padding: 9px 10px !important; }
+      .rep-charts > .rep-chart-card:nth-child(2) > div:last-child > div > div:first-child { gap: 8px; margin-bottom: 6px !important; }
+      .rep-charts > .rep-chart-card:nth-child(3) > div:first-child { margin-bottom: 10px !important; }
+      .rep-charts > .rep-chart-card:nth-child(3) > strong { margin: 8px 0 4px !important; }
+      .rep-charts > .rep-chart-card:nth-child(3) > div:last-child > div { padding: 6px 0 !important; }
+      .rep-list { margin: 0 24px 28px !important; padding: 20px; }
+      @media (max-width: 1050px) {
+        .rep-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .rep-charts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .rep-charts > .rep-chart-card:first-child { grid-column: 1 / -1; }
+      }
+      @media (max-width: 640px) {
+        .rep-header { padding: 18px 16px 14px; }
+        .rep-filters-row { padding: 0 16px 14px; }
+        .rep-cards { grid-template-columns: 1fr; padding: 0 16px 14px; }
+        .rep-charts { grid-template-columns: 1fr; padding: 0 16px 16px; }
+        .rep-charts > .rep-chart-card:first-child { grid-column: auto; }
+        .rep-list { margin: 0 16px 20px !important; padding: 16px; }
+      }
+      .rep-header { padding: 24px 40px 22px; }
+      .rep-breadcrumb { font-size: 12px; margin-bottom: 4px; }
+      .rep-header h1 { font-size: 28px; line-height: 1.15; margin: 0 0 4px; }
+      .rep-header p { font-size: 14px; line-height: 1.4; margin: 0; }
+      .rep-cards { gap: 16px; padding: 0 40px 20px; }
+      .rep-cards .rep-card { height: 76px; min-height: 76px; box-sizing: border-box; padding: 14px 18px; gap: 14px; border: 1px solid #eef3f9; border-radius: 12px; box-shadow: 0 4px 18px rgba(12, 45, 94, 0.04); }
+      .rep-cards .rep-card .rc-icon { width: 44px; height: 44px; flex: 0 0 44px; border-radius: 12px; }
+      .rep-cards .rep-card .rc-text { min-width: 0; flex: 1; align-self: auto; display: flex; flex-direction: column; justify-content: center; align-items: flex-start; text-align: left; }
+      .rep-cards .rep-card .rc-text strong { display: block; min-height: 0; color: #0c2d5e; font-size: 22px; font-weight: 700; line-height: 1.15; letter-spacing: 0; text-align: left; white-space: nowrap; }
+      .rep-cards .rep-card .rc-text span { display: block; margin-top: 3px; color: #0c2d5e; font-size: 12px; font-weight: 600; line-height: 1.2; white-space: nowrap; }
+      @media (max-width: 640px) {
+        .rep-header { padding: 20px 16px 18px; }
+        .rep-cards { padding: 0 16px 16px; }
+      }

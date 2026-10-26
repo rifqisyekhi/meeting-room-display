@@ -432,9 +432,9 @@ const state = {
   googleCalendarConnected: false,
   calendarMessage: "Menghubungkan ke backend...",
   reportFilter: {
-    mode: "bulanan",
-    startDate: awalBulan(),
-    endDate: akhirBulan(),
+    mode: "semua",
+    startDate: "",
+    endDate: "",
   },
   meetings: (() => {
     try {
@@ -555,10 +555,10 @@ const ICONS = {
     '<path d="M96 128a128 128 0 1 1 256 0A128 128 0 1 1 96 128zM0 482.3C0 383.8 79.8 304 178.3 304l91.4 0C368.2 304 448 383.8 448 482.3c0 16.4-13.3 29.7-29.7 29.7L29.7 512C13.3 512 0 498.7 0 482.3zM609.3 512l-137.8 0c5.4-9.4 8.6-20.3 8.6-32l0-8c0-60.7-27.1-115.2-69.8-151.8c2.4-.1 4.7-.2 7.1-.2l61.4 0C567.8 320 640 392.2 640 481.3c0 17-13.8 30.7-30.7 30.7zM432 256c-31 0-59-12.6-79.3-32.9C372.4 196.5 384 163.6 384 128c0-26.8-6.6-52.1-18.3-74.3C384.3 40.1 407.2 32 432 32c61.9 0 112 50.1 112 112s-50.1 112-112 112z"/>',
     "0 0 640 512",
   ),
-  // FaCalendarAlt — react-icons/fa (viewBox 0 0 448 512)
+  // SlCalender — react-icons/sl (viewBox 0 0 1024 1024)
   calendar: svgIcon(
-    '<path d="M0 464c0 26.5 21.5 48 48 48h352c26.5 0 48-21.5 48-48V192H0v272zm320-196c0-6.6 5.4-12 12-12h40c6.6 0 12 5.4 12 12v40c0 6.6-5.4 12-12 12h-40c-6.6 0-12-5.4-12-12v-40zm0 128c0-6.6 5.4-12 12-12h40c6.6 0 12 5.4 12 12v40c0 6.6-5.4 12-12 12h-40c-6.6 0-12-5.4-12-12v-40zM192 268c0-6.6 5.4-12 12-12h40c6.6 0 12 5.4 12 12v40c0 6.6-5.4 12-12 12h-40c-6.6 0-12-5.4-12-12v-40zm0 128c0-6.6 5.4-12 12-12h40c6.6 0 12 5.4 12 12v40c0 6.6-5.4 12-12 12h-40c-6.6 0-12-5.4-12-12v-40zM64 268c0-6.6 5.4-12 12-12h40c6.6 0 12 5.4 12 12v40c0 6.6-5.4 12-12 12H76c-6.6 0-12-5.4-12-12v-40zm0 128c0-6.6 5.4-12 12-12h40c6.6 0 12 5.4 12 12v40c0 6.6-5.4 12-12 12H76c-6.6 0-12-5.4-12-12v-40zM400 64h-48V16c0-8.8-7.2-16-16-16h-32c-8.8 0-16 7.2-16 16v48H160V16c0-8.8-7.2-16-16-16h-32c-8.8 0-16 7.2-16 16v48H48C21.5 64 0 85.5 0 112v48h448v-48c0-26.5-21.5-48-48-48z"/>',
-    "0 0 448 512",
+    '<path d="M960 95.888l-256.224.001V32.113c0-17.68-14.32-32-32-32s-32 14.32-32 32v63.76h-256v-63.76c0-17.68-14.32-32-32-32s-32 14.32-32 32v63.76H64c-35.344 0-64 28.656-64 64v800c0 35.343 28.656 64 64 64h896c35.344 0 64-28.657 64-64v-800c0-35.329-28.656-63.985-64-63.985zm0 863.985H64v-800h255.776v32.24c0 17.679 14.32 32 32 32s32-14.321 32-32v-32.224h256v32.24c0 17.68 14.32 32 32 32s32-14.32 32-32v-32.24H960v799.984zM736 511.888h64c17.664 0 32-14.336 32-32v-64c0-17.664-14.336-32-32-32h-64c-17.664 0-32 14.336-32 32v64c0 17.664 14.336 32 32 32zm0 255.984h64c17.664 0 32-14.32 32-32v-64c0-17.664-14.336-32-32-32h-64c-17.664 0-32 14.336-32 32v64c0 17.696 14.336 32 32 32zm-192-128h-64c-17.664 0-32 14.336-32 32v64c0 17.68 14.336 32 32 32h64c17.664 0 32-14.32 32-32v-64c0-17.648-14.336-32-32-32zm0-255.984h-64c-17.664 0-32 14.336-32 32v64c0 17.664 14.336 32 32 32h64c17.664 0 32-14.336 32-32v-64c0-17.68-14.336-32-32-32zm-256 0h-64c-17.664 0-32 14.336-32 32v64c0 17.664 14.336 32 32 32h64c17.664 0 32-14.336 32-32v-64c0-17.68-14.336-32-32-32zm0 255.984h-64c-17.664 0-32 14.336-32 32v64c0 17.68 14.336 32 32 32h64c17.664 0 32-14.32 32-32v-64c0-17.648-14.336-32-32-32z"/>',
+    "0 0 1024 1024",
   ),
   // RiBarChart2Fill — react-icons/ri (viewBox 0 0 24 24)
   reports: svgIcon(
@@ -675,6 +675,7 @@ function layout(content) {
       )
       .join("")}</nav>
     <div class="sidebar-footer">
+      ${getProfileHTML()}
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:0;">
         <a href="/" target="_top" style="flex:1.2;display:flex;align-items:center;justify-content:center;padding:7px 6px;background:rgba(255,255,255,0.14);color:#fff;text-decoration:none;border-radius:6px;font-size:11px;font-weight:600;letter-spacing:0.3px;text-align:center;white-space:nowrap;transition:background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.24)'" onmouseout="this.style.background='rgba(255,255,255,0.14)'">Display TV</a>
         <button onclick="logout()" style="flex:1;display:flex;align-items:center;justify-content:center;padding:7px 6px;background:rgba(220,38,38,0.75);color:#fff;border:none;cursor:pointer;border-radius:6px;font-size:11px;font-weight:600;letter-spacing:0.3px;text-align:center;white-space:nowrap;transition:background 0.2s;" onmouseover="this.style.background='rgba(220,38,38,0.95)'" onmouseout="this.style.background='rgba(220,38,38,0.75)'">Keluar</button>
@@ -701,7 +702,7 @@ function layout(content) {
         <button class="btn btn-light" onclick="fetchDashboardData(true)" style="padding:6px 12px;font-size:12px;display:flex;align-items:center;gap:4px;white-space:nowrap;" title="Sinkronkan data terbaru dari Google Calendar / backend">
           🔄 Sinkron
         </button>
-        ${getProfileHTML()}
+        
       </div>
     </header>`
     }<section class="content" ${["dashboard", "meetings", "rooms", "reports", "users", "calendar", "settings"].includes(state.page) ? 'style="padding:0;max-width:none;"' : ""}>${content}</section></main></div><div id="modal" class="modal-backdrop"></div>`;
@@ -1308,20 +1309,17 @@ function getProfileHTML() {
     : "A";
 
   return `
-    <div style="display:flex;align-items:center;">
-      <!-- Profile Menu -->
-      <div class="profile" onclick="toggleProfileMenu()" style="cursor:pointer;position:relative;display:flex;align-items:center;gap:12px;">
-        <div class="avatar" style="width:40px;height:40px;border-radius:50%;background:#fff;color:#0c2d5e;font-weight:700;font-size:16px;display:flex;align-items:center;justify-content:center;border:2px solid #d4e6f6;flex-shrink:0;">${initial}</div>
-        <div>
-          <div style="font-weight:700;font-size:14px;color:#0c2d5e;line-height:1.2;">${esc(currentUser.name)}</div>
-          <div style="font-size:12px;color:#4b6a90;font-weight:600;">${esc(getRoleLabel(currentUser.role))}</div>
+      <div class="profile sidebar-user-profile" onclick="toggleProfileMenu()">
+        <div class="sidebar-user-avatar">${initial}</div>
+        <div class="sidebar-user-copy">
+          <div class="sidebar-user-name">${esc(currentUser.name)}</div>
+          <div class="sidebar-user-role">${esc(getRoleLabel(currentUser.role))}</div>
         </div>
-        <div id="profileDropdown" style="display:none;position:absolute;top:120%;right:0;background:white;border-radius:8px;box-shadow:0 10px 25px rgba(0,0,0,0.15);width:260px;z-index:100;overflow:hidden;border:1px solid #e2e8f0;text-align:left;">
+        <div id="profileDropdown" class="sidebar-profile-dropdown">
           <div onclick="switchRole(event)" style="padding:11px 14px;cursor:pointer;font-size:12.5px;font-weight:500;border-bottom:1px solid #e2e8f0;color:#334155;display:flex;align-items:center;gap:8px;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">Tambah Akun Lain</div>
           <div onclick="logout(event)" style="padding:11px 14px;cursor:pointer;font-size:12.5px;font-weight:600;color:#dc2626;display:flex;align-items:center;gap:8px;" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='white'">Log Out</div>
         </div>
       </div>
-    </div>
   `;
 }
 
@@ -1390,7 +1388,7 @@ function pageHead(title, desc, button = "") {
 }
 
 function dashboard() {
-  const liaUsersSolid = svgIcon(
+    const liaUsersSolid = svgIcon(
     '<path d="M 11.5 6 C 9.578125 6 8 7.578125 8 9.5 C 8 11.421875 9.578125 13 11.5 13 C 13.421875 13 15 11.421875 15 9.5 C 15 7.578125 13.421875 6 11.5 6 Z M 20.5 6 C 18.578125 6 17 7.578125 17 9.5 C 17 11.421875 18.578125 13 20.5 13 C 22.421875 13 24 11.421875 24 9.5 C 24 7.578125 22.421875 6 20.5 6 Z M 11.5 8 C 12.339844 8 13 8.660156 13 9.5 C 13 10.339844 12.339844 11 11.5 11 C 10.660156 11 10 10.339844 10 9.5 C 10 8.660156 10.660156 8 11.5 8 Z M 20.5 8 C 21.339844 8 22 8.660156 22 9.5 C 22 10.339844 21.339844 11 20.5 11 C 19.660156 11 19 10.339844 19 9.5 C 19 8.660156 19.660156 8 20.5 8 Z M 7 12 C 4.800781 12 3 13.800781 3 16 C 3 17.113281 3.476563 18.117188 4.21875 18.84375 C 2.886719 19.746094 2 21.28125 2 23 L 4 23 C 4 21.332031 5.332031 20 7 20 C 8.667969 20 10 21.332031 10 23 L 12 23 C 12 21.28125 11.113281 19.746094 9.78125 18.84375 C 10.523438 18.117188 11 17.113281 11 16 C 11 13.800781 9.199219 12 7 12 Z M 12 23 C 11.375 23.835938 11 24.886719 11 26 L 13 26 C 13 24.332031 14.332031 23 16 23 C 17.667969 23 19 24.332031 19 26 L 21 26 C 21 24.886719 20.625 23.835938 20 23 C 19.660156 22.546875 19.25 22.160156 18.78125 21.84375 C 19.523438 21.117188 20 20.113281 20 19 C 20 16.800781 18.199219 15 16 15 C 13.800781 15 12 16.800781 12 19 C 12 20.113281 12.476563 21.117188 13.21875 21.84375 C 12.75 22.160156 12.339844 22.546875 12 23 Z M 20 23 L 22 23 C 22 21.332031 23.332031 20 25 20 C 26.667969 20 28 21.332031 28 23 L 30 23 C 30 21.28125 29.113281 19.746094 27.78125 18.84375 C 28.523438 18.117188 29 17.113281 29 16 C 29 13.800781 27.199219 12 25 12 C 22.800781 12 21 13.800781 21 16 C 21 17.113281 21.476563 18.117188 22.21875 18.84375 C 20.886719 19.746094 20 21.28125 20 23 Z M 7 14 C 8.117188 14 9 14.882813 9 16 C 9 17.117188 8.117188 18 7 18 C 5.882813 18 5 17.117188 5 16 C 5 14.882813 5.882813 14 7 14 Z M 25 14 C 26.117188 14 27 14.882813 27 16 C 27 17.117188 26.117188 18 25 18 C 23.882813 18 23 17.117188 23 16 C 23 14.882813 23.882813 14 25 14 Z M 16 17 C 17.117188 17 18 17.882813 18 19 C 18 20.117188 17.117188 21 16 21 C 14.882813 21 14 20.117188 14 19 C 14 17.882813 14.882813 17 16 17 Z"/>',
     "0 0 32 32",
     'width="28" height="28"',
@@ -1797,7 +1795,7 @@ function dashboard() {
           <p>${isAdmin ? "Pusat komando operasional dan pemantauan ruang rapat real-time." : "Ringkasan statistik penggunaan rapat."}</p>
         </div>
         <div class="dash-actions">
-          ${getProfileHTML()}
+          
         </div>
       </div>
       
@@ -1810,28 +1808,28 @@ function dashboard() {
               <div class="rc-icon-compact" style="background:#e0f2fe;color:#0284c7;">${liaUsersSolid}</div>
               <div class="rc-text-compact">
                 <strong>${stats.totalMeetings}</strong>
-                <span>Total Rapat <small style="font-weight:500;color:#64748b;font-size:11px;">(Bulan ini)</small></span>
+                <span>Total Rapat</span>
               </div>
             </div>
             <div class="rep-card-compact" style="cursor:pointer;" onclick="location.hash='#calendar';" title="Buka Kalender Jadwal Rapat">
               <div class="rc-icon-compact" style="background:#fef3c7;color:#b45309;">${faClock}</div>
               <div class="rc-text-compact">
                 <strong>${stats.totalHours} Jam</strong>
-                <span>Total Durasi <small style="font-weight:500;color:#64748b;font-size:11px;">(Bulan ini)</small></span>
+                <span>Total Durasi</span>
               </div>
             </div>
             <div class="rep-card-compact" style="cursor:pointer;" onclick="location.hash='#users';" title="Buka Manajemen Pengguna">
               <div class="rc-icon-compact" style="background:#f3e8ff;color:#7e22ce;">${faUsers}</div>
               <div class="rc-text-compact">
                 <strong>${stats.totalUsers}</strong>
-                <span>Total Pengguna <small style="font-weight:500;color:#64748b;font-size:11px;">(Terdaftar)</small></span>
+                <span>Total Pengguna</span>
               </div>
             </div>
             <div class="rep-card-compact" style="cursor:pointer;" onclick="location.hash='#rooms';" title="Buka Manajemen Ruangan">
               <div class="rc-icon-compact" style="background:#dcfce7;color:#15803d;">${bsBuilding}</div>
               <div class="rc-text-compact">
                 <strong>${stats.roomUtilization}%</strong>
-                <span>Pemanfaatan <small style="font-weight:500;color:#64748b;font-size:11px;">(${stats.runningCount > 0 ? stats.runningCount + " ruang aktif" : "Siap digunakan"})</small></span>
+                <span>Pemanfaatan Ruangan</span>
               </div>
             </div>
           </div>
@@ -1845,9 +1843,6 @@ function dashboard() {
                   <h2>Tren Aktivitas Rapat</h2>
                   <small>Distribusi pelaksanaan rapat per minggu (Bulan Ini)</small>
                 </div>
-                <span style="font-size:11.5px;font-weight:700;color:#1769aa;background:#e6f0fa;border:1px solid #cce3f8;padding:4px 10px;border-radius:12px;">
-                  📅 ${stats.totalMeetings} Rapat Bulan Ini
-                </span>
               </div>
               <div style="display:flex;align-items:flex-end;gap:12px;height:140px;padding-top:10px;">
                 ${weekBarsHTML}
@@ -1865,14 +1860,13 @@ function dashboard() {
             <!-- Chart 2: Status & Okupansi Ruangan Real-Time -->
             <div class="admin-chart-card">
               <div class="admin-chart-header">
-                <div>
-                  <h2>Status & Okupansi Ruangan</h2>
+                <div class="admin-chart-title">
+                  <div class="admin-chart-title-row">
+                    <h2>Status & Okupansi Ruangan</h2>
+                    <span class="admin-realtime-badge"><span></span>Real-Time</span>
+                  </div>
                   <small>Pemantauan ketersediaan ruangan real-time</small>
                 </div>
-                <span style="font-size:11px;font-weight:700;color:#15803d;background:#dcfce7;border:1px solid #bbf7d0;padding:4px 9px;border-radius:12px;display:inline-flex;align-items:center;gap:4px;">
-                  <span style="width:6px;height:6px;border-radius:50%;background:#16a34a;"></span>
-                  <span>Real-Time</span>
-                </span>
               </div>
               <div style="display:flex;flex-direction:column;gap:10px;">
                 ${roomsMonitoringHTML}
@@ -2201,7 +2195,7 @@ function meetings() {
   const ioSearch = ICONS.meetingSearch;
 
   return `
-    <div class="dashboard-wrapper">
+    <div class="dashboard-wrapper meetings-page-wrapper">
       <div class="dash-header">
         <div class="dash-title">
           <div class="dash-breadcrumb">Dashboard > Manajemen Rapat</div>
@@ -2213,7 +2207,7 @@ function meetings() {
           }</p>
         </div>
         <div class="dash-actions">
-          ${getProfileHTML()}
+          
         </div>
       </div>
       
@@ -2226,7 +2220,6 @@ function meetings() {
           <div class="dc-text">
             <strong style="${pending > 0 ? "color:#ea580c;" : ""}">${pending}</strong>
             <span>Perlu Persetujuan</span>
-            <small>Menunggu approval Anda</small>
           </div>
         </div>
         <div class="d-card">
@@ -2234,7 +2227,6 @@ function meetings() {
           <div class="dc-text">
             <strong>${running}</strong>
             <span>Rapat Berjalan</span>
-            <small>Sedang berlangsung</small>
           </div>
         </div>
         <div class="d-card">
@@ -2242,7 +2234,6 @@ function meetings() {
           <div class="dc-text">
             <strong>${soon}</strong>
             <span>Akan Datang</span>
-            <small>Jadwal mendatang</small>
           </div>
         </div>
         <div class="d-card">
@@ -2250,7 +2241,6 @@ function meetings() {
           <div class="dc-text">
             <strong>${done}</strong>
             <span>Rapat Selesai</span>
-            <small>Telah selesai</small>
           </div>
         </div>
             `
@@ -2260,7 +2250,6 @@ function meetings() {
           <div class="dc-text">
             <strong>${stats.totalMeetings}</strong>
             <span>Total Rapat</span>
-            <small>Semua jadwal terdaftar</small>
           </div>
         </div>
         <div class="d-card">
@@ -2268,7 +2257,6 @@ function meetings() {
           <div class="dc-text">
             <strong>${running}</strong>
             <span>Rapat Berjalan</span>
-            <small>Sedang berlangsung</small>
           </div>
         </div>
         <div class="d-card">
@@ -2276,7 +2264,6 @@ function meetings() {
           <div class="dc-text">
             <strong>${soon}</strong>
             <span>Rapat Segera</span>
-            <small>Akan datang</small>
           </div>
         </div>
         <div class="d-card">
@@ -2284,7 +2271,6 @@ function meetings() {
           <div class="dc-text">
             <strong>${done}</strong>
             <span>Rapat Selesai</span>
-            <small>Telah selesai</small>
           </div>
         </div>
             `
@@ -2402,7 +2388,7 @@ function rooms() {
           <p>Kelola data ruang rapat, fasilitas, dan ketersediaannya.</p>
         </div>
         <div class="rooms-actions">
-          ${getProfileHTML()}
+          
         </div>
       </div>
 
@@ -2534,7 +2520,7 @@ function users() {
   ).length;
 
   return `
-    <div class="dashboard-wrapper">
+    <div class="dashboard-wrapper users-page-wrapper">
       <div class="dash-header">
         <div class="dash-title">
           <div class="dash-breadcrumb">Dashboard > Manajemen Pengguna</div>
@@ -2542,7 +2528,7 @@ function users() {
           <p>Kelola data pengguna sistem booking ruang rapat.</p>
         </div>
         <div class="dash-actions">
-          ${getProfileHTML()}
+          
         </div>
       </div>
       
@@ -2898,7 +2884,7 @@ function calendar() {
         <p>Lihat jadwal rapat dan kegiatan ruangan.</p>
       </div>
       <div class="dash-actions">
-        ${getProfileHTML()}
+        
       </div>
     </div>
 
@@ -2939,9 +2925,9 @@ function calendar() {
 function getFilteredReportMeetings() {
   const selectedRoom = state.dashboardRoomFilter || "semua";
   const f = state.reportFilter || {
-    mode: "bulanan",
-    startDate: awalBulan(),
-    endDate: akhirBulan(),
+    mode: "semua",
+    startDate: "",
+    endDate: "",
   };
   let list = [...(state.meetings || [])];
 
@@ -2960,6 +2946,9 @@ function getFilteredReportMeetings() {
     const start = f.startDate || awalBulan();
     const end = f.endDate || akhirBulan();
     list = list.filter((m) => m.date >= start && m.date <= end);
+  } else if (f.mode === "tahunan") {
+    const year = String(new Date().getFullYear());
+    list = list.filter((m) => (m.date || "").startsWith(`${year}-`));
   } else if (f.mode === "date" && f.startDate && f.endDate) {
     list = list.filter((m) => m.date >= f.startDate && m.date <= f.endDate);
   }
@@ -2985,6 +2974,13 @@ function setReportPeriod(mode) {
       mode: "bulanan",
       startDate: awalBulan(),
       endDate: akhirBulan(),
+    };
+  } else if (mode === "tahunan") {
+    const year = new Date().getFullYear();
+    state.reportFilter = {
+      mode: "tahunan",
+      startDate: `${year}-01-01`,
+      endDate: `${year}-12-31`,
     };
   } else if (mode === "harian") {
     state.reportFilter = {
@@ -3019,6 +3015,12 @@ function reports() {
   const currentUser = getCurrentUser();
   const isAdmin = isAdminRole(currentUser);
 
+  const faArrowsDownToPeople = svgIcon(
+    '<path d="M144 0c-13.3 0-24 10.7-24 24l0 118.1L97 119c-9.4-9.4-24.6-9.4-33.9 0s-9.4 24.6 0 33.9l64 64c9.4 9.4 24.6 9.4 33.9 0l64-64c9.4-9.4 9.4-24.6 0-33.9s-24.6-9.4-33.9 0l-23 23L168 24c0-13.3-10.7-24-24-24zM360 200a40 40 0 1 0 -80 0 40 40 0 1 0 80 0zM184 296a40 40 0 1 0 -80 0 40 40 0 1 0 80 0zm312 40a40 40 0 1 0 0-80 40 40 0 1 0 0 80zM200 441.5l26.9 49.9c6.3 11.7 20.8 16 32.5 9.8s16-20.8 9.8-32.5l-36.3-67.5c1.7-1.7 3.2-3.6 4.3-5.8L264 345.5l0 54.5c0 17.7 14.3 32 32 32l48 0c17.7 0 32-14.3 32-32l0-54.5 26.9 49.9c1.2 2.2 2.6 4.1 4.3 5.8l-36.3 67.5c-6.3 11.7-1.9 26.2 9.8 32.5s26.2 1.9 32.5-9.8L440 441.5l0 38.5c0 17.7 14.3 32 32 32l48 0c17.7 0 32-14.3 32-32l0-38.5 26.9 49.9c6.3 11.7 20.8 16 32.5 9.8s16-20.8 9.8-32.5l-37.9-70.3c-15.3-28.5-45.1-46.3-77.5-46.3l-19.5 0c-16.3 0-31.9 4.5-45.4 12.6l-33.6-62.3c-15.3-28.5-45.1-46.3-77.5-46.3l-19.5 0c-32.4 0-62.1 17.8-77.5 46.3l-33.6 62.3c-13.5-8.1-29.1-12.6-45.4-12.6l-19.5 0c-32.4 0-62.1 17.8-77.5 46.3L18.9 468.6c-6.3 11.7-1.9 26.2 9.8 32.5s26.2 1.9 32.5-9.8L88 441.5 88 480c0 17.7 14.3 32 32 32l48 0c17.7 0 32-14.3 32-32l0-38.5zM415 153l64 64c9.4 9.4 24.6 9.4 33.9 0l64-64c9.4-9.4 9.4-24.6 0-33.9s-24.6-9.4-33.9 0l-23 23L520 24c0-13.3-10.7-24-24-24s-24 10.7-24 24l0 118.1-23-23c-9.4-9.4-24.6-9.4-33.9 0s-9.4 24.6 0 33.9z"/>',
+    "0 0 640 512",
+    'width="28" height="28"',
+  );
+
   const liaUsersSolid = svgIcon(
     '<path d="M 11.5 6 C 9.578125 6 8 7.578125 8 9.5 C 8 11.421875 9.578125 13 11.5 13 C 13.421875 13 15 11.421875 15 9.5 C 15 7.578125 13.421875 6 11.5 6 Z M 20.5 6 C 18.578125 6 17 7.578125 17 9.5 C 17 11.421875 18.578125 13 20.5 13 C 22.421875 13 24 11.421875 24 9.5 C 24 7.578125 22.421875 6 20.5 6 Z M 11.5 8 C 12.339844 8 13 8.660156 13 9.5 C 13 10.339844 12.339844 11 11.5 11 C 10.660156 11 10 10.339844 10 9.5 C 10 8.660156 10.660156 8 11.5 8 Z M 20.5 8 C 21.339844 8 22 8.660156 22 9.5 C 22 10.339844 21.339844 11 20.5 11 C 19.660156 11 19 10.339844 19 9.5 C 19 8.660156 19.660156 8 20.5 8 Z M 7 12 C 4.800781 12 3 13.800781 3 16 C 3 17.113281 3.476563 18.117188 4.21875 18.84375 C 2.886719 19.746094 2 21.28125 2 23 L 4 23 C 4 21.332031 5.332031 20 7 20 C 8.667969 20 10 21.332031 10 23 L 12 23 C 12 21.28125 11.113281 19.746094 9.78125 18.84375 C 10.523438 18.117188 11 17.113281 11 16 C 11 13.800781 9.199219 12 7 12 Z M 12 23 C 11.375 23.835938 11 24.886719 11 26 L 13 26 C 13 24.332031 14.332031 23 16 23 C 17.667969 23 19 24.332031 19 26 L 21 26 C 21 24.886719 20.625 23.835938 20 23 C 19.660156 22.546875 19.25 22.160156 18.78125 21.84375 C 19.523438 21.117188 20 20.113281 20 19 C 20 16.800781 18.199219 15 16 15 C 13.800781 15 12 16.800781 12 19 C 12 20.113281 12.476563 21.117188 13.21875 21.84375 C 12.75 22.160156 12.339844 22.546875 12 23 Z M 20 23 L 22 23 C 22 21.332031 23.332031 20 25 20 C 26.667969 20 28 21.332031 28 23 L 30 23 C 30 21.28125 29.113281 19.746094 27.78125 18.84375 C 28.523438 18.117188 29 17.113281 29 16 C 29 13.800781 27.199219 12 25 12 C 22.800781 12 21 13.800781 21 16 C 21 17.113281 21.476563 18.117188 22.21875 18.84375 C 20.886719 19.746094 20 21.28125 20 23 Z M 7 14 C 8.117188 14 9 14.882813 9 16 C 9 17.117188 8.117188 18 7 18 C 5.882813 18 5 17.117188 5 16 C 5 14.882813 5.882813 14 7 14 Z M 25 14 C 26.117188 14 27 14.882813 27 16 C 27 17.117188 26.117188 18 25 18 C 23.882813 18 23 17.117188 23 16 C 23 14.882813 23.882813 14 25 14 Z M 16 17 C 17.117188 17 18 17.882813 18 19 C 18 20.117188 17.117188 21 16 21 C 14.882813 21 14 20.117188 14 19 C 14 17.882813 14.882813 17 16 17 Z"/>',
     "0 0 32 32",
@@ -3052,11 +3054,11 @@ function reports() {
 
   const selectedRoom = state.dashboardRoomFilter || "semua";
   const f = state.reportFilter || {
-    mode: "bulanan",
-    startDate: awalBulan(),
-    endDate: akhirBulan(),
+    mode: "semua",
+    startDate: "",
+    endDate: "",
   };
-  const currentMode = f.mode || "bulanan";
+  const currentMode = f.mode || "semua";
 
   const filteredMeetings = getFilteredReportMeetings();
   const totalMeetings = filteredMeetings.length;
@@ -3107,6 +3109,8 @@ function reports() {
   if (currentMode === "harian") businessHours = 8 * activeRoomsCount;
   else if (currentMode === "bulanan")
     businessHours = 176 * activeRoomsCount; // ~22 hari kerja x 8 jam
+  else if (currentMode === "tahunan")
+    businessHours = 2080 * activeRoomsCount; // ~260 hari kerja x 8 jam
   else if (currentMode === "date" && f.startDate && f.endDate) {
     const d1 = new Date(f.startDate);
     const d2 = new Date(f.endDate);
@@ -3171,6 +3175,21 @@ function reports() {
         label: slot.label,
         sub: slot.sub,
         count: count,
+      };
+    });
+  } else if (currentMode === "tahunan") {
+    const year = new Date().getFullYear();
+    trendBarsData = Array.from({ length: 12 }, (_, monthIndex) => {
+      const month = String(monthIndex + 1).padStart(2, "0");
+      const count = filteredMeetings.filter((m) =>
+        (m.date || "").startsWith(`${year}-${month}-`),
+      ).length;
+      return {
+        label: new Date(year, monthIndex, 1).toLocaleDateString("id-ID", {
+          month: "short",
+        }),
+        sub: String(year),
+        count,
       };
     });
   } else {
@@ -3408,31 +3427,20 @@ function reports() {
           <p>Ringkasan statistik pemanfaatan dan rekapitulasi penggunaan ruang rapat mingguan dan bulanan.</p>
         </div>
         <div class="dash-actions">
-          ${getProfileHTML()}
+          
         </div>
       </div>
 
       <!-- Quick Filter Row -->
       <div class="rep-filters-row">
         <div class="rep-filters-left" style="flex-wrap: wrap;">
-          <div style="display:flex; background:#eef3f9; padding:3px; border-radius:10px; gap:4px;">
-            <button type="button" class="${currentMode === "mingguan" ? "btn-blue" : "btn-white"}" onclick="setReportPeriod('mingguan')" style="border:none; padding:7px 14px; border-radius:7px; font-size:12.5px;">
-              📆 Mingguan
-            </button>
-            <button type="button" class="${currentMode === "bulanan" ? "btn-blue" : "btn-white"}" onclick="setReportPeriod('bulanan')" style="border:none; padding:7px 14px; border-radius:7px; font-size:12.5px;">
-              🗓️ Bulanan
-            </button>
-            <button type="button" class="${currentMode === "harian" ? "btn-blue" : "btn-white"}" onclick="setReportPeriod('harian')" style="border:none; padding:7px 14px; border-radius:7px; font-size:12.5px;">
-              📅 Hari Ini
-            </button>
-            <button type="button" class="${currentMode === "semua" ? "btn-blue" : "btn-white"}" onclick="setReportPeriod('semua')" style="border:none; padding:7px 14px; border-radius:7px; font-size:12.5px;">
-              🌐 Semua
-            </button>
-          </div>
-
-          <button class="btn-white" type="button" onclick="openFilterModal()" style="display:flex; align-items:center; gap:6px;">
-            <span>⚙️</span> Filter Kustom
-          </button>
+          <select id="reportPeriodFilter" class="report-period-select" aria-label="Filter periode laporan" onchange="setReportPeriod(this.value)">
+            <option value="harian" ${currentMode === "harian" ? "selected" : ""}>Harian</option>
+            <option value="mingguan" ${currentMode === "mingguan" ? "selected" : ""}>Mingguan</option>
+            <option value="bulanan" ${currentMode === "bulanan" ? "selected" : ""}>Bulanan</option>
+            <option value="tahunan" ${currentMode === "tahunan" ? "selected" : ""}>Tahunan</option>
+            <option value="semua" ${currentMode === "semua" ? "selected" : ""}>Semua Periode</option>
+          </select>
 
           <select id="trafficRoom" onchange="onReportRoomChange(this.value)" style="min-width: 170px;">
             <option value="semua" ${selectedRoom === "semua" ? "selected" : ""}>Semua Ruangan</option>
@@ -3462,31 +3470,31 @@ function reports() {
       <!-- Stat Cards -->
       <div class="rep-cards">
         <div class="rep-card">
-          <div class="rc-icon blue1" style="background:#e0f2fe; color:#0284c7;">${liaUsersSolid}</div>
+          <div class="rc-icon blue1" style="background:#e0f2fe; color:#0284c7;">${faArrowsDownToPeople}</div>
           <div class="rc-text">
-            <strong>${totalMeetings} Rapat</strong>
-            <span>Total Rapat Dilaksanakan</span>
+            <strong>${totalMeetings}</strong>
+            <span>Total Rapat</span>
           </div>
         </div>
         <div class="rep-card">
           <div class="rc-icon blue1" style="background:#fef3c7; color:#b45309;">${faClock}</div>
           <div class="rc-text">
             <strong>${totalHours} Jam</strong>
-            <span>Total Durasi Pemakaian</span>
+            <span>Total Durasi</span>
           </div>
         </div>
         <div class="rep-card">
           <div class="rc-icon blue1" style="background:#dcfce7; color:#15803d;">${bsBuilding}</div>
           <div class="rc-text">
-            <strong>${occupancyPct}% Okupansi</strong>
-            <span>Tingkat Pemanfaatan Ruang</span>
+            <strong>${occupancyPct}%</strong>
+            <span>Okupansi Ruang</span>
           </div>
         </div>
         <div class="rep-card">
           <div class="rc-icon blue1" style="background:#f3e8ff; color:#7e22ce;">${faUsers}</div>
           <div class="rc-text">
-            <strong>${avgHours} Jam/Rapat</strong>
-            <span>Rata-rata Durasi Rapat</span>
+            <strong>${avgHours} Jam</strong>
+            <span>Rata-rata per Rapat</span>
           </div>
         </div>
       </div>
@@ -3500,7 +3508,7 @@ function reports() {
               <small style="color:#64748b; font-weight:500;">Distribusi rapat: <strong>${getActivePeriodLabel()}</strong></small>
             </div>
             <span style="font-size:11px; font-weight:700; color:#1769aa; background:#e0f2fe; padding:3px 8px; border-radius:6px;">
-              ${currentMode === "mingguan" ? "Harian (Minggu Ini)" : currentMode === "bulanan" ? "Mingguan (Bulan Ini)" : "Tren Periode"}
+              ${currentMode === "mingguan" ? "Harian (Minggu Ini)" : currentMode === "bulanan" ? "Mingguan (Bulan Ini)" : currentMode === "tahunan" ? "Bulanan (Tahun Ini)" : "Tren Periode"}
             </span>
           </div>
           <div class="mock-bar-chart" style="align-items:flex-end;">
@@ -3555,6 +3563,9 @@ function getActivePeriodLabel() {
     });
     return `Bulan Ini (${monthName})`;
   }
+  if (f.mode === "tahunan") {
+    return `Tahun ${new Date().getFullYear()}`;
+  }
   if (f.mode === "date" && f.startDate && f.endDate) {
     return `${formatDate(f.startDate)} – ${formatDate(f.endDate)}`;
   }
@@ -3567,9 +3578,9 @@ window.getActivePeriodLabel = getActivePeriodLabel;
 
 function openFilterModal() {
   const f = state.reportFilter || {
-    mode: "bulanan",
-    startDate: awalBulan(),
-    endDate: akhirBulan(),
+    mode: "semua",
+    startDate: "",
+    endDate: "",
   };
   const body = `
     <div style="display:flex; flex-direction:column; gap:12px; padding-top: 6px; font-family:'Poppins',sans-serif;">
@@ -3690,9 +3701,9 @@ window.applyDashboardFilter = applyDashboardFilter;
 function resetDashboardFilter() {
   state.dashboardRoomFilter = "semua";
   state.reportFilter = {
-    mode: "bulanan",
-    startDate: awalBulan(),
-    endDate: akhirBulan(),
+    mode: "semua",
+    startDate: "",
+    endDate: "",
   };
   render();
   toast("✓ Filter jadwal telah direset ke default.");
@@ -3812,7 +3823,7 @@ function settings() {
           <p>Kelola daftar role dan akses fitur aplikasi.</p>
         </div>
         <div class="settings-actions">
-          ${getProfileHTML()}
+          
         </div>
       </div>
 
