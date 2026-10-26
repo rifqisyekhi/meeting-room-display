@@ -2218,7 +2218,7 @@ export default function BookingPage() {
                 <div className="bk-review-modal-tag">⭐ RATING &amp; TESTIMONI</div>
                 <h3 className="bk-review-modal-title" id="booking-room-review-title">{selectedReviewRoom.name}</h3>
                 <p className="bk-review-modal-desc">
-                  Ulasan langsung dari pengguna dan balasan resmi dari pengelola ruangan
+                  Ulasan dan rating dari pengguna ruangan
                 </p>
               </div>
 
@@ -2227,7 +2227,7 @@ export default function BookingPage() {
                   <div className="bk-review-empty">
                     <span className="bk-review-empty-icon">💬</span>
                     <strong>Belum ada ulasan untuk ruangan ini</strong>
-                    <p>Ulasan dan balasan resmi dari pengelola ruangan akan muncul setelah rapat selesai digunakan.</p>
+                    <p>Ulasan dari pengguna akan muncul setelah rapat selesai digunakan.</p>
                   </div>
                 ) : (
                   roomReviews.map((item, idx) => {
@@ -2273,22 +2273,6 @@ export default function BookingPage() {
                           </div>
                         )}
 
-                        {/* Balasan dari Pengelola Ruangan */}
-                        {r.adminReply ? (
-                          <div className="bk-review-admin-reply">
-                            <div className="bk-admin-reply-head">
-                              <span className="bk-admin-reply-label"><FaRegBuilding aria-hidden="true" /> Balasan Pengelola Ruangan</span>
-                              <span className="bk-admin-reply-sender">{r.adminReply.sender || "Pengelola Ruang Rapat Kemnaker"}</span>
-                            </div>
-                            <p className="bk-admin-reply-body">
-                              "{r.adminReply.text}"
-                            </p>
-                          </div>
-                        ) : (
-                          <div className="bk-review-admin-reply-pending">
-                            <span><FaRegClock aria-hidden="true" /> Menunggu balasan dari pengelola ruangan</span>
-                          </div>
-                        )}
                       </div>
                     );
                   })
