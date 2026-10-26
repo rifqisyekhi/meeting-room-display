@@ -49,6 +49,12 @@ function auditKonfigurasi() {
     );
   }
 
+  if (!process.env.AI_SERVICE_TOKEN) {
+    masalah.push(
+      "AI_SERVICE_TOKEN belum diisi — service AI notulen (127.0.0.1:8000) bisa dipanggil proses lain di server tanpa token."
+    );
+  }
+
   if (!masalah.length) {
     console.log("[konfigurasi] Semua pemeriksaan keamanan dasar terpenuhi.");
     return;

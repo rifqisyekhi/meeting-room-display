@@ -156,3 +156,6 @@
       @media (max-width: 640px) {
         .users-page-wrapper .dash-cards-users { grid-template-columns: 1fr; padding: 0 16px 16px; }
       }
+      .users-page-wrapper .dc-icon-user { background: #e6f0fa !important; color: #1769aa !important; }
+      .users-page-wrapper .dc-icon-user svg { fill: #1769aa !important; color: #1769aa !important; }
+      .users-page-wrapper .dc-icon-user.orange svg path { fill: transparent !important; stroke: #1769aa !important; }

@@ -241,3 +241,5 @@
         .settings-header { padding: 20px 16px 18px; }
         .settings-stat-grid { grid-template-columns: 1fr; padding: 0 16px 16px; }
       }
+      .settings-stat-grid .s-icon-box { background: #e6f0fa !important; color: #1769aa !important; }
+      .settings-stat-grid .s-icon-box svg { fill: #1769aa !important; color: #1769aa !important; }

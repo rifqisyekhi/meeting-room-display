@@ -137,6 +137,24 @@
       .dash-cards .dc-text { flex: 1; min-width: 0; }
       .dash-cards .dc-text strong { font-size: 22px; line-height: 1.15; }
       .dash-cards .dc-text span { margin-top: 3px; font-size: 12px; line-height: 1.2; white-space: nowrap; }
+
+      /* Use the system blue palette for dashboard statistic icons. */
+      .dash-cards .dc-icon,
+      .rep-card-compact .rc-icon-compact { background: #e6f0fa !important; color: #1769aa !important; }
+      .dash-cards .dc-icon svg,
+      .rep-card-compact .rc-icon-compact svg { fill: #1769aa !important; color: #1769aa !important; }
+
+      /* Keep meeting data and status badges on one line; scroll the table sideways when needed. */
+      .meetings-page-wrapper #meetingTable { min-width: 0; }
+      .meetings-page-wrapper #meetingTable .table-wrap { width: 100%; overflow-x: auto; }
+      .meetings-page-wrapper #meetingTable .table { width: 100%; min-width: 1380px; table-layout: auto; }
+      .meetings-page-wrapper #meetingTable .table th,
+      .meetings-page-wrapper #meetingTable .table td { white-space: nowrap; }
+      .meetings-page-wrapper #meetingTable .table th:nth-child(7),
+      .meetings-page-wrapper #meetingTable .table td.meeting-status-cell { width: 170px; min-width: 170px; }
+      .meetings-page-wrapper #meetingTable .table td:last-child { min-width: 340px; }
+      .meetings-page-wrapper #meetingTable .meeting-status-stack { flex-direction: row; align-items: center; flex-wrap: nowrap; gap: 6px; }
+      .meetings-page-wrapper #meetingTable .actions { flex-wrap: nowrap; white-space: nowrap; gap: 6px; }
       
       .dash-table-container {
         flex: 1;

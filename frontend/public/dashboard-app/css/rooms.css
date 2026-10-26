@@ -655,3 +655,6 @@
         .rooms-header { padding: 20px 16px 18px; }
         .rooms-stat-grid { grid-template-columns: 1fr; padding: 0 16px 16px; }
       }
+      .rooms-stat-grid .r-icon-box,
+      .rooms-stat-grid .r-icon-box.plain { background: #e6f0fa !important; color: #1769aa !important; }
+      .rooms-stat-grid .r-icon-box svg { fill: #1769aa !important; }

@@ -413,13 +413,24 @@
       .rep-breadcrumb { font-size: 12px; margin-bottom: 4px; }
       .rep-header h1 { font-size: 28px; line-height: 1.15; margin: 0 0 4px; }
       .rep-header p { font-size: 14px; line-height: 1.4; margin: 0; }
-      .rep-cards { gap: 16px; padding: 0 40px 20px; }
-      .rep-cards .rep-card { height: 76px; min-height: 76px; box-sizing: border-box; padding: 14px 18px; gap: 14px; border: 1px solid #eef3f9; border-radius: 12px; box-shadow: 0 4px 18px rgba(12, 45, 94, 0.04); }
-      .rep-cards .rep-card .rc-icon { width: 44px; height: 44px; flex: 0 0 44px; border-radius: 12px; }
-      .rep-cards .rep-card .rc-text { min-width: 0; flex: 1; align-self: auto; display: flex; flex-direction: column; justify-content: center; align-items: flex-start; text-align: left; }
-      .rep-cards .rep-card .rc-text strong { display: block; min-height: 0; color: #0c2d5e; font-size: 22px; font-weight: 700; line-height: 1.15; letter-spacing: 0; text-align: left; white-space: nowrap; }
-      .rep-cards .rep-card .rc-text span { display: block; margin-top: 3px; color: #0c2d5e; font-size: 12px; font-weight: 600; line-height: 1.2; white-space: nowrap; }
+      .rep-cards { gap: 16px !important; padding: 0 40px 20px !important; }
+      .rep-cards .rep-card { height: 76px !important; min-height: 76px !important; box-sizing: border-box; padding: 14px 18px !important; gap: 14px !important; border: 1px solid #eef3f9 !important; border-radius: 12px !important; box-shadow: 0 4px 18px rgba(12, 45, 94, 0.04) !important; align-items: center !important; }
+      .rep-cards .rep-card .rc-icon { width: 44px !important; height: 44px !important; flex: 0 0 44px !important; border-radius: 12px !important; }
+      .rep-cards .rep-card .rc-icon svg { width: 22px; height: 22px; }
+      .rep-cards .rep-card .rc-text { width: auto !important; min-width: 0 !important; flex: 1 !important; align-self: auto !important; display: flex !important; flex-direction: column !important; justify-content: center !important; align-items: flex-start !important; text-align: left !important; }
+      .rep-cards .rep-card .rc-text strong { display: block !important; min-height: 0 !important; margin: 0 !important; color: #0c2d5e !important; font-size: 22px !important; font-weight: 700 !important; line-height: 1.15 !important; letter-spacing: 0 !important; text-align: left !important; white-space: nowrap !important; }
+      .rep-cards .rep-card .rc-text span { display: block !important; min-height: 0 !important; margin: 3px 0 0 !important; color: #0c2d5e !important; font-size: 12px !important; font-weight: 600 !important; line-height: 1.2 !important; text-align: left !important; white-space: nowrap !important; }
+      .rep-cards .rep-card .rc-icon { background: #e6f0fa !important; color: #1769aa !important; }
+      .rep-cards .rep-card .rc-icon svg { fill: #1769aa !important; color: #1769aa !important; }
       @media (max-width: 640px) {
         .rep-header { padding: 20px 16px 18px; }
         .rep-cards { padding: 0 16px 16px; }
+      }
+      .rep-charts { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) !important; }
+      @media (max-width: 1050px) {
+        .rep-charts { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+        .rep-charts > .rep-chart-card:first-child { grid-column: auto !important; }
+      }
+      @media (max-width: 640px) {
+        .rep-charts { grid-template-columns: 1fr !important; }
       }

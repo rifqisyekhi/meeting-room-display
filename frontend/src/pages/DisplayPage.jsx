@@ -201,7 +201,7 @@ function isEventFinished(event, nowMoment) {
   return false
 }
 
-function RoomPanel({ room, todayEvents, upcomingEvents, now }) {
+function RoomPanel({ room, todayEvents, upcomingEvents, now, merekam }) {
   // 1. Rapat yang SEDANG BERJALAN saat ini (belum selesai & waktu belum lewat & SUDAH DISETUJUI)
   const current = (todayEvents || []).find((event) => {
     if (isEventFinished(event, now)) return false
@@ -274,6 +274,8 @@ function RoomPanel({ room, todayEvents, upcomingEvents, now }) {
                   <h3>{current.agenda}</h3>
                   <p className="slot__pic">Dipimpin oleh: {current.bagian}</p>
                   <p className="slot__time"><ClockIcon className="icon" />{current.mulai} – {current.selesai} WIB</p>
+                  {/* Perekam otomatis notulen sedang aktif di ruangan ini (lihat /perekam). */}
+                  {merekam && <p className="slot__rec"><span className="slot__rec-dot" />Sedang direkam untuk notulen</p>}
                 </>
               )}
             </div>
@@ -389,6 +391,25 @@ function DisplayPage() {
   const [prayer, setPrayer] = useState(EMPTY_PRAYER)
   const [lastSync, setLastSync] = useState(null)
   const [failures, setFailures] = useState(0)
+  const [rekamRuang, setRekamRuang] = useState({})
+
+  /* Ruangan yang sedang direkam perekam otomatis. Gagal = anggap tidak ada,
+     papan tetap berjalan seperti biasa. */
+  useEffect(() => {
+    let batal = false
+    const load = async () => {
+      try {
+        const res = await fetch('/api/perekam/status-ruang')
+        const data = await res.json()
+        if (!batal && data?.success) setRekamRuang(data.ruang || {})
+      } catch {
+        if (!batal) setRekamRuang({})
+      }
+    }
+    load()
+    const id = window.setInterval(load, 15_000)
+    return () => { batal = true; window.clearInterval(id) }
+  }, [])
 
   useEffect(() => {
     const load = async () => {
@@ -624,6 +645,7 @@ function DisplayPage() {
             todayEvents={today[room.key]}
             upcomingEvents={upcoming[room.key]}
             now={now}
+            merekam={Object.entries(rekamRuang).some(([nama, aktif]) => aktif && nama.toLowerCase().replace(/\s+/g, '') === room.name.toLowerCase().replace(/\s+/g, ''))}
           />
         ))}
       </section>

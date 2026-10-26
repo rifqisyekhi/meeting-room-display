@@ -1791,7 +1791,7 @@ function dashboard() {
       <div class="rep-header">
         <div>
           <div class="rep-breadcrumb">${isAdmin ? "Dashboard · Administrator" : "Dashboard · Pimpinan"}</div>
-          <h1>${isAdmin ? "Dashboard Operasional" : "Dashboard"}</h1>
+          <h1>Dashboard</h1>
           <p>${isAdmin ? "Pusat komando operasional dan pemantauan ruang rapat real-time." : "Ringkasan statistik penggunaan rapat."}</p>
         </div>
         <div class="dash-actions">
@@ -1805,28 +1805,28 @@ function dashboard() {
           <!-- 4 Kartu Statistik Ringkas Admin (Full Width di Bawah Header) -->
           <div class="rep-cards-compact" style="padding: 0 40px 20px;">
             <div class="rep-card-compact" style="cursor:pointer;" onclick="location.hash='#meetings';" title="Buka Manajemen Rapat">
-              <div class="rc-icon-compact" style="background:#e0f2fe;color:#0284c7;">${liaUsersSolid}</div>
+              <div class="rc-icon-compact" style="background:#e6f0fa;color:#0c2d5e;">${liaUsersSolid}</div>
               <div class="rc-text-compact">
                 <strong>${stats.totalMeetings}</strong>
                 <span>Total Rapat</span>
               </div>
             </div>
             <div class="rep-card-compact" style="cursor:pointer;" onclick="location.hash='#calendar';" title="Buka Kalender Jadwal Rapat">
-              <div class="rc-icon-compact" style="background:#fef3c7;color:#b45309;">${faClock}</div>
+              <div class="rc-icon-compact" style="background:#e6f0fa;color:#0c2d5e;">${faClock}</div>
               <div class="rc-text-compact">
                 <strong>${stats.totalHours} Jam</strong>
                 <span>Total Durasi</span>
               </div>
             </div>
             <div class="rep-card-compact" style="cursor:pointer;" onclick="location.hash='#users';" title="Buka Manajemen Pengguna">
-              <div class="rc-icon-compact" style="background:#f3e8ff;color:#7e22ce;">${faUsers}</div>
+              <div class="rc-icon-compact" style="background:#e6f0fa;color:#0c2d5e;">${faUsers}</div>
               <div class="rc-text-compact">
                 <strong>${stats.totalUsers}</strong>
                 <span>Total Pengguna</span>
               </div>
             </div>
             <div class="rep-card-compact" style="cursor:pointer;" onclick="location.hash='#rooms';" title="Buka Manajemen Ruangan">
-              <div class="rc-icon-compact" style="background:#dcfce7;color:#15803d;">${bsBuilding}</div>
+              <div class="rc-icon-compact" style="background:#e6f0fa;color:#0c2d5e;">${bsBuilding}</div>
               <div class="rc-text-compact">
                 <strong>${stats.roomUtilization}%</strong>
                 <span>Pemanfaatan Ruangan</span>
@@ -2108,6 +2108,10 @@ function meetingTable(data, actions = true, allowDelete = true) {
               const safeMeetingId = String(m.id).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
               const attendeeCount = Array.isArray(m.attendees) ? m.attendees.length : 0;
               actionButtons += `<button type="button" style="background:#eaf3ff;color:#155a97;border:1px solid #c8def5;border-radius:9px;height:34px;padding:0 9px;display:inline-flex;align-items:center;gap:5px;cursor:pointer;margin-right:8px;font-size:10.5px;font-weight:700;white-space:nowrap;" title="Lihat hasil presensi dan export Excel" onclick="viewMeetingAttendance('${safeMeetingId}')">Daftar Hadir (${attendeeCount})</button>`;
+              // Notulen otomatis (rekam/unggah audio → transkrip → notulen), lihat js/notulen.js.
+              if (typeof openNotulen === "function") {
+                actionButtons += `<button type="button" style="background:#f3efff;color:#5b3fb0;border:1px solid #ddd2fb;border-radius:9px;height:34px;padding:0 9px;display:inline-flex;align-items:center;gap:5px;cursor:pointer;margin-right:8px;font-size:10.5px;font-weight:700;white-space:nowrap;" title="Rekam / unggah audio rapat dan buat notulen otomatis" onclick="openNotulen('${safeMeetingId}')">🎙 Notulen</button>`;
+              }
             }
 
             if (actions) {
@@ -2361,6 +2365,12 @@ function rooms() {
     'width="18" height="18" fill="#1769aa"',
   );
 
+  const faCircle = svgIcon(
+    '<path d="M256 8C119 8 8 119 8 256s111 248 248 248 248-111 248-248S393 8 256 8z"/>',
+    "0 0 512 512",
+    'width="20" height="20" fill="#ef4444"',
+  );
+
   // IoSearch
   const ioSearch = svgIcon(
     '<path d="M456.69 421.39 362.6 327.3a173.8 173.8 0 0 0 34.84-104.58C397.44 126.38 319.06 48 222.72 48S48 126.38 48 222.72s78.38 174.72 174.72 174.72A173.8 173.8 0 0 0 327.3 362.6l94.09 94.09a25 25 0 0 0 35.3-35.3M97.92 222.72a124.8 124.8 0 1 1 124.8 124.8 124.95 124.95 0 0 1-124.8-124.8"/>',
@@ -2400,7 +2410,7 @@ function rooms() {
           </div>
           <div class="r-info">
             <strong>${totalRooms}</strong>
-            <span>Total Ruangan</span>
+            <span>Total Ruang Rapat</span>
           </div>
         </div>
 
@@ -2410,17 +2420,17 @@ function rooms() {
           </div>
           <div class="r-info">
             <strong>${tersediaRooms}</strong>
-            <span>Tersedia</span>
+            <span>Siap Dibooking</span>
           </div>
         </div>
 
         <div class="r-card">
           <div class="r-icon-box circle-blue">
-            <div class="r-dot-red"></div>
+            ${faCircle}
           </div>
           <div class="r-info">
             <strong>${terpakaiRooms}</strong>
-            <span>Sedang Digunakan</span>
+            <span>Sedang Dipakai</span>
           </div>
         </div>
 
@@ -2430,7 +2440,7 @@ function rooms() {
           </div>
           <div class="r-info">
             <strong>${perbaikanRooms}</strong>
-            <span>Dalam Perbaikan</span>
+            <span>Perlu Perbaikan</span>
           </div>
         </div>
       </div>
@@ -3065,13 +3075,6 @@ function reports() {
 
   let totalMinutes = 0;
   let totalParticipants = 0;
-  const statusCounts = {
-    berjalan: 0,
-    selesai: 0,
-    menunggu: 0,
-    akandatang: 0,
-  };
-  const deptCounts = {};
 
   filteredMeetings.forEach((m) => {
     if (m.start && m.end) {
@@ -3085,17 +3088,6 @@ function reports() {
     const p = parseInt(m.participants, 10);
     if (!isNaN(p) && p > 0) totalParticipants += p;
 
-    const st = (m.status || "").toLowerCase();
-    if (st.includes("berjalan")) statusCounts.berjalan++;
-    else if (st.includes("selesai")) statusCounts.selesai++;
-    else if (st.includes("menunggu") || st.includes("pending"))
-      statusCounts.menunggu++;
-    else statusCounts.akandatang++;
-
-    const req = (m.requester || m.organizer || "Biro Keuangan / BMN").trim();
-    if (req) {
-      deptCounts[req] = (deptCounts[req] || 0) + 1;
-    }
   });
 
   const totalHours = (totalMinutes / 60).toFixed(1);
@@ -3277,45 +3269,6 @@ function reports() {
     `;
     })
     .join("");
-
-  // Status & Pemohon Teraktif
-  const sortedDepts = Object.entries(deptCounts)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 4);
-  const deptHTML =
-    sortedDepts.length > 0
-      ? sortedDepts
-          .map(
-            ([dept, count]) => `
-    <div style="display:flex; justify-content:space-between; align-items:center; padding: 7px 0; border-bottom: 1px dashed #eef2f6;">
-      <span style="font-size: 12px; color: #334155; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 170px;" title="${esc(dept)}">${esc(dept)}</span>
-      <span style="background: #e0f2fe; color: #0369a1; font-weight: 700; font-size: 11px; padding: 2px 8px; border-radius: 10px;">${count} Rapat</span>
-    </div>
-  `,
-          )
-          .join("")
-      : `<div style="font-size:12px; color:#94a3b8; text-align:center; padding:12px 0;">Belum ada data pemohon</div>`;
-
-  const statusSummaryHTML = `
-    <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;">
-      <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:8px 10px;">
-        <span style="font-size:10.5px; color:#15803d; font-weight:600; display:block;">Selesai</span>
-        <strong style="font-size:16px; color:#15803d;">${statusCounts.selesai}</strong>
-      </div>
-      <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:8px 10px;">
-        <span style="font-size:10.5px; color:#1d4ed8; font-weight:600; display:block;">Berjalan</span>
-        <strong style="font-size:16px; color:#1d4ed8;">${statusCounts.berjalan}</strong>
-      </div>
-      <div style="background:#fefce8; border:1px solid #fef08a; border-radius:8px; padding:8px 10px;">
-        <span style="font-size:10.5px; color:#854d0e; font-weight:600; display:block;">Akan Datang</span>
-        <strong style="font-size:16px; color:#854d0e;">${statusCounts.akandatang}</strong>
-      </div>
-      <div style="background:#fff7ed; border:1px solid #fed7aa; border-radius:8px; padding:8px 10px;">
-        <span style="font-size:10.5px; color:#c2410c; font-weight:600; display:block;">Menunggu Approval</span>
-        <strong style="font-size:16px; color:#c2410c;">${statusCounts.menunggu}</strong>
-      </div>
-    </div>
-  `;
 
   // Meeting Table HTML
   let customTableHTML = "";
@@ -3526,17 +3479,6 @@ function reports() {
           </div>
         </div>
 
-        <div class="rep-chart-card">
-          <div style="margin-bottom:14px;">
-            <h2 style="margin:0 0 2px;">Status & Unit Pemohon</h2>
-            <small style="color:#64748b; font-weight:500;">Rekap status & unit kerja teraktif</small>
-          </div>
-          ${statusSummaryHTML}
-          <strong style="font-size:12px; color:#0c2d5e; display:block; margin: 12px 0 6px;">Top Unit Pemesan:</strong>
-          <div style="display:flex; flex-direction:column;">
-            ${deptHTML}
-          </div>
-        </div>
       </div>
 
       ${customTableHTML}

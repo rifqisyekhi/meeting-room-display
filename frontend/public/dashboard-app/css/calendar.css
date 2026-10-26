@@ -193,3 +193,35 @@
   transform: translateY(-1px);
   box-shadow: 0 2px 8px rgba(12, 45, 94, 0.05);
 }
+
+/* Match the compact page header and cards used across the admin area. */
+.cal-header { padding: 24px 40px 18px; }
+.cal-breadcrumb { margin-bottom: 4px; }
+.cal-header h1 { line-height: 1.15; margin: 0 0 4px; }
+.cal-header p { line-height: 1.4; margin: 0; }
+.cal-body { gap: 16px; padding: 0 40px 28px; align-items: stretch; }
+.cal-card { min-width: 0; box-sizing: border-box; border: 1px solid #eef3f9; border-radius: 12px; padding: 24px; box-shadow: 0 4px 18px rgba(12,45,94,0.04); }
+.cal-card-header { margin-bottom: 16px; }
+.cal-card-header h2 { font-size: 18px; line-height: 1.25; }
+.cal-grid { gap: 8px; }
+.cal-head { padding: 4px 0; line-height: 1.2; }
+.cal-day { min-height: 48px; padding: 8px 4px; border: 1px solid transparent; }
+.cal-day:hover:not(.cal-selected) { transform: none; border-color: #dce8f5; }
+.cal-is-today:not(.cal-selected) { border: 1px solid #1769aa; }
+.cal-selected { transform: none; }
+.cal-schedule-header { margin-bottom: 14px; padding-bottom: 12px; }
+.cal-schedule-title { font-size: 16px; line-height: 1.3; }
+.cal-schedule-subtitle { font-size: 12px; line-height: 1.4; }
+.cal-schedule-empty { margin-top: 0; padding: 24px 14px; line-height: 1.5; }
+
+@media (max-width: 1024px) {
+  .cal-body { gap: 16px; }
+}
+
+@media (max-width: 640px) {
+  .cal-header { padding: 20px 16px 16px; }
+  .cal-body { padding: 0 16px 20px; }
+  .cal-card { padding: 16px; }
+  .cal-grid { gap: 5px; }
+  .cal-day { min-height: 42px; }
+}
