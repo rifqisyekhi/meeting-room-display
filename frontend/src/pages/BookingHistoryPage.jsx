@@ -21,6 +21,11 @@ const statusKey = (status = "") => {
   return "approved";
 };
 
+const timeToMinutes = (value = "") => {
+  const [hour, minute] = String(value).split(":").map(Number);
+  return Number.isFinite(hour) && Number.isFinite(minute) ? hour * 60 + minute : NaN;
+};
+
 const isExtensionWindowOpen = (meeting, now = new Date()) => {
   if (statusKey(meeting.status || meeting.approvalStatus) !== "approved" || !meeting.date) return false;
   const start = meeting.start || meeting.startTime;
@@ -110,6 +115,7 @@ export default function BookingHistoryPage() {
   const [extensionTarget, setExtensionTarget] = useState(null);
   const [extensionComplete, setExtensionComplete] = useState(null);
   const [reviewTarget, setReviewTarget] = useState(null);
+  const [reviewViewTarget, setReviewViewTarget] = useState(null);
   const [reviewRating, setReviewRating] = useState(0);
   const [reviewText, setReviewText] = useState("");
   const fromDateInput = useRef(null);
@@ -179,9 +185,22 @@ export default function BookingHistoryPage() {
           }
           return {
             ...meeting,
+            end: localMeeting?.extensionHistory?.length &&
+              timeToMinutes(localMeeting.end || localMeeting.endTime || "") > timeToMinutes(meeting.end || meeting.endTime || "")
+              ? (localMeeting.end || localMeeting.endTime)
+              : (meeting.end || meeting.endTime),
+            extensionHistory: meeting.extensionHistory?.length
+              ? meeting.extensionHistory
+              : (localMeeting?.extensionHistory || []),
             bookedBy: meeting.bookedBy || localMeeting?.bookedBy || "",
             bookedByUsername: meeting.bookedByUsername || localMeeting?.bookedByUsername || "",
-            review: meeting.review || localMeeting?.review || null,
+            review: meeting.review || localMeeting?.review
+              ? {
+                  ...(localMeeting?.review || {}),
+                  ...(meeting.review || {}),
+                  adminReply: meeting.review?.adminReply || localMeeting?.review?.adminReply || null,
+                }
+              : null,
             attendees: meeting.attendees || localMeeting?.attendees || [],
             createdAt: meeting.createdAt || localMeeting?.createdAt || null,
           };
@@ -395,9 +414,6 @@ export default function BookingHistoryPage() {
         { hours, requestedBy: currentUser.username || currentUser.name, requestedAt: new Date().toISOString() },
       ],
     };
-    const updatedMeetings = meetings.map((item) => String(item.id) === String(meeting.id) ? updatedMeeting : item);
-    localStorage.setItem("app_meetings", JSON.stringify(updatedMeetings));
-    setMeetings(updatedMeetings);
     setExtensionTarget(null);
     setNotice("");
     try {
@@ -406,11 +422,18 @@ export default function BookingHistoryPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(updatedMeeting),
       });
-      if (!response.ok) throw new Error("Gagal menyimpan perubahan booking.");
-      setExtensionComplete({ meeting: updatedMeeting, hours });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || result.success === false) {
+        throw new Error(result.error || "Gagal menyimpan perubahan booking.");
+      }
+      const savedMeeting = result.meeting || updatedMeeting;
+      const updatedMeetings = meetings.map((item) => String(item.id) === String(meeting.id) ? savedMeeting : item);
+      localStorage.setItem("app_meetings", JSON.stringify(updatedMeetings));
+      setMeetings(updatedMeetings);
+      setExtensionComplete({ meeting: savedMeeting, hours });
     } catch (error) {
       console.warn("Sinkronisasi tambah waktu:", error);
-      setNotice("Waktu diperbarui di halaman ini, tetapi gagal disinkronkan ke server.");
+      setNotice(error.message || "Waktu gagal disimpan. Silakan coba lagi.");
     }
   };
 
@@ -610,16 +633,17 @@ export default function BookingHistoryPage() {
                       <FaStar /> Beri Rating
                     </button>
                   )}
+                  {meeting.review && (
+                    <button type="button" className="booking-history-review-button booking-history-view-review-button"
+                      onClick={() => setReviewViewTarget(meeting)}>
+                      <FaStar /> Lihat Rating
+                    </button>
+                  )}
                 </div>
               </div>
-              {((Array.isArray(meeting.extensionHistory) && meeting.extensionHistory.length > 0) || meeting.review) && (
+              {Array.isArray(meeting.extensionHistory) && meeting.extensionHistory.length > 0 && (
                 <div className="booking-history-details">
-                  {Array.isArray(meeting.extensionHistory) && meeting.extensionHistory.length > 0 && (
-                    <span><strong>Tambahan waktu:</strong> {meeting.extensionHistory.map((item) => `+${item.hours} jam`).join(", ")}</span>
-                  )}
-                  {meeting.review && (
-                    <span><strong>Ulasan Anda:</strong> {"★".repeat(meeting.review.rating || 0)}{meeting.review.text ? ` — ${meeting.review.text}` : ""}</span>
-                  )}
+                  <span><strong>Tambahan waktu:</strong> {meeting.extensionHistory.map((item) => `+${item.hours} jam`).join(", ")}</span>
                 </div>
               )}
             </article>
@@ -692,6 +716,35 @@ export default function BookingHistoryPage() {
             <div className="booking-review-actions">
               <button type="button" onClick={() => setReviewTarget(null)}>Batal</button>
               <button type="button" disabled={!reviewRating} onClick={submitReview}>Kirim Ulasan</button>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {reviewViewTarget?.review && (
+        <div className="booking-history-modal-backdrop" onClick={() => setReviewViewTarget(null)}>
+          <section className="booking-history-modal booking-history-review-modal booking-history-view-review-modal" role="dialog" aria-modal="true" aria-labelledby="booking-review-view-title" onClick={(event) => event.stopPropagation()}>
+            <button type="button" className="booking-history-modal-close" onClick={() => setReviewViewTarget(null)} aria-label="Tutup">×</button>
+            <h2 id="booking-review-view-title">Rating &amp; Ulasan Anda</h2>
+            <p>{reviewViewTarget.room} · {formatDate(reviewViewTarget.date, { day: "2-digit", month: "long", year: "numeric" })}</p>
+            <span className="booking-review-rating-label">Rating ({reviewViewTarget.review.rating || 0}/5)</span>
+            <div className="booking-review-stars booking-review-stars-readonly" aria-label={`Rating ${reviewViewTarget.review.rating || 0} dari 5`}>
+              {[1, 2, 3, 4, 5].map((rating) => <FaStar key={rating} className={rating <= (Number(reviewViewTarget.review.rating) || 0) ? "selected" : ""} />)}
+            </div>
+            <span className="booking-review-text-label">Ulasan</span>
+            <div className="booking-review-readonly-text">{reviewViewTarget.review.text?.trim() || "Tidak ada komentar."}</div>
+            <div className={`booking-review-admin-reply ${reviewViewTarget.review.adminReply ? "has-reply" : "pending"}`}>
+              <strong>Balasan Pengelola Ruangan</strong>
+              {reviewViewTarget.review.adminReply?.text ? (
+                <>
+                  <span>{reviewViewTarget.review.adminReply.sender || "Pengelola Ruang Rapat Kemnaker"}</span>
+                  <p>{reviewViewTarget.review.adminReply.text}</p>
+                  {reviewViewTarget.review.adminReply.repliedAt && <small>Dibalas {formatStamp(reviewViewTarget.review.adminReply.repliedAt)}</small>}
+                </>
+              ) : <p>Belum ada balasan dari pengelola ruangan.</p>}
+            </div>
+            <div className="booking-review-actions booking-review-view-actions">
+              <button type="button" onClick={() => setReviewViewTarget(null)}>Tutup</button>
             </div>
           </section>
         </div>

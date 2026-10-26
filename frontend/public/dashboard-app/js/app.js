@@ -5408,27 +5408,7 @@ window.deleteMaterialFromMeeting = deleteMaterialFromMeeting;
 // ----------------------------------------------------------------------
 function getMeetingReview(m) {
   if (!m) return null;
-  if (m.review) return m.review;
-  const isFinished = (m.status || "").toLowerCase() === "selesai";
-  if (isFinished) {
-    const isKonsultasi = (m.room || "").toLowerCase().includes("konsultasi");
-    return {
-      rating: isKonsultasi ? 4.8 : 5.0,
-      cleanliness: 5,
-      facilities: isKonsultasi ? 4.8 : 5,
-      comfort: 5,
-      service: 5,
-      comment: isKonsultasi
-        ? "Ruangan sangat representatif dan kondusif untuk konsultasi. Smart TV dan koneksi berjalan sangat lancar. Suasana nyaman dan ber-AC dingin."
-        : "Ruangan bersih, tertata rapi, dan fasilitas Smart TV 85 inch serta sound system/mic berfungsi sempurna selama presentasi berlangsung.",
-      reviewer: m.requester || "User Pemesan",
-      submittedAt: m.date
-        ? `${m.date}T${m.end || "12:00"}:00.000Z`
-        : new Date().toISOString(),
-      tags: ["Fasilitas Lengkap", "Sangat Bersih", "AC Dingin", "Tepat Waktu"],
-    };
-  }
-  return null;
+  return m.review && typeof m.review === "object" ? m.review : null;
 }
 window.getMeetingReview = getMeetingReview;
 
@@ -5442,94 +5422,10 @@ function openMeetingReviewModal(id) {
   const isCompleted = (m.status || "").toLowerCase() === "selesai";
   const rev = getMeetingReview(m);
 
-  const renderStars = (rating = 5, size = 18) => {
-    let stars = "";
-    for (let i = 1; i <= 5; i++) {
-      const isFilled = i <= Math.round(rating);
-      stars += `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="${isFilled ? "#f59e0b" : "#e2e8f0"}" style="margin-right:2px;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
-    }
-    return stars;
-  };
-
   const contentHTML =
     isCompleted && rev
       ? `
     <div style="font-family:'Poppins',sans-serif;color:#0c2d5e;">
-      <!-- Header Ruangan & Rapat Info -->
-      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
-        <div>
-          <div style="font-size:12px;font-weight:700;color:#1769aa;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px;">📍 ${esc(m.room)}</div>
-          <div style="font-size:15px;font-weight:700;color:#0c2d5e;">${esc(m.title)}</div>
-          <div style="font-size:12.5px;color:#64748b;margin-top:2px;">
-            👤 Pemesan: <b>${esc(m.requester)}</b> · 📅 ${formatDate(m.date)} (${m.start} - ${m.end})
-          </div>
-        </div>
-        <div>
-          <span style="background:#ecfdf5;color:#059669;border:1px solid #a7f3d0;padding:5px 12px;border-radius:20px;font-size:12px;font-weight:700;display:inline-flex;align-items:center;gap:4px;">
-            ✓ Rapat Selesai Digunakan
-          </span>
-        </div>
-      </div>
-
-      <!-- Overall Rating Big Box -->
-      <div style="background:linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);border:1.5px solid #fde68a;border-radius:16px;padding:20px;display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;box-shadow:0 4px 14px rgba(245,158,11,0.08);flex-wrap:wrap;gap:16px;">
-        <div style="display:flex;align-items:center;gap:18px;">
-          <div style="font-size:46px;font-weight:800;color:#b45309;line-height:1;letter-spacing:-1px;">
-            ${rev.rating ? Number(rev.rating).toFixed(1) : "5.0"}
-          </div>
-          <div>
-            <div style="display:flex;align-items:center;margin-bottom:4px;">
-              ${renderStars(rev.rating || 5, 20)}
-            </div>
-            <div style="font-size:13.5px;font-weight:700;color:#92400e;">
-              ${(rev.rating || 5) >= 4.5 ? "Sangat Puas & Direkomendasikan" : "Puas"}
-            </div>
-            <div style="font-size:11.5px;color:#b45309;">
-              Berdasarkan evaluasi langsung dari pengguna setelah selesai rapat
-            </div>
-          </div>
-        </div>
-        <div style="text-align:right;">
-          <div style="font-size:11px;color:#92400e;font-weight:600;text-transform:uppercase;">Status Ulasan</div>
-          <div style="background:#ffffff;color:#b45309;border:1px solid #fde68a;font-weight:700;font-size:12px;padding:4px 12px;border-radius:20px;display:inline-block;margin-top:4px;">
-            ★ Terverifikasi
-          </div>
-        </div>
-      </div>
-
-      <!-- Kategori Penilaian Fasilitas Ruangan -->
-      <div style="margin-bottom:20px;">
-        <div style="font-size:13px;font-weight:700;color:#0c2d5e;margin-bottom:10px;text-transform:uppercase;letter-spacing:0.4px;">
-          Aspek Penilaian Ruangan
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-          <div style="background:#ffffff;border:1px solid #eef2f6;border-radius:10px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;">
-            <span style="font-size:12.5px;color:#334155;font-weight:500;">✨ Kebersihan & Kerapian</span>
-            <span style="font-size:12.5px;font-weight:700;color:#b45309;display:flex;align-items:center;gap:3px;">
-              ${renderStars(rev.cleanliness || 5, 13)} ${rev.cleanliness || 5}.0
-            </span>
-          </div>
-          <div style="background:#ffffff;border:1px solid #eef2f6;border-radius:10px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;">
-            <span style="font-size:12.5px;color:#334155;font-weight:500;">🖥️ Fungsi Fasilitas (TV, Mic, dll)</span>
-            <span style="font-size:12.5px;font-weight:700;color:#b45309;display:flex;align-items:center;gap:3px;">
-              ${renderStars(rev.facilities || 5, 13)} ${rev.facilities || 5}.0
-            </span>
-          </div>
-          <div style="background:#ffffff;border:1px solid #eef2f6;border-radius:10px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;">
-            <span style="font-size:12.5px;color:#334155;font-weight:500;">❄️ Kenyamanan & Suhu AC</span>
-            <span style="font-size:12.5px;font-weight:700;color:#b45309;display:flex;align-items:center;gap:3px;">
-              ${renderStars(rev.comfort || 5, 13)} ${rev.comfort || 5}.0
-            </span>
-          </div>
-          <div style="background:#ffffff;border:1px solid #eef2f6;border-radius:10px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;">
-            <span style="font-size:12.5px;color:#334155;font-weight:500;">⚡ Kesiapan Ruang & Layanan</span>
-            <span style="font-size:12.5px;font-weight:700;color:#b45309;display:flex;align-items:center;gap:3px;">
-              ${renderStars(rev.service || 5, 13)} ${rev.service || 5}.0
-            </span>
-          </div>
-        </div>
-      </div>
-
       <!-- Testimoni / Ulasan User -->
       <div style="margin-bottom:22px;">
         <div style="font-size:13px;font-weight:700;color:#0c2d5e;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.4px;">
@@ -5537,14 +5433,14 @@ function openMeetingReviewModal(id) {
         </div>
         <div style="background:#f8fafc;border-left:4px solid #f59e0b;border-top:1px solid #e2e8f0;border-right:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0;border-radius:0 12px 12px 0;padding:16px 18px;position:relative;">
           <div style="font-size:13.5px;line-height:1.6;color:#1e293b;font-style:italic;margin-bottom:12px;">
-            "${esc(rev.comment || "Ruangan dan seluruh fasilitas berfungsi dengan sangat baik dan memuaskan.")}"
+            "${esc(rev.comment || rev.text || "Pengguna tidak menambahkan komentar tertulis.")}"
           </div>
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;padding-top:10px;border-top:1px dashed #cbd5e1;">
             <div style="font-size:12px;color:#64748b;">
               👤 <b>${esc(rev.reviewer || m.requester)}</b> · 🕒 ${formatDate(rev.submittedAt || m.date)}
             </div>
             <div style="display:flex;gap:6px;flex-wrap:wrap;">
-              ${(rev.tags || ["Fasilitas Berfungsi Baik", "Sangat Bersih"])
+              ${(Array.isArray(rev.tags) ? rev.tags : [])
                 .map(
                   (t) => `
                 <span style="background:#eff6ff;color:#1d4ed8;font-size:11px;font-weight:600;padding:3px 9px;border-radius:12px;border:1px solid #dbeafe;">${esc(t)}</span>
@@ -5664,7 +5560,7 @@ function openReviewReplyModal(id) {
           Ulasan dari ${esc(rev.reviewer || m.requester)} (⭐ ${rev.rating ? Number(rev.rating).toFixed(1) : "5.0"})
         </div>
         <div style="font-size:13px;font-style:italic;color:#78350f;line-height:1.5;">
-          "${esc(rev.comment || "Ruangan dan fasilitas sangat memuaskan.")}"
+          "${esc(rev.comment || rev.text || "Pengguna tidak menambahkan komentar tertulis.")}"
         </div>
       </div>
 
@@ -5681,14 +5577,14 @@ function openReviewReplyModal(id) {
         </label>
         <textarea id="replyTextInput" rows="4" style="width:100%;padding:10px 14px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;color:#0c2d5e;box-sizing:border-box;outline:none;font-family:'Poppins',sans-serif;line-height:1.5;" placeholder="Tuliskan ucapan terima kasih atau tanggapan resmi dari pengelola...">${esc(currentReplyText)}</textarea>
         <small style="display:block;color:#64748b;font-size:11.5px;margin-top:4px;">
-          💡 Balasan ini akan dikirimkan ke Booking Page sehingga pengguna lain dan pemesan dapat membaca tanggapan resmi pengelola.
+          <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:4px;"><path d="M9 18h6M10 22h4M8.2 14.5a7 7 0 1 1 7.6 0c-.8.5-1.3 1.4-1.3 2.5h-5c0-1.1-.5-2-1.3-2.5Z"/></svg>Balasan ini akan dikirimkan ke Booking Page sehingga pengguna lain dan pemesan dapat membaca tanggapan resmi pengelola.
         </small>
       </div>
 
       <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px;padding-top:14px;border-top:1px solid #f1f5f9;">
         <button type="button" class="btn btn-light" onclick="openMeetingReviewModal('${m.id}')">Batal</button>
         <button type="button" class="btn btn-primary" onclick="submitReviewReply('${m.id}')" style="background:#0284c7;border-color:#0284c7;color:#fff;padding:8px 22px;font-weight:700;font-size:13px;border-radius:8px;display:inline-flex;align-items:center;gap:6px;">
-          🚀 Kirim Balasan ke Booking Page
+          <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:5px;"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>Kirim Balasan ke Booking Page
         </button>
       </div>
     </div>
@@ -5737,25 +5633,42 @@ async function submitReviewReply(id) {
     localStorage.setItem("app_meetings", JSON.stringify(state.meetings));
   } catch (e) {}
 
+  const updatedMeeting = state.meetings.find(
+    (x) => String(x.id) === String(id),
+  );
+  if (updatedMeeting) {
+    try {
+      const response = await fetch("/api/dashboard/meetings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updatedMeeting),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || result.success === false) {
+        throw new Error(result.error || "Balasan gagal disimpan ke server.");
+      }
+      if (result.meeting) {
+        state.meetings = state.meetings.map((item) =>
+          String(item.id) === String(id) ? result.meeting : item,
+        );
+        getAppStorage().setItem("app_meetings", JSON.stringify(state.meetings));
+        localStorage.setItem("app_meetings", JSON.stringify(state.meetings));
+      }
+    } catch (err) {
+      console.error("Gagal sync review reply ke backend:", err);
+      toast(`Balasan belum terkirim ke Booking Page: ${err.message}`);
+      render();
+      setTimeout(() => openMeetingReviewModal(id), 200);
+      return;
+    }
+  }
+
   window.dispatchEvent(new Event("app_meetings_updated"));
   try {
     if (window.parent && window.parent !== window) {
       window.parent.dispatchEvent(new Event("app_meetings_updated"));
     }
   } catch (e) {}
-
-  const updatedMeeting = state.meetings.find(
-    (x) => String(x.id) === String(id),
-  );
-  if (updatedMeeting) {
-    fetch("/api/dashboard/meetings", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(updatedMeeting),
-    }).catch((err) =>
-      console.error("Gagal sync review reply ke backend:", err),
-    );
-  }
 
   toast("Balasan review berhasil dikirimkan ke Booking Page!");
   render();

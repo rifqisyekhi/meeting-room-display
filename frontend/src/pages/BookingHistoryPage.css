@@ -658,6 +658,21 @@
 .booking-review-stars { display: flex; gap: 8px; margin-bottom: 14px; }
 .booking-review-stars button { padding: 0; border: 0; color: #d7dee7; background: transparent; font-size: 29px; cursor: pointer; }
 .booking-review-stars button .selected { color: #25bcae; }
+.booking-review-stars-readonly { gap: 8px; margin: 0 0 14px; color: #d7dee7; font-size: 25px; }
+.booking-review-stars-readonly .selected { color: #e7a719; }
+.booking-review-readonly-text { min-height: 90px; padding: 12px; border: 1px solid #d8dee7; border-radius: 9px; color: #405d7e; background: #f8fafc; font-size: 12px; line-height: 1.6; white-space: pre-wrap; }
+.booking-review-admin-reply { margin-top: 14px; padding: 12px; border-radius: 9px; font-size: 12px; line-height: 1.6; }
+.booking-review-admin-reply.has-reply { border: 1px solid #bae6fd; color: #26445f; background: #f0f9ff; }
+.booking-review-admin-reply.pending { border: 1px dashed #cbd5e1; color: #718096; background: #f8fafc; }
+.booking-review-admin-reply > strong,
+.booking-review-admin-reply > span { display: block; }
+.booking-review-admin-reply > strong { color: #123760; }
+.booking-review-admin-reply > span { margin-top: 3px; color: #64748b; font-size: 11px; }
+.booking-review-admin-reply > p { margin: 6px 0 0; color: inherit; white-space: pre-wrap; }
+.booking-review-admin-reply > small { display: block; margin-top: 5px; color: #718096; }
+.booking-review-view-actions { justify-content: flex-end; }
+.booking-history-view-review-button { background: #fff8e6; }
+.booking-history-view-review-button:hover { background: #fff0c2; }
 .booking-review-text-label { margin-top: 0; }
 .booking-history-review-modal textarea { width: 100%; min-height: 150px; box-sizing: border-box; resize: vertical; padding: 12px; border: 1px solid #a879e8; border-radius: 9px; color: #27364a; background: #fff; font: 400 12px "Poppins", sans-serif; outline: none; }
 .booking-history-review-modal textarea:focus { box-shadow: 0 0 0 3px rgba(130, 82, 209, .15); }
