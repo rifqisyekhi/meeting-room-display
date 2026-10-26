@@ -182,6 +182,30 @@ flowchart TD
 ### Tabel 6: `notifications` (Notifikasi Sistem)
 * `id` (VARCHAR 100 PRIMARY KEY), `meeting_id`, `type`, `title`, `message`, `status`, `read_by` (JSONB)
 
+### Tabel 7: `meeting_audio_files` (Audio Rapat untuk Notulen Otomatis)
+* `id` (VARCHAR 100 PRIMARY KEY), `meeting_id` (VARCHAR 100 NOT NULL)
+* `kind` – 'rekaman' (direkam di browser, potongan berurutan) / 'unggahan'
+* `original_name`, `file_name` (path relatif terhadap `NOTULEN_STORAGE_DIR`), `mime_type`
+* `size_bytes` (BIGINT), `chunk_count` (INT) – nomor urut potongan berikutnya untuk rekaman
+* `status` – 'merekam' / 'siap', `created_by`, `created_at`, `updated_at`
+
+### Tabel 8: `meeting_minutes` (Transkrip & Notulen Otomatis, satu baris per rapat)
+* `meeting_id` (VARCHAR 100 PRIMARY KEY)
+* `status` – 'DRAFT' → 'PROCESSING' → 'DONE' / 'FAILED'
+* `job_id`, `job_type` ('transcribe' / 'summarize'), `stage`, `stage_label`, `progress`, `stage_progress`, `eta_seconds`, `queue_position` – status job di service AI
+* `error`, `minutes_error`, `warnings` (JSONB)
+* `transcript` (JSONB) – Array of `{ start, end, speaker, text }`; `speakers` (JSONB) – `{ "SPEAKER_1": "Pak Budi" }`
+* `minutes_md` (TEXT) – notulen Markdown; `minutes_reviewed` (BOOLEAN) – FALSE = draf AI yang wajib ditinjau notulis
+* `minutes_edited_by`, `minutes_edited_at`, `whisper_model`, `llm_model`, `diarization`, `duration_seconds`, `started_by`, `started_at`, `finished_at`
+
+### Tabel 9: `room_recorders` (Perekam Otomatis per Ruangan)
+* `id` (VARCHAR 100 PRIMARY KEY), `room_name`, `label`
+* `token_hash` / `pair_code_hash` – hanya hash SHA-256 (token perangkat & kode pemasangan sekali pakai), `pair_expires_at`, `paired_at`, `revoked_at`
+* `last_seen_at`, `last_status` (JSONB: state, micLabel, error, pending), `created_by`, `created_at`, `updated_at`
+* Kolom tambahan: `meeting_audio_files.recorder_id` (rekaman dari perangkat mana), `meeting_minutes.auto_processed_at` (sudah diproses otomatis), `meeting_minutes.transcript_job_id` (job yang transkripnya sudah ditampilkan lebih dulu saat notulen masih disusun), `meeting_minutes.classification` (`RAHASIA` bawaan = hanya model lokal; `BIASA` = notulen boleh disusun Claude/cloud) + `classification_by` / `classification_at`
+
+> Audio rapat bersifat **rahasia** dan diproses 100% lokal oleh `ai-service/` (Whisper + Ollama). Fitur ini khusus Admin dan butuh PostgreSQL. Rincian: `docs/NOTULEN_OTOMATIS.md`.
+
 ---
 
 ## 6. HUKUM MUTLAK & ATURAN PENGEMBANGAN (COMMANDMENTS)

@@ -177,6 +177,84 @@ async function initDatabase() {
         );
       `);
 
+      // 6. Notulen otomatis: file audio per rapat (rekaman browser / unggahan)
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS meeting_audio_files (
+          id VARCHAR(100) PRIMARY KEY,
+          meeting_id VARCHAR(100) NOT NULL,
+          kind VARCHAR(20) NOT NULL DEFAULT 'unggahan',
+          original_name VARCHAR(255),
+          file_name VARCHAR(255) NOT NULL,
+          mime_type VARCHAR(100),
+          size_bytes BIGINT NOT NULL DEFAULT 0,
+          chunk_count INT NOT NULL DEFAULT 0,
+          status VARCHAR(20) NOT NULL DEFAULT 'siap',
+          created_by VARCHAR(150),
+          created_at TIMESTAMPTZ DEFAULT NOW(),
+          updated_at TIMESTAMPTZ DEFAULT NOW()
+        );
+        CREATE INDEX IF NOT EXISTS idx_meeting_audio_meeting ON meeting_audio_files (meeting_id, created_at);
+      `);
+
+      // 7. Notulen otomatis: status pemrosesan, transkrip, dan notulen per rapat
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS meeting_minutes (
+          meeting_id VARCHAR(100) PRIMARY KEY,
+          status VARCHAR(20) NOT NULL DEFAULT 'DRAFT',
+          job_id VARCHAR(64),
+          job_type VARCHAR(20),
+          stage VARCHAR(40),
+          stage_label VARCHAR(80),
+          progress REAL NOT NULL DEFAULT 0,
+          stage_progress REAL NOT NULL DEFAULT 0,
+          eta_seconds REAL,
+          queue_position INT,
+          error TEXT,
+          minutes_error TEXT,
+          warnings JSONB NOT NULL DEFAULT '[]'::jsonb,
+          transcript JSONB,
+          speakers JSONB NOT NULL DEFAULT '{}'::jsonb,
+          duration_seconds REAL,
+          minutes_md TEXT,
+          minutes_reviewed BOOLEAN NOT NULL DEFAULT FALSE,
+          minutes_edited_by VARCHAR(150),
+          minutes_edited_at TIMESTAMPTZ,
+          whisper_model VARCHAR(100),
+          llm_model VARCHAR(100),
+          diarization BOOLEAN NOT NULL DEFAULT FALSE,
+          started_by VARCHAR(150),
+          started_at TIMESTAMPTZ,
+          finished_at TIMESTAMPTZ,
+          created_at TIMESTAMPTZ DEFAULT NOW(),
+          updated_at TIMESTAMPTZ DEFAULT NOW()
+        );
+      `);
+
+      // 8. Perekam otomatis per ruangan (PC/mini PC dengan mic yang membuka halaman /perekam)
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS room_recorders (
+          id VARCHAR(100) PRIMARY KEY,
+          room_name VARCHAR(150) NOT NULL,
+          label VARCHAR(150),
+          token_hash VARCHAR(128),
+          pair_code_hash VARCHAR(128),
+          pair_expires_at TIMESTAMPTZ,
+          paired_at TIMESTAMPTZ,
+          revoked_at TIMESTAMPTZ,
+          last_seen_at TIMESTAMPTZ,
+          last_status JSONB NOT NULL DEFAULT '{}'::jsonb,
+          created_by VARCHAR(150),
+          created_at TIMESTAMPTZ DEFAULT NOW(),
+          updated_at TIMESTAMPTZ DEFAULT NOW()
+        );
+        ALTER TABLE meeting_audio_files ADD COLUMN IF NOT EXISTS recorder_id VARCHAR(100);
+        ALTER TABLE meeting_minutes ADD COLUMN IF NOT EXISTS auto_processed_at TIMESTAMPTZ;
+        ALTER TABLE meeting_minutes ADD COLUMN IF NOT EXISTS transcript_job_id VARCHAR(64);
+        ALTER TABLE meeting_minutes ADD COLUMN IF NOT EXISTS classification VARCHAR(20) NOT NULL DEFAULT 'RAHASIA';
+        ALTER TABLE meeting_minutes ADD COLUMN IF NOT EXISTS classification_by VARCHAR(150);
+        ALTER TABLE meeting_minutes ADD COLUMN IF NOT EXISTS classification_at TIMESTAMPTZ;
+      `);
+
       // Pastikan akun master awal tersedia jika tabel pengguna kosong
       const userCountRes = await client.query("SELECT COUNT(*)::int AS count FROM users");
       if (userCountRes.rows[0]?.count === 0) {

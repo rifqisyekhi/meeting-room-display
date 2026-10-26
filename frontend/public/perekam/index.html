@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex">
+  <title>Perekam Ruang Rapat</title>
+  <link rel="icon" type="image/png" href="/assets/logo-kemnaker.png">
+  <style>
+    :root { --navy: #0c2d5e; --blue: #155a97; --red: #dc2626; --green: #16a34a; --muted: #6b7f99; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; font-family: "Segoe UI", system-ui, sans-serif; background: #f2f6fb; color: #1f2f46; display: flex; align-items: center; justify-content: center; }
+    main { width: min(720px, 94vw); background: #fff; border: 1px solid #dfe8f3; border-radius: 18px; padding: 28px 30px; box-shadow: 0 10px 30px rgba(12, 45, 94, .08); }
+    h1 { margin: 0 0 4px; font-size: 22px; color: var(--navy); }
+    .sub { color: var(--muted); font-size: 14px; margin: 0 0 20px; }
+    .state { border-radius: 14px; padding: 22px; margin: 14px 0; text-align: center; background: #eef3f9; }
+    .state b { display: block; font-size: 26px; margin-bottom: 6px; }
+    .state.rec { background: #fef2f2; color: #991b1b; }
+    .state.err { background: #fffbeb; color: #92400e; }
+    .state.ok { background: #ecfdf3; color: #166534; }
+    .dot { display: inline-block; width: 16px; height: 16px; border-radius: 50%; background: var(--red); margin-right: 8px; animation: blink 1s infinite; vertical-align: -1px; }
+    @keyframes blink { 50% { opacity: .2; } }
+    .meter { height: 12px; background: #e5edf6; border-radius: 8px; overflow: hidden; margin: 8px 0 2px; }
+    .meter div { height: 100%; width: 0; background: var(--green); transition: width .08s linear; }
+    .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 10px 0; }
+    label { font-size: 13px; color: var(--muted); }
+    select, input { font: inherit; padding: 9px 11px; border: 1px solid #cfdbe9; border-radius: 10px; min-width: 0; }
+    select { flex: 1; }
+    input.kode { font-size: 26px; letter-spacing: 6px; text-transform: uppercase; text-align: center; width: 100%; font-family: Consolas, monospace; }
+    button { font: inherit; font-weight: 600; border: 0; border-radius: 10px; padding: 10px 16px; cursor: pointer; background: var(--blue); color: #fff; }
+    button.light { background: #eef3f9; color: var(--navy); }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    dl { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; font-size: 13px; margin: 16px 0 0; }
+    dt { color: var(--muted); }
+    dd { margin: 0; }
+    .note { font-size: 12.5px; color: var(--muted); line-height: 1.55; }
+    .err-text { color: #b91c1c; }
+    .hidden { display: none; }
+    button.danger { background: var(--red); }
+    .dlg { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 16px; background: rgba(12, 45, 94, .38); }
+    .dlg-box { width: min(420px, 100%); background: #fff; border-radius: 18px; border-top: 4px solid var(--blue); padding: 22px 24px 18px; box-shadow: 0 24px 60px rgba(12, 45, 94, .22); }
+    .dlg-box.bahaya { border-top-color: var(--red); }
+    .dlg-box h3 { display: flex; align-items: center; gap: 12px; margin: 0 0 10px; font-size: 17px; color: var(--navy); }
+    .dlg-ikon { width: 36px; height: 36px; border-radius: 12px; display: grid; place-items: center; background: #e0edfa; color: var(--blue); font-weight: 800; flex-shrink: 0; }
+    .dlg-box.bahaya .dlg-ikon { background: #fee2e2; color: var(--red); }
+    .dlg-box p { margin: 0; font-size: 14px; line-height: 1.6; color: #334155; }
+    .dlg-aksi { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Perekam Ruang Rapat</h1>
+    <p class="sub" id="sub">Notulen otomatis · audio diproses di server instansi, tidak dikirim ke layanan cloud</p>
+
+    <!-- Belum dipasangkan -->
+    <section id="pasang" class="hidden">
+      <p>Masukkan <b>kode pemasangan</b> dari Admin (Dashboard → Manajemen Rapat → 🎙 Notulen → Perekam ruangan).</p>
+      <input id="kode" class="kode" maxlength="9" autocomplete="off" placeholder="XXXXXXXX">
+      <div class="row"><button id="btnPasang">Pasangkan perangkat ini</button></div>
+      <p id="pasangErr" class="err-text"></p>
+    </section>
+
+    <!-- Sudah dipasangkan -->
+    <section id="utama" class="hidden">
+      <div id="state" class="state"><b>Memulai…</b><span></span></div>
+
+      <label for="mic">Mikrofon (pilih mic Logitech/mic ruang rapat)</label>
+      <div class="row">
+        <select id="mic"><option value="">Mikrofon bawaan</option></select>
+        <button class="light" id="btnMic">Izinkan / muat ulang mic</button>
+      </div>
+      <div class="meter"><div id="level"></div></div>
+      <p class="note" id="levelNote">Level suara mikrofon.</p>
+
+      <dl>
+        <dt>Ruangan</dt><dd id="iRuang">-</dd>
+        <dt>Perangkat</dt><dd id="iLabel">-</dd>
+        <dt>Rapat</dt><dd id="iRapat">-</dd>
+        <dt>Potongan belum terkirim</dt><dd id="iPending">0</dd>
+        <dt>Terhubung ke server</dt><dd id="iDetak">-</dd>
+      </dl>
+
+      <p class="note">Biarkan halaman ini tetap terbuka. Perekaman dimulai otomatis saat rapat di ruangan ini berjalan
+        dan berhenti saat rapat selesai, lalu notulen dibuat otomatis. Selama merekam, layar TV menampilkan
+        "SEDANG DIREKAM".</p>
+      <div class="row"><button class="light" id="btnLepas">Lepas pemasangan perangkat ini</button></div>
+    </section>
+  </main>
+  <script src="/perekam/perekam.js?v=20261023_v2"></script>
+</body>
+</html>
