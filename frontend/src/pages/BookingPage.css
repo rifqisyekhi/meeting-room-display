@@ -10,6 +10,7 @@ body:has(.bk-container) {
   overflow: hidden !important;
   margin: 0;
   padding: 0;
+  background: #fff !important;
 }
 
 body.booking-fitscreen-active #root,
@@ -19,6 +20,7 @@ body:has(.bk-container) #root {
   overflow: hidden !important;
   display: flex;
   flex-direction: column;
+  background: #fff;
 }
 
 .bk-container {
@@ -27,7 +29,7 @@ body:has(.bk-container) #root {
   height: 100dvh;
   max-height: 100vh;
   max-height: 100dvh;
-  background-color: #f8fafc;
+  background-color: #fff;
   display: flex;
   flex-direction: column;
   overflow: hidden !important;
@@ -39,11 +41,8 @@ body:has(.bk-container) #root {
    HEADER (COMPACT)
 ──────────────────────────────────────────── */
 .bk-header {
-  background-color: #0a2d5e;
-  background-image:
-    radial-gradient(circle at 70% 30%, #1769aa 0%, transparent 40%),
-    radial-gradient(circle at 90% 70%, #1e88e5 0%, transparent 50%),
-    radial-gradient(circle at 30% 80%, #0d47a1 0%, transparent 60%);
+  background-color: #0c2d5e;
+  background-image: linear-gradient(110deg, #0c2d5e 0%, #12477c 100%);
   color: white;
   padding: 0;
   position: relative;
