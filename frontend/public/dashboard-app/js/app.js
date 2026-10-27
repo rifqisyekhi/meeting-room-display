@@ -2605,7 +2605,7 @@ function userTable(data) {
 
   const mainAdmin = isMainAdmin();
 
-  return `<div class="table-wrap"><table class="table"><thead><tr><th>No</th><th>Nama & Akun</th><th>Email</th><th>Jabatan/Unit</th><th>Role</th><th>Status</th><th>Aksi</th></tr></thead><tbody>${data
+  return `<div class="table-wrap"><table class="table"><colgroup><col class="user-col-number"><col class="user-col-account"><col class="user-col-email"><col class="user-col-department"><col class="user-col-role"><col class="user-col-status"><col class="user-col-actions"></colgroup><thead><tr><th>No</th><th>Nama & Akun</th><th>Email</th><th>Jabatan/Unit</th><th>Role</th><th>Status</th><th>Aksi</th></tr></thead><tbody>${data
     .map((u, i) => {
       const roleName = getRoleLabel(u.role);
       let roleColor = "#f1f5f9";
@@ -3022,6 +3022,11 @@ function onReportRoomChange(room) {
 window.onReportRoomChange = onReportRoomChange;
 
 function reports() {
+  const faClockRotateLeft = svgIcon(
+    '<path d="M13 3a9 9 0 0 0-9 9H1l4 4 4-4H6a7 7 0 1 1 2.05 4.95l-1.42 1.42A9 9 0 1 0 13 3zm-1 5v5l4.25 2.52.77-1.28-3.52-2.09V8z"/>',
+    "0 0 24 24",
+    'width="24" height="24"',
+  );
   const currentUser = getCurrentUser();
   const isAdmin = isAdminRole(currentUser);
 
@@ -3071,6 +3076,16 @@ function reports() {
   const currentMode = f.mode || "semua";
 
   const filteredMeetings = getFilteredReportMeetings();
+  const datedMeetings = filteredMeetings.map((meeting) => meeting.date).filter(Boolean).sort();
+  const reportDateRangeLabel = currentMode === "semua"
+    ? datedMeetings.length
+      ? `${formatDate(datedMeetings[0])} – ${formatDate(datedMeetings[datedMeetings.length - 1])}`
+      : "Belum ada tanggal rapat"
+    : f.startDate && f.endDate
+      ? f.startDate === f.endDate
+        ? formatDate(f.startDate)
+        : `${formatDate(f.startDate)} – ${formatDate(f.endDate)}`
+      : "Tanggal periode";
   const totalMeetings = filteredMeetings.length;
 
   let totalMinutes = 0;
@@ -3293,8 +3308,8 @@ function reports() {
             Total: ${filteredMeetings.length} Rapat
           </span>
         </div>
-        <div style="overflow-x: auto;">
-          <table>
+        <div class="rep-list-table-wrap">
+          <table class="rep-list-table">
             <thead>
               <tr>
                 <th style="width: 40px;">No</th>
@@ -3354,7 +3369,7 @@ function reports() {
                     </td>
                     <td>${esc(m.requester || m.organizer || "-")}</td>
                     <td><span style="font-weight:600; color:#1769aa;">${esc(m.room)}</span></td>
-                    <td>${formatDate(m.date)}</td>
+                    <td class="rep-list-date">${m.date ? formatDate(m.date) : "-"}</td>
                     <td style="font-weight:600;">${m.start} – ${m.end}</td>
                     <td>${durasiStr}</td>
                     <td>${m.participants ? `${m.participants} org` : "-"}</td>
@@ -3399,6 +3414,10 @@ function reports() {
             <option value="semua" ${selectedRoom === "semua" ? "selected" : ""}>Semua Ruangan</option>
             ${state.rooms.map((r) => `<option value="${esc(r.name)}" ${selectedRoom === r.name ? "selected" : ""}>${esc(r.name)}</option>`).join("")}
           </select>
+          <span class="rep-date-range" aria-label="Rentang tanggal laporan">
+            <span class="rep-date-range-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="5" width="17" height="16" rx="2"/><path d="M7.5 3v4M16.5 3v4M3.5 9.5h17"/></svg></span>
+            <span>${reportDateRangeLabel}</span>
+          </span>
         </div>
 
         <div class="rep-export-wrapper" style="position: relative; display: inline-block;">
@@ -3444,7 +3463,7 @@ function reports() {
           </div>
         </div>
         <div class="rep-card">
-          <div class="rc-icon blue1" style="background:#f3e8ff; color:#7e22ce;">${faUsers}</div>
+          <div class="rc-icon blue1" style="background:#f3e8ff; color:#7e22ce;">${faClockRotateLeft}</div>
           <div class="rc-text">
             <strong>${avgHours} Jam</strong>
             <span>Rata-rata per Rapat</span>
