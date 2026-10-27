@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import importlib.util
 import logging
+import shutil
+import ssl
 import tarfile
 import urllib.request
 from collections.abc import Callable
@@ -29,10 +31,27 @@ def diarization_installed() -> bool:
         return False
 
 
+def _ssl_context() -> ssl.SSLContext:
+    """Sertifikat sistem + bundel certifi. Di Windows, Python hanya membaca root CA yang sudah
+    ada di penyimpanan lokal (Windows melengkapinya belakangan), sehingga unduhan dari GitHub
+    bisa gagal "unable to get issuer certificate". Sertifikat sistem tetap dipakai agar proxy
+    HTTPS kantor (CA internal) juga dipercaya."""
+    ctx = ssl.create_default_context()
+    try:
+        import certifi  # ikut terpasang bersama httpx
+
+        ctx.load_verify_locations(certifi.where())
+    except (ImportError, OSError):
+        pass
+    return ctx
+
+
 def _download(url: str, dest: Path) -> None:
     log.info("Mengunduh %s", url)
     tmp = dest.with_suffix(dest.suffix + ".part")
-    urllib.request.urlretrieve(url, tmp)
+    opener = urllib.request.build_opener(urllib.request.HTTPSHandler(context=_ssl_context()))
+    with opener.open(url, timeout=120) as r, open(tmp, "wb") as f:
+        shutil.copyfileobj(r, f)
     tmp.replace(dest)
 
 
