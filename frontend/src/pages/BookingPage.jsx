@@ -1,3 +1,4 @@
+import { useLockScroll } from "../utils/scrollLock";
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { CiClock2 } from "react-icons/ci";
@@ -157,6 +158,7 @@ export default function BookingPage() {
       document.body.classList.remove("booking-fitscreen-active");
     };
   }, []);
+
   const [selectedCategory, setSelectedCategory] = useState("Semua");
   const [selectedRoom, setSelectedRoom] = useState(() => {
     if (!suggestedBooking?.room) return null;
@@ -323,6 +325,15 @@ export default function BookingPage() {
   const [selectedReviewRoom, setSelectedReviewRoom] = useState(null);
   const [selectedRoomDetail, setSelectedRoomDetail] = useState(null);
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
+
+  const hasActiveBookingModal = Boolean(
+    showSuccessModal ||
+    selectedFacilityRoom ||
+    selectedReviewRoom ||
+    selectedRoomDetail
+  );
+
+  useLockScroll(hasActiveBookingModal);
 
   const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" && window.innerWidth < 768);
 

@@ -1,3 +1,4 @@
+import { lockScroll, unlockScroll } from "./scrollLock";
 const ICONS = {
   info: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5m0-8h.01"/></svg>',
   warning: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.3 4.3 2.8 17.2A2 2 0 0 0 4.5 20h15a2 2 0 0 0 1.7-2.8L13.7 4.3a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4m0 3h.01"/></svg>',
@@ -6,6 +7,7 @@ let closeActiveDialog = null;
 
 function createDialog({ title, message, confirmLabel, cancelLabel, destructive = false, onConfirm, onCancel }) {
   closeActiveDialog?.(false);
+  lockScroll();
   const previouslyFocused = document.activeElement;
 
   const overlay = document.createElement("div");
@@ -38,6 +40,7 @@ function createDialog({ title, message, confirmLabel, cancelLabel, destructive =
   actions.className = "app-dialog-actions";
   const close = (value) => {
     if (!overlay.isConnected) return value;
+    unlockScroll();
     overlay.remove();
     if (closeActiveDialog === close) closeActiveDialog = null;
     document.removeEventListener("keydown", onKeyDown);

@@ -1,5 +1,6 @@
+import { useLockScroll } from "../utils/scrollLock";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { FaCalendarAlt, FaChevronRight, FaClock, FaMapMarkerAlt, FaPlus, FaQrcode, FaStar, FaUsers } from "react-icons/fa";
+import { FaCalendarAlt, FaChevronDown, FaChevronLeft, FaChevronRight, FaClock, FaMapMarkerAlt, FaPlus, FaQrcode, FaStar, FaUsers } from "react-icons/fa";
 import { QRCodeSVG } from "qrcode.react";
 import { useNavigate } from "react-router-dom";
 import BookingAccountBar from "../components/BookingAccountBar";
@@ -11,6 +12,51 @@ const roomDefaults = [
   { name: "Ruang Rapat Besar", location: "Gedung A - Lantai 3", capacity: 20, image: imgRuangRapatBesar },
   { name: "Ruang Konsultasi", location: "Gedung B - Lantai 2", capacity: 8, image: imgRuangKonsultasi },
 ];
+
+const MONTH_SHORT = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+const MONTH_LONG = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+const DAY_NAMES = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
+
+const formatDateIso = (d) => {
+  if (!d || Number.isNaN(d.getTime())) return "";
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+};
+
+const formatShortDateIndo = (isoDateStr) => {
+  if (!isoDateStr) return "";
+  const parts = String(isoDateStr).split("-");
+  if (parts.length < 3) return isoDateStr;
+  const y = Number(parts[0]);
+  const m = Number(parts[1]);
+  const d = Number(parts[2]);
+  if (!y || !m || !d) return isoDateStr;
+  return `${d} ${MONTH_SHORT[m - 1] || ""} ${y}`;
+};
+
+const getDateFilterLabel = (from, to) => {
+  if (!from && !to) return "Pilih Rentang Tanggal";
+  if (from && to) {
+    if (from === to) return formatShortDateIndo(from);
+    const fp = from.split("-");
+    const tp = to.split("-");
+    if (fp[0] === tp[0] && fp[1] === tp[1]) {
+      const mIdx = Number(tp[1]) - 1;
+      return `${Number(fp[2])} - ${Number(tp[2])} ${MONTH_SHORT[mIdx] || ""} ${fp[0]}`;
+    }
+    if (fp[0] === tp[0]) {
+      const fm = Number(fp[1]) - 1;
+      const tm = Number(tp[1]) - 1;
+      return `${Number(fp[2])} ${MONTH_SHORT[fm] || ""} - ${Number(tp[2])} ${MONTH_SHORT[tm] || ""} ${fp[0]}`;
+    }
+    return `${Number(fp[2])}/${Number(fp[1])}/${String(fp[0]).slice(2)} - ${Number(tp[2])}/${Number(tp[1])}/${String(tp[0]).slice(2)}`;
+  }
+  if (from) return `Dari ${formatShortDateIndo(from)}`;
+  if (to) return `Sampai ${formatShortDateIndo(to)}`;
+  return "Pilih Rentang Tanggal";
+};
 
 const statusKey = (status = "") => {
   const value = String(status || "").toLowerCase();
@@ -128,6 +174,149 @@ export default function BookingHistoryPage() {
   const [notice, setNotice] = useState("");
   const [qrModalMeeting, setQrModalMeeting] = useState(null);
   const [copiedPassUrl, setCopiedPassUrl] = useState(false);
+  const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
+  const statusDropdownRef = useRef(null);
+
+  useEffect(() => {
+    if (!statusDropdownOpen) return;
+    const handleClickOutside = (e) => {
+      if (statusDropdownRef.current && !statusDropdownRef.current.contains(e.target)) {
+        setStatusDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+    };
+  }, [statusDropdownOpen]);
+
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const dateDropdownRef = useRef(null);
+  const [tempFromDate, setTempFromDate] = useState("");
+  const [tempToDate, setTempToDate] = useState("");
+  const [calViewDate, setCalViewDate] = useState(() => new Date());
+
+  useEffect(() => {
+    if (!datePickerOpen) return;
+    const handleClickOutside = (e) => {
+      if (dateDropdownRef.current && !dateDropdownRef.current.contains(e.target)) {
+        setDatePickerOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+    };
+  }, [datePickerOpen]);
+
+  const handleToggleDatePicker = () => {
+    if (!datePickerOpen) {
+      setTempFromDate(fromDate);
+      setTempToDate(toDate);
+      if (fromDate) {
+        const parts = fromDate.split("-").map(Number);
+        if (parts[0] && parts[1]) {
+          setCalViewDate(new Date(parts[0], parts[1] - 1, 1));
+        }
+      } else {
+        setCalViewDate(new Date());
+      }
+    }
+    setDatePickerOpen((prev) => !prev);
+  };
+
+  const handlePrevCalMonth = () => {
+    setCalViewDate((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+  };
+
+  const handleNextCalMonth = () => {
+    setCalViewDate((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+  };
+
+  const handleCalDayClick = (isoStr) => {
+    if (!tempFromDate || (tempFromDate && tempToDate)) {
+      setTempFromDate(isoStr);
+      setTempToDate("");
+    } else {
+      if (isoStr < tempFromDate) {
+        setTempToDate(tempFromDate);
+        setTempFromDate(isoStr);
+      } else {
+        setTempToDate(isoStr);
+      }
+    }
+  };
+
+  const handleApplyCustomDate = () => {
+    setFromDate(tempFromDate);
+    setToDate(tempToDate || tempFromDate);
+    setDatePickerOpen(false);
+  };
+
+  const handleResetCustomDate = () => {
+    setFromDate("");
+    setToDate("");
+    setTempFromDate("");
+    setTempToDate("");
+    setDatePickerOpen(false);
+  };
+
+  const calYear = calViewDate.getFullYear();
+  const calMonth = calViewDate.getMonth();
+  const todayIsoStr = formatDateIso(new Date());
+
+  const calDays = useMemo(() => {
+    const firstDayOfWeek = new Date(calYear, calMonth, 1).getDay();
+    const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+    const prevMonthDays = new Date(calYear, calMonth, 0).getDate();
+    const list = [];
+
+    for (let i = firstDayOfWeek - 1; i >= 0; i--) {
+      const d = new Date(calYear, calMonth - 1, prevMonthDays - i);
+      list.push({
+        dayNumber: d.getDate(),
+        iso: formatDateIso(d),
+        isCurrentMonth: false,
+      });
+    }
+
+    for (let i = 1; i <= daysInMonth; i++) {
+      const d = new Date(calYear, calMonth, i);
+      list.push({
+        dayNumber: i,
+        iso: formatDateIso(d),
+        isCurrentMonth: true,
+      });
+    }
+
+    const remaining = (7 - (list.length % 7)) % 7;
+    for (let i = 1; i <= remaining; i++) {
+      const d = new Date(calYear, calMonth + 1, i);
+      list.push({
+        dayNumber: i,
+        iso: formatDateIso(d),
+        isCurrentMonth: false,
+      });
+    }
+
+    return list;
+  }, [calYear, calMonth]);
+
+  const hasActiveModal = Boolean(
+    qrModalMeeting ||
+    extensionTarget ||
+    extensionComplete ||
+    reviewTarget ||
+    reviewViewTarget ||
+    reviewComplete ||
+    recommendationTarget
+  );
+
+  useLockScroll(hasActiveModal);
 
   useEffect(() => {
     document.body.classList.remove("booking-fitscreen-active");
@@ -526,22 +715,196 @@ export default function BookingHistoryPage() {
             ))}
           </div>
           <div className="booking-history-controls">
-            <div className="booking-history-date-filter" onClick={(event) => {
-              if (event.target.closest("input")) return;
-              const input = fromDateInput.current;
-              if (typeof input?.showPicker === "function") input.showPicker();
-              else input?.focus();
-            }}>
-              <FaCalendarAlt aria-hidden="true" />
-              <span>Pilih Rentang Tanggal</span>
-              <input ref={fromDateInput} type="date" aria-label="Tanggal mulai" title="Klik untuk memilih tanggal dari kalender" value={fromDate}
-                onClick={(event) => { try { event.currentTarget.showPicker?.(); } catch { /* Kalender native mungkin sudah terbuka. */ } }}
-                onChange={(event) => setFromDate(event.target.value)} />
-              <span>s/d</span>
-              <input ref={toDateInput} type="date" aria-label="Tanggal akhir" title="Klik untuk memilih tanggal dari kalender" value={toDate}
-                onClick={(event) => { try { event.currentTarget.showPicker?.(); } catch { /* Kalender native mungkin sudah terbuka. */ } }}
-                onChange={(event) => setToDate(event.target.value)} />
+            <div className="booking-history-controls-top">
+              <div className="booking-history-mobile-status-wrap" ref={statusDropdownRef}>
+                <button
+                  type="button"
+                  className={`booking-history-mobile-status-btn ${filterStatus !== "all" ? "is-filtered" : ""} ${statusDropdownOpen ? "is-open" : ""}`}
+                  onClick={() => setStatusDropdownOpen((prev) => !prev)}
+                  aria-expanded={statusDropdownOpen}
+                  aria-haspopup="listbox"
+                  title="Pilih status"
+                >
+                  <span>{tabs.find(([k]) => k === filterStatus)?.[1] || "Semua"}</span>
+                  <FaChevronDown className={statusDropdownOpen ? "icon-rotated" : ""} />
+                </button>
+
+                {statusDropdownOpen && (
+                  <div className="booking-history-mobile-dropdown-menu" role="listbox">
+                    {tabs.map(([key, label]) => {
+                      const isSelected = filterStatus === key;
+                      return (
+                        <button
+                          key={key}
+                          type="button"
+                          role="option"
+                          aria-selected={isSelected}
+                          className={`booking-history-mobile-dropdown-item ${isSelected ? "selected" : ""}`}
+                          onClick={() => {
+                            setFilterStatus(key);
+                            setStatusDropdownOpen(false);
+                          }}
+                        >
+                          <span>{label}</span>
+                          {isSelected && <span className="dropdown-check-icon">✓</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Mobile Custom Date Range Filter */}
+              <div className="booking-history-mobile-date-wrap" ref={dateDropdownRef}>
+                <button
+                  type="button"
+                  className={`booking-history-mobile-date-btn ${fromDate || toDate ? "is-filtered" : ""} ${datePickerOpen ? "is-open" : ""}`}
+                  onClick={handleToggleDatePicker}
+                  aria-expanded={datePickerOpen}
+                  title="Pilih rentang tanggal"
+                >
+                  <div className="bh-mobile-date-btn-content">
+                    <FaCalendarAlt className="bh-date-icon" />
+                    <span className="bh-date-text">{getDateFilterLabel(fromDate, toDate)}</span>
+                  </div>
+                  <div className="bh-mobile-date-btn-actions">
+                    {(fromDate || toDate) && (
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        className="bh-date-clear-pill"
+                        title="Hapus filter tanggal"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleResetCustomDate();
+                        }}
+                      >
+                        ✕
+                      </span>
+                    )}
+                    <FaChevronDown className={`bh-chevron-icon ${datePickerOpen ? "icon-rotated" : ""}`} />
+                  </div>
+                </button>
+
+                {datePickerOpen && (
+                  <div className="booking-history-mobile-date-popover" role="dialog" aria-label="Pilih Rentang Tanggal">
+                    {/* Month Nav */}
+                    <div className="bh-cal-header">
+                      <button
+                        type="button"
+                        className="bh-cal-nav-btn"
+                        onClick={handlePrevCalMonth}
+                        title="Bulan sebelumnya"
+                        aria-label="Bulan sebelumnya"
+                      >
+                        <FaChevronLeft />
+                      </button>
+                      <span className="bh-cal-month-title">
+                        {MONTH_LONG[calMonth]} {calYear}
+                      </span>
+                      <button
+                        type="button"
+                        className="bh-cal-nav-btn"
+                        onClick={handleNextCalMonth}
+                        title="Bulan selanjutnya"
+                        aria-label="Bulan selanjutnya"
+                      >
+                        <FaChevronRight />
+                      </button>
+                    </div>
+
+                    {/* Weekdays */}
+                    <div className="bh-cal-weekdays">
+                      {DAY_NAMES.map((d) => (
+                        <span key={d}>{d}</span>
+                      ))}
+                    </div>
+
+                    {/* Days Grid */}
+                    <div className="bh-cal-grid">
+                      {calDays.map((item) => {
+                        const isStart = tempFromDate === item.iso;
+                        const isEnd = tempToDate === item.iso;
+                        const isInRange = Boolean(
+                          tempFromDate && tempToDate && item.iso > tempFromDate && item.iso < tempToDate
+                        );
+                        const isSingle = (isStart && !tempToDate) || (isStart && isEnd);
+                        const isToday = item.iso === todayIsoStr;
+
+                        let classNames = "bh-cal-day";
+                        if (!item.isCurrentMonth) classNames += " not-current";
+                        if (isToday) classNames += " is-today";
+                        if (isStart) classNames += " is-start";
+                        if (isEnd) classNames += " is-end";
+                        if (isSingle) classNames += " is-single";
+                        if (isInRange) classNames += " in-range";
+
+                        return (
+                          <button
+                            key={item.iso}
+                            type="button"
+                            className={classNames}
+                            onClick={() => handleCalDayClick(item.iso)}
+                          >
+                            <span>{item.dayNumber}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Footer */}
+                    <div className="bh-cal-footer">
+                      <div className="bh-cal-summary">
+                        {tempFromDate ? (
+                          tempToDate && tempToDate !== tempFromDate ? (
+                            <span>{formatShortDateIndo(tempFromDate)} – {formatShortDateIndo(tempToDate)}</span>
+                          ) : (
+                            <span>{formatShortDateIndo(tempFromDate)}</span>
+                          )
+                        ) : (
+                          <span className="bh-cal-hint">Pilih tanggal</span>
+                        )}
+                      </div>
+                      <div className="bh-cal-actions">
+                        <button
+                          type="button"
+                          className="bh-cal-reset-btn"
+                          onClick={handleResetCustomDate}
+                        >
+                          Reset
+                        </button>
+                        <button
+                          type="button"
+                          className="bh-cal-apply-btn"
+                          onClick={handleApplyCustomDate}
+                        >
+                          Terapkan
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Desktop Standard Date Filter */}
+              <div className="booking-history-date-filter booking-history-desktop-date" onClick={(event) => {
+                if (event.target.closest("input")) return;
+                const input = fromDateInput.current;
+                if (typeof input?.showPicker === "function") input.showPicker();
+                else input?.focus();
+              }}>
+                <FaCalendarAlt aria-hidden="true" />
+                <span>Pilih Rentang Tanggal</span>
+                <input ref={fromDateInput} type="date" aria-label="Tanggal mulai" title="Klik untuk memilih tanggal dari kalender" value={fromDate}
+                  onClick={(event) => { try { event.currentTarget.showPicker?.(); } catch { /* Kalender native */ } }}
+                  onChange={(event) => setFromDate(event.target.value)} />
+                <span>s/d</span>
+                <input ref={toDateInput} type="date" aria-label="Tanggal akhir" title="Klik untuk memilih tanggal dari kalender" value={toDate}
+                  onClick={(event) => { try { event.currentTarget.showPicker?.(); } catch { /* Kalender native */ } }}
+                  onChange={(event) => setToDate(event.target.value)} />
+              </div>
             </div>
+
             <input className="booking-history-search" type="search"
               placeholder="Cari nama ruangan, agenda, atau bagian..." value={search}
               onChange={(event) => setSearch(event.target.value)} />
@@ -897,26 +1260,10 @@ export default function BookingHistoryPage() {
                 <div className="bh-qr-wrapper">
                   <QRCodeSVG
                     value={passUrl}
-                    size={195}
+                    size={170}
                     level="M"
                     marginSize={2}
                   />
-                </div>
-                <div className="bh-qr-scan-hint">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: "inline-block", verticalAlign: "-2px", marginRight: "4px" }}><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-                  Pindai dengan Kamera Smartphone:
-                </div>
-                <div className="bh-qr-pills">
-                  <span className="bh-qr-pill checkin">✓ Check-In</span>
-                  <span className="bh-qr-pill hadir">
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ display: "inline-block", verticalAlign: "-1px", marginRight: "2px" }}><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                    Daftar Hadir
-                  </span>
-                  <span className="bh-qr-pill checkout">Check-Out</span>
-                  <span className="bh-qr-pill materi">
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ display: "inline-block", verticalAlign: "-1px", marginRight: "2px" }}><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
-                    Materi
-                  </span>
                 </div>
               </div>
 

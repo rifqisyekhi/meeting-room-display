@@ -672,6 +672,15 @@ button {
   padding: 20px;
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
+  overscroll-behavior: contain;
+  touch-action: none;
+}
+.modal-backdrop .modal,
+.modal-backdrop .qr-custom-modal,
+.modal-backdrop .custom-room-modal,
+.modal-backdrop .custom-user-modal,
+.modal-backdrop .custom-role-modal {
+  touch-action: auto;
 }
 
 .modal-backdrop.show {
