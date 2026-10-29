@@ -183,6 +183,63 @@ button {
   flex-shrink: 0;
 }
 
+.sidebar-user-profile {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  margin-bottom: 14px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+  cursor: pointer;
+}
+.sidebar-user-avatar {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+}
+.sidebar-user-copy { min-width: 0; }
+.sidebar-user-name {
+  overflow: hidden;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sidebar-user-role {
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 10.5px;
+  font-weight: 500;
+  line-height: 1.35;
+}
+.sidebar-profile-dropdown {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  z-index: 100;
+  display: none;
+  width: 220px;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.18);
+  color: #334155;
+  text-align: left;
+}
+
 /* ─── MAIN CONTENT ──────────────────────────── */
 .main {
   grid-column: 2;

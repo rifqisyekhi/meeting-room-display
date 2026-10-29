@@ -40,7 +40,8 @@
 .booking-history-controls { display: flex; align-items: center; gap: 9px; }
 .booking-history-tabs { flex-wrap: wrap; }
 
-.booking-history-tabs button {
+.booking-history-tabs > button,
+.booking-history-dropdown-btn {
   padding: 8px 14px;
   border: 1px solid #dce3ec;
   border-radius: 22px;
@@ -48,8 +49,100 @@
   background: #f7f9fc;
   font: 500 11px "Poppins", sans-serif;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  transition: all 0.2s ease;
+  user-select: none;
 }
-.booking-history-tabs button.active { border-color: #0751a0; color: #fff; background: #0751a0; }
+.booking-history-tabs > button.active,
+.booking-history-dropdown-btn.active {
+  border-color: #0751a0;
+  color: #fff;
+  background: #0751a0;
+}
+.booking-history-tabs > button:hover:not(.active),
+.booking-history-dropdown-btn:hover:not(.active) {
+  background: #edf3fa;
+  border-color: #cbd8e8;
+}
+
+.booking-history-status-dropdown {
+  position: relative;
+  display: inline-flex;
+}
+
+.booking-history-dropdown-btn .status-dropdown-icon {
+  font-size: 10px;
+  transition: transform 0.2s ease;
+}
+
+.booking-history-dropdown-btn .status-dropdown-icon.open {
+  transform: rotate(180deg);
+}
+
+.booking-history-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 155px;
+  background: #ffffff;
+  border: 1px solid #dce3ec;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(10, 45, 94, 0.12), 0 2px 6px rgba(0, 0, 0, 0.05);
+  padding: 6px;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  animation: fadeInStatusMenu 0.15s ease-out;
+}
+
+@keyframes fadeInStatusMenu {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.booking-history-dropdown-menu .booking-history-dropdown-item {
+  width: 100%;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #2b3a4a;
+  font: 500 11px "Poppins", sans-serif;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  transition: background-color 0.15s ease, color 0.15s ease;
+  box-sizing: border-box;
+}
+
+.booking-history-dropdown-menu .booking-history-dropdown-item:hover {
+  background: #f0f4f9;
+  color: #0751a0;
+}
+
+.booking-history-dropdown-menu .booking-history-dropdown-item.selected {
+  background: #e8f1fb;
+  color: #0751a0;
+  font-weight: 600;
+}
+
+.status-item-check {
+  font-size: 11px;
+  color: #0751a0;
+  font-weight: 700;
+}
 
 .booking-history-date-filter,
 .booking-history-search {
@@ -818,15 +911,13 @@
   .booking-history-tabs {
     width: 100%;
     display: flex;
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-    padding-bottom: 4px;
+    flex-wrap: wrap;
+    overflow: visible;
     gap: 7px;
   }
   .booking-history-tabs::-webkit-scrollbar { display: none; }
-  .booking-history-tabs button {
+  .booking-history-tabs > button,
+  .booking-history-dropdown-btn {
     flex: 0 0 auto;
     padding: 7px 13px;
     font-size: 11.5px;
