@@ -209,6 +209,65 @@
   font-weight: 500;
   border-bottom: 1px solid #f4f8fc;
 }
+      /* Compact Stat Cards (Sejajar dengan Tabel Rapat) */
+      .rep-cards-compact {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 16px;
+      }
+      @media (max-width: 900px) {
+        .rep-cards-compact {
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
+      .rep-card-compact {
+        background: #ffffff;
+        border-radius: 12px;
+        padding: 14px 18px;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        box-shadow: 0 4px 18px rgba(12, 45, 94, 0.04);
+        border: 1px solid #eef3f9;
+        min-width: 0;
+        transition: transform 0.15s, box-shadow 0.15s;
+      }
+      .rep-card-compact:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(12, 45, 94, 0.07);
+      }
+      .rc-icon-compact {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        display: grid;
+        place-items: center;
+        flex-shrink: 0;
+        background: #e6f0fa;
+        color: #1769aa;
+      }
+      .rc-icon-compact svg {
+        width: 22px !important;
+        height: 22px !important;
+      }
+      .rc-text-compact {
+        min-width: 0;
+      }
+      .rc-text-compact strong {
+        display: block;
+        font-size: 22px;
+        font-weight: 700;
+        color: #0c2d5e;
+        line-height: 1.15;
+      }
+      .rc-text-compact span {
+        display: block;
+        font-size: 12px;
+        font-weight: 600;
+        color: #4b6a90;
+        margin-top: 3px;
+        line-height: 1.25;
+      }
 
       .dash-notif-card { background: #fff; border-radius: 12px; padding: 18px 20px; box-shadow: 0 4px 20px rgba(12, 45, 94, 0.04); display: flex; flex-direction: column; min-width: 0; box-sizing: border-box; }
       .dash-section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 14px; border-bottom: 1px solid #eef3f9; }
@@ -476,3 +535,273 @@
         .rep-cards { padding: 0 16px 16px !important; }
         .rep-filters-left .rep-date-range { flex-basis: 100%; width: max-content; max-width: 100%; }
       }
+
+@media (max-width: 900px) {
+  /* ─── LAPORAN PENGGUNAAN (REPORTS) MOBILE STYLES ─── */
+  .rep-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 8px !important;
+    padding: 18px 14px 12px !important;
+    box-sizing: border-box !important;
+  }
+  .rep-header h1 {
+    font-size: 21px !important;
+    margin: 0 0 4px !important;
+    line-height: 1.25 !important;
+  }
+  .rep-header p {
+    font-size: 12.5px !important;
+    line-height: 1.4 !important;
+    margin: 0 !important;
+  }
+
+  .rep-filters-row {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+    padding: 0 14px 16px !important;
+    box-sizing: border-box !important;
+  }
+  .rep-filters-left {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+    width: 100% !important;
+  }
+  .rep-filters-left > div:first-child {
+    display: grid !important;
+    grid-template-columns: repeat(4, 1fr) !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    gap: 2px !important;
+    padding: 3px !important;
+  }
+  .rep-filters-left > div:first-child button {
+    padding: 8px 2px !important;
+    font-size: 11.5px !important;
+    white-space: nowrap !important;
+    text-align: center !important;
+    justify-content: center !important;
+    display: flex !important;
+    align-items: center !important;
+  }
+  .rep-filters-left button.btn-white {
+    width: 100% !important;
+    justify-content: center !important;
+    padding: 10px 16px !important;
+    font-size: 13px !important;
+    box-sizing: border-box !important;
+  }
+  .rep-filters-left select#trafficRoom {
+    width: 100% !important;
+    box-sizing: border-box !important;
+    padding: 10px 36px 10px 14px !important;
+    font-size: 13px !important;
+  }
+  .rep-export-wrapper {
+    width: 100% !important;
+  }
+  .rep-export-btn {
+    width: 100% !important;
+    justify-content: center !important;
+    padding: 11px 16px !important;
+    font-size: 13.5px !important;
+    border-radius: 8px !important;
+    box-sizing: border-box !important;
+  }
+  .rep-export-menu {
+    width: 100% !important;
+    right: 0 !important;
+    left: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  .rep-cards {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px !important;
+    padding: 0 14px 16px !important;
+    box-sizing: border-box !important;
+  }
+  .rep-card {
+    padding: 12px 10px !important;
+    gap: 10px !important;
+    border-radius: 12px !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+  }
+  .rc-icon {
+    width: 38px !important;
+    height: 38px !important;
+    flex-shrink: 0 !important;
+  }
+  .rc-icon svg {
+    width: 18px !important;
+    height: 18px !important;
+  }
+  .rc-text {
+    min-width: 0 !important;
+    flex: 1 !important;
+  }
+  .rc-text strong {
+    font-size: 17px !important;
+    word-break: break-word !important;
+    line-height: 1.15 !important;
+  }
+  .rc-text span {
+    font-size: 11px !important;
+    word-break: break-word !important;
+    line-height: 1.25 !important;
+    margin-top: 2px !important;
+  }
+
+  .rep-charts {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 14px !important;
+    padding: 0 14px 20px !important;
+    box-sizing: border-box !important;
+  }
+  .rep-chart-card {
+    padding: 16px 14px !important;
+    border-radius: 14px !important;
+    box-sizing: border-box !important;
+  }
+  .rep-chart-card h2 {
+    font-size: 15px !important;
+    margin-bottom: 4px !important;
+  }
+  .mock-bar-chart {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding-bottom: 6px !important;
+  }
+
+  .rep-list {
+    margin: 0 14px 24px !important;
+    padding: 16px 14px !important;
+    border-radius: 14px !important;
+    box-sizing: border-box !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+  .rep-list table {
+    min-width: 580px !important;
+  }
+
+
+  /* ─── JADWAL RAPAT & OPERASIONAL (CUSTOM TABLE HTML) MOBILE ─── */
+  .dash-table-card {
+    padding: 14px 12px !important;
+    border-radius: 12px !important;
+    box-sizing: border-box !important;
+  }
+
+  .dash-section-header {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+  }
+
+  .dash-section-header > div:first-child {
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    width: 100% !important;
+  }
+
+  .dash-section-header > div:last-child {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+
+  .dash-section-header .rep-export-wrapper {
+    flex: 1 !important;
+    width: 50% !important;
+    display: block !important;
+  }
+
+  .dash-section-header .rep-export-btn {
+    width: 100% !important;
+    justify-content: center !important;
+    height: 36px !important;
+    box-sizing: border-box !important;
+  }
+
+  .dash-section-header button[onclick="openMeetingModal()"] {
+    flex: 1 !important;
+    width: 50% !important;
+    justify-content: center !important;
+    height: 36px !important;
+    white-space: nowrap !important;
+    box-sizing: border-box !important;
+  }
+
+  .dash-inline-filters {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 8px !important;
+    padding: 10px !important;
+    box-sizing: border-box !important;
+  }
+
+  .dash-inline-filters > div:first-child {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+
+  .dash-inline-filters select#trafficRoom {
+    width: 100% !important;
+    box-sizing: border-box !important;
+    height: 38px !important;
+    font-size: 13px !important;
+  }
+
+  .dash-inline-filters button[onclick="openFilterModal()"] {
+    width: 100% !important;
+    box-sizing: border-box !important;
+    height: 38px !important;
+    justify-content: center !important;
+    font-size: 12.5px !important;
+  }
+
+  .dash-inline-filters button[onclick="applyDashboardFilter()"] {
+    width: 100% !important;
+    box-sizing: border-box !important;
+    height: 38px !important;
+    justify-content: center !important;
+    font-size: 13px !important;
+  }
+
+  .dash-inline-filters button[onclick="resetDashboardFilter()"] {
+    text-align: center !important;
+    margin-top: 4px !important;
+    align-self: center !important;
+  }
+
+  .dash-table-wrapper {
+    width: 100% !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    box-sizing: border-box !important;
+  }
+
+  .dash-table-wrapper table {
+    min-width: 650px !important;
+    width: 100% !important;
+  }
+
+  .dash-table-wrapper th,
+  .dash-table-wrapper td {
+    white-space: nowrap !important;
+    padding: 10px 10px !important;
+    font-size: 12px !important;
+  }
+
+}

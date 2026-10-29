@@ -13,6 +13,7 @@ export default function BookingAccountBar({ currentUser, historyPage = false, sh
   const isRegularUser = !["admin", "pimpinan", "approval"].some((value) => normalizedRole.includes(value));
 
   const logout = () => {
+    setMenuOpen(false);
     const keys = [
       "booking_isAuthenticated",
       "booking_currentUser",
@@ -115,7 +116,7 @@ export default function BookingAccountBar({ currentUser, historyPage = false, sh
           )}
         </div>
       </div>
-      {menuOpen && <button className="booking-account-dismiss" aria-label="Tutup menu akun" onClick={() => setMenuOpen(false)} />}
+      {menuOpen && <button type="button" className="booking-account-dismiss" aria-label="Tutup menu akun" onClick={() => setMenuOpen(false)} />}
     </div>
   );
 }
