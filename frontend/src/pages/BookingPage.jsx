@@ -1,3 +1,4 @@
+import { useLockScroll } from "../utils/scrollLock";
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { CiClock2 } from "react-icons/ci";
@@ -157,6 +158,7 @@ export default function BookingPage() {
       document.body.classList.remove("booking-fitscreen-active");
     };
   }, []);
+
   const [selectedCategory, setSelectedCategory] = useState("Semua");
   const [selectedRoom, setSelectedRoom] = useState(() => {
     if (!suggestedBooking?.room) return null;
@@ -323,6 +325,15 @@ export default function BookingPage() {
   const [selectedReviewRoom, setSelectedReviewRoom] = useState(null);
   const [selectedRoomDetail, setSelectedRoomDetail] = useState(null);
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
+
+  const hasActiveBookingModal = Boolean(
+    showSuccessModal ||
+    selectedFacilityRoom ||
+    selectedReviewRoom ||
+    selectedRoomDetail
+  );
+
+  useLockScroll(hasActiveBookingModal);
 
   const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" && window.innerWidth < 768);
 
@@ -519,15 +530,6 @@ export default function BookingPage() {
 
     const handleSync = () => {
       fetchMeetings();
-      try {
-        const stored = localStorage.getItem("app_meetings");
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          if (isMounted && Array.isArray(parsed)) {
-            setAllMeetings(parsed);
-          }
-        }
-      } catch (e) {}
     };
     window.addEventListener("app_meetings_updated", handleSync);
 
@@ -2157,7 +2159,32 @@ export default function BookingPage() {
           const stored = localStorage.getItem("app_meetings");
           if (stored) {
             const parsed = JSON.parse(stored);
-            if (Array.isArray(parsed)) sourceMeetings = parsed;
+            if (Array.isArray(parsed)) {
+              const localMeetings = parsed;
+              const findLocalMeeting = (meeting) => localMeetings.find((local) =>
+                String(local.id || local.googleId || "") === String(meeting.id || meeting.googleId || "") ||
+                (local.date === meeting.date && local.start === meeting.start && local.room === meeting.room),
+              );
+              sourceMeetings = allMeetings.map((meeting) => {
+                const local = findLocalMeeting(meeting);
+                if (!local) return meeting;
+                const apiReview = meeting.review || null;
+                const localReview = local.review || null;
+                return {
+                  ...local,
+                  ...meeting,
+                  review: apiReview || localReview
+                    ? {
+                        ...(localReview || {}),
+                        ...(apiReview || {}),
+                        adminReply: apiReview?.adminReply || localReview?.adminReply || null,
+                      }
+                    : null,
+                };
+              });
+              const represented = new Set(sourceMeetings.map((meeting) => String(meeting.id || meeting.googleId || "")));
+              sourceMeetings.push(...localMeetings.filter((meeting) => !represented.has(String(meeting.id || meeting.googleId || ""))));
+            }
           }
         } catch (e) {}
 
@@ -2170,22 +2197,10 @@ export default function BookingPage() {
               normSelected.includes(normRoom) ||
               (normSelected.includes("besar") && normRoom.includes("besar")) ||
               (normSelected.includes("konsultasi") && normRoom.includes("konsultasi"));
-            return match && (m.status === "Selesai" || m.review);
+            return match && Boolean(m.review);
           })
           .map((m) => {
-            const rev = m.review || {
-              rating: normSelected.includes("konsultasi") ? 4.8 : 5.0,
-              cleanliness: 5,
-              facilities: normSelected.includes("konsultasi") ? 4.8 : 5,
-              comfort: 5,
-              comment: normSelected.includes("konsultasi")
-                ? "Ruangan sangat nyaman dan kondusif untuk konsultasi. Smart TV dan stopkontak berfungsi dengan baik."
-                : "Ruangan bersih, tertata rapi, dan fasilitas Smart TV 85 inch serta sound system berfungsi sangat baik.",
-              reviewer: m.requester || "User Pemesan",
-              submittedAt: m.date ? `${m.date}T${m.end || "12:00"}:00.000Z` : "",
-              tags: ["Fasilitas Lengkap", "Sangat Bersih", "AC Dingin"]
-            };
-            return { meeting: m, review: rev };
+            return { meeting: m, review: m.review };
           });
 
         return (
@@ -2214,7 +2229,7 @@ export default function BookingPage() {
                 <div className="bk-review-modal-tag">⭐ RATING &amp; TESTIMONI</div>
                 <h3 className="bk-review-modal-title" id="booking-room-review-title">{selectedReviewRoom.name}</h3>
                 <p className="bk-review-modal-desc">
-                  Ulasan langsung dari pengguna dan balasan resmi dari pengelola ruangan
+                  Ulasan dan rating dari pengguna ruangan
                 </p>
               </div>
 
@@ -2223,7 +2238,7 @@ export default function BookingPage() {
                   <div className="bk-review-empty">
                     <span className="bk-review-empty-icon">💬</span>
                     <strong>Belum ada ulasan untuk ruangan ini</strong>
-                    <p>Ulasan dan balasan resmi dari pengelola ruangan akan muncul setelah rapat selesai digunakan.</p>
+                    <p>Ulasan dari pengguna akan muncul setelah rapat selesai digunakan.</p>
                   </div>
                 ) : (
                   roomReviews.map((item, idx) => {
@@ -2257,7 +2272,7 @@ export default function BookingPage() {
                         </div>
 
                         <p className="bk-review-item-comment">
-                          "{r.comment}"
+                          "{r.comment || r.text || "Pengguna tidak menambahkan komentar tertulis."}"
                         </p>
 
                         {/* Tag fasilitas */}
@@ -2269,22 +2284,6 @@ export default function BookingPage() {
                           </div>
                         )}
 
-                        {/* Balasan dari Pengelola Ruangan */}
-                        {r.adminReply ? (
-                          <div className="bk-review-admin-reply">
-                            <div className="bk-admin-reply-head">
-                              <span className="bk-admin-reply-label">🏢 Balasan Pengelola Ruangan</span>
-                              <span className="bk-admin-reply-sender">{r.adminReply.sender || "Pengelola Ruang Rapat Kemnaker"}</span>
-                            </div>
-                            <p className="bk-admin-reply-body">
-                              "{r.adminReply.text}"
-                            </p>
-                          </div>
-                        ) : (
-                          <div className="bk-review-admin-reply-pending">
-                            <span>⏳ Menunggu balasan dari pengelola ruangan</span>
-                          </div>
-                        )}
                       </div>
                     );
                   })

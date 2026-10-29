@@ -4045,7 +4045,96 @@ window.addEventListener("hashchange", () => {
   render();
 });
 
+let appSavedScrollY = 0;
+let appLockCount = 0;
+
+function onAppTouchMove(e) {
+  const isBackdrop = e.target.id === "modal" || (e.target.classList && e.target.classList.contains("modal-backdrop"));
+  if (isBackdrop) {
+    if (e.cancelable) e.preventDefault();
+    return;
+  }
+  const modal = e.target.closest("#modal .modal, .modal-dialog, .modal-content, .custom-room-modal, .custom-user-modal, .custom-role-modal");
+  if (!modal) {
+    if (e.cancelable) e.preventDefault();
+  } else {
+    if (modal.scrollHeight <= modal.clientHeight && modal.scrollWidth <= modal.clientWidth) {
+      if (e.cancelable) e.preventDefault();
+    }
+  }
+}
+
+function lockModalScroll() {
+  try {
+    appLockCount++;
+    if (appLockCount === 1) {
+      appSavedScrollY = window.scrollY || window.pageYOffset || document.documentElement.scrollTop || 0;
+      document.body.style.position = "fixed";
+      document.body.style.top = `-${appSavedScrollY}px`;
+      document.body.style.left = "0";
+      document.body.style.right = "0";
+      document.body.style.width = "100%";
+      document.body.style.overflow = "hidden";
+      document.body.style.overflowY = "hidden";
+      document.documentElement.style.overflow = "hidden";
+      document.documentElement.style.overflowY = "hidden";
+      const mainEl = document.querySelector(".main");
+      if (mainEl) mainEl.style.overflow = "hidden";
+      document.addEventListener("touchmove", onAppTouchMove, { passive: false });
+
+      if (window.parent && window.parent !== window) {
+        try {
+          if (typeof window.parent._lockModalScroll === "function") {
+            window.parent._lockModalScroll();
+          } else {
+            window.parent.document.body.style.position = "fixed";
+            window.parent.document.body.style.top = `-${window.parent.scrollY || 0}px`;
+            window.parent.document.body.style.width = "100%";
+            window.parent.document.body.style.overflow = "hidden";
+          }
+        } catch (e) {}
+      }
+    }
+  } catch (err) {}
+}
+
+function unlockModalScroll() {
+  try {
+    if (appLockCount <= 0) return;
+    appLockCount--;
+    if (appLockCount === 0) {
+      document.removeEventListener("touchmove", onAppTouchMove);
+      document.body.style.position = "";
+      document.body.style.top = "";
+      document.body.style.left = "";
+      document.body.style.right = "";
+      document.body.style.width = "";
+      document.body.style.overflow = "";
+      document.body.style.overflowY = "";
+      document.documentElement.style.overflow = "";
+      document.documentElement.style.overflowY = "";
+      const mainEl = document.querySelector(".main");
+      if (mainEl) mainEl.style.overflow = "";
+      window.scrollTo(0, appSavedScrollY);
+
+      if (window.parent && window.parent !== window) {
+        try {
+          if (typeof window.parent._unlockModalScroll === "function") {
+            window.parent._unlockModalScroll();
+          } else {
+            window.parent.document.body.style.position = "";
+            window.parent.document.body.style.top = "";
+            window.parent.document.body.style.width = "";
+            window.parent.document.body.style.overflow = "";
+          }
+        } catch (e) {}
+      }
+    }
+  } catch (err) {}
+}
+
 function openModal(title, body) {
+  lockModalScroll();
   document.getElementById("modal").innerHTML =
     `<div class="modal"><div class="modal-head"><h2>${title}</h2><button class="btn-icon" onclick="closeModal()">×</button></div>${body}</div>`;
   if (title === "Detail Rapat") document.querySelector("#modal .modal")?.classList.add("meeting-detail-modal");
@@ -4054,6 +4143,7 @@ function openModal(title, body) {
 }
 
 function closeModal() {
+  unlockModalScroll();
   document.getElementById("modal").classList.remove("show");
   const onCancel = window._activeConfirmCancel;
   window._activeConfirmCancel = null;
@@ -4078,6 +4168,7 @@ function showConfirmModal({
   onConfirm = null,
   onCancel = null,
 }) {
+  lockModalScroll();
   const modalEl = document.getElementById("modal");
   if (!modalEl) return;
 
@@ -5380,27 +5471,7 @@ window.deleteMaterialFromMeeting = deleteMaterialFromMeeting;
 // ----------------------------------------------------------------------
 function getMeetingReview(m) {
   if (!m) return null;
-  if (m.review) return m.review;
-  const isFinished = (m.status || "").toLowerCase() === "selesai";
-  if (isFinished) {
-    const isKonsultasi = (m.room || "").toLowerCase().includes("konsultasi");
-    return {
-      rating: isKonsultasi ? 4.8 : 5.0,
-      cleanliness: 5,
-      facilities: isKonsultasi ? 4.8 : 5,
-      comfort: 5,
-      service: 5,
-      comment: isKonsultasi
-        ? "Ruangan sangat representatif dan kondusif untuk konsultasi. Smart TV dan koneksi berjalan sangat lancar. Suasana nyaman dan ber-AC dingin."
-        : "Ruangan bersih, tertata rapi, dan fasilitas Smart TV 85 inch serta sound system/mic berfungsi sempurna selama presentasi berlangsung.",
-      reviewer: m.requester || "User Pemesan",
-      submittedAt: m.date
-        ? `${m.date}T${m.end || "12:00"}:00.000Z`
-        : new Date().toISOString(),
-      tags: ["Fasilitas Lengkap", "Sangat Bersih", "AC Dingin", "Tepat Waktu"],
-    };
-  }
-  return null;
+  return m.review && typeof m.review === "object" ? m.review : null;
 }
 window.getMeetingReview = getMeetingReview;
 
@@ -5414,94 +5485,10 @@ function openMeetingReviewModal(id) {
   const isCompleted = (m.status || "").toLowerCase() === "selesai";
   const rev = getMeetingReview(m);
 
-  const renderStars = (rating = 5, size = 18) => {
-    let stars = "";
-    for (let i = 1; i <= 5; i++) {
-      const isFilled = i <= Math.round(rating);
-      stars += `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="${isFilled ? "#f59e0b" : "#e2e8f0"}" style="margin-right:2px;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
-    }
-    return stars;
-  };
-
   const contentHTML =
     isCompleted && rev
       ? `
     <div style="font-family:'Poppins',sans-serif;color:#0c2d5e;">
-      <!-- Header Ruangan & Rapat Info -->
-      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
-        <div>
-          <div style="font-size:12px;font-weight:700;color:#1769aa;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px;">📍 ${esc(m.room)}</div>
-          <div style="font-size:15px;font-weight:700;color:#0c2d5e;">${esc(m.title)}</div>
-          <div style="font-size:12.5px;color:#64748b;margin-top:2px;">
-            👤 Pemesan: <b>${esc(m.requester)}</b> · 📅 ${formatDate(m.date)} (${m.start} - ${m.end})
-          </div>
-        </div>
-        <div>
-          <span style="background:#ecfdf5;color:#059669;border:1px solid #a7f3d0;padding:5px 12px;border-radius:20px;font-size:12px;font-weight:700;display:inline-flex;align-items:center;gap:4px;">
-            ✓ Rapat Selesai Digunakan
-          </span>
-        </div>
-      </div>
-
-      <!-- Overall Rating Big Box -->
-      <div style="background:linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);border:1.5px solid #fde68a;border-radius:16px;padding:20px;display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;box-shadow:0 4px 14px rgba(245,158,11,0.08);flex-wrap:wrap;gap:16px;">
-        <div style="display:flex;align-items:center;gap:18px;">
-          <div style="font-size:46px;font-weight:800;color:#b45309;line-height:1;letter-spacing:-1px;">
-            ${rev.rating ? Number(rev.rating).toFixed(1) : "5.0"}
-          </div>
-          <div>
-            <div style="display:flex;align-items:center;margin-bottom:4px;">
-              ${renderStars(rev.rating || 5, 20)}
-            </div>
-            <div style="font-size:13.5px;font-weight:700;color:#92400e;">
-              ${(rev.rating || 5) >= 4.5 ? "Sangat Puas & Direkomendasikan" : "Puas"}
-            </div>
-            <div style="font-size:11.5px;color:#b45309;">
-              Berdasarkan evaluasi langsung dari pengguna setelah selesai rapat
-            </div>
-          </div>
-        </div>
-        <div style="text-align:right;">
-          <div style="font-size:11px;color:#92400e;font-weight:600;text-transform:uppercase;">Status Ulasan</div>
-          <div style="background:#ffffff;color:#b45309;border:1px solid #fde68a;font-weight:700;font-size:12px;padding:4px 12px;border-radius:20px;display:inline-block;margin-top:4px;">
-            ★ Terverifikasi
-          </div>
-        </div>
-      </div>
-
-      <!-- Kategori Penilaian Fasilitas Ruangan -->
-      <div style="margin-bottom:20px;">
-        <div style="font-size:13px;font-weight:700;color:#0c2d5e;margin-bottom:10px;text-transform:uppercase;letter-spacing:0.4px;">
-          Aspek Penilaian Ruangan
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-          <div style="background:#ffffff;border:1px solid #eef2f6;border-radius:10px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;">
-            <span style="font-size:12.5px;color:#334155;font-weight:500;">✨ Kebersihan & Kerapian</span>
-            <span style="font-size:12.5px;font-weight:700;color:#b45309;display:flex;align-items:center;gap:3px;">
-              ${renderStars(rev.cleanliness || 5, 13)} ${rev.cleanliness || 5}.0
-            </span>
-          </div>
-          <div style="background:#ffffff;border:1px solid #eef2f6;border-radius:10px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;">
-            <span style="font-size:12.5px;color:#334155;font-weight:500;">🖥️ Fungsi Fasilitas (TV, Mic, dll)</span>
-            <span style="font-size:12.5px;font-weight:700;color:#b45309;display:flex;align-items:center;gap:3px;">
-              ${renderStars(rev.facilities || 5, 13)} ${rev.facilities || 5}.0
-            </span>
-          </div>
-          <div style="background:#ffffff;border:1px solid #eef2f6;border-radius:10px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;">
-            <span style="font-size:12.5px;color:#334155;font-weight:500;">❄️ Kenyamanan & Suhu AC</span>
-            <span style="font-size:12.5px;font-weight:700;color:#b45309;display:flex;align-items:center;gap:3px;">
-              ${renderStars(rev.comfort || 5, 13)} ${rev.comfort || 5}.0
-            </span>
-          </div>
-          <div style="background:#ffffff;border:1px solid #eef2f6;border-radius:10px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;">
-            <span style="font-size:12.5px;color:#334155;font-weight:500;">⚡ Kesiapan Ruang & Layanan</span>
-            <span style="font-size:12.5px;font-weight:700;color:#b45309;display:flex;align-items:center;gap:3px;">
-              ${renderStars(rev.service || 5, 13)} ${rev.service || 5}.0
-            </span>
-          </div>
-        </div>
-      </div>
-
       <!-- Testimoni / Ulasan User -->
       <div style="margin-bottom:22px;">
         <div style="font-size:13px;font-weight:700;color:#0c2d5e;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.4px;">
@@ -5509,14 +5496,14 @@ function openMeetingReviewModal(id) {
         </div>
         <div style="background:#f8fafc;border-left:4px solid #f59e0b;border-top:1px solid #e2e8f0;border-right:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0;border-radius:0 12px 12px 0;padding:16px 18px;position:relative;">
           <div style="font-size:13.5px;line-height:1.6;color:#1e293b;font-style:italic;margin-bottom:12px;">
-            "${esc(rev.comment || "Ruangan dan seluruh fasilitas berfungsi dengan sangat baik dan memuaskan.")}"
+            "${esc(rev.comment || rev.text || "Pengguna tidak menambahkan komentar tertulis.")}"
           </div>
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;padding-top:10px;border-top:1px dashed #cbd5e1;">
             <div style="font-size:12px;color:#64748b;">
               👤 <b>${esc(rev.reviewer || m.requester)}</b> · 🕒 ${formatDate(rev.submittedAt || m.date)}
             </div>
             <div style="display:flex;gap:6px;flex-wrap:wrap;">
-              ${(rev.tags || ["Fasilitas Berfungsi Baik", "Sangat Bersih"])
+              ${(Array.isArray(rev.tags) ? rev.tags : [])
                 .map(
                   (t) => `
                 <span style="background:#eff6ff;color:#1d4ed8;font-size:11px;font-weight:600;padding:3px 9px;border-radius:12px;border:1px solid #dbeafe;">${esc(t)}</span>
@@ -5621,11 +5608,12 @@ function openReviewReplyModal(id) {
   const rev = getMeetingReview(m);
   if (!rev) return;
 
+  const currentUser = getCurrentUser();
   const currentReplyText = rev.adminReply
     ? rev.adminReply.text || ""
     : "Terima kasih banyak atas ulasan dan penilaian yang diberikan. Kami senang fasilitas dan kenyamanan ruangan dapat mendukung kelancaran rapat Anda.";
-  const currentSender = rev.adminReply
-    ? rev.adminReply.sender || ""
+  const currentSender = (currentUser && (currentUser.name || currentUser.username))
+    ? currentUser.name || currentUser.username
     : "Pengelola Ruang Rapat Kemnaker";
 
   const formHTML = `
@@ -5636,15 +5624,21 @@ function openReviewReplyModal(id) {
           Ulasan dari ${esc(rev.reviewer || m.requester)} (⭐ ${rev.rating ? Number(rev.rating).toFixed(1) : "5.0"})
         </div>
         <div style="font-size:13px;font-style:italic;color:#78350f;line-height:1.5;">
-          "${esc(rev.comment || "Ruangan dan fasilitas sangat memuaskan.")}"
+          "${esc(rev.comment || rev.text || "Pengguna tidak menambahkan komentar tertulis.")}"
         </div>
       </div>
 
       <div style="margin-bottom:14px;">
         <label style="display:block;font-size:13px;font-weight:700;margin-bottom:6px;color:#0c2d5e;">
-          Nama Pengirim Balasan <span style="color:#e53e3e;">*</span>
+          Nama Pengirim Balasan <span style="font-size:11px;font-weight:500;color:#64748b;">(Sesuai Akun Login)</span>
         </label>
-        <input id="replySenderInput" type="text" value="${esc(currentSender)}" style="width:100%;padding:10px 14px;border:1px solid #cbd5e1;border-radius:8px;font-size:13.5px;color:#0c2d5e;box-sizing:border-box;outline:none;" placeholder="Contoh: Pengelola Ruang Rapat Kemnaker">
+        <div style="position:relative;display:flex;align-items:center;">
+          <input id="replySenderInput" type="text" value="${esc(currentSender)}" readonly disabled style="width:100%;padding:10px 14px;border:1px solid #cbd5e1;border-radius:8px;font-size:13.5px;font-weight:600;color:#334155;background:#f8fafc;box-sizing:border-box;outline:none;cursor:not-allowed;" title="Nama pengirim otomatis sesuai akun login dan tidak dapat diubah">
+          <span style="position:absolute;right:10px;font-size:11px;font-weight:600;color:#0369a1;background:#e0f2fe;padding:3px 9px;border-radius:6px;pointer-events:none;border:1px solid #bae6fd;">Akun Login</span>
+        </div>
+        <small style="display:block;color:#64748b;font-size:11.5px;margin-top:4px;">
+          Nama pengirim terkunci otomatis mengikuti akun login yang sedang aktif.
+        </small>
       </div>
 
       <div style="margin-bottom:14px;">
@@ -5653,14 +5647,14 @@ function openReviewReplyModal(id) {
         </label>
         <textarea id="replyTextInput" rows="4" style="width:100%;padding:10px 14px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;color:#0c2d5e;box-sizing:border-box;outline:none;font-family:'Poppins',sans-serif;line-height:1.5;" placeholder="Tuliskan ucapan terima kasih atau tanggapan resmi dari pengelola...">${esc(currentReplyText)}</textarea>
         <small style="display:block;color:#64748b;font-size:11.5px;margin-top:4px;">
-          💡 Balasan ini akan dikirimkan ke Booking Page sehingga pengguna lain dan pemesan dapat membaca tanggapan resmi pengelola.
+          <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:4px;"><path d="M9 18h6M10 22h4M8.2 14.5a7 7 0 1 1 7.6 0c-.8.5-1.3 1.4-1.3 2.5h-5c0-1.1-.5-2-1.3-2.5Z"/></svg>Balasan ini akan dikirimkan ke Booking Page sehingga pengguna lain dan pemesan dapat membaca tanggapan resmi pengelola.
         </small>
       </div>
 
       <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px;padding-top:14px;border-top:1px solid #f1f5f9;">
         <button type="button" class="btn btn-light" onclick="openMeetingReviewModal('${m.id}')">Batal</button>
         <button type="button" class="btn btn-primary" onclick="submitReviewReply('${m.id}')" style="background:#0284c7;border-color:#0284c7;color:#fff;padding:8px 22px;font-weight:700;font-size:13px;border-radius:8px;display:inline-flex;align-items:center;gap:6px;">
-          🚀 Kirim Balasan ke Booking Page
+          <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:5px;"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>Kirim Balasan ke Booking Page
         </button>
       </div>
     </div>
@@ -5672,9 +5666,10 @@ window.openReviewReplyModal = openReviewReplyModal;
 
 async function submitReviewReply(id) {
   const text = document.getElementById("replyTextInput")?.value?.trim();
-  const sender =
-    document.getElementById("replySenderInput")?.value?.trim() ||
-    "Pengelola Ruang Rapat Kemnaker";
+  const currentUser = getCurrentUser();
+  const sender = (currentUser && (currentUser.name || currentUser.username))
+    ? currentUser.name || currentUser.username
+    : "Pengelola Ruang Rapat Kemnaker";
 
   if (!text) {
     alert("Harap masukkan teks balasan review.");
@@ -5690,6 +5685,8 @@ async function submitReviewReply(id) {
     adminReply: {
       text: text,
       sender: sender,
+      senderUsername: currentUser?.username || "",
+      senderRole: currentUser?.role || "",
       repliedAt: new Date().toISOString(),
     },
   };
@@ -5709,25 +5706,42 @@ async function submitReviewReply(id) {
     localStorage.setItem("app_meetings", JSON.stringify(state.meetings));
   } catch (e) {}
 
+  const updatedMeeting = state.meetings.find(
+    (x) => String(x.id) === String(id),
+  );
+  if (updatedMeeting) {
+    try {
+      const response = await fetch("/api/dashboard/meetings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updatedMeeting),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || result.success === false) {
+        throw new Error(result.error || "Balasan gagal disimpan ke server.");
+      }
+      if (result.meeting) {
+        state.meetings = state.meetings.map((item) =>
+          String(item.id) === String(id) ? result.meeting : item,
+        );
+        getAppStorage().setItem("app_meetings", JSON.stringify(state.meetings));
+        localStorage.setItem("app_meetings", JSON.stringify(state.meetings));
+      }
+    } catch (err) {
+      console.error("Gagal sync review reply ke backend:", err);
+      toast(`Balasan belum terkirim ke Booking Page: ${err.message}`);
+      render();
+      setTimeout(() => openMeetingReviewModal(id), 200);
+      return;
+    }
+  }
+
   window.dispatchEvent(new Event("app_meetings_updated"));
   try {
     if (window.parent && window.parent !== window) {
       window.parent.dispatchEvent(new Event("app_meetings_updated"));
     }
   } catch (e) {}
-
-  const updatedMeeting = state.meetings.find(
-    (x) => String(x.id) === String(id),
-  );
-  if (updatedMeeting) {
-    fetch("/api/dashboard/meetings", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(updatedMeeting),
-    }).catch((err) =>
-      console.error("Gagal sync review reply ke backend:", err),
-    );
-  }
 
   toast("Balasan review berhasil dikirimkan ke Booking Page!");
   render();
@@ -5769,6 +5783,7 @@ window.generateQrSvg = generateQrSvg;
 // MODAL QR CODE & BARCODE DINAMIS (SISTEM 1: PRESENSI MANDIRI TANPA ADMIN)
 // ----------------------------------------------------------------------
 function openMeetingQRModal(id) {
+  lockModalScroll();
   let m = state.meetings.find((x) => String(x.id) === String(id));
   if (!m) {
     try {
@@ -5784,7 +5799,7 @@ function openMeetingQRModal(id) {
   }
 
   const meetingUrl = `${window.location.origin}/meeting/${m.id}`;
-  const qrSvgHtml = generateQrSvg(meetingUrl, 195);
+  const qrSvgHtml = generateQrSvg(meetingUrl, 170);
 
   let modalBackdrop = document.getElementById("modal");
   if (!modalBackdrop) {
@@ -5806,65 +5821,67 @@ function openMeetingQRModal(id) {
   modalBackdrop.innerHTML = `
     <style>
       .qr-custom-modal::-webkit-scrollbar { display: none; }
+      @media (max-width: 480px) {
+        .qr-custom-modal {
+          width: 95% !important;
+          padding: 14px 14px 12px !important;
+          border-radius: 16px !important;
+          max-height: min(94vh, 600px) !important;
+        }
+        .qr-custom-modal .qr-inner-box svg {
+          width: 140px !important;
+          height: 140px !important;
+        }
+      }
     </style>
-    <div class="modal qr-custom-modal" style="max-width:440px;width:92%;margin:auto;max-height:calc(100vh - 30px);overflow-y:auto;scrollbar-width:none;-ms-overflow-style:none;text-align:center;padding:22px 24px;border-radius:24px;font-family:'Poppins',sans-serif;box-sizing:border-box;box-shadow:0 20px 48px rgba(12,45,94,0.16);background:#fff;">
+    <div class="modal qr-custom-modal" style="max-width:420px;width:92%;margin:auto;max-height:min(94vh, 680px);overflow-y:auto;scrollbar-width:none;-ms-overflow-style:none;text-align:center;padding:18px 20px 16px;border-radius:20px;font-family:'Poppins',sans-serif;box-sizing:border-box;box-shadow:0 20px 48px rgba(12,45,94,0.16);background:#fff;display:flex;flex-direction:column;">
       <!-- Header Bar -->
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-        <span style="font-size:12px;font-weight:600;color:#0284c7;background:#e0f2fe;padding:4px 12px;border-radius:20px;display:inline-flex;align-items:center;gap:6px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <span style="font-size:11.5px;font-weight:600;color:#0284c7;background:#e0f2fe;padding:3.5px 10px;border-radius:20px;display:inline-flex;align-items:center;gap:6px;">
           ${phoneSvg} <span>QR Presensi Mandiri</span>
         </span>
         <button type="button" onclick="closeModal()" style="background:#f1f5f9;border:none;width:28px;height:28px;border-radius:50%;color:#64748b;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:all 0.15s;" onmouseover="this.style.background='#e2e8f0';this.style.color='#0f172a'" onmouseout="this.style.background='#f1f5f9';this.style.color='#64748b'" title="Tutup">${closeSvg}</button>
       </div>
 
       <!-- Agenda Title & Details -->
-      <h3 style="margin:4px 0 4px;font-size:22px;font-weight:800;color:#0f172a;letter-spacing:-0.3px;line-height:1.2;">${esc(m.title)}</h3>
-      <p style="margin:0 0 12px;font-size:12px;color:#64748b;display:flex;align-items:center;justify-content:center;gap:4px;flex-wrap:wrap;line-height:1.3;">
+      <h3 style="margin:2px 0 2px;font-size:18px;font-weight:800;color:#0f172a;letter-spacing:-0.3px;line-height:1.25;">${esc(m.title)}</h3>
+      <p style="margin:0 0 10px;font-size:11px;color:#64748b;display:flex;align-items:center;justify-content:center;gap:4px;flex-wrap:wrap;line-height:1.3;">
         <span>${pinSvg}${esc(m.room)}</span>
         <span style="color:#cbd5e1;margin:0 4px;">•</span>
         <span>${calSvg}${formatDate(m.date)} (${m.start} - ${m.end} WIB)</span>
       </p>
 
       <!-- Alert: Sistem Presensi Mandiri Otomatis -->
-      <div style="background:#ebfbf0;border:1px solid #c7f3d6;border-radius:12px;padding:10px 14px;margin-bottom:12px;text-align:left;display:flex;align-items:center;gap:10px;">
+      <div style="background:#ebfbf0;border:1px solid #c7f3d6;border-radius:10px;padding:7px 12px;margin-bottom:10px;text-align:left;display:flex;align-items:center;gap:8px;">
         ${bulbSvg}
-        <div style="font-size:11.5px;color:#166534;line-height:1.45;">
+        <div style="font-size:11px;color:#166534;line-height:1.35;">
           <strong style="font-weight:700;">Presensi Otomatis:</strong> Scan QR di bawah untuk Check-In &amp; Check-Out mandiri.
         </div>
       </div>
 
       <!-- Single QR Code Container -->
-      <div style="background:#ffffff;border:1.5px solid #edf2f7;border-radius:20px;padding:16px 14px 14px;display:flex;flex-direction:column;align-items:center;margin-bottom:12px;box-shadow:0 2px 10px rgba(0,0,0,0.02);">
-        <div style="background:#ffffff;padding:8px;border-radius:16px;box-shadow:0 4px 16px rgba(12,45,94,0.05);border:1px solid #f1f5f9;margin-bottom:10px;display:flex;justify-content:center;align-items:center;">
+      <div style="background:#ffffff;border:1.5px solid #edf2f7;border-radius:16px;padding:12px;display:flex;flex-direction:column;align-items:center;margin-bottom:10px;box-shadow:0 2px 10px rgba(0,0,0,0.02);">
+        <div class="qr-inner-box" style="background:#ffffff;padding:6px;border-radius:12px;box-shadow:0 4px 14px rgba(12,45,94,0.05);border:1px solid #f1f5f9;display:flex;justify-content:center;align-items:center;">
           ${qrSvgHtml}
-        </div>
-
-        <div style="font-size:11.5px;color:#64748b;font-weight:500;display:flex;align-items:center;justify-content:center;margin-bottom:8px;">
-          ${camSvg}Pindai dengan Kamera Smartphone:
-        </div>
-        <div style="display:flex;gap:5px;flex-wrap:nowrap;justify-content:center;align-items:center;width:100%;">
-          <span style="background:#dcfce7;color:#15803d;padding:3.5px 8px;border-radius:6px;font-size:10.5px;font-weight:600;white-space:nowrap;display:inline-flex;align-items:center;gap:3px;">✓ Check-In</span>
-          <span style="background:#e0f2fe;color:#0284c7;padding:3.5px 8px;border-radius:6px;font-size:10.5px;font-weight:600;white-space:nowrap;display:inline-flex;align-items:center;">${userSvg}Daftar Hadir</span>
-          <span style="background:#fee2e2;color:#dc2626;padding:3.5px 8px;border-radius:6px;font-size:10.5px;font-weight:600;white-space:nowrap;display:inline-flex;align-items:center;">Check-Out</span>
-          <span style="background:#f1f5f9;color:#475569;padding:3.5px 8px;border-radius:6px;font-size:10.5px;font-weight:600;white-space:nowrap;display:inline-flex;align-items:center;">${docSvg}Materi</span>
         </div>
       </div>
 
       <!-- URL Link & Copy Button -->
-      <div style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:10px;padding:5px 6px 5px 12px;font-size:11.5px;color:#334155;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:8px;">
+      <div style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:8px;padding:4px 6px 4px 10px;font-size:11px;color:#334155;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:8px;">
         <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:monospace;flex:1;text-align:left;color:#64748b;font-size:11px;">${meetingUrl}</span>
-        <button type="button" onclick="navigator.clipboard.writeText('${meetingUrl}'); toast('✓ Link QR Pass berhasil disalin!');" style="background:#2563eb;color:#fff;border:none;border-radius:8px;padding:6.5px 16px;font-size:12px;font-weight:600;cursor:pointer;flex-shrink:0;transition:background 0.15s;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'">Salin</button>
+        <button type="button" onclick="navigator.clipboard.writeText('${meetingUrl}'); toast('✓ Link QR Pass berhasil disalin!');" style="background:#2563eb;color:#fff;border:none;border-radius:6px;padding:5px 14px;font-size:11.5px;font-weight:600;cursor:pointer;flex-shrink:0;transition:background 0.15s;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'">Salin</button>
       </div>
 
       <!-- Action Buttons -->
       <div style="display:flex;gap:8px;width:100%;">
-        <a href="${meetingUrl}" target="_blank" style="flex:1.2;background:#16a34a;color:#fff;border:none;border-radius:10px;height:40px;font-size:12px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:4px;white-space:nowrap;transition:background 0.15s;padding:0 6px;box-sizing:border-box;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
+        <a href="${meetingUrl}" target="_blank" style="flex:1.2;background:#16a34a;color:#fff;border:none;border-radius:8px;height:38px;font-size:11.5px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:4px;white-space:nowrap;transition:background 0.15s;padding:0 6px;box-sizing:border-box;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
           <span>Buka Pass Rapat</span>
           <span style="font-size:13px;line-height:1;">↗</span>
         </a>
-        <button type="button" onclick="window.open('${meetingUrl}', '_blank')" style="flex:1;background:#ffffff;color:#1e293b;border:1px solid #cbd5e1;border-radius:10px;height:40px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;transition:background 0.15s;padding:0 6px;box-sizing:border-box;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='#ffffff'">
+        <button type="button" onclick="window.open('${meetingUrl}', '_blank')" style="flex:1;background:#ffffff;color:#1e293b;border:1px solid #cbd5e1;border-radius:8px;height:38px;font-size:11.5px;font-weight:600;cursor:pointer;white-space:nowrap;transition:background 0.15s;padding:0 6px;box-sizing:border-box;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='#ffffff'">
           Cetak Pass
         </button>
-        <button type="button" onclick="closeModal()" style="flex:0.85;background:#f1f5f9;color:#475569;border:none;border-radius:10px;height:40px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;transition:background 0.15s;padding:0 6px;box-sizing:border-box;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">
+        <button type="button" onclick="closeModal()" style="flex:0.85;background:#f1f5f9;color:#475569;border:none;border-radius:8px;height:38px;font-size:11.5px;font-weight:600;cursor:pointer;white-space:nowrap;transition:background 0.15s;padding:0 6px;box-sizing:border-box;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">
           Tutup
         </button>
       </div>
@@ -6587,6 +6604,7 @@ window.updateFacilityRowIcon = function (input) {
 };
 
 function openRoomModal(id = null) {
+  lockModalScroll();
   if (!can("manageRoom"))
     return denyAccess("Pengelolaan ruangan dilakukan oleh Admin.");
   const isEdit = id !== null && id !== undefined;
@@ -6942,6 +6960,7 @@ function viewRoomDetail(id) {
 }
 
 function openUserModal(id = null) {
+  lockModalScroll();
   if (!isMainAdmin()) {
     alert(
       "Hanya Admin Utama yang berhak menambah atau mengubah data pengguna.",
@@ -8088,3 +8107,17 @@ window.filterMeetingTable = filterMeetingTable;
 window.openMeetingQRModal = openMeetingQRModal;
 window.generateQrSvg = generateQrSvg;
 window.closeModal = closeModal;
+
+window.addEventListener("load", () => {
+  const modalEl = document.getElementById("modal");
+  if (modalEl && window.MutationObserver) {
+    const observer = new MutationObserver(() => {
+      if (modalEl.classList.contains("show")) {
+        lockModalScroll();
+      } else {
+        unlockModalScroll();
+      }
+    });
+    observer.observe(modalEl, { attributes: true, attributeFilter: ["class"] });
+  }
+});

@@ -1,3 +1,4 @@
+import { useLockScroll } from "../utils/scrollLock";
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { FaBars, FaCalendarAlt, FaDoorOpen, FaEye, FaEyeSlash, FaHistory, FaLock, FaSignOutAlt, FaTimes, FaUser } from "react-icons/fa";
@@ -64,9 +65,25 @@ export default function UserDashboardPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [visiblePasswords, setVisiblePasswords] = useState({ current: false, next: false, confirm: false });
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+
+  useLockScroll(mobileSidebarOpen);
   const [passwordMessage, setPasswordMessage] = useState("");
   const [passwordError, setPasswordError] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
+
+  const goToBooking = (e) => {
+    if (e && typeof e.preventDefault === 'function') {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    setMobileSidebarOpen(false);
+    navigate("/booking");
+    if (window.parent && window.parent !== window) {
+      try {
+        window.parent.location.href = "/booking";
+      } catch (err) {}
+    }
+  };
 
   useEffect(() => {
     document.title = "Dashboard Pengguna - Booking Ruang Rapat";
@@ -271,10 +288,7 @@ export default function UserDashboardPage() {
           </button>
           <button
             type="button"
-            onClick={() => {
-              setMobileSidebarOpen(false);
-              navigate("/booking");
-            }}
+            onClick={goToBooking}
           >
             <FaCalendarAlt />
             <span>Booking Ruangan</span>
@@ -302,47 +316,34 @@ export default function UserDashboardPage() {
           </button>
         </nav>
         <div className="user-dashboard-sidebar-footer">
-          <button type="button" className="user-dashboard-logout" onClick={logout}>
-            <FaSignOutAlt />
-            <span>Keluar</span>
-          </button>
           <div className="user-dashboard-sidebar-user">
-            <span>{(user.name || user.username || "U").charAt(0).toUpperCase()}</span>
-            <div>
+            <span className="user-dashboard-sidebar-avatar">
+              {(user.name || user.username || "U").charAt(0).toUpperCase()}
+            </span>
+            <div className="user-dashboard-sidebar-user-info">
               <strong>{user.name || user.username || "Pengguna"}</strong>
               <small>{user.role || "User"}</small>
             </div>
+          </div>
+          <div className="user-dashboard-sidebar-actions">
+            <button type="button" className="user-dashboard-logout-btn" onClick={logout}>
+              Keluar
+            </button>
           </div>
         </div>
       </aside>
 
       <main className="user-dashboard-main">
-        <header className="user-dashboard-topbar">
-          <div className="user-dashboard-topbar-left">
-            <button
-              type="button"
-              className="user-dashboard-menu-toggle"
-              aria-label={mobileSidebarOpen ? "Tutup menu navigasi" : "Buka menu navigasi"}
-              onClick={() => setMobileSidebarOpen(!mobileSidebarOpen)}
-            >
-              {mobileSidebarOpen ? <FaTimes /> : <FaBars />}
-            </button>
-            <div className="user-dashboard-topbar-title-block">
-              <small>Portal Pengguna</small>
-              <strong>{profileOpen ? "Profil Saya" : "Dashboard"}</strong>
-            </div>
-          </div>
+        <div className="user-dashboard-mobile-nav">
           <button
-            className="user-dashboard-profile-button"
-            onClick={() => {
-              setMobileSidebarOpen(false);
-              openProfile();
-            }}
+            type="button"
+            className="user-dashboard-menu-toggle"
+            aria-label={mobileSidebarOpen ? "Tutup menu navigasi" : "Buka menu navigasi"}
+            onClick={() => setMobileSidebarOpen(!mobileSidebarOpen)}
           >
-            <span className="user-dashboard-topbar-avatar">{(user.name || user.username || "U").charAt(0).toUpperCase()}</span>
-            <span className="user-dashboard-topbar-account"><strong>{user.name || user.username || "Pengguna"}</strong><small>{user.role || "User"}</small></span>
+            {mobileSidebarOpen ? <FaTimes /> : <FaBars />}
           </button>
-        </header>
+        </div>
 
         {profileOpen ? (
           <section className="user-dashboard-content">
@@ -368,7 +369,7 @@ export default function UserDashboardPage() {
           </section>
         ) : (
           <section className="user-dashboard-content">
-            <div className="user-welcome-banner"><span>Selamat datang,</span><h1>{user.name || user.username || "Pengguna"}</h1><p>Kelola pemesanan ruang rapat dan pantau status rapat Anda dengan mudah.</p><button onClick={() => navigate("/booking")}><FaDoorOpen />Booking Ruangan</button></div>
+            <div className="user-welcome-banner"><span>Selamat datang,</span><h1>{user.name || user.username || "Pengguna"}</h1><p>Kelola pemesanan ruang rapat dan pantau status rapat Anda dengan mudah.</p><button type="button" onClick={goToBooking}><FaDoorOpen /><span>Booking Ruangan</span></button></div>
             <div className="user-stat-grid">
               <article><span className="blue"><FaCalendarAlt /></span><div><small>Total Pemesanan</small><strong>{ownMeetings.length}</strong><p>Seluruh pemesanan Anda</p></div></article>
               <article><span className="green"><FaDoorOpen /></span><div><small>Jadwal Mendatang</small><strong>{upcomingCount}</strong><p>Rapat disetujui yang akan datang</p></div></article>
@@ -377,7 +378,7 @@ export default function UserDashboardPage() {
             <div className="user-dashboard-lower-panel">
               <div className="user-section-heading"><div><span>AKSES CEPAT</span><h2>Menu Pemesanan</h2></div></div>
               <div className="user-quick-grid">
-                <button type="button" onClick={() => navigate("/booking")}><span className="quick-icon blue"><FaCalendarAlt /></span><span><strong>Booking Ruangan</strong><small>Buat pemesanan baru</small></span><b aria-hidden="true">›</b></button>
+                <button type="button" onClick={goToBooking}><span className="quick-icon blue"><FaCalendarAlt /></span><span><strong>Booking Ruangan</strong><small>Buat pemesanan baru</small></span><b aria-hidden="true">›</b></button>
                 <button type="button" onClick={() => navigate("/booking/history")}><span className="quick-icon purple"><FaHistory /></span><span><strong>Riwayat Pemesanan</strong><small>Lihat status pemesanan</small></span><b aria-hidden="true">›</b></button>
                 <button type="button" onClick={openProfile}><span className="quick-icon slate"><FaUser /></span><span><strong>Profil & Password</strong><small>Perbarui informasi akun</small></span><b aria-hidden="true">›</b></button>
               </div>
@@ -410,7 +411,7 @@ export default function UserDashboardPage() {
                   <div className="user-upcoming-empty">
                     <span><FaCalendarAlt /></span>
                     <div><strong>Belum ada jadwal rapat mendatang</strong><p>Rapat yang sudah disetujui akan muncul di sini.</p></div>
-                    <button type="button" onClick={() => navigate("/booking")}>Buat pemesanan</button>
+                    <button type="button" onClick={goToBooking}>Buat pemesanan</button>
                   </div>
                 )}
               </div>

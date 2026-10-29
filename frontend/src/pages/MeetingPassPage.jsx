@@ -1,3 +1,4 @@
+import { useLockScroll } from "../utils/scrollLock";
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
 import { showAppConfirm } from "../utils/appDialogs";
@@ -40,6 +41,7 @@ export default function MeetingPassPage() {
   const [toast, setToast] = useState(null);
   const [copied, setCopied] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
+
 
   const [currentUser] = useState(() => {
     try {
@@ -96,6 +98,9 @@ export default function MeetingPassPage() {
   const [materialUploader, setMaterialUploader] = useState("");
   const [uploadingMaterial, setUploadingMaterial] = useState(false);
   const fileInputRef = useRef(null);
+
+  const hasActivePassModal = Boolean(showQRModal || showMaterialModal);
+  useLockScroll(hasActivePassModal);
 
   const showToast = (message, type = "success") => {
     setToast({ message, type });
@@ -1588,22 +1593,7 @@ export default function MeetingPassPage() {
                 />
               </div>
 
-              <div style={{ fontSize: "11.5px", color: "#64748b", fontWeight: 500, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 8 }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: "inline-block", verticalAlign: "-2px", marginRight: "4px" }}><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-                Pindai dengan Kamera Smartphone:
-              </div>
-              <div style={{ display: "flex", gap: 5, flexWrap: "nowrap", justifyContent: "center", alignItems: "center", width: "100%" }}>
-                <span style={{ background: "#dcfce7", color: "#15803d", padding: "3.5px 8px", borderRadius: 6, fontSize: "10.5px", fontWeight: 600, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 3 }}>✓ Check-In</span>
-                <span style={{ background: "#e0f2fe", color: "#0284c7", padding: "3.5px 8px", borderRadius: 6, fontSize: "10.5px", fontWeight: 600, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center" }}>
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ display: "inline-block", verticalAlign: "-1px", marginRight: 2 }}><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                  Daftar Hadir
-                </span>
-                <span style={{ background: "#fee2e2", color: "#dc2626", padding: "3.5px 8px", borderRadius: 6, fontSize: "10.5px", fontWeight: 600, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center" }}>Check-Out</span>
-                <span style={{ background: "#f1f5f9", color: "#475569", padding: "3.5px 8px", borderRadius: 6, fontSize: "10.5px", fontWeight: 600, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center" }}>
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ display: "inline-block", verticalAlign: "-1px", marginRight: 2 }}><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
-                  Materi
-                </span>
-              </div>
+
             </div>
 
             {/* URL Link & Copy Button */}

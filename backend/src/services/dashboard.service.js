@@ -728,14 +728,26 @@ async function syncStoreFromDatabase() {
         createdAt: m.created_at,
       }));
     if (reviewsRes.rows && reviewsRes.rows.length > 0) {
+      const hydratedReviewMeetings = new Set();
       reviewsRes.rows.forEach((rev) => {
+        const meetingId = String(rev.meeting_id);
+        if (hydratedReviewMeetings.has(meetingId)) return;
         const m = (store.meetings || []).find((meet) => String(meet.id) === String(rev.meeting_id));
-        if (m && !m.review) {
+        if (m) {
+          hydratedReviewMeetings.add(meetingId);
           m.review = {
+            ...(m.review || {}),
             rating: rev.rating,
             text: rev.comment,
             reviewer: rev.user_name,
             submittedAt: rev.created_at,
+            ...(rev.admin_reply ? {
+              adminReply: {
+                text: rev.admin_reply,
+                sender: rev.reply_by || "Pengelola Ruang Rapat Kemnaker",
+                repliedAt: rev.reply_date || null,
+              },
+            } : {}),
           };
         }
       });
@@ -778,6 +790,8 @@ async function getDashboardData() {
           ...calendarMeeting,
           originalId: localMeeting.originalId || localMeeting.id,
           status: calendarMeeting.status || localMeeting.status || "Akan Datang",
+          start: localMeeting.start || calendarMeeting.start,
+          end: localMeeting.end || calendarMeeting.end,
           approvedBy: localMeeting.approvedBy || calendarMeeting.approvedBy || "",
           approvedAt: localMeeting.approvedAt || calendarMeeting.approvedAt || "",
           materials: localMeeting.materials || calendarMeeting.materials || [],
@@ -785,6 +799,7 @@ async function getDashboardData() {
           bookedByUsername: localMeeting.bookedByUsername || calendarMeeting.bookedByUsername || "",
           attendees: localMeeting.attendees || calendarMeeting.attendees || [],
           review: localMeeting.review || calendarMeeting.review || null,
+          extensionHistory: localMeeting.extensionHistory || calendarMeeting.extensionHistory || [],
           checkInAt: localMeeting.checkInAt || calendarMeeting.checkInAt || null,
           checkedInBy: localMeeting.checkedInBy || calendarMeeting.checkedInBy || null,
           checkInMethod: localMeeting.checkInMethod || calendarMeeting.checkInMethod || null,
@@ -1354,19 +1369,35 @@ async function saveMeeting(meeting) {
       ]);
 
       if (meeting.review) {
+        const existingReview = await query(
+          `SELECT id FROM reviews WHERE meeting_id = $1 ORDER BY created_at DESC LIMIT 1`,
+          [String(meeting.id)],
+        );
+        const reviewId = existingReview.rows?.[0]?.id || `rev_${meeting.id}`;
         await query(`
-          INSERT INTO reviews (id, meeting_id, room_name, user_name, rating, comment, created_at)
-          VALUES ($1, $2, $3, $4, $5, $6, NOW())
+          INSERT INTO reviews (
+            id, meeting_id, room_name, user_name, rating, comment,
+            admin_reply, reply_date, reply_by, created_at
+          )
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
           ON CONFLICT (id) DO UPDATE SET
+            room_name = EXCLUDED.room_name,
+            user_name = EXCLUDED.user_name,
             rating = EXCLUDED.rating,
-            comment = EXCLUDED.comment;
+            comment = EXCLUDED.comment,
+            admin_reply = COALESCE(EXCLUDED.admin_reply, reviews.admin_reply),
+            reply_date = COALESCE(EXCLUDED.reply_date, reviews.reply_date),
+            reply_by = COALESCE(EXCLUDED.reply_by, reviews.reply_by);
         `, [
-          `rev_${meeting.id}`,
+          reviewId,
           String(meeting.id),
           meeting.room || meeting.roomName || "",
           meeting.review.reviewer || meeting.requester || "User",
           Number(meeting.review.rating) || 5,
-          meeting.review.text || ""
+          meeting.review.text || meeting.review.comment || "",
+          meeting.review.adminReply?.text || null,
+          meeting.review.adminReply?.repliedAt ? new Date(meeting.review.adminReply.repliedAt) : null,
+          meeting.review.adminReply?.sender || null,
         ]);
       }
     } catch (dbErr) {
