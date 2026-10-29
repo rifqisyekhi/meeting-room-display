@@ -430,22 +430,16 @@ router.post("/meetings/:id/review", async (req, res) => {
 });
 
 // Simpan balasan ulasan (KHUSUS AKUN ADMIN UTAMA SAJA)
-router.post("/meetings/:id/review/reply", async (req, res) => {
+/* Hanya Admin Utama yang boleh membalas ulasan. Identitas diambil dari cookie sesi
+   yang ditandatangani server, BUKAN dari req.body (actorUsername/actorRole kiriman
+   klien bisa dipalsukan, termasuk oleh pengunjung yang belum login). */
+router.post("/meetings/:id/review/reply", wajibLogin, async (req, res) => {
   try {
-    const cookieUname = String(req.user?.u || "").trim().toLowerCase();
-    const cookieRole = String(req.user?.r || "").trim().toLowerCase();
-    const bodyUname = String(req.body?.actorUsername || "").trim().toLowerCase();
-    const bodyRole = String(req.body?.actorRole || "").trim().toLowerCase();
-    const bodyName = String(req.body?.actorName || "").trim().toLowerCase();
+    const uname = String(req.user?.u || "").trim().toLowerCase();
+    const role = String(req.user?.r || "").trim().toLowerCase();
+    const adminUtama = String(process.env.ADMIN_USERNAME || "admin").trim().toLowerCase();
 
-    const effectiveUname = cookieUname || bodyUname;
-    const effectiveRole = cookieRole || bodyRole;
-
-    const isMainAdminAccount =
-      effectiveUname === "admin" ||
-      (!effectiveUname && bodyName === "admin utama" && (effectiveRole === "admin" || effectiveRole === "administrator"));
-
-    if (!isMainAdminAccount || effectiveRole === "pimpinan" || effectiveRole === "approval" || effectiveUname.includes("approval")) {
+    if (uname !== adminUtama || role !== "admin") {
       return res.status(403).json({
         success: false,
         error: "Hanya akun Admin Utama yang dapat membalas ulasan pengguna. Akun lain hanya dapat melihat ulasan.",
