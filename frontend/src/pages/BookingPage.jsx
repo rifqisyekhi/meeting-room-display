@@ -2190,7 +2190,7 @@ export default function BookingPage() {
 
         const roomReviews = sourceMeetings
           .filter((m) => {
-            if (!m) return false;
+            if (!m || !m.review) return false;
             const normRoom = (m.room || "").toLowerCase().trim();
             const match =
               normRoom.includes(normSelected) ||
@@ -2200,7 +2200,13 @@ export default function BookingPage() {
             return match && Boolean(m.review);
           })
           .map((m) => {
-            return { meeting: m, review: m.review };
+            const rev = {
+              ...m.review,
+              comment: m.review.comment ?? m.review.text ?? "",
+              text: m.review.text ?? m.review.comment ?? "",
+              reviewer: m.review.reviewer || m.bookedBy || m.requester || "User Pemesan",
+            };
+            return { meeting: m, review: rev };
           });
 
         return (

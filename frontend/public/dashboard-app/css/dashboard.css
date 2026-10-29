@@ -19,7 +19,7 @@
       .dash-title h1 {
         font-size: 28px;
         font-weight: 700;
-        color: #0c2d5e;
+        color: #123B5D;
         margin-bottom: 6px;
       }
       .dash-title p {
@@ -67,7 +67,7 @@
       }
       .dash-actions .avatar {
         background: rgba(255,255,255,0.6);
-        color: #0c2d5e;
+        color: #123B5D;
         border: 1px solid #d4e6f6;
       }
       
@@ -95,23 +95,23 @@
         display: grid;
         place-items: center;
       }
-      .dc-icon.blue { background: #e6f0fa; color: #1769aa; }
-      .dc-icon.green { background: #e2f7ec; color: #13865b; }
-      .dc-icon.yellow { background: #fff5da; color: #aa7600; }
-      .dc-icon.purple { background: #efeaff; color: #1769aa; }
+      .dc-icon.blue { background: rgba(52, 115, 167, 0.12); color: #3473A7; }
+      .dc-icon.green { background: rgba(155, 194, 100, 0.18); color: #5a8227; }
+      .dc-icon.yellow { background: rgba(255, 213, 46, 0.18); color: #b88600; }
+      .dc-icon.purple { background: rgba(0, 191, 166, 0.15); color: #3473A7; }
       
       .dc-text strong {
         display: block;
         font-size: 26px;
         font-weight: 700;
-        color: #0c2d5e;
+        color: #123B5D;
         line-height: 1.1;
       }
       .dc-text span {
         display: block;
         font-size: 14px;
         font-weight: 600;
-        color: #0c2d5e;
+        color: #123B5D;
         margin-top: 4px;
       }
       .dc-text small {
@@ -140,9 +140,9 @@
 
       /* Use the system blue palette for dashboard statistic icons. */
       .dash-cards .dc-icon,
-      .rep-card-compact .rc-icon-compact { background: #e6f0fa !important; color: #1769aa !important; }
+      .rep-card-compact .rc-icon-compact { background: #e6f0fa !important; color: #3473A7 !important; }
       .dash-cards .dc-icon svg,
-      .rep-card-compact .rc-icon-compact svg { fill: #1769aa !important; color: #1769aa !important; }
+      .rep-card-compact .rc-icon-compact svg { fill: #3473A7 !important; color: #3473A7 !important; }
 
       /* Keep meeting data and status badges on one line; scroll the table sideways when needed. */
       .meetings-page-wrapper #meetingTable { min-width: 0; }
@@ -241,7 +241,7 @@
         flex: 0 0 14px;
       }
       .dash-tabs button.active {
-        color: #0c2d5e;
+        color: #123B5D;
       }
       .dash-tabs button.active::after {
         content: '';
@@ -250,7 +250,7 @@
         left: 0;
         right: 0;
         height: 3px;
-        background: #1769aa;
+        background: #3473A7;
         border-radius: 3px 3px 0 0;
       }
       
@@ -269,7 +269,7 @@
       .dash-search-box svg {
         position: absolute;
         left: 14px;
-        color: #1769aa;
+        color: #3473A7;
       }
       .dash-search-box input {
         width: 100%;
@@ -278,16 +278,16 @@
         border-radius: 8px;
         font-size: 14px;
         outline: none;
-        color: #0c2d5e;
+        color: #123B5D;
         transition: border-color 0.2s;
       }
-      .dash-search-box input:focus { border-color: #1769aa; }
+      .dash-search-box input:focus { border-color: #3473A7; }
       .dash-filters select {
         padding: 10px 36px 10px 14px;
         border: 1px solid #edf3f9;
         border-radius: 8px;
         font-size: 14px;
-        color: #0c2d5e;
+        color: #123B5D;
         outline: none;
         background-color: #fff;
         appearance: none;
@@ -300,12 +300,14 @@
       
       /* Force table style */
       .dash-table-container .table th {
-        background: #f4f8fc;
-        color: #0c2d5e;
+        white-space: nowrap !important;
+        background: #F6F6F6;
+        color: #123B5D;
         font-weight: 600;
         border-bottom: 1px solid #eef3f9;
       }
       .dash-table-container .table td {
+        white-space: nowrap !important;
         border-bottom: 1px solid #f4f8fc;
       }
       .dash-table-container .table tr:hover td {

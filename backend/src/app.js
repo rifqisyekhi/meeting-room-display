@@ -27,6 +27,8 @@ app.post("/api/auth/login", async (req, res) => {
     const { username, password } = req.body;
     const result = await dashboardService.authenticateUser(username, password);
     if (result.success) {
+      const { pasangSesi } = require("./middleware/auth");
+      pasangSesi(res, result.user);
       res.json(result);
     } else {
       res.status(401).json(result);

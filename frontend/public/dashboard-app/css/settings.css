@@ -20,7 +20,7 @@
       .settings-title h1 {
         font-size: 28px;
         font-weight: 700;
-        color: #0c2d5e;
+        color: #123B5D;
         margin: 0 0 4px;
       }
       .settings-title p {
@@ -93,7 +93,7 @@
         display: block;
         font-size: 28px;
         font-weight: 700;
-        color: #0c2d5e;
+        color: #123B5D;
         line-height: 1.1;
       }
       .s-info span {
@@ -113,7 +113,7 @@
       .settings-panel h2 {
         font-size: 20px;
         font-weight: 800;
-        color: #0c2d5e;
+        color: #123B5D;
         margin: 0 0 24px;
       }
       .settings-table-wrap {
@@ -129,14 +129,14 @@
         padding: 16px 20px;
         font-size: 14px;
         font-weight: 700;
-        color: #0c2d5e;
+        color: #123B5D;
         border-bottom: 2px solid #edf3f9;
         white-space: nowrap;
       }
       .settings-table td {
         padding: 20px;
         font-size: 14px;
-        color: #0c2d5e;
+        color: #123B5D;
         border-bottom: 1px solid #f4f8fc;
       }
       .settings-table tr:hover td {
@@ -144,12 +144,12 @@
       }
       .td-no {
         font-weight: 700;
-        color: #0c2d5e;
+        color: #123B5D;
         width: 60px;
       }
       .td-role {
         font-weight: 700;
-        color: #0c2d5e;
+        color: #123B5D;
         width: 220px;
       }
       .td-access {
@@ -158,7 +158,7 @@
       }
       .td-count {
         font-weight: 600;
-        color: #0c2d5e;
+        color: #123B5D;
         width: 160px;
         text-align: center;
       }
@@ -187,7 +187,7 @@
       .custom-role-modal h2 {
         font-size: 19px;
         font-weight: 800;
-        color: #0c2d5e;
+        color: #123B5D;
         margin: 0 0 2px;
         letter-spacing: -0.3px;
       }
@@ -215,11 +215,11 @@
         background: #f0f7ff !important;
       }
       .role-perm-card:has(input:checked) {
-        border-color: #1769aa !important;
+        border-color: #3473A7 !important;
         background: #eff6ff !important;
       }
       .role-perm-card:has(input:checked) span {
-        color: #0c2d5e !important;
+        color: #123B5D !important;
       }
 
       .settings-header { padding: 24px 40px 22px; }
@@ -241,5 +241,5 @@
         .settings-header { padding: 20px 16px 18px; }
         .settings-stat-grid { grid-template-columns: 1fr; padding: 0 16px 16px; }
       }
-      .settings-stat-grid .s-icon-box { background: #e6f0fa !important; color: #1769aa !important; }
-      .settings-stat-grid .s-icon-box svg { fill: #1769aa !important; color: #1769aa !important; }
+      .settings-stat-grid .s-icon-box { background: #e6f0fa !important; color: #3473A7 !important; }
+      .settings-stat-grid .s-icon-box svg { fill: #3473A7 !important; color: #3473A7 !important; }

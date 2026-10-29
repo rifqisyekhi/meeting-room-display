@@ -19,7 +19,7 @@
       .dash-title h1 {
         font-size: 28px;
         font-weight: 700;
-        color: #0c2d5e;
+        color: #123B5D;
         margin-bottom: 6px;
       }
       .dash-title p {
@@ -54,7 +54,7 @@
         border-radius: 50%;
       }
       .dash-actions .profile { margin: 0; background: transparent; }
-      .dash-actions .avatar { background: rgba(255,255,255,0.6); color: #0c2d5e; border: 1px solid #d4e6f6; }
+      .dash-actions .avatar { background: rgba(255,255,255,0.6); color: #123B5D; border: 1px solid #d4e6f6; }
       
       .dash-cards-users {
         display: flex;
@@ -80,11 +80,11 @@
         display: grid;
         place-items: center;
       }
-      .dc-icon-user.blue { background: #e6f0fa; color: #1769aa; }
+      .dc-icon-user.blue { background: #e6f0fa; color: #3473A7; }
       .dc-icon-user.orange { background: #fdf2e9; color: #e89540; fill: transparent; stroke: #e89540; stroke-width: 20px; }
       .dc-icon-user.orange svg path { fill: transparent; stroke: #e89540; stroke-width: 20px; }
       
-      .dc-text-user strong { display: block; font-size: 32px; font-weight: 700; color: #0c2d5e; line-height: 1.1; }
+      .dc-text-user strong { display: block; font-size: 32px; font-weight: 700; color: #123B5D; line-height: 1.1; }
       .dc-text-user span { display: block; font-size: 15px; font-weight: 600; color: #4b6a90; margin-top: 4px; }
       
       .dash-table-container {
@@ -97,7 +97,7 @@
       }
       
       .btn-add-user {
-        background: #0c2d5e;
+        background: #123B5D;
         color: #ffffff;
         border: none;
         padding: 10px 22px;
@@ -112,7 +112,7 @@
         transition: background 0.2s;
       }
       .btn-add-user:hover {
-        background: #1769aa;
+        background: #3473A7;
       }
       
       .dash-filters {
@@ -130,17 +130,17 @@
         flex-wrap: wrap;
       }
       .dash-search-box { position: relative; display: flex; align-items: center; width: 320px; }
-      .dash-search-box svg { position: absolute; left: 14px; color: #1769aa; }
+      .dash-search-box svg { position: absolute; left: 14px; color: #3473A7; }
       .dash-search-box input {
-        width: 100%; padding: 10px 14px 10px 40px; border: 1px solid #edf3f9; border-radius: 8px; font-size: 14px; outline: none; color: #0c2d5e;
+        width: 100%; padding: 10px 14px 10px 40px; border: 1px solid #edf3f9; border-radius: 8px; font-size: 14px; outline: none; color: #123B5D;
       }
       .dash-filters select {
-        padding: 10px 36px 10px 14px; border: 1px solid #edf3f9; border-radius: 8px; font-size: 14px; color: #0c2d5e; outline: none; background-color: #fff; appearance: none; -webkit-appearance: none;
+        padding: 10px 36px 10px 14px; border: 1px solid #edf3f9; border-radius: 8px; font-size: 14px; color: #123B5D; outline: none; background-color: #fff; appearance: none; -webkit-appearance: none;
         background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%230c2d5e' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
         background-repeat: no-repeat; background-position: right 12px center; cursor: pointer;
       }
       
-      .dash-table-container .table th { background: #fff; color: #0c2d5e; font-weight: 700; border-bottom: 1px solid #eef3f9; }
+      .dash-table-container .table th { background: #fff; color: #123B5D; font-weight: 700; border-bottom: 1px solid #eef3f9; }
       .dash-table-container .table td { border-bottom: 1px solid #f4f8fc; padding: 16px 12px; }
 
       .users-page-wrapper .dash-cards-users { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; padding: 0 40px 20px; }
@@ -156,9 +156,9 @@
       @media (max-width: 640px) {
         .users-page-wrapper .dash-cards-users { grid-template-columns: 1fr; padding: 0 16px 16px; }
       }
-      .users-page-wrapper .dc-icon-user { background: #e6f0fa !important; color: #1769aa !important; }
-      .users-page-wrapper .dc-icon-user svg { fill: #1769aa !important; color: #1769aa !important; }
-      .users-page-wrapper .dc-icon-user.orange svg path { fill: transparent !important; stroke: #1769aa !important; }
+      .users-page-wrapper .dc-icon-user { background: #e6f0fa !important; color: #3473A7 !important; }
+      .users-page-wrapper .dc-icon-user svg { fill: #3473A7 !important; color: #3473A7 !important; }
+      .users-page-wrapper .dc-icon-user.orange svg path { fill: transparent !important; stroke: #3473A7 !important; }
 
       /* Keep the user directory aligned like the admin meeting table. */
       .users-page-wrapper #userTable { width: 100%; min-width: 0; }
@@ -166,8 +166,8 @@
       .users-page-wrapper #userTable .table { width: 100%; min-width: 1000px; table-layout: fixed; }
       .users-page-wrapper #userTable .table th,
       .users-page-wrapper #userTable .table td { box-sizing: border-box; padding: 10px 10px; text-align: left; vertical-align: middle; white-space: nowrap; }
-      .users-page-wrapper #userTable .table th { height: 44px; background: #fff; color: #0c2d5e; font-size: 12px; font-weight: 700; border-bottom: 1px solid #e8eff7; }
-      .users-page-wrapper #userTable .table td { height: 64px; color: #0c2d5e; font-size: 12.5px; font-weight: 500; border-bottom: 1px solid #f0f4f9; }
+      .users-page-wrapper #userTable .table th { height: 44px; background: #fff; color: #123B5D; font-size: 12px; font-weight: 700; border-bottom: 1px solid #e8eff7; }
+      .users-page-wrapper #userTable .table td { height: 64px; color: #123B5D; font-size: 12.5px; font-weight: 500; border-bottom: 1px solid #f0f4f9; }
       .users-page-wrapper #userTable .table tbody tr:hover td { background: #f8fbff; }
       .users-page-wrapper #userTable .user-col-number { width: 5%; }
       .users-page-wrapper #userTable .user-col-account { width: 19%; }

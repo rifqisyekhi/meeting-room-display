@@ -156,7 +156,7 @@ export default function BookingHistoryPage() {
   });
   const [filterStatus, setFilterStatus] = useState("all");
   const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
-  const statusDropdownRef = useRef(null);
+  const desktopStatusDropdownRef = useRef(null);
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [search, setSearch] = useState("");
@@ -347,7 +347,7 @@ export default function BookingHistoryPage() {
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (statusDropdownRef.current && !statusDropdownRef.current.contains(event.target)) {
+      if (desktopStatusDropdownRef.current && !desktopStatusDropdownRef.current.contains(event.target)) {
         setIsStatusDropdownOpen(false);
       }
     };
@@ -395,6 +395,26 @@ export default function BookingHistoryPage() {
             matchedLocalIds.add(String(localMeeting.id));
             if (localMeeting.googleId) matchedLocalIds.add(String(localMeeting.googleId));
           }
+          const mergedReview =
+            meeting.review || localMeeting?.review
+              ? {
+                  ...(localMeeting?.review || {}),
+                  ...(meeting.review || {}),
+                  comment:
+                    meeting.review?.comment ??
+                    meeting.review?.text ??
+                    localMeeting?.review?.comment ??
+                    localMeeting?.review?.text ??
+                    "",
+                  text:
+                    meeting.review?.text ??
+                    meeting.review?.comment ??
+                    localMeeting?.review?.text ??
+                    localMeeting?.review?.comment ??
+                    "",
+                  adminReply: meeting.review?.adminReply || localMeeting?.review?.adminReply || null,
+                }
+              : null;
           return {
             ...meeting,
             end: localMeeting?.extensionHistory?.length &&
@@ -406,13 +426,7 @@ export default function BookingHistoryPage() {
               : (localMeeting?.extensionHistory || []),
             bookedBy: meeting.bookedBy || localMeeting?.bookedBy || "",
             bookedByUsername: meeting.bookedByUsername || localMeeting?.bookedByUsername || "",
-            review: meeting.review || localMeeting?.review
-              ? {
-                  ...(localMeeting?.review || {}),
-                  ...(meeting.review || {}),
-                  adminReply: meeting.review?.adminReply || localMeeting?.review?.adminReply || null,
-                }
-              : null,
+            review: mergedReview,
             attendees: meeting.attendees || localMeeting?.attendees || [],
             createdAt: meeting.createdAt || localMeeting?.createdAt || null,
           };
@@ -451,7 +465,7 @@ export default function BookingHistoryPage() {
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (statusDropdownRef.current && !statusDropdownRef.current.contains(event.target)) {
+      if (desktopStatusDropdownRef.current && !desktopStatusDropdownRef.current.contains(event.target)) {
         setIsStatusDropdownOpen(false);
       }
     };
@@ -486,7 +500,7 @@ export default function BookingHistoryPage() {
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (statusDropdownRef.current && !statusDropdownRef.current.contains(event.target)) {
+      if (desktopStatusDropdownRef.current && !desktopStatusDropdownRef.current.contains(event.target)) {
         setIsStatusDropdownOpen(false);
       }
     };
@@ -694,14 +708,35 @@ export default function BookingHistoryPage() {
   const submitReview = async () => {
     if (!reviewTarget || !reviewRating) return;
     const submittedAt = new Date().toISOString();
+    const ratingNum = Number(reviewRating) || 5;
+    const commentText = reviewText.trim();
+    const reviewerName =
+      currentUser.name ||
+      reviewTarget.bookedBy ||
+      currentUser.username ||
+      reviewTarget.requester ||
+      "User";
     const review = {
-      rating: reviewRating,
-      text: reviewText.trim(),
-      reviewer: currentUser.name || currentUser.username || "User",
-      reviewerUsername: currentUser.username || "",
+      rating: ratingNum,
+      cleanliness: ratingNum,
+      facilities: ratingNum,
+      comfort: ratingNum,
+      service: ratingNum,
+      text: commentText,
+      comment: commentText,
+      reviewer: reviewerName,
+      reviewerUsername: currentUser.username || reviewTarget.bookedByUsername || "",
       submittedAt,
+      tags:
+        ratingNum >= 5
+          ? ["Fasilitas Berfungsi Baik", "Sangat Bersih", "Sangat Memuaskan"]
+          : ratingNum === 4
+            ? ["Fasilitas Baik", "Kondusif"]
+            : ratingNum === 3
+              ? ["Cukup Baik"]
+              : ["Perlu Perbaikan"],
     };
-    const updatedMeeting = { ...reviewTarget, review };
+    const updatedMeeting = { ...reviewTarget, status: "Selesai", review };
     const updatedMeetings = meetings.map((meeting) => String(meeting.id) === String(reviewTarget.id) ? updatedMeeting : meeting);
     const notification = {
       id: `review-${reviewTarget.id}-${submittedAt}`,
@@ -715,8 +750,9 @@ export default function BookingHistoryPage() {
       time: `${reviewTarget.start || reviewTarget.startTime} - ${reviewTarget.end || reviewTarget.endTime}`,
       rating: review.rating,
       review: review.text,
+      comment: review.comment,
       status: "Ulasan Baru",
-      targetRoles: ["Administrator", "Approval 1", "Approval 2"],
+      targetRoles: ["Admin", "Administrator", "Pimpinan", "Approval", "Approval 1", "Approval 2"],
       createdAt: submittedAt,
       readBy: [],
     };
@@ -726,8 +762,12 @@ export default function BookingHistoryPage() {
       const existingNotifications = Array.isArray(savedNotifications) ? savedNotifications : [];
       localStorage.setItem("app_notifications", JSON.stringify([notification, ...existingNotifications]));
       localStorage.setItem("app_meetings", JSON.stringify(updatedMeetings));
+      window.dispatchEvent(new Event("app_meetings_updated"));
       window.dispatchEvent(new Event("app_notifications_updated"));
-      if (window.parent && window.parent !== window) window.parent.dispatchEvent(new Event("app_notifications_updated"));
+      if (window.parent && window.parent !== window) {
+        window.parent.dispatchEvent(new Event("app_meetings_updated"));
+        window.parent.dispatchEvent(new Event("app_notifications_updated"));
+      }
     } catch (error) {
       console.warn("Gagal menyimpan ulasan lokal:", error);
     }
@@ -737,12 +777,19 @@ export default function BookingHistoryPage() {
     setReviewRating(0);
     setReviewText("");
     try {
-      const response = await fetch("/api/dashboard/meetings", {
+      const reviewRes = await fetch(`/api/dashboard/meetings/${encodeURIComponent(reviewTarget.id)}/review`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updatedMeeting),
+        body: JSON.stringify({ review, meeting: updatedMeeting }),
       });
-      if (!response.ok) throw new Error("Gagal menyinkronkan ulasan ke server.");
+      if (!reviewRes.ok) {
+        const fallbackRes = await fetch("/api/dashboard/meetings", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(updatedMeeting),
+        });
+        if (!fallbackRes.ok) throw new Error("Gagal menyinkronkan ulasan ke server.");
+      }
     } catch (error) {
       console.warn("Sinkronisasi ulasan:", error);
       setNotice("Ulasan tersimpan di halaman ini, tetapi gagal disinkronkan ke server.");
@@ -757,6 +804,8 @@ export default function BookingHistoryPage() {
     { key: "completed", label: "Selesai" },
     { key: "cancelled", label: "Dibatalkan" },
   ];
+  // Dropdown status versi HP: "Semua" + opsi yang sama dengan dropdown desktop.
+  const tabs = [["all", "Semua"], ...statusOptions.map((opt) => [opt.key, opt.label])];
   const activeStatusOption = statusOptions.find((opt) => opt.key === filterStatus);
   const statusButtonLabel = activeStatusOption ? activeStatusOption.label : "Status";
   const hasActiveFilters = filterStatus !== "all" || fromDate || toDate || search.trim();
@@ -790,7 +839,7 @@ export default function BookingHistoryPage() {
             >
               Semua
             </button>
-            <div className="booking-history-status-dropdown" ref={statusDropdownRef}>
+            <div className="booking-history-status-dropdown" ref={desktopStatusDropdownRef}>
               <button
                 type="button"
                 role="tab"

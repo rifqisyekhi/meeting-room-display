@@ -7,7 +7,7 @@
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior-y: contain;
-  background-color: #f8fafc;
+  background-color: #F6F6F6;
   background-image: radial-gradient(#cbd5e1 0.75px, transparent 0.75px);
   background-size: 20px 20px;
   color: #1e293b;
@@ -35,7 +35,7 @@
   padding: 14px 22px;
   background: #ffffff;
   border-radius: 12px;
-  box-shadow: 0 4px 16px rgba(12, 45, 94, 0.04);
+  box-shadow: 0 4px 16px rgba(18, 59, 93, 0.04);
   border: 1px solid #e2e8f0;
   gap: 12px;
   flex-wrap: wrap;
@@ -56,7 +56,7 @@
 .mp-brand-info h1 {
   font-size: 14.5px;
   font-weight: 700;
-  color: #0c2d5e;
+  color: #123B5D;
   margin: 0;
   line-height: 1.25;
 }
@@ -98,13 +98,13 @@
 }
 
 .mp-back-btn {
-  background: #f8fafc;
-  color: #0c2d5e;
+  background: #F6F6F6;
+  color: #123B5D;
   border: 1px solid #cbd5e1;
 }
 
 .mp-back-btn:hover {
-  background: #0c2d5e;
+  background: #123B5D;
   color: #ffffff;
 }
 
@@ -131,7 +131,7 @@
 .mp-detil-heading {
   font-size: 21px;
   font-weight: 700;
-  color: #0c2d5e;
+  color: #123B5D;
   margin: 0;
 }
 
@@ -256,13 +256,13 @@
 
 .mp-field-title {
   font-weight: 700;
-  color: #0c2d5e;
+  color: #123B5D;
   letter-spacing: 0.2px;
 }
 
 .mp-field-date {
   font-weight: 600;
-  color: #0c2d5e;
+  color: #123B5D;
 }
 
 .mp-field-desc {
@@ -286,7 +286,7 @@
   border: 1px solid #e2e8f0;
   border-radius: 6px;
   overflow: hidden;
-  background: #f8fafc;
+  background: #F6F6F6;
   margin-top: 4px;
 }
 
@@ -361,7 +361,7 @@
 .mp-section-title {
   font-size: 18px;
   font-weight: 700;
-  color: #0c2d5e;
+  color: #123B5D;
   margin: 0;
 }
 
@@ -387,7 +387,7 @@
 }
 
 .mp-booker-identity svg { color: #b91c1c; }
-.mp-booker-identity strong { color: #0c2d5e; }
+.mp-booker-identity strong { color: #123B5D; }
 .mp-control-locked { border-top-color: #94a3b8; }
 .mp-control-locked-note { margin-top: 14px; color: #64748b; font-size: 12px; }
 .mp-booker-login-btn {
@@ -396,7 +396,7 @@
   padding: 9px 14px;
   border-radius: 7px;
   color: #fff;
-  background: #0c2d5e;
+  background: #123B5D;
   text-decoration: none;
   font-size: 12px;
   font-weight: 600;
@@ -429,16 +429,16 @@
   border-radius: 8px;
   font-size: 13.5px;
   font-family: inherit;
-  color: #0c2d5e;
-  background: #f8fafc;
+  color: #123B5D;
+  background: #F6F6F6;
   outline: none;
   transition: all 0.15s ease;
 }
 
 .mp-rep-input:focus {
-  border-color: #0c2d5e;
+  border-color: #123B5D;
   background: #ffffff;
-  box-shadow: 0 0 0 3px rgba(12, 45, 94, 0.1);
+  box-shadow: 0 0 0 3px rgba(18, 59, 93, 0.1);
 }
 
 .mp-session-status-banner {
@@ -551,7 +551,7 @@
 }
 
 .mp-attendance-form {
-  background: #f8fafc;
+  background: #F6F6F6;
   border: 1px solid #e2e8f0;
   border-radius: 10px;
   padding: 20px 22px;
@@ -563,7 +563,7 @@
   align-items: center;
   gap: 8px;
   margin-bottom: 16px;
-  color: #0c2d5e;
+  color: #123B5D;
   font-size: 14px;
 }
 
@@ -602,7 +602,7 @@
   border-radius: 8px;
   font-size: 13.5px;
   font-family: inherit;
-  color: #0c2d5e;
+  color: #123B5D;
   background: #ffffff;
   outline: none;
   transition: all 0.15s ease;
@@ -624,7 +624,7 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  background: #0c2d5e;
+  background: #123B5D;
   color: #ffffff;
   border: none;
   padding: 12px 24px;
@@ -633,7 +633,7 @@
   font-weight: 700;
   font-family: inherit;
   cursor: pointer;
-  box-shadow: 0 4px 14px rgba(12, 45, 94, 0.2);
+  box-shadow: 0 4px 14px rgba(18, 59, 93, 0.2);
   transition: all 0.15s ease;
 }
 
@@ -660,7 +660,7 @@
 .mp-att-list-title {
   font-size: 15px;
   font-weight: 700;
-  color: #0c2d5e;
+  color: #123B5D;
   margin: 0;
 }
 
@@ -675,7 +675,7 @@
 }
 
 .mp-att-empty-box {
-  background: #f8fafc;
+  background: #F6F6F6;
   border: 1px dashed #cbd5e1;
   border-radius: 10px;
   padding: 36px 20px;
@@ -735,11 +735,11 @@
 }
 
 .mp-att-table tr:hover td {
-  background: #f8fafc;
+  background: #F6F6F6;
 }
 
 .att-name {
-  color: #0c2d5e;
+  color: #123B5D;
   font-weight: 700;
   display: block;
 }
@@ -805,7 +805,7 @@
 .mp-footer-btn:hover {
   background: #f1f5f9;
   border-color: #94a3b8;
-  color: #0c2d5e;
+  color: #123B5D;
 }
 
 .mp-footer-credit {
@@ -820,7 +820,7 @@
   bottom: 24px;
   left: 50%;
   transform: translateX(-50%);
-  background: #0c2d5e;
+  background: #123B5D;
   color: #ffffff;
   padding: 12px 24px;
   border-radius: 30px;
@@ -889,7 +889,7 @@
 .mp-modal-title {
   font-size: 18px;
   font-weight: 700;
-  color: #0c2d5e;
+  color: #123B5D;
   margin: 0 0 6px;
 }
 
@@ -903,7 +903,7 @@
 .mp-modal-qr-wrap {
   display: inline-flex;
   padding: 14px;
-  background: #f8fafc;
+  background: #F6F6F6;
   border: 1px solid #e2e8f0;
   border-radius: 12px;
   margin-bottom: 14px;
@@ -918,7 +918,7 @@
 
 .mp-modal-meeting-info strong {
   font-size: 14px;
-  color: #0c2d5e;
+  color: #123B5D;
 }
 
 .mp-modal-meeting-info span {
@@ -939,7 +939,7 @@
 }
 
 .mp-btn-action.primary {
-  background: #0c2d5e;
+  background: #123B5D;
   color: #ffffff;
 }
 
@@ -966,7 +966,7 @@
   width: 36px;
   height: 36px;
   border: 3.5px solid #e2e8f0;
-  border-top-color: #0c2d5e;
+  border-top-color: #123B5D;
   border-radius: 50%;
   animation: mp-spin 0.8s linear infinite;
   margin: 0 auto;
@@ -1136,7 +1136,7 @@
   .mp-field-value {
     width: 100% !important;
     font-size: 13px !important;
-    color: #0c2d5e !important;
+    color: #123B5D !important;
   }
 
   .mp-material-item {
@@ -1178,7 +1178,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  background: #f8fafc;
+  background: #F6F6F6;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
   padding: 10px 14px;
@@ -1212,7 +1212,7 @@
 .mp-mat-name {
   font-weight: 600;
   font-size: 13.5px;
-  color: #0c2d5e;
+  color: #123B5D;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1289,7 +1289,7 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  background: #0c2d5e;
+  background: #123B5D;
   color: #ffffff;
   border: none;
   padding: 8px 16px;
@@ -1335,6 +1335,6 @@
 }
 
 .mp-modal-tab-btn.active {
-  background: #0c2d5e;
+  background: #123B5D;
   color: #ffffff;
 }

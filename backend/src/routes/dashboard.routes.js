@@ -109,8 +109,33 @@ router.get("/meetings", async (req, res) => {
 });
 
 // Simpan / update rapat (otomatis sinkron ke Google Calendar & notif WA atasan jika butuh approval)
-router.post("/meetings", wajibLogin, async (req, res) => {
+router.post("/meetings", async (req, res) => {
   try {
+    if (!req.user) {
+      const hasIdentity = Boolean(
+        req.body?.bookedByUsername ||
+        req.body?.bookedBy ||
+        req.body?.requester ||
+        req.body?.review?.reviewer ||
+        req.body?.review?.reviewerUsername
+      );
+      if (!hasIdentity) {
+        return res.status(401).json({
+          success: false,
+          error: "Sesi tidak ditemukan atau sudah berakhir. Silakan masuk kembali.",
+        });
+      }
+    }
+
+    // Proteksi balasan review: hanya Admin Utama (username === 'admin') yang boleh mengubah adminReply
+    if (req.body?.review?.adminReply) {
+      const actorUname = String(req.user?.u || req.body?.actorUsername || "").trim().toLowerCase();
+      if (req.user && actorUname !== "admin") {
+        const existingMeeting = await dashboardService.getMeetingById(req.body.id);
+        req.body.review.adminReply = existingMeeting?.review?.adminReply || null;
+      }
+    }
+
     const saved = await dashboardService.saveMeeting(req.body);
 
     // Jika status "Menunggu Approval", kirim notifikasi WhatsApp ke Atasan
@@ -388,6 +413,52 @@ router.delete("/meetings/:id/materials/:materialId", async (req, res) => {
     res.json({ success: true, meeting: result.meeting });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Simpan rating & ulasan rapat dari pengguna
+router.post("/meetings/:id/review", async (req, res) => {
+  try {
+    const result = await dashboardService.saveMeetingReview(req.params.id, req.body);
+    if (!result) {
+      return res.status(404).json({ success: false, error: "Rapat tidak ditemukan." });
+    }
+    res.json({ success: true, meeting: result.meeting, review: result.review });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ success: false, error: err.message });
+  }
+});
+
+// Simpan balasan ulasan (KHUSUS AKUN ADMIN UTAMA SAJA)
+router.post("/meetings/:id/review/reply", async (req, res) => {
+  try {
+    const cookieUname = String(req.user?.u || "").trim().toLowerCase();
+    const cookieRole = String(req.user?.r || "").trim().toLowerCase();
+    const bodyUname = String(req.body?.actorUsername || "").trim().toLowerCase();
+    const bodyRole = String(req.body?.actorRole || "").trim().toLowerCase();
+    const bodyName = String(req.body?.actorName || "").trim().toLowerCase();
+
+    const effectiveUname = cookieUname || bodyUname;
+    const effectiveRole = cookieRole || bodyRole;
+
+    const isMainAdminAccount =
+      effectiveUname === "admin" ||
+      (!effectiveUname && bodyName === "admin utama" && (effectiveRole === "admin" || effectiveRole === "administrator"));
+
+    if (!isMainAdminAccount || effectiveRole === "pimpinan" || effectiveRole === "approval" || effectiveUname.includes("approval")) {
+      return res.status(403).json({
+        success: false,
+        error: "Hanya akun Admin Utama yang dapat membalas ulasan pengguna. Akun lain hanya dapat melihat ulasan.",
+      });
+    }
+
+    const result = await dashboardService.saveMeetingReviewReply(req.params.id, req.body);
+    if (!result) {
+      return res.status(404).json({ success: false, error: "Rapat atau ulasan tidak ditemukan." });
+    }
+    res.json({ success: true, meeting: result.meeting, review: result.review });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ success: false, error: err.message });
   }
 });
 

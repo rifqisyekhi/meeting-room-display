@@ -80,9 +80,11 @@ const DashboardRoute = ({ children }) => {
     // Continue routing from the available authentication state.
   }
 
-  const role = (currentUser?.role || "").toLowerCase();
-  const uname = (currentUser?.username || "").toLowerCase();
+  const role = (currentUser?.role || "").trim().toLowerCase();
+  const uname = (currentUser?.username || "").trim().toLowerCase();
+  const isRegularUserRole = !role || role === "user" || role === "staff" || role === "pegawai";
   const isAdminOrPimpinan =
+    !isRegularUserRole ||
     role.includes("admin") ||
     role.includes("pimpinan") ||
     role.includes("approval") ||

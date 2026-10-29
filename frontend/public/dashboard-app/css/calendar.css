@@ -11,7 +11,7 @@
   padding: 30px 40px 24px;
 }
 .cal-breadcrumb { font-size: 12px; color: #4b6a90; margin-bottom: 8px; font-weight: 500; }
-.cal-header h1 { font-size: 28px; font-weight: 700; color: #0c2d5e; margin-bottom: 6px; }
+.cal-header h1 { font-size: 28px; font-weight: 700; color: #123B5D; margin-bottom: 6px; }
 .cal-header p { color: #4b6a90; font-size: 14px; font-weight: 500; }
 .dash-bell {
   width: 44px; height: 44px; border-radius: 50%;
@@ -25,7 +25,7 @@
 }
 .dash-actions { display: flex; align-items: center; gap: 24px; }
 .dash-actions .profile { margin: 0; background: transparent; }
-.dash-actions .avatar { background: rgba(255,255,255,0.6); color: #0c2d5e; border: 1px solid #d4e6f6; }
+.dash-actions .avatar { background: rgba(255,255,255,0.6); color: #123B5D; border: 1px solid #d4e6f6; }
 
 .cal-body {
   flex: 1;
@@ -53,15 +53,15 @@
   align-items: center;
   margin-bottom: 24px;
 }
-.cal-card-header h2 { font-size: 18px; font-weight: 700; color: #0c2d5e; margin: 0; }
+.cal-card-header h2 { font-size: 18px; font-weight: 700; color: #123B5D; margin: 0; }
 .cal-nav-btn {
   background: #f4f6f9; border: 1px solid #e2e8f0; border-radius: 8px;
   width: 32px; height: 32px; cursor: pointer;
-  color: #0c2d5e; font-size: 16px; font-weight: 700;
+  color: #123B5D; font-size: 16px; font-weight: 700;
   display: grid; place-items: center; transition: all 0.2s;
   user-select: none;
 }
-.cal-nav-btn:hover { background: #e2eaf5; border-color: #cbd5e1; color: #1769aa; }
+.cal-nav-btn:hover { background: #e2eaf5; border-color: #cbd5e1; color: #3473A7; }
 
 .cal-grid {
   display: grid;
@@ -75,7 +75,7 @@
 .cal-empty { padding: 8px; }
 .cal-day {
   text-align: center; font-size: 13px; font-weight: 500;
-  color: #0c2d5e; padding: 12px 4px;
+  color: #123B5D; padding: 12px 4px;
   border-radius: 10px; cursor: pointer;
   transition: all 0.15s ease;
   position: relative;
@@ -89,19 +89,19 @@
 }
 .cal-day:hover:not(.cal-selected) {
   background: #edf5fc;
-  color: #1769aa;
+  color: #3473A7;
   transform: translateY(-1px);
 }
 .cal-sat { color: #13865b; }
 .cal-sun { color: #e53e3e; }
 
 .cal-is-today:not(.cal-selected) {
-  border: 1.5px solid #1769aa;
+  border: 1.5px solid #3473A7;
   font-weight: 700;
 }
 
 .cal-selected {
-  background: #0c2d5e !important;
+  background: #123B5D !important;
   color: #ffffff !important;
   font-weight: 700;
   border-radius: 10px;
@@ -113,7 +113,7 @@
   content: ''; position: absolute; bottom: 4px;
   left: 50%; transform: translateX(-50%);
   width: 5px; height: 5px; border-radius: 50%;
-  background: #1769aa;
+  background: #3473A7;
 }
 .cal-selected.cal-has::after {
   background: #ffffff;
@@ -125,9 +125,9 @@
   justify-content: space-between;
   margin-bottom: 16px;
   padding-bottom: 12px;
-  border-bottom: 1px solid #f0f4f9;
+  border-bottom: 1px solid #F6F6F6;
 }
-.cal-schedule-title { font-size: 16px; font-weight: 700; color: #0c2d5e; margin-bottom: 4px; }
+.cal-schedule-title { font-size: 16px; font-weight: 700; color: #123B5D; margin-bottom: 4px; }
 .cal-schedule-subtitle { font-size: 11.5px; color: #64748b; font-weight: 500; }
 .cal-schedule-count {
   font-size: 11px;
@@ -135,7 +135,7 @@
   padding: 3px 8px;
   border-radius: 12px;
   background: #eef3f9;
-  color: #0c2d5e;
+  color: #123B5D;
   white-space: nowrap;
 }
 
@@ -161,7 +161,7 @@
 .cal-today-btn {
   background: #f0f7ff;
   border: 1px solid #d0e4f7;
-  color: #1769aa;
+  color: #3473A7;
   font-size: 11.5px;
   font-weight: 600;
   padding: 4px 10px;
@@ -172,7 +172,7 @@
 }
 .cal-today-btn:hover {
   background: #e0f0fe;
-  color: #0c2d5e;
+  color: #123B5D;
   border-color: #9ac7f2;
 }
 
@@ -207,7 +207,7 @@
 .cal-head { padding: 4px 0; line-height: 1.2; }
 .cal-day { min-height: 48px; padding: 8px 4px; border: 1px solid transparent; }
 .cal-day:hover:not(.cal-selected) { transform: none; border-color: #dce8f5; }
-.cal-is-today:not(.cal-selected) { border: 1px solid #1769aa; }
+.cal-is-today:not(.cal-selected) { border: 1px solid #3473A7; }
 .cal-selected { transform: none; }
 .cal-schedule-header { margin-bottom: 14px; padding-bottom: 12px; }
 .cal-schedule-title { font-size: 16px; line-height: 1.3; }

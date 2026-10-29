@@ -842,33 +842,46 @@ function getNotifications() {
           changed = true;
         }
       }
-      if (
-        m.review &&
-        !notifs.some(
+      if (m.review) {
+        const review = getMeetingReview(m) || m.review;
+        const reviewText = review.comment || review.text || "";
+        const submittedAt = review.submittedAt || new Date().toISOString();
+        const existingRevNotif = notifs.find(
           (n) =>
             n.type === "MEETING_REVIEW" && String(n.meetingId) === midStr,
-        )
-      ) {
-        const review = m.review;
-        const submittedAt = review.submittedAt || new Date().toISOString();
-        notifs.unshift({
-          id: `review-${midStr}-${submittedAt}`,
-          meetingId: midStr,
-          type: "MEETING_REVIEW",
-          title: `Ulasan Baru — ${m.room || "Ruang Rapat"}`,
-          message: `${review.reviewer || m.bookedBy || "User"} memberi rating ${review.rating || 0}/5${review.text ? `: ${review.text}` : "."}`,
-          room: m.room || "-",
-          requester: review.reviewer || m.bookedBy || m.requester || "User",
-          date: m.date || "-",
-          time: `${m.start || ""} - ${m.end || ""}`,
-          rating: review.rating || 0,
-          review: review.text || "",
-          status: "Ulasan Baru",
-          targetRoles: ["Administrator", "Approval 1", "Approval 2"],
-          createdAt: submittedAt,
-          readBy: [],
-        });
-        changed = true;
+        );
+        if (!existingRevNotif) {
+          notifs.unshift({
+            id: `review-${midStr}-${submittedAt}`,
+            meetingId: midStr,
+            type: "MEETING_REVIEW",
+            title: `Ulasan Baru — ${m.room || "Ruang Rapat"}`,
+            message: `${review.reviewer || m.bookedBy || "User"} memberi rating ${review.rating || 5}/5${reviewText ? `: "${reviewText}"` : "."}`,
+            room: m.room || "-",
+            requester: review.reviewer || m.bookedBy || m.requester || "User",
+            date: m.date || "-",
+            time: `${m.start || ""} - ${m.end || ""}`,
+            rating: review.rating || 5,
+            review: reviewText,
+            comment: reviewText,
+            status: "Ulasan Baru",
+            targetRoles: ["Admin", "Administrator", "Pimpinan", "Approval", "Approval 1", "Approval 2"],
+            createdAt: submittedAt,
+            readBy: [],
+          });
+          changed = true;
+        } else if (
+          existingRevNotif.review !== reviewText ||
+          existingRevNotif.rating !== (review.rating || 5)
+        ) {
+          existingRevNotif.review = reviewText;
+          existingRevNotif.comment = reviewText;
+          existingRevNotif.rating = review.rating || 5;
+          existingRevNotif.requester = review.reviewer || m.bookedBy || m.requester || "User";
+          existingRevNotif.message = `${existingRevNotif.requester} memberi rating ${existingRevNotif.rating}/5${reviewText ? `: "${reviewText}"` : "."}`;
+          existingRevNotif.targetRoles = ["Admin", "Administrator", "Pimpinan", "Approval", "Approval 1", "Approval 2"];
+          changed = true;
+        }
       }
     });
   }
@@ -905,6 +918,23 @@ function saveNotifications(notifs) {
   } catch (e) {}
 }
 
+function isNotifVisibleForUser(n, currentUser) {
+  if (!n) return false;
+  if (n.type === "MEETING_REVIEW") return true;
+  if (!Array.isArray(n.targetRoles) || n.targetRoles.length === 0) return true;
+  const r = (currentUser?.role || "").toLowerCase();
+  const group = getRoleGroup(currentUser);
+  return n.targetRoles.some((tr) => {
+    const trLower = String(tr || "").toLowerCase();
+    return (
+      trLower === r ||
+      (group === "admin" && trLower.includes("admin")) ||
+      (group === "pimpinan" && (trLower.includes("approval") || trLower.includes("pimpinan"))) ||
+      (r.includes("approval") && trLower.includes("approval"))
+    );
+  });
+}
+
 function getUnreadNotifCount(currentUser) {
   const notifs = getNotifications();
   const username = (currentUser?.username || "admin").toLowerCase();
@@ -913,13 +943,7 @@ function getUnreadNotifCount(currentUser) {
       (!n.readBy ||
         !Array.isArray(n.readBy) ||
         !n.readBy.some((u) => String(u).toLowerCase() === username)) &&
-      (!Array.isArray(n.targetRoles) ||
-        n.targetRoles.some(
-          (tr) =>
-            tr.toLowerCase() === (currentUser?.role || "").toLowerCase() ||
-            ((currentUser?.role || "").toLowerCase().includes("approval") &&
-              tr.toLowerCase().includes("approval")),
-        )),
+      isNotifVisibleForUser(n, currentUser),
   ).length;
 }
 
@@ -1134,15 +1158,7 @@ function openNotifFromToast(id, btn) {
 }
 
 function getDashboardNotifPanelHTML(currentUser) {
-  let notifs = getNotifications().filter((n) => {
-    if (!Array.isArray(n.targetRoles)) return true;
-    const r = (currentUser?.role || "").toLowerCase();
-    return n.targetRoles.some(
-      (tr) =>
-        tr.toLowerCase() === r ||
-        (r.includes("approval") && tr.toLowerCase().includes("approval")),
-    );
-  });
+  let notifs = getNotifications().filter((n) => isNotifVisibleForUser(n, currentUser));
   const canApprove = can("approve", currentUser);
 
   // Prioritaskan yang Menunggu Persetujuan di urutan teratas, lalu urutkan waktu terbaru
@@ -1173,7 +1189,7 @@ function getDashboardNotifPanelHTML(currentUser) {
     itemsHTML = `
       <div class="notif-empty-state" style="padding:32px 16px;text-align:center;width:100%;">
         <div style="font-size:28px;margin-bottom:6px;">🔔</div>
-        <div style="font-size:13.5px;font-weight:700;color:#0c2d5e;">Tidak Ada Notifikasi</div>
+        <div style="font-size:13.5px;font-weight:700;color:#123B5D;">Tidak Ada Notifikasi</div>
         <div style="font-size:12px;color:#94a3b8;margin-top:2px;">Semua permintaan telah diproses.</div>
       </div>
     `;
@@ -1200,7 +1216,7 @@ function getDashboardNotifPanelHTML(currentUser) {
         } else if (isPending) {
           statusBadge = `<span style="background:#fff7ed;color:#ea580c;border:1px solid #fed7aa;font-size:10.5px;padding:2px 7px;border-radius:10px;font-weight:700;white-space:nowrap;">⏳ Perlu Persetujuan</span>`;
         } else if (isApproved) {
-          statusBadge = `<span style="background:#ecfdf5;color:#15803d;border:1px solid #bbf7d0;font-size:10.5px;padding:2px 7px;border-radius:10px;font-weight:600;white-space:nowrap;">✓ Disetujui</span>`;
+          statusBadge = `<span style="background:#ecfdf5;color:#557e23;border:1px solid #bbf7d0;font-size:10.5px;padding:2px 7px;border-radius:10px;font-weight:600;white-space:nowrap;">✓ Disetujui</span>`;
         } else if (isRejected) {
           statusBadge = `<span style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;font-size:10.5px;padding:2px 7px;border-radius:10px;font-weight:600;white-space:nowrap;">✕ Dibatalkan</span>`;
         } else {
@@ -1209,16 +1225,19 @@ function getDashboardNotifPanelHTML(currentUser) {
 
         const title = esc(n.title || m.title || "Booking Ruang Rapat");
         const requester = esc(
-          isReview ? n.requester || "User" : m.requester || m.bookedBy || "TU",
+          isReview ? n.requester || m.review?.reviewer || m.bookedBy || "User" : m.requester || m.bookedBy || "TU",
         );
         const roomName = esc(m.room || "Ruang Rapat");
         const dateStr = formatDate(m.date);
         const timeStr = `${m.start || "09:00"}–${m.end || "10:00"}`;
+        const reviewCommentText = isReview
+          ? (n.review || n.comment || m.review?.comment || m.review?.text || "").trim()
+          : "";
 
         return `
           <div class="dash-notif-item ${isPending ? "highlight-pending" : ""}" style="padding:10px 12px;border-radius:10px;background:#fff;border:1px solid ${isPending ? "#fed7aa" : isUnread ? "#bfdbfe" : "#e2e8f0"};${isPending ? "border-left:4px solid #ea580c;background:#fffaf5;" : isUnread ? "border-left:4px solid #2563eb;background:#f8faff;" : ""}">
             <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:4px;">
-              <strong style="font-size:12.5px;font-weight:700;color:#0c2d5e;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;" title="${title}">
+              <strong style="font-size:12.5px;font-weight:700;color:#123B5D;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;" title="${title}">
                 ${isUnread && !isPending ? `<span style="display:inline-block;width:6px;height:6px;background:#2563eb;border-radius:50%;margin-right:6px;vertical-align:middle;" title="Belum dibaca"></span>` : ""}${title}
               </strong>
               <span style="font-size:10.5px;color:#94a3b8;white-space:nowrap;flex-shrink:0;">
@@ -1227,10 +1246,16 @@ function getDashboardNotifPanelHTML(currentUser) {
             </div>
 
             <div style="font-size:11.5px;color:#475569;margin-bottom:3px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-              <span>Pemesan: <b>${requester}</b></span>
+              <span>${isReview ? "Pengulas" : "Pemesan"}: <b>${requester}</b></span>
               <span style="color:#cbd5e1;">·</span>
-              <span style="color:#0c2d5e;font-weight:600;">🏛️ ${roomName}</span>
+              <span style="color:#123B5D;font-weight:600;">🏛️ ${roomName}</span>
             </div>
+
+            ${
+              isReview && reviewCommentText
+                ? `<div style="font-size:11.5px;color:#1e293b;font-style:italic;background:#fffbeb;border-left:3px solid #f59e0b;padding:4px 8px;border-radius:4px;margin:4px 0 6px;">"${esc(reviewCommentText)}"</div>`
+                : ""
+            }
 
             <div style="font-size:11px;color:#64748b;margin-bottom:8px;">
               📅 ${dateStr} · ${timeStr} WIB
@@ -1247,8 +1272,8 @@ function getDashboardNotifPanelHTML(currentUser) {
                 `
                     : ""
                 }
-                <button type="button" onclick="viewMeeting('${esc(m.id)}')" style="background:none;border:none;color:#1769aa;font-size:11.5px;font-weight:700;cursor:pointer;padding:0;text-decoration:none;display:inline-flex;align-items:center;gap:3px;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">
-                  Lihat detail →
+                <button type="button" onclick="${isReview ? `openMeetingReviewModal('${esc(m.id)}')` : `viewMeeting('${esc(m.id)}')`}" style="background:none;border:none;color:#3473A7;font-size:11.5px;font-weight:700;cursor:pointer;padding:0;text-decoration:none;display:inline-flex;align-items:center;gap:3px;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">
+                  ${isReview ? "Lihat ulasan →" : "Lihat detail →"}
                 </button>
               </div>
             </div>
@@ -1261,7 +1286,7 @@ function getDashboardNotifPanelHTML(currentUser) {
   return `
     <div class="dash-section-header dash-notif-header" style="margin-bottom:12px;padding-bottom:10px;align-items:flex-start;text-align:left;width:100%;">
       <div class="dash-notif-header-title" style="display:flex;align-items:flex-start;gap:8px;width:100%;text-align:left;">
-        <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#0c2d5e" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:2px;"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#123B5D" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:2px;"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
         <div style="text-align:left;">
           <h2 style="font-size:15px;margin:0;line-height:1.2;text-align:left;">Notifikasi</h2>
           <small style="font-size:11px;color:#64748b;font-weight:500;display:block;text-align:left;">Permintaan terbaru</small>
@@ -1294,7 +1319,7 @@ function getDashboardNotifPanelHTML(currentUser) {
       ${itemsHTML}
     </div>
     <div style="padding-top:12px;margin-top:auto;border-top:1px solid #eef3f9;display:flex;align-items:center;justify-content:flex-end;">
-      <a href="#meetings" style="font-size:12px;font-weight:700;color:#1769aa;text-decoration:none;display:inline-flex;align-items:center;gap:4px;transition:opacity 0.15s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">
+      <a href="#meetings" style="font-size:12px;font-weight:700;color:#3473A7;text-decoration:none;display:inline-flex;align-items:center;gap:4px;transition:opacity 0.15s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">
         <span>Lihat semua notifikasi</span> <span>→</span>
       </a>
     </div>
@@ -1499,14 +1524,14 @@ function dashboard() {
               Math.max(22, Math.round((w.count / maxWeekCount) * 85)),
             )
           : 10;
-      const barColor = w.count > 0 ? "#1769aa" : "#cbd5e1";
+      const barColor = w.count > 0 ? "#3473A7" : "#cbd5e1";
       return `
         <div style="flex:1;display:flex;flex-direction:column;align-items:center;height:100%;justify-content:flex-end;">
-          <span style="font-size:12px;font-weight:700;color:${w.count > 0 ? "#0c2d5e" : "#94a3b8"};margin-bottom:6px;">${w.count}</span>
+          <span style="font-size:12px;font-weight:700;color:${w.count > 0 ? "#123B5D" : "#94a3b8"};margin-bottom:6px;">${w.count}</span>
           <div style="width:100%;max-width:44px;background:#f8fafc;border-radius:6px 6px 0 0;height:110px;display:flex;align-items:flex-end;overflow:hidden;border:1px solid #eef2f6;" title="${w.label} (${w.sub}): ${w.count} Rapat">
             <div style="width:100%;height:${heightPct}%;background:${barColor};border-radius:5px 5px 0 0;transition:height 0.3s ease;"></div>
           </div>
-          <span style="font-size:11.5px;font-weight:700;color:#0c2d5e;margin-top:8px;">${w.label}</span>
+          <span style="font-size:11.5px;font-weight:700;color:#123B5D;margin-top:8px;">${w.label}</span>
           <span style="font-size:10px;color:#64748b;font-weight:500;">${w.sub}</span>
         </div>
       `;
@@ -1544,7 +1569,7 @@ function dashboard() {
       <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:8px;">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
           <div style="min-width:0;">
-            <strong style="font-size:13px;color:#0c2d5e;display:block;">${esc(room.name)}</strong>
+            <strong style="font-size:13px;color:#123B5D;display:block;">${esc(room.name)}</strong>
             <small style="font-size:11px;color:#64748b;">${esc(room.location || "Lt. 3")} · Kapasitas ${room.capacity || 20} org</small>
           </div>
           <div>
@@ -1554,7 +1579,7 @@ function dashboard() {
                     <span style="width:6px;height:6px;border-radius:50%;background:#dc2626;"></span>
                     <span>Sedang Digunakan</span>
                   </span>`
-                : `<span style="background:#dcfce7;color:#15803d;border:1px solid #bbf7d0;padding:3px 9px;border-radius:12px;font-size:11px;font-weight:700;display:inline-flex;align-items:center;gap:4px;">
+                : `<span style="background:rgba(155, 194, 100, 0.18);color:#557e23;border:1px solid #bbf7d0;padding:3px 9px;border-radius:12px;font-size:11px;font-weight:700;display:inline-flex;align-items:center;gap:4px;">
                     <span style="width:6px;height:6px;border-radius:50%;background:#16a34a;"></span>
                     <span>Tersedia Saat Ini</span>
                   </span>`
@@ -1578,7 +1603,7 @@ function dashboard() {
             <span>${roomPct}% (${roomMeetings} rapat)</span>
           </div>
           <div style="height:6px;background:#e2e8f0;border-radius:3px;overflow:hidden;">
-            <div style="height:100%;width:${roomPct}%;background:${isOccupied ? "#dc2626" : "#1769aa"};border-radius:3px;transition:width 0.3s ease;"></div>
+            <div style="height:100%;width:${roomPct}%;background:${isOccupied ? "#dc2626" : "#3473A7"};border-radius:3px;transition:width 0.3s ease;"></div>
           </div>
         </div>
       </div>
@@ -1590,9 +1615,9 @@ function dashboard() {
     <div class="dash-table-card" style="margin:0;">
       <div class="dash-section-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid #eef3f9;">
         <div style="display:flex;align-items:center;gap:10px;">
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0c2d5e" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#123B5D" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
           <div>
-            <h2 style="font-size:16px;font-weight:700;color:#0c2d5e;margin:0;line-height:1.2;">${isAdmin ? "Jadwal Rapat & Operasional" : "Jadwal Rapat"}</h2>
+            <h2 style="font-size:16px;font-weight:700;color:#123B5D;margin:0;line-height:1.2;">${isAdmin ? "Jadwal Rapat & Operasional" : "Jadwal Rapat"}</h2>
             <small style="font-size:11px;color:#64748b;font-weight:500;">${isAdmin ? "Pantau pelaksanaan rapat, quick check-in, dan check-out." : "Daftar jadwal seluruh permohonan rapat."}</small>
           </div>
         </div>
@@ -1601,7 +1626,7 @@ function dashboard() {
           isAdmin
             ? `
             <div class="rep-export-wrapper" style="position: relative; display: inline-block;">
-              <button class="rep-export-btn" id="exportBtn" type="button" onclick="toggleExportMenu(event)" style="height:32px;padding:0 12px;border-radius:7px;border:1px solid #cbd5e1;background:#fff;color:#0c2d5e;font-size:11.5px;font-weight:600;display:inline-flex;align-items:center;gap:5px;cursor:pointer;">
+              <button class="rep-export-btn" id="exportBtn" type="button" onclick="toggleExportMenu(event)" style="height:32px;padding:0 12px;border-radius:7px;border:1px solid #cbd5e1;background:#fff;color:#123B5D;font-size:11.5px;font-weight:600;display:inline-flex;align-items:center;gap:5px;cursor:pointer;">
                 ${tiExport}
                 <span>Export</span>
                 <svg width="10" height="6" viewBox="0 0 10 6" fill="none" style="margin-left: 2px;">
@@ -1609,15 +1634,15 @@ function dashboard() {
                 </svg>
               </button>
               <div id="exportMenuDropdown" class="rep-export-menu" style="display: none; position: absolute; top: calc(100% + 6px); right: 0; background: #ffffff; border-radius: 8px; box-shadow: 0 10px 25px rgba(12, 45, 94, 0.12); border: 1px solid #e2e8f0; min-width: 140px; z-index: 1000; overflow: hidden;">
-                <button type="button" onclick="exportExcel(); closeExportMenu();" style="width: 100%; display: flex; align-items: center; gap: 8px; padding: 10px 16px; border: none; background: transparent; font-size: 13px; font-weight: 600; color: #0c2d5e; cursor: pointer; text-align: left; transition: background 0.15s;" onmouseover="this.style.background='#f0f4fa'" onmouseout="this.style.background='transparent'">
+                <button type="button" onclick="exportExcel(); closeExportMenu();" style="width: 100%; display: flex; align-items: center; gap: 8px; padding: 10px 16px; border: none; background: transparent; font-size: 13px; font-weight: 600; color: #123B5D; cursor: pointer; text-align: left; transition: background 0.15s;" onmouseover="this.style.background='#f0f4fa'" onmouseout="this.style.background='transparent'">
                   <span>📊</span> Export Excel
                 </button>
-                <button type="button" onclick="exportPDF(); closeExportMenu();" style="width: 100%; display: flex; align-items: center; gap: 8px; padding: 10px 16px; border: none; background: transparent; font-size: 13px; font-weight: 600; color: #0c2d5e; cursor: pointer; text-align: left; border-top: 1px solid #f1f5f9; transition: background 0.15s;" onmouseover="this.style.background='#f0f4fa'" onmouseout="this.style.background='transparent'">
+                <button type="button" onclick="exportPDF(); closeExportMenu();" style="width: 100%; display: flex; align-items: center; gap: 8px; padding: 10px 16px; border: none; background: transparent; font-size: 13px; font-weight: 600; color: #123B5D; cursor: pointer; text-align: left; border-top: 1px solid #f1f5f9; transition: background 0.15s;" onmouseover="this.style.background='#f0f4fa'" onmouseout="this.style.background='transparent'">
                   <span>📄</span> Export PDF
                 </button>
               </div>
             </div>
-            <button type="button" class="btn btn-primary" onclick="openMeetingModal()" style="background:#0c2d5e;color:#fff;border:none;padding:7px 14px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:5px;transition:background 0.15s;box-shadow:0 2px 6px rgba(12,45,94,0.15);" onmouseover="this.style.background='#133b75'" onmouseout="this.style.background='#0c2d5e'">
+            <button type="button" class="btn btn-primary" onclick="openMeetingModal()" style="background:#123B5D;color:#fff;border:none;padding:7px 14px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:5px;transition:background 0.15s;box-shadow:0 2px 6px rgba(12,45,94,0.15);" onmouseover="this.style.background='#133b75'" onmouseout="this.style.background='#123B5D'">
               <span style="font-size:14px;font-weight:700;line-height:1;">+</span>
               <span>Tambah Rapat</span>
             </button>
@@ -1630,16 +1655,16 @@ function dashboard() {
       <!-- Filter Bar Terpadu (Filter Ruangan · Periode Rapat · Terapkan Filter) -->
       <div class="dash-inline-filters" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px;padding:9px 12px;background:#f8fafc;border:1px solid #eef2f6;border-radius:10px;">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-          <select id="trafficRoom" onchange="state.dashboardRoomFilter=this.value;render();" style="padding:7px 11px;border-radius:7px;font-size:12px;font-weight:600;color:#0c2d5e;border:1px solid #cbd5e1;background:#fff;cursor:pointer;outline:none;">
+          <select id="trafficRoom" onchange="state.dashboardRoomFilter=this.value;render();" style="padding:7px 11px;border-radius:7px;font-size:12px;font-weight:600;color:#123B5D;border:1px solid #cbd5e1;background:#fff;cursor:pointer;outline:none;">
             <option value="semua">Semua Ruangan</option>
             ${state.rooms.map((r) => `<option value="${r.name}" ${selectedRoom === r.name ? "selected" : ""}>${esc(r.name)}</option>`).join("")}
           </select>
 
-          <button type="button" onclick="openFilterModal()" style="display:inline-flex;align-items:center;gap:5px;font-weight:600;font-size:12px;padding:7px 12px;background:#fff;border:1px solid #cbd5e1;border-radius:7px;color:#0c2d5e;cursor:pointer;" title="Klik untuk mengubah periode jadwal yang ditampilkan">
+          <button type="button" onclick="openFilterModal()" style="display:inline-flex;align-items:center;gap:5px;font-weight:600;font-size:12px;padding:7px 12px;background:#fff;border:1px solid #cbd5e1;border-radius:7px;color:#123B5D;cursor:pointer;" title="Klik untuk mengubah periode jadwal yang ditampilkan">
             <span>📅 Periode:</span> <strong>${getActivePeriodLabel()}</strong>
           </button>
 
-          <button type="button" onclick="applyDashboardFilter()" style="padding:7px 14px;background:#1769aa;color:#fff;border:none;border-radius:7px;font-weight:600;font-size:12px;cursor:pointer;transition:background 0.15s;" onmouseover="this.style.background='#0c2d5e'" onmouseout="this.style.background='#1769aa'">
+          <button type="button" onclick="applyDashboardFilter()" style="padding:7px 14px;background:#3473A7;color:#fff;border:none;border-radius:7px;font-weight:600;font-size:12px;cursor:pointer;transition:background 0.15s;" onmouseover="this.style.background='#123B5D'" onmouseout="this.style.background='#3473A7'">
             Terapkan Filter
           </button>
         </div>
@@ -1672,18 +1697,18 @@ function dashboard() {
     customTableHTML += `<tr><td colspan="7" style="text-align:center;padding:36px;color:#8c9ba5;font-weight:500;">Belum ada jadwal rapat pada periode ini</td></tr>`;
   } else {
     meetingsToDisplay.forEach((m, i) => {
-      let statusColor = "#e0f2fe";
-      let statusText = "#0284c7";
+      let statusColor = "rgba(52, 115, 167, 0.14)";
+      let statusText = "#3473A7";
       const sLower = (m.status || "").toLowerCase();
       if (sLower === "berjalan") {
-        statusColor = "#dcfce7";
-        statusText = "#15803d";
+        statusColor = "rgba(155, 194, 100, 0.18)";
+        statusText = "#557e23";
       } else if (sLower === "selesai") {
-        statusColor = "#e0f2fe";
-        statusText = "#0284c7";
+        statusColor = "rgba(52, 115, 167, 0.14)";
+        statusText = "#3473A7";
       } else if (sLower === "akan datang" || sLower === "segera") {
-        statusColor = "#fef3c7";
-        statusText = "#b45309";
+        statusColor = "rgba(255, 205, 95, 0.2)";
+        statusText = "#9c6d00";
       } else if (sLower === "dibatalkan") {
         statusColor = "#fee2e2";
         statusText = "#dc2626";
@@ -1705,13 +1730,13 @@ function dashboard() {
 
       const starSvg = `<svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
 
-      const viewBtn = `<button type="button" style="background-color:#f1f5f9;color:#0c2d5e;border:1px solid #e2e8f0;border-radius:6px;width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:background 0.15s;" title="Lihat Detail Rapat" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'" onclick="viewMeeting('${m.id}')">${faEye}</button>`;
+      const viewBtn = `<button type="button" style="background-color:#f1f5f9;color:#123B5D;border:1px solid #e2e8f0;border-radius:6px;width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:background 0.15s;" title="Lihat Detail Rapat" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'" onclick="viewMeeting('${m.id}')">${faEye}</button>`;
       // Tombol QR/scan barcode ditiadakan di dashboard: presensi dipindai
       // peserta lewat papan TV di ruangan, bukan dibuka dari sini.
       const qrBtn = "";
       const revBtn =
         isCompleted && rev
-          ? `<button type="button" style="background-color:#fff8e6;color:#d97706;border:1px solid #fde68a;border-radius:6px;padding:0 6px;height:28px;display:inline-flex;align-items:center;gap:3px;cursor:pointer;font-size:11px;font-weight:700;" title="Lihat Rating & Review Pengguna" onclick="openMeetingReviewModal('${m.id}')">${starSvg}<span>${rev.rating ? Number(rev.rating).toFixed(1) : "5.0"}</span></button>`
+          ? `<button type="button" style="background-color:#fffbe8;color:#d97706;border:1px solid #FFCD5F;border-radius:6px;padding:0 6px;height:28px;display:inline-flex;align-items:center;gap:3px;cursor:pointer;font-size:11px;font-weight:700;" title="Lihat Rating & Review Pengguna" onclick="openMeetingReviewModal('${m.id}')">${starSvg}<span>${rev.rating ? Number(rev.rating).toFixed(1) : "5.0"}</span></button>`
           : "";
 
       let actionButtons = "";
@@ -1719,10 +1744,10 @@ function dashboard() {
         if (m.rejectedBy) {
           actionButtons += `<span style="font-size:10.5px;color:#ff4d4f;background:#ffebee;padding:3px 8px;border-radius:12px;font-weight:700;">Ditolak (${esc(m.rejectedBy)})</span>`;
         } else if (can("approve", currentUser)) {
-          actionButtons += `<button type="button" onclick="approveMeeting('${m.id}')" style="background:#219653;color:#fff;border:none;border-radius:6px;padding:0 9px;height:28px;font-size:11px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:3px;transition:background 0.15s;" title="Setujui permohonan">✓ Setujui</button>`;
+          actionButtons += `<button type="button" onclick="approveMeeting('${m.id}')" style="background:#9BC264;color:#fff;border:none;border-radius:6px;padding:0 9px;height:28px;font-size:11px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:3px;transition:background 0.15s;" title="Setujui permohonan">✓ Setujui</button>`;
           actionButtons += `<button type="button" onclick="rejectMeeting('${m.id}')" style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;border-radius:6px;padding:0 9px;height:28px;font-size:11px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:3px;transition:background 0.15s;" title="Tolak permohonan">✕ Tolak</button>`;
         } else {
-          actionButtons += `<span style="font-size:10.5px;color:#d97706;background:#fef3c7;padding:3px 7px;border-radius:6px;font-weight:600;">⏳ Menunggu Pimpinan</span>`;
+          actionButtons += `<span style="font-size:10.5px;color:#d97706;background:rgba(255, 205, 95, 0.2);padding:3px 7px;border-radius:6px;font-weight:600;">⏳ Menunggu Pimpinan</span>`;
         }
         actionButtons += viewBtn;
       } else if (isAdmin) {
@@ -1733,7 +1758,7 @@ function dashboard() {
           sLower === "segera" ||
           sLower === "disetujui"
         ) {
-          actionButtons += `<button type="button" onclick="checkInMeetingManual('${m.id}')" style="background:#dcfce7;color:#15803d;border:1px solid #bbf7d0;border-radius:6px;padding:0 8px;height:28px;font-size:11px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:3px;transition:all 0.15s;" title="Check-In Manual oleh Admin (Gunakan ini jika peserta tidak scan Barcode/QR di ruangan)"><span>✓ Check In (Manual)</span></button>`;
+          actionButtons += `<button type="button" onclick="checkInMeetingManual('${m.id}')" style="background:rgba(155, 194, 100, 0.18);color:#557e23;border:1px solid #bbf7d0;border-radius:6px;padding:0 8px;height:28px;font-size:11px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:3px;transition:all 0.15s;" title="Check-In Manual oleh Admin (Gunakan ini jika peserta tidak scan Barcode/QR di ruangan)"><span>✓ Check In (Manual)</span></button>`;
         }
         actionButtons += qrBtn;
         actionButtons += viewBtn;
@@ -1755,7 +1780,7 @@ function dashboard() {
           ? isQrMethod
             ? `<div style="margin-top:3px;"><span style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;padding:1px 6px;border-radius:8px;font-size:9.5px;font-weight:700;display:inline-flex;align-items:center;gap:2px;" title="Check-In otomatis via Barcode/QR oleh ${esc(m.checkedInBy || "Peserta")}"><span>📱</span><span>Scan QR</span></span></div>`
             : isManualMethod
-              ? `<div style="margin-top:3px;"><span style="background:#fef3c7;color:#b45309;border:1px solid #fde68a;padding:1px 6px;border-radius:8px;font-size:9.5px;font-weight:700;display:inline-flex;align-items:center;gap:2px;" title="Check-In manual oleh Admin"><span>👤</span><span>Manual Admin</span></span></div>`
+              ? `<div style="margin-top:3px;"><span style="background:rgba(255, 205, 95, 0.2);color:#9c6d00;border:1px solid #FFCD5F;padding:1px 6px;border-radius:8px;font-size:9.5px;font-weight:700;display:inline-flex;align-items:center;gap:2px;" title="Check-In manual oleh Admin"><span>👤</span><span>Manual Admin</span></span></div>`
               : ""
           : "";
 
@@ -1778,7 +1803,7 @@ function dashboard() {
         </table>
       </div>
       <div style="display:flex;justify-content:flex-end;margin-top:auto;padding-top:14px;border-top:1px solid #f1f5f9;">
-        <a href="#meetings" style="font-size:12.5px;font-weight:700;color:#1769aa;text-decoration:none;display:inline-flex;align-items:center;gap:6px;transition:opacity 0.15s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">
+        <a href="#meetings" style="font-size:12.5px;font-weight:700;color:#3473A7;text-decoration:none;display:inline-flex;align-items:center;gap:6px;transition:opacity 0.15s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">
           <span>Lihat Semua di Manajemen Rapat</span>
           <span style="font-size:14px;line-height:1;">→</span>
         </a>
@@ -1805,28 +1830,28 @@ function dashboard() {
           <!-- 4 Kartu Statistik Ringkas Admin (Full Width di Bawah Header) -->
           <div class="rep-cards-compact" style="padding: 0 40px 20px;">
             <div class="rep-card-compact" style="cursor:pointer;" onclick="location.hash='#meetings';" title="Buka Manajemen Rapat">
-              <div class="rc-icon-compact" style="background:#e6f0fa;color:#0c2d5e;">${liaUsersSolid}</div>
+              <div class="rc-icon-compact" style="background:rgba(52, 115, 167, 0.14);color:#3473A7;">${liaUsersSolid}</div>
               <div class="rc-text-compact">
                 <strong>${stats.totalMeetings}</strong>
                 <span>Total Rapat</span>
               </div>
             </div>
             <div class="rep-card-compact" style="cursor:pointer;" onclick="location.hash='#calendar';" title="Buka Kalender Jadwal Rapat">
-              <div class="rc-icon-compact" style="background:#e6f0fa;color:#0c2d5e;">${faClock}</div>
+              <div class="rc-icon-compact" style="background:rgba(255, 205, 95, 0.2);color:#9c6d00;">${faClock}</div>
               <div class="rc-text-compact">
                 <strong>${stats.totalHours} Jam</strong>
                 <span>Total Durasi</span>
               </div>
             </div>
             <div class="rep-card-compact" style="cursor:pointer;" onclick="location.hash='#users';" title="Buka Manajemen Pengguna">
-              <div class="rc-icon-compact" style="background:#e6f0fa;color:#0c2d5e;">${faUsers}</div>
+              <div class="rc-icon-compact" style="background:#f3e8ff;color:#7e22ce;">${faUsers}</div>
               <div class="rc-text-compact">
                 <strong>${stats.totalUsers}</strong>
                 <span>Total Pengguna</span>
               </div>
             </div>
             <div class="rep-card-compact" style="cursor:pointer;" onclick="location.hash='#rooms';" title="Buka Manajemen Ruangan">
-              <div class="rc-icon-compact" style="background:#e6f0fa;color:#0c2d5e;">${bsBuilding}</div>
+              <div class="rc-icon-compact" style="background:rgba(155, 194, 100, 0.18);color:#557e23;">${bsBuilding}</div>
               <div class="rc-text-compact">
                 <strong>${stats.roomUtilization}%</strong>
                 <span>Pemanfaatan Ruangan</span>
@@ -1850,10 +1875,10 @@ function dashboard() {
               <div style="display:flex;align-items:center;justify-content:space-between;padding-top:12px;margin-top:14px;border-top:1px solid #f1f5f9;font-size:11.5px;color:#64748b;flex-wrap:wrap;gap:8px;">
                 <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
                   <span style="display:inline-flex;align-items:center;gap:5px;"><span style="width:8px;height:8px;border-radius:50%;background:#16a34a;"></span> <b>${stats.runningCount}</b> Sedang Berjalan</span>
-                  <span style="display:inline-flex;align-items:center;gap:5px;"><span style="width:8px;height:8px;border-radius:50%;background:#b45309;"></span> <b>${stats.soonCount}</b> Mendatang</span>
-                  <span style="display:inline-flex;align-items:center;gap:5px;"><span style="width:8px;height:8px;border-radius:50%;background:#0284c7;"></span> <b>${stats.doneCount}</b> Selesai</span>
+                  <span style="display:inline-flex;align-items:center;gap:5px;"><span style="width:8px;height:8px;border-radius:50%;background:#9c6d00;"></span> <b>${stats.soonCount}</b> Mendatang</span>
+                  <span style="display:inline-flex;align-items:center;gap:5px;"><span style="width:8px;height:8px;border-radius:50%;background:#3473A7;"></span> <b>${stats.doneCount}</b> Selesai</span>
                 </div>
-                <span style="font-weight:600;color:#0c2d5e;">Durasi Total: <b>${stats.totalHours} Jam</b></span>
+                <span style="font-weight:600;color:#123B5D;">Durasi Total: <b>${stats.totalHours} Jam</b></span>
               </div>
             </div>
 
@@ -1872,7 +1897,7 @@ function dashboard() {
                 ${roomsMonitoringHTML}
               </div>
               <div style="padding-top:12px;margin-top:auto;border-top:1px solid #f1f5f9;display:flex;align-items:center;justify-content:flex-end;">
-                <a href="#rooms" style="font-size:12px;font-weight:700;color:#1769aa;text-decoration:none;display:inline-flex;align-items:center;gap:4px;transition:opacity 0.15s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">
+                <a href="#rooms" style="font-size:12px;font-weight:700;color:#3473A7;text-decoration:none;display:inline-flex;align-items:center;gap:4px;transition:opacity 0.15s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">
                   <span>Kelola Fasilitas di Manajemen Ruangan</span> <span>→</span>
                 </a>
               </div>
@@ -1899,19 +1924,19 @@ function dashboard() {
               <div class="rc-text-compact"><strong style="${stats.pendingCount > 0 ? "color:#ea580c;" : ""}">${stats.pendingCount}</strong><span>Perlu Persetujuan</span></div>
             </div>
             <div class="rep-card-compact">
-              <div class="rc-icon-compact" style="background:#dcfce7;color:#15803d;">${liaUsersSolid}</div>
-              <div class="rc-text-compact"><strong style="color:#15803d;">${stats.runningCount}</strong><span>Sedang Berlangsung</span></div>
+              <div class="rc-icon-compact" style="background:rgba(155, 194, 100, 0.18);color:#557e23;">${liaUsersSolid}</div>
+              <div class="rc-text-compact"><strong style="color:#557e23;">${stats.runningCount}</strong><span>Sedang Berlangsung</span></div>
             </div>
             <div class="rep-card-compact">
-              <div class="rc-icon-compact" style="background:#fef3c7;color:#b45309;">${faClock}</div>
-              <div class="rc-text-compact"><strong style="color:#b45309;">${stats.soonCount}</strong><span>Rapat Mendatang</span></div>
+              <div class="rc-icon-compact" style="background:rgba(255, 205, 95, 0.2);color:#9c6d00;">${faClock}</div>
+              <div class="rc-text-compact"><strong style="color:#9c6d00;">${stats.soonCount}</strong><span>Rapat Mendatang</span></div>
             </div>
             <div class="rep-card-compact">
               <!-- Ikon centang, bukan ikon gedung: kartu ini menghitung rapat
                    yang sudah selesai, bukan ruangan. Sama dengan kartu
                    "Rapat Selesai" di dashboard Admin. -->
-              <div class="rc-icon-compact" style="background:#e0f2fe;color:#0284c7;">${ICONS.meetingCheck}</div>
-              <div class="rc-text-compact"><strong style="color:#0284c7;">${stats.doneCount}</strong><span>Rapat Selesai</span></div>
+              <div class="rc-icon-compact" style="background:rgba(52, 115, 167, 0.14);color:#3473A7;">${ICONS.meetingCheck}</div>
+              <div class="rc-text-compact"><strong style="color:#3473A7;">${stats.doneCount}</strong><span>Rapat Selesai</span></div>
             </div>
           </div>
 
@@ -2039,7 +2064,7 @@ function viewMeetingAttendance(meetingId) {
     </div>
     <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 9px;">
       <strong style="color:#15365c;font-size:13px;">Daftar Peserta Hadir</strong>
-      <span style="color:#2462a4;font-size:11px;font-weight:700;">Total Hadir: ${attendees.length} orang</span>
+      <span style="color:#3473A7;font-size:11px;font-weight:700;">Total Hadir: ${attendees.length} orang</span>
     </div>
     <div style="max-height:48vh;overflow:auto;border:1px solid #e1e8f0;border-radius:9px;">
       <table style="width:100%;border-collapse:collapse;text-align:left;font-size:11px;">
@@ -2050,7 +2075,7 @@ function viewMeetingAttendance(meetingId) {
       </table>
     </div>
     <div style="display:flex;justify-content:flex-end;margin-top:15px;">
-      <button type="button" onclick="downloadAttendanceExcel('${safeMeetingId}')" style="display:inline-flex;align-items:center;gap:7px;padding:9px 14px;border:0;border-radius:8px;color:#fff;background:#1769aa;font-size:11px;font-weight:700;cursor:pointer;">Export Excel</button>
+      <button type="button" onclick="downloadAttendanceExcel('${safeMeetingId}')" style="display:inline-flex;align-items:center;gap:7px;padding:9px 14px;border:0;border-radius:8px;color:#fff;background:#3473A7;font-size:11px;font-weight:700;cursor:pointer;">Export Excel</button>
     </div>
   </div>`;
   openModal("Hasil Presensi Rapat", content);
@@ -2098,45 +2123,43 @@ function meetingTable(data, actions = true, allowDelete = true) {
             // ditawarkan dari Manajemen Rapat.
             const qrBtn = "";
 
-            let actionButtons = `<button style="background-color:#f4f6f9;color:#0c2d5e;border:none;border-radius:10px;width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;margin-right:8px;box-shadow:0 2px 5px rgba(0,0,0,0.03);" title="Lihat Detail Rapat" onclick="viewMeeting('${m.id}')">${faEye}</button>${qrBtn}${reviewBtn}`;
+            let actionButtons = `<button type="button" class="btn-action-view" title="Lihat Detail Rapat" onclick="viewMeeting('${m.id}')">${faEye}</button>${qrBtn}${reviewBtn}`;
             if (actions && allowDelete && can("manageMeeting", user)) {
               const safeDeleteId = String(m.id).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-              actionButtons += `<button type="button" style="border:1px solid #fecaca;border-radius:8px;background:#fff1f2;color:#be123c;padding:7px 10px;cursor:pointer;font-size:11px;font-weight:700" onclick="deleteMeeting('${safeDeleteId}')">Hapus</button>`;
+              actionButtons += `<button type="button" class="btn-action-delete" title="Hapus Rapat" onclick="deleteMeeting('${safeDeleteId}')">Hapus</button>`;
             }
 
             if (isAdmin) {
               const safeMeetingId = String(m.id).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
               const attendeeCount = Array.isArray(m.attendees) ? m.attendees.length : 0;
-              actionButtons += `<button type="button" style="background:#eaf3ff;color:#155a97;border:1px solid #c8def5;border-radius:9px;height:34px;padding:0 9px;display:inline-flex;align-items:center;gap:5px;cursor:pointer;margin-right:8px;font-size:10.5px;font-weight:700;white-space:nowrap;" title="Lihat hasil presensi dan export Excel" onclick="viewMeetingAttendance('${safeMeetingId}')">Daftar Hadir (${attendeeCount})</button>`;
-              // Notulen otomatis (rekam/unggah audio → transkrip → notulen), lihat js/notulen.js.
+              actionButtons += `<button type="button" class="btn-action-attendance" title="Lihat hasil presensi dan export Excel" onclick="viewMeetingAttendance('${safeMeetingId}')">Daftar Hadir (${attendeeCount})</button>`;
               if (typeof openNotulen === "function") {
-                actionButtons += `<button type="button" style="background:#f3efff;color:#5b3fb0;border:1px solid #ddd2fb;border-radius:9px;height:34px;padding:0 9px;display:inline-flex;align-items:center;gap:5px;cursor:pointer;margin-right:8px;font-size:10.5px;font-weight:700;white-space:nowrap;" title="Rekam / unggah audio rapat dan buat notulen otomatis" onclick="openNotulen('${safeMeetingId}')">🎙 Notulen</button>`;
+                actionButtons += `<button type="button" class="btn-action-notulen" title="Rekam / unggah audio rapat dan buat notulen otomatis" onclick="openNotulen('${safeMeetingId}')">🎙 Notulen</button>`;
               }
             }
 
             if (actions) {
               if (isPending) {
                 if (m.rejectedBy) {
-                  actionButtons += `<span style="font-size:11px;color:#ff4d4f;margin-right:8px;font-weight:700;background:#ffebee;padding:6px 12px;border-radius:12px;">Ditolak (${esc(m.rejectedBy)})</span>`;
+                  actionButtons += `<span class="badge-action-rejected" title="Ditolak oleh ${esc(m.rejectedBy)}">Ditolak (${esc(m.rejectedBy)})</span>`;
                 } else if (can("approve", user)) {
                   // HANYA PIMPINAN YANG MENYETUJUI & MENOLAK
-                  actionButtons += `<button style="background-color:#219653;color:#fff;border:none;border-radius:24px;padding:8px 16px;font-weight:700;font-size:12px;cursor:pointer;margin-right:6px;display:inline-flex;align-items:center;gap:5px;" title="Setujui" onclick="approveMeeting('${m.id}')">${ICONS.meetingCheck}<span>Setujui</span></button>`;
-                  actionButtons += `<button style="background-color:#ff4d4f;color:#fff;border:none;border-radius:24px;padding:8px 16px;font-weight:700;font-size:12px;cursor:pointer;display:inline-flex;align-items:center;gap:5px;" title="Tolak" onclick="rejectMeeting('${m.id}')">${ICONS.meetingXmark}<span>Tolak</span></button>`;
+                  actionButtons += `<button type="button" class="btn-action-approve" title="Setujui permohonan rapat" onclick="approveMeeting('${m.id}')">${ICONS.meetingCheck}<span>Setujui</span></button>`;
+                  actionButtons += `<button type="button" class="btn-action-reject" title="Tolak permohonan rapat" onclick="rejectMeeting('${m.id}')">${ICONS.meetingXmark}<span>Tolak</span></button>`;
                 } else {
-                  actionButtons += `<span style="font-size:11px;color:#d97706;background:#fef3c7;padding:5px 10px;border-radius:12px;font-weight:600;display:inline-flex;align-items:center;gap:5px;">${ICONS.meetingClock} Menunggu Persetujuan Pimpinan</span>`;
+                  actionButtons += `<span class="badge-action-pending" title="Menunggu persetujuan pimpinan">${ICONS.meetingClock}<span>Menunggu Persetujuan Pimpinan</span></span>`;
                 }
               } else if (isUpcoming && can("checkInOut", user)) {
-                actionButtons += `<button style="background-color:#219653;color:#fff;border:none;border-radius:24px;padding:8px 14px;font-weight:700;font-size:12px;cursor:pointer;box-shadow:0 4px 10px rgba(33,150,83,0.2);display:inline-flex;align-items:center;gap:5px;" title="Check-In Manual oleh Admin (Catatan: Peserta juga dapat Check-In mandiri via Barcode/QR di ruangan)" onclick="checkInMeetingManual('${m.id}')">${ICONS.meetingCheck}<span>Check In (Manual)</span></button>`;
+                actionButtons += `<button type="button" class="btn-action-checkin" title="Check-In Manual oleh Admin (Catatan: Peserta juga dapat Check-In mandiri via Barcode/QR di ruangan)" onclick="checkInMeetingManual('${m.id}')">${ICONS.meetingCheck}<span>Check In (Manual)</span></button>`;
               } else if (isRunning && can("checkInOut", user)) {
-                actionButtons += `<button style="background-color:#ff4d4f;color:#fff;border:none;border-radius:24px;padding:8px 14px;font-weight:700;font-size:12px;cursor:pointer;box-shadow:0 4px 10px rgba(255,77,79,0.2);display:inline-flex;align-items:center;gap:5px;" title="Check-Out Manual oleh Admin (Catatan: Peserta juga dapat Check-Out mandiri via Barcode/QR)" onclick="checkOutMeetingManual('${m.id}')">${ICONS.meetingXmark}<span>Check Out (Manual)</span></button>`;
+                actionButtons += `<button type="button" class="btn-action-checkout" title="Check-Out Manual oleh Admin (Catatan: Peserta juga dapat Check-Out mandiri via Barcode/QR)" onclick="checkOutMeetingManual('${m.id}')">${ICONS.meetingXmark}<span>Check Out (Manual)</span></button>`;
               }
 
               // Tombol Canceling System Darurat (Emergency Cancellation)
               if (!isCompleted && !isCanceled && can("emergencyCancel", user)) {
-                const emgCancelBtn = `<button style="background-color:#fee2e2;color:#dc2626;border:1px solid #fca5a5;border-radius:20px;padding:6px 12px;font-weight:700;font-size:11.5px;cursor:pointer;margin-left:6px;display:inline-flex;align-items:center;gap:5px;box-shadow:0 2px 5px rgba(220,38,38,0.08);transition:all 0.15s ease;" title="Batalkan Rapat Darurat (Hanya jika diperlukan)" onclick="openEmergencyCancelModal('${m.id}')">${ICONS.meetingXmark}<span>Batal Darurat</span></button>`;
-                actionButtons += emgCancelBtn;
+                actionButtons += `<button type="button" class="btn-action-cancel" title="Batalkan Rapat Darurat (Hanya jika diperlukan)" onclick="openEmergencyCancelModal('${m.id}')">${ICONS.meetingXmark}<span>Batal Darurat</span></button>`;
               } else if (isCanceled) {
-                actionButtons += `<span style="font-size:11px;color:#dc2626;background:#fef2f2;border:1px solid #fecaca;padding:4px 9px;border-radius:12px;font-weight:700;margin-left:6px;display:inline-flex;align-items:center;gap:5px;">${ICONS.meetingXmark} Dibatalkan</span>`;
+                actionButtons += `<span class="badge-action-canceled" title="Rapat telah dibatalkan">${ICONS.meetingXmark}<span>Dibatalkan</span></span>`;
               }
             }
 
@@ -2176,11 +2199,38 @@ function meetingTable(data, actions = true, allowDelete = true) {
                 : `<span style="color:#8291a5;font-size:11px;">Belum ada review</span>`
               : `<span style="color:#9aa8b8;">-</span>`;
 
-            return `<tr><td>${i + 1}</td><td><b>${esc(m.title)}</b></td><td>${esc(m.requester)}</td><td>${esc(m.room)}</td><td>${formatDate(m.date)}</td><td>${m.start}-${m.end}</td><td class="meeting-status-cell"><div class="meeting-status-stack">${badge(m.status)}${methodTag}</div></td><td>${reviewCell}</td><td><div class="actions">${actionButtons}</div></td></tr>`;
+            return `<tr>
+              <td class="col-no"><span class="cell-no">${i + 1}</span></td>
+              <td class="col-title" title="${esc(m.title)}"><span class="cell-title">${esc(m.title)}</span></td>
+              <td class="col-requester" title="${esc(m.requester || m.bookedBy || "-")}"><span class="cell-requester">${esc(m.requester || m.bookedBy || "-")}</span></td>
+              <td class="col-room" title="${esc(m.room || "-")}"><span class="cell-room">${esc(m.room || "-")}</span></td>
+              <td class="col-date"><span class="cell-date">${formatDate(m.date)}</span></td>
+              <td class="col-time"><span class="cell-time">${m.start} – ${m.end}</span></td>
+              <td class="col-status meeting-status-cell"><div class="meeting-status-stack">${badge(m.status)}${methodTag}</div></td>
+              <td class="col-review">${reviewCell}</td>
+              <td class="col-actions"><div class="actions">${actionButtons}</div></td>
+            </tr>`;
           })
           .join("");
 
-  return `<div class="table-wrap"><table class="table"><thead><tr><th>No</th><th>Judul Rapat</th><th>Pemesan</th><th>Ruangan</th><th>Tanggal</th><th>Waktu</th><th>Status</th><th>Rating &amp; Review</th><th>Aksi</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  return `<div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th class="col-no">No</th>
+          <th class="col-title">Judul Rapat</th>
+          <th class="col-requester">Pemesan</th>
+          <th class="col-room">Ruangan</th>
+          <th class="col-date">Tanggal</th>
+          <th class="col-time">Waktu</th>
+          <th class="col-status">Status</th>
+          <th class="col-review">Rating &amp; Review</th>
+          <th class="col-actions">Aksi</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>`;
 }
 
 function meetings() {
@@ -2348,21 +2398,21 @@ function rooms() {
   const bsBuildingGear = svgIcon(
     '<path d="M2 1a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v7.256A4.5 4.5 0 0 0 12.5 8a4.5 4.5 0 0 0-3.59 1.787A.5.5 0 0 0 9 9.5v-1a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .39-.187A4.5 4.5 0 0 0 8.027 12H6.5a.5.5 0 0 0-.5.5V16H3a1 1 0 0 1-1-1zm2 1.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5m3 0v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5m3.5-.5a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5zM4 5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5M7.5 5a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5zm2.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5M4.5 8a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5z"/><path d="M11.886 9.46c.18-.613 1.048-.613 1.229 0l.043.148a.64.64 0 0 0 .921.382l.136-.074c.561-.306 1.175.308.87.869l-.075.136a.64.64 0 0 0 .382.92l.149.045c.612.18.612 1.048 0 1.229l-.15.043a.64.64 0 0 0-.38.921l.074.136c.305.561-.309 1.175-.87.87l-.136-.075a.64.64 0 0 0-.92.382l-.045.149c-.18.612-1.048.612-1.229 0l-.043-.15a.64.64 0 0 0-.921-.38l-.136.074c-.561.305-1.175-.309-.87-.87l.075-.136a.64.64 0 0 0-.382-.92l-.148-.045c-.613-.18-.613-1.048 0-1.229l.148-.043a.64.64 0 0 0 .382-.921l-.074-.136c-.306-.561.308-1.175.869-.87l.136.075a.64.64 0 0 0 .92-.382zM14 12.5a1.5 1.5 0 1 0-3 0 1.5 1.5 0 0 0 3 0"/>',
     "0 0 16 16",
-    'width="36" height="36" fill="#1769aa"',
+    'width="36" height="36" fill="#3473A7"',
   );
 
   // FaCheck
   const faCheck = svgIcon(
     '<path d="M173.898 439.404l-166.4-166.4c-9.997-9.997-9.997-26.206 0-36.204l36.203-36.204c9.997-9.998 26.207-9.998 36.204 0L192 312.69 432.095 72.596c9.997-9.997 26.207-9.997 36.204 0l36.203 36.204c9.997 9.997 9.997 26.206 0 36.204l-294.4 294.401c-9.998 9.997-26.207 9.997-36.204-.001z"/>',
     "0 0 512 512",
-    'width="22" height="22" fill="#0c2d5e"',
+    'width="22" height="22" fill="#123B5D"',
   );
 
   // FaTimes
   const faTimes = svgIcon(
     '<path d="M242.72 256l100.07-100.07c12.28-12.28 12.28-32.19 0-44.48l-22.24-22.24c-12.28-12.28-32.19-12.28-44.48 0L176 189.28 75.93 89.21c-12.28-12.28-32.19-12.28-44.48 0L9.21 111.45c-12.28 12.28-12.28 32.19 0 44.48L109.28 256 9.21 356.07c-12.28 12.28-12.28 32.19 0 44.48l22.24 22.24c12.28 12.28 32.2 12.28 44.48 0L176 322.72l100.07 100.07c12.28 12.28 32.2 12.28 44.48 0l22.24-22.24c12.28-12.28 12.28-32.19 0-44.48L242.72 256z"/>',
     "0 0 352 512",
-    'width="18" height="18" fill="#1769aa"',
+    'width="18" height="18" fill="#3473A7"',
   );
 
   const faCircle = svgIcon(
@@ -2611,8 +2661,8 @@ function userTable(data) {
       let roleColor = "#f1f5f9";
       if (roleName === "User") roleColor = "#e6f0fa";
       else if (roleName === "Admin") roleColor = "#e0f5ec";
-      else if (roleName === "Pimpinan") roleColor = "#fef3c7";
-      const badgeStyle = `background:${roleColor};color:#0c2d5e;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:700;`;
+      else if (roleName === "Pimpinan") roleColor = "rgba(255, 205, 95, 0.2)";
+      const badgeStyle = `background:${roleColor};color:#123B5D;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:700;`;
       const statusStyle =
         (u.status || "Aktif") === "Aktif"
           ? "background:#d1fae5;color:#047857;padding:3px 8px;border-radius:8px;font-size:11px;font-weight:600;"
@@ -2621,7 +2671,7 @@ function userTable(data) {
       return `<tr>
         <td>${i + 1}</td>
         <td>
-          <div style="font-weight:700;color:#0c2d5e;">${esc(u.name)}</div>
+          <div style="font-weight:700;color:#123B5D;">${esc(u.name)}</div>
           ${u.username ? `<small style="color:#718dae;font-size:11px;">Username: <b>${esc(u.username)}</b></small>` : ""}
         </td>
         <td>${esc(u.email || "-")}</td>
@@ -2817,7 +2867,7 @@ function calendar() {
     scheduleItems = `
       <div class="cal-schedule-empty">
         <div style="font-size:24px;margin-bottom:6px;">📅</div>
-        <div style="font-weight:700;color:#0c2d5e;margin-bottom:2px;">Tidak Ada Jadwal</div>
+        <div style="font-weight:700;color:#123B5D;margin-bottom:2px;">Tidak Ada Jadwal</div>
         <div style="font-size:12px;color:#64748b;">Belum ada kegiatan rapat yang dijadwalkan pada tanggal ini.</div>
       </div>
     `;
@@ -2826,9 +2876,9 @@ function calendar() {
       .map((m) => {
         const status = m.status || "Menunggu Approval";
         let statusBg = "#e3f2fd";
-        let statusText = "#1769aa";
+        let statusText = "#3473A7";
         let statusBorder = "#bfdbfe";
-        let dotColor = "#1769aa";
+        let dotColor = "#3473A7";
 
         if (status.includes("Menunggu")) {
           statusBg = "#fff7ed";
@@ -2861,7 +2911,7 @@ function calendar() {
           <div class="cal-meeting-item" onclick="viewMeeting('${esc(m.id)}')" title="Klik untuk melihat detail rapat">
             <div style="width:10px;height:10px;border-radius:50%;background:${dotColor};margin-top:4px;flex-shrink:0;"></div>
             <div style="flex:1;min-width:0;">
-              <div style="font-weight:700;font-size:13.5px;color:#0c2d5e;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+              <div style="font-weight:700;font-size:13.5px;color:#123B5D;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
                 ${esc(title)}
               </div>
               <div style="font-size:11.5px;color:#475569;margin-bottom:4px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
@@ -2876,7 +2926,7 @@ function calendar() {
                 <span style="background:${statusBg};color:${statusText};border:1px solid ${statusBorder};padding:2px 8px;border-radius:12px;font-size:10.5px;font-weight:700;">
                   ${esc(status)}
                 </span>
-                <span style="font-size:11px;font-weight:600;color:#1769aa;">Lihat detail →</span>
+                <span style="font-size:11px;font-weight:600;color:#3473A7;">Lihat detail →</span>
               </div>
             </div>
           </div>
@@ -3232,14 +3282,14 @@ function reports() {
               Math.max(18, Math.round((t.count / maxTrendCount) * 85)),
             )
           : 8;
-      const barColor = t.count > 0 ? "#1769aa" : "#e2e8f0";
+      const barColor = t.count > 0 ? "#3473A7" : "#e2e8f0";
       return `
       <div style="flex:1;display:flex;flex-direction:column;align-items:center;height:100%;justify-content:flex-end;">
-        <span style="font-size:12px;font-weight:700;color:${t.count > 0 ? "#0c2d5e" : "#94a3b8"};margin-bottom:6px;">${t.count}</span>
+        <span style="font-size:12px;font-weight:700;color:${t.count > 0 ? "#123B5D" : "#94a3b8"};margin-bottom:6px;">${t.count}</span>
         <div style="width:100%;max-width:38px;background:#f8fafc;border-radius:6px 6px 0 0;height:110px;display:flex;align-items:flex-end;overflow:hidden;border:1px solid #eef2f6;" title="${t.label} (${t.sub}): ${t.count} Rapat">
           <div style="width:100%;height:${heightPct}%;background:${barColor};border-radius:5px 5px 0 0;transition:height 0.3s ease;"></div>
         </div>
-        <span style="font-size:11.5px;font-weight:700;color:#0c2d5e;margin-top:8px;">${t.label}</span>
+        <span style="font-size:11.5px;font-weight:700;color:#123B5D;margin-top:8px;">${t.label}</span>
         <span style="font-size:10px;color:#64748b;font-weight:500;">${t.sub}</span>
       </div>
     `;
@@ -3269,16 +3319,16 @@ function reports() {
       <div style="margin-bottom: 12px; background:#f8fafc; border:1px solid #eef3f9; border-radius:10px; padding:10px 14px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
           <div>
-            <strong style="font-size: 13px; color: #0c2d5e; display:block;">${esc(room.name)}</strong>
+            <strong style="font-size: 13px; color: #123B5D; display:block;">${esc(room.name)}</strong>
             <small style="font-size: 11px; color: #64748b;">${esc(room.location || "Lt. 3")} · Kapasitas ${room.capacity || 20} org</small>
           </div>
           <div style="text-align:right;">
-            <span style="font-size: 13px; font-weight: 700; color: #1769aa;">${count} Rapat</span>
+            <span style="font-size: 13px; font-weight: 700; color: #3473A7;">${count} Rapat</span>
             <div style="font-size: 11px; color: #64748b; font-weight: 500;">${rHours} Jam (${rPct}%)</div>
           </div>
         </div>
         <div style="height: 8px; background: #e2eaf5; border-radius: 6px; overflow: hidden; display: flex;">
-          <div style="width: ${rPct}%; background: linear-gradient(90deg, #1769aa, #38bdf8); border-radius: 6px; transition: width 0.3s ease;"></div>
+          <div style="width: ${rPct}%; background: linear-gradient(90deg, #3473A7, #38bdf8); border-radius: 6px; transition: width 0.3s ease;"></div>
         </div>
       </div>
     `;
@@ -3291,9 +3341,9 @@ function reports() {
     customTableHTML = `
       <div class="rep-list" style="margin: 0 40px 40px; text-align:center; padding: 48px 20px;">
         <div style="font-size: 38px; margin-bottom: 10px;">📋</div>
-        <h3 style="font-size: 16px; font-weight: 700; color: #0c2d5e; margin: 0 0 6px;">Tidak ada riwayat rapat pada periode ini</h3>
+        <h3 style="font-size: 16px; font-weight: 700; color: #123B5D; margin: 0 0 6px;">Tidak ada riwayat rapat pada periode ini</h3>
         <p style="font-size: 13px; color: #64748b; margin: 0 0 16px;">Silakan pilih filter Mingguan, Bulanan, atau Semua Jadwal untuk melihat rekapitulasi penggunaan ruang rapat.</p>
-        <button class="btn btn-primary" onclick="setReportPeriod('bulanan')" style="font-size: 12.5px; padding: 8px 18px; border-radius: 8px; background: #0c2d5e; cursor:pointer;">Tampilkan Bulan Ini</button>
+        <button class="btn btn-primary" onclick="setReportPeriod('bulanan')" style="font-size: 12.5px; padding: 8px 18px; border-radius: 8px; background: #123B5D; cursor:pointer;">Tampilkan Bulan Ini</button>
       </div>
     `;
   } else {
@@ -3301,10 +3351,10 @@ function reports() {
       <div class="rep-list" style="margin: 0 40px 40px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 18px; flex-wrap: wrap; gap: 10px;">
           <div>
-            <h2 style="font-size: 16px; font-weight: 700; color: #0c2d5e; margin: 0 0 3px;">Rekapitulasi Penggunaan Ruangan</h2>
+            <h2 style="font-size: 16px; font-weight: 700; color: #123B5D; margin: 0 0 3px;">Rekapitulasi Penggunaan Ruangan</h2>
             <p style="font-size: 12px; color: #64748b; margin: 0;">Daftar seluruh agenda rapat tercatat pada periode <strong>${getActivePeriodLabel()}</strong></p>
           </div>
-          <span style="font-size: 12px; font-weight: 700; color: #1769aa; background: #e0f2fe; padding: 5px 12px; border-radius: 20px;">
+          <span style="font-size: 12px; font-weight: 700; color: #3473A7; background: rgba(52, 115, 167, 0.14); padding: 5px 12px; border-radius: 20px;">
             Total: ${filteredMeetings.length} Rapat
           </span>
         </div>
@@ -3336,7 +3386,7 @@ function reports() {
                   } else if (s.includes("menunggu") || s.includes("pending")) {
                     statusBadge = `<span style="background:#fff7ed;color:#ea580c;padding:5px 10px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;">⏳ Menunggu Approval</span>`;
                   } else {
-                    statusBadge = `<span style="background:#e0f2fe;color:#0284c7;padding:5px 10px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;">📅 ${esc(m.status || "Akan Datang")}</span>`;
+                    statusBadge = `<span style="background:rgba(52, 115, 167, 0.14);color:#3473A7;padding:5px 10px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;">📅 ${esc(m.status || "Akan Datang")}</span>`;
                   }
 
                   let durasiStr = "-";
@@ -3358,17 +3408,17 @@ function reports() {
                     }
                   }
 
-                  const actionBtn = `<button style="background-color:#f0f4fa;color:#0c2d5e;border:1px solid #dbeafe;border-radius:8px;width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:background 0.15s;" title="Lihat Detail Rapat" onclick="viewMeeting('${m.id}')" onmouseover="this.style.background='#e0f2fe'" onmouseout="this.style.background='#f0f4fa'">${faEye}</button>`;
+                  const actionBtn = `<button style="background-color:#f0f4fa;color:#123B5D;border:1px solid #dbeafe;border-radius:8px;width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:background 0.15s;" title="Lihat Detail Rapat" onclick="viewMeeting('${m.id}')" onmouseover="this.style.background='rgba(52, 115, 167, 0.14)'" onmouseout="this.style.background='#f0f4fa'">${faEye}</button>`;
 
                   return `
                   <tr>
                     <td>${i + 1}</td>
                     <td>
-                      <strong style="color:#0c2d5e; display:block;">${esc(m.title)}</strong>
+                      <strong style="color:#123B5D; display:block;">${esc(m.title)}</strong>
                       ${m.desc ? `<small style="color:#64748b; font-size:11px; font-weight:400;">${esc(m.desc.slice(0, 45))}${m.desc.length > 45 ? "..." : ""}</small>` : ""}
                     </td>
                     <td>${esc(m.requester || m.organizer || "-")}</td>
-                    <td><span style="font-weight:600; color:#1769aa;">${esc(m.room)}</span></td>
+                    <td><span style="font-weight:600; color:#3473A7;">${esc(m.room)}</span></td>
                     <td class="rep-list-date">${m.date ? formatDate(m.date) : "-"}</td>
                     <td style="font-weight:600;">${m.start} – ${m.end}</td>
                     <td>${durasiStr}</td>
@@ -3429,10 +3479,10 @@ function reports() {
             </svg>
           </button>
           <div id="exportMenuDropdown" class="rep-export-menu" style="display: none; position: absolute; top: calc(100% + 6px); right: 0; background: #ffffff; border-radius: 8px; box-shadow: 0 10px 25px rgba(12, 45, 94, 0.12); border: 1px solid #e2e8f0; min-width: 170px; z-index: 1000; overflow: hidden;">
-            <button type="button" onclick="exportExcel(); closeExportMenu();" style="width: 100%; display: flex; align-items: center; gap: 8px; padding: 11px 16px; border: none; background: transparent; font-size: 13px; font-weight: 600; color: #0c2d5e; cursor: pointer; text-align: left; transition: background 0.15s;" onmouseover="this.style.background='#f0f4fa'" onmouseout="this.style.background='transparent'">
+            <button type="button" onclick="exportExcel(); closeExportMenu();" style="width: 100%; display: flex; align-items: center; gap: 8px; padding: 11px 16px; border: none; background: transparent; font-size: 13px; font-weight: 600; color: #123B5D; cursor: pointer; text-align: left; transition: background 0.15s;" onmouseover="this.style.background='#f0f4fa'" onmouseout="this.style.background='transparent'">
               <span style="font-size:16px;">📊</span> Export Excel (.xlsx)
             </button>
-            <button type="button" onclick="exportPDF(); closeExportMenu();" style="width: 100%; display: flex; align-items: center; gap: 8px; padding: 11px 16px; border: none; background: transparent; font-size: 13px; font-weight: 600; color: #0c2d5e; cursor: pointer; text-align: left; border-top: 1px solid #f1f5f9; transition: background 0.15s;" onmouseover="this.style.background='#f0f4fa'" onmouseout="this.style.background='transparent'">
+            <button type="button" onclick="exportPDF(); closeExportMenu();" style="width: 100%; display: flex; align-items: center; gap: 8px; padding: 11px 16px; border: none; background: transparent; font-size: 13px; font-weight: 600; color: #123B5D; cursor: pointer; text-align: left; border-top: 1px solid #f1f5f9; transition: background 0.15s;" onmouseover="this.style.background='#f0f4fa'" onmouseout="this.style.background='transparent'">
               <span style="font-size:16px;">📄</span> Export PDF (.pdf)
             </button>
           </div>
@@ -3442,21 +3492,21 @@ function reports() {
       <!-- Stat Cards -->
       <div class="rep-cards">
         <div class="rep-card">
-          <div class="rc-icon blue1" style="background:#e0f2fe; color:#0284c7;">${faArrowsDownToPeople}</div>
+          <div class="rc-icon blue1" style="background:rgba(52, 115, 167, 0.14); color:#3473A7;">${faArrowsDownToPeople}</div>
           <div class="rc-text">
             <strong>${totalMeetings}</strong>
             <span>Total Rapat</span>
           </div>
         </div>
         <div class="rep-card">
-          <div class="rc-icon blue1" style="background:#fef3c7; color:#b45309;">${faClock}</div>
+          <div class="rc-icon blue1" style="background:rgba(255, 205, 95, 0.2); color:#9c6d00;">${faClock}</div>
           <div class="rc-text">
             <strong>${totalHours} Jam</strong>
             <span>Total Durasi</span>
           </div>
         </div>
         <div class="rep-card">
-          <div class="rc-icon blue1" style="background:#dcfce7; color:#15803d;">${bsBuilding}</div>
+          <div class="rc-icon blue1" style="background:rgba(155, 194, 100, 0.18); color:#557e23;">${bsBuilding}</div>
           <div class="rc-text">
             <strong>${occupancyPct}%</strong>
             <span>Okupansi Ruang</span>
@@ -3479,7 +3529,7 @@ function reports() {
               <h2 style="margin:0 0 2px;">Tren Penggunaan Ruang Rapat</h2>
               <small style="color:#64748b; font-weight:500;">Distribusi rapat: <strong>${getActivePeriodLabel()}</strong></small>
             </div>
-            <span style="font-size:11px; font-weight:700; color:#1769aa; background:#e0f2fe; padding:3px 8px; border-radius:6px;">
+            <span style="font-size:11px; font-weight:700; color:#3473A7; background:rgba(52, 115, 167, 0.14); padding:3px 8px; border-radius:6px;">
               ${currentMode === "mingguan" ? "Harian (Minggu Ini)" : currentMode === "bulanan" ? "Mingguan (Bulan Ini)" : currentMode === "tahunan" ? "Bulanan (Tahun Ini)" : "Tren Periode"}
             </span>
           </div>
@@ -3545,7 +3595,7 @@ function openFilterModal() {
   };
   const body = `
     <div style="display:flex; flex-direction:column; gap:12px; padding-top: 6px; font-family:'Poppins',sans-serif;">
-      <h3 style="font-size: 13.5px; font-weight:700; color: #0c2d5e; margin: 0 0 4px;">Pilih Periode Rapat & Laporan</h3>
+      <h3 style="font-size: 13.5px; font-weight:700; color: #123B5D; margin: 0 0 4px;">Pilih Periode Rapat & Laporan</h3>
 
       <label style="display:flex; align-items:center; justify-content:space-between; cursor:pointer; padding: 10px 12px; border-radius:8px; border: 1px solid #e2e8f0; background: #fff;">
         <span style="font-size:13px; font-weight:600; color:#1e293b;">📅 Hari Ini saja (${formatDate(getTodayIsoDate())})</span>
@@ -3575,17 +3625,17 @@ function openFilterModal() {
       <div id="modalDateInputs" style="display:flex; gap:10px; margin-top: 4px; opacity: ${f.mode === "date" ? "1" : "0.5"}; pointer-events: ${f.mode === "date" ? "auto" : "none"};">
         <div style="flex:1; background: #f8fafc; padding: 10px 12px; border:1px solid #e2e8f0; border-radius: 8px;">
           <label style="display:block; font-size:11px; font-weight:600; color:#64748b; margin-bottom:4px;">Dari Tanggal</label>
-          <input type="date" id="mStartDate" value="${f.startDate || awalBulan()}" style="width:100%; border:none; background:transparent; outline:none; font-weight:600; font-size:12.5px; color:#0c2d5e;" ${f.mode !== "date" ? "disabled" : ""}>
+          <input type="date" id="mStartDate" value="${f.startDate || awalBulan()}" style="width:100%; border:none; background:transparent; outline:none; font-weight:600; font-size:12.5px; color:#123B5D;" ${f.mode !== "date" ? "disabled" : ""}>
         </div>
         <div style="flex:1; background: #f8fafc; padding: 10px 12px; border:1px solid #e2e8f0; border-radius: 8px;">
           <label style="display:block; font-size:11px; font-weight:600; color:#64748b; margin-bottom:4px;">Sampai Tanggal</label>
-          <input type="date" id="mEndDate" value="${f.endDate || akhirBulan()}" style="width:100%; border:none; background:transparent; outline:none; font-weight:600; font-size:12.5px; color:#0c2d5e;" ${f.mode !== "date" ? "disabled" : ""}>
+          <input type="date" id="mEndDate" value="${f.endDate || akhirBulan()}" style="width:100%; border:none; background:transparent; outline:none; font-weight:600; font-size:12.5px; color:#123B5D;" ${f.mode !== "date" ? "disabled" : ""}>
         </div>
       </div>
 
       <div style="margin-top: 14px; display:flex; gap:10px;">
         <button type="button" class="btn btn-light" style="flex:1; padding: 11px; font-size: 13px; border-radius: 8px; font-weight:600;" onclick="closeModal()">Batal</button>
-        <button type="button" class="btn btn-primary" style="flex:2; padding: 11px; font-size: 13px; border-radius: 8px; font-weight:700; background:#0c2d5e;" onclick="applyFilter()">Terapkan Filter</button>
+        <button type="button" class="btn btn-primary" style="flex:2; padding: 11px; font-size: 13px; border-radius: 8px; font-weight:700; background:#123B5D;" onclick="applyFilter()">Terapkan Filter</button>
       </div>
     </div>
   `;
@@ -3734,7 +3784,7 @@ function settings() {
   const faUserCog = svgIcon(
     '<path d="M610.5 373.3c2.6-14.1 2.6-28.5 0-42.6l25.8-14.9c3-1.7 4.3-5.2 3.3-8.5-6.7-21.6-18.2-41.2-33.2-57.4-2.3-2.5-6-3.1-9-1.4l-25.8 14.9c-10.9-9.3-23.4-16.5-36.9-21.3v-29.8c0-3.4-2.4-6.4-5.7-7.1-22.3-5-45-4.8-66.2 0-3.3.7-5.7 3.7-5.7 7.1v29.8c-13.5 4.8-26 12-36.9 21.3l-25.8-14.9c-2.9-1.7-6.7-1.1-9 1.4-15 16.2-26.5 35.8-33.2 57.4-1 3.3.4 6.8 3.3 8.5l25.8 14.9c-2.6 14.1-2.6 28.5 0 42.6l-25.8 14.9c-3 1.7-4.3 5.2-3.3 8.5 6.7 21.6 18.2 41.1 33.2 57.4 2.3 2.5 6 3.1 9 1.4l25.8-14.9c10.9 9.3 23.4 16.5 36.9 21.3v29.8c0 3.4 2.4 6.4 5.7 7.1 22.3 5 45 4.8 66.2 0 3.3-.7 5.7-3.7 5.7-7.1v-29.8c13.5-4.8 26-12 36.9-21.3l25.8 14.9c2.9 1.7 6.7 1.1 9-1.4 15-16.2 26.5-35.8 33.2-57.4 1-3.3-.4-6.8-3.3-8.5l-25.8-14.9zM496 400.5c-26.8 0-48.5-21.8-48.5-48.5s21.8-48.5 48.5-48.5 48.5 21.8 48.5 48.5-21.7 48.5-48.5 48.5zM224 256c70.7 0 128-57.3 128-128S294.7 0 224 0 96 57.3 96 128s57.3 128 128 128zm201.2 226.5c-2.3-1.2-4.6-2.6-6.8-3.9l-7.9 4.6c-6 3.4-12.8 5.3-19.6 5.3-10.9 0-21.4-4.6-28.9-12.6-18.3-19.8-32.3-43.9-40.2-69.6-5.5-17.7 1.9-36.4 17.9-45.7l7.9-4.6c-.1-2.6-.1-5.2 0-7.8l-7.9-4.6c-16-9.2-23.4-28-17.9-45.7.9-2.9 2.2-5.8 3.2-8.7-3.8-.3-7.5-1.2-11.4-1.2h-16.7c-22.2 10.2-46.9 16-72.9 16s-50.6-5.8-72.9-16h-16.7C60.2 288 0 348.2 0 422.4V464c0 26.5 21.5 48 48 48h352c10.1 0 19.5-3.2 27.2-8.5-1.2-3.8-2-7.7-2-11.8v-9.2z"/>',
     "0 0 640 512",
-    'width="24" height="24" fill="#1769aa"',
+    'width="24" height="24" fill="#3473A7"',
   );
 
   const faCheck = svgIcon(
@@ -3888,7 +3938,7 @@ function openRoleModal(name = "") {
     <div class="custom-role-modal" onclick="event.stopPropagation()" style="width: min(620px, 94vw); background: #ffffff !important; border-radius: 18px; padding: 22px 26px 20px; box-shadow: 0 16px 48px rgba(12, 45, 94, 0.22); font-family: 'Poppins', sans-serif; box-sizing: border-box; position: relative; z-index: 10000; max-height: calc(100vh - 36px); overflow-y: auto;">
       <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 14px;">
         <div>
-          <h2 style="margin:0 0 2px; font-size:19px; font-weight:800; color:#0c2d5e; letter-spacing:-0.3px;">
+          <h2 style="margin:0 0 2px; font-size:19px; font-weight:800; color:#123B5D; letter-spacing:-0.3px;">
             ${role ? "Edit Role" : "Tambah Role Baru"}
           </h2>
           <p style="margin:0; font-size:12px; color:#4b6a90; font-weight:500;">
@@ -3900,19 +3950,19 @@ function openRoleModal(name = "") {
 
       <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:12px;">
         <div class="crm-field" style="margin-bottom:0;">
-          <label style="display:block; font-size:12.5px; font-weight:700; color:#0c2d5e; margin-bottom:5px;">Nama Role <span style="color:#e53e3e;">*</span></label>
-          <input id="roleName" maxlength="80" value="${esc(role?.name || "")}" ${role ? "readonly style='background:#f1f5f9; cursor:not-allowed; border-color:#cbd5e1; color:#64748b;'" : ""} placeholder="Contoh: Operator Ruang" style="width:100%; padding:9px 13px; border-radius:10px; border:1.5px solid #dbe6f2; background:#f7fafe; font-size:13px; font-family:'Poppins',sans-serif; color:#0c2d5e; outline:none; box-sizing:border-box;">
+          <label style="display:block; font-size:12.5px; font-weight:700; color:#123B5D; margin-bottom:5px;">Nama Role <span style="color:#e53e3e;">*</span></label>
+          <input id="roleName" maxlength="80" value="${esc(role?.name || "")}" ${role ? "readonly style='background:#f1f5f9; cursor:not-allowed; border-color:#cbd5e1; color:#64748b;'" : ""} placeholder="Contoh: Operator Ruang" style="width:100%; padding:9px 13px; border-radius:10px; border:1.5px solid #dbe6f2; background:#f7fafe; font-size:13px; font-family:'Poppins',sans-serif; color:#123B5D; outline:none; box-sizing:border-box;">
         </div>
 
         <div class="crm-field" style="margin-bottom:0;">
-          <label style="display:block; font-size:12.5px; font-weight:700; color:#0c2d5e; margin-bottom:5px;">Deskripsi Role <span style="font-size:11px; font-weight:normal; color:#718096;">(Opsional)</span></label>
-          <input id="roleDescription" maxlength="300" value="${esc(role?.description || "")}" placeholder="Contoh: Mengelola rapat dan presensi" style="width:100%; padding:9px 13px; border-radius:10px; border:1.5px solid #dbe6f2; background:#f7fafe; font-size:13px; font-family:'Poppins',sans-serif; color:#0c2d5e; outline:none; box-sizing:border-box;">
+          <label style="display:block; font-size:12.5px; font-weight:700; color:#123B5D; margin-bottom:5px;">Deskripsi Role <span style="font-size:11px; font-weight:normal; color:#718096;">(Opsional)</span></label>
+          <input id="roleDescription" maxlength="300" value="${esc(role?.description || "")}" placeholder="Contoh: Mengelola rapat dan presensi" style="width:100%; padding:9px 13px; border-radius:10px; border:1.5px solid #dbe6f2; background:#f7fafe; font-size:13px; font-family:'Poppins',sans-serif; color:#123B5D; outline:none; box-sizing:border-box;">
         </div>
       </div>
 
       <div style="margin: 10px 0 4px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:7px;">
-          <label style="font-size:12.5px; font-weight:700; color:#0c2d5e; font-family:'Poppins',sans-serif; margin:0;">
+          <label style="font-size:12.5px; font-weight:700; color:#123B5D; font-family:'Poppins',sans-serif; margin:0;">
             Hak Akses Fitur <span style="color:#e53e3e;">*</span>
           </label>
           <span style="font-size:11px; color:#64748b; font-weight:500;">Pilih hak akses yang diizinkan</span>
@@ -3920,7 +3970,7 @@ function openRoleModal(name = "") {
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:7px;">
           ${ROLE_PERMISSION_OPTIONS.map(([key, label]) => `
             <label class="role-perm-card" style="display:flex; align-items:center; gap:8px; padding:7px 11px; background:#f8fafc; border:1.5px solid #e2e8f0; border-radius:9px; cursor:pointer; transition:all 0.15s ease; user-select:none;">
-              <input type="checkbox" value="${key}" class="role-permission" ${selected.has(key) ? "checked" : ""} style="accent-color:#0c2d5e; width:15px; height:15px; cursor:pointer; flex-shrink:0;">
+              <input type="checkbox" value="${key}" class="role-permission" ${selected.has(key) ? "checked" : ""} style="accent-color:#123B5D; width:15px; height:15px; cursor:pointer; flex-shrink:0;">
               <span style="font-size:12px; font-weight:600; color:#1e293b; line-height:1.25;">${label}</span>
             </label>
           `).join("")}
@@ -4157,8 +4207,8 @@ const ICON_FA_EXCLAMATION = `<svg stroke="currentColor" fill="currentColor" stro
 function showConfirmModal({
   title = "Konfirmasi",
   icon = ICON_FA_CHECK,
-  iconBg = "#dcfce7",
-  iconColor = "#15803d",
+  iconBg = "rgba(155, 194, 100, 0.18)",
+  iconColor = "#557e23",
   message = "",
   infoText = "",
   subtext = "",
@@ -4180,10 +4230,10 @@ function showConfirmModal({
             ${icon}
           </div>
           <div>
-            <h3 style="font-size:16px;font-weight:700;color:#0c2d5e;margin:0;line-height:1.2;">${esc(title)}</h3>
+            <h3 style="font-size:16px;font-weight:700;color:#123B5D;margin:0;line-height:1.2;">${esc(title)}</h3>
           </div>
         </div>
-        <button type="button" onclick="closeModal()" style="border:none;background:#f1f5f9;color:#64748b;width:30px;height:30px;border-radius:8px;cursor:pointer;display:grid;place-items:center;font-size:15px;line-height:1;transition:all 0.15s;" onmouseover="this.style.background='#e2e8f0';this.style.color='#0c2d5e'" onmouseout="this.style.background='#f1f5f9';this.style.color='#64748b'" title="Tutup">✕</button>
+        <button type="button" onclick="closeModal()" style="border:none;background:#f1f5f9;color:#64748b;width:30px;height:30px;border-radius:8px;cursor:pointer;display:grid;place-items:center;font-size:15px;line-height:1;transition:all 0.15s;" onmouseover="this.style.background='#e2e8f0';this.style.color='#123B5D'" onmouseout="this.style.background='#f1f5f9';this.style.color='#64748b'" title="Tutup">✕</button>
       </div>
 
       <div style="font-size:13.5px;color:#1e293b;line-height:1.5;margin-bottom:12px;">
@@ -4194,8 +4244,8 @@ function showConfirmModal({
         infoText
           ? `
         <div style="background:#f8fafc;border:1px solid #e2e8f0;border-left:3.5px solid ${iconColor};border-radius:10px;padding:11px 13px;margin:14px 0;font-size:12px;color:#475569;line-height:1.55;">
-          <div style="font-weight:700;color:#0c2d5e;margin-bottom:5px;display:flex;align-items:center;gap:7px;">
-            <span style="display:inline-flex;align-items:center;justify-content:center;width:19px;height:19px;border-radius:50%;background:#e0f2fe;color:#0284c7;flex-shrink:0;">${ICON_FA_EXCLAMATION}</span>
+          <div style="font-weight:700;color:#123B5D;margin-bottom:5px;display:flex;align-items:center;gap:7px;">
+            <span style="display:inline-flex;align-items:center;justify-content:center;width:19px;height:19px;border-radius:50%;background:rgba(52, 115, 167, 0.14);color:#3473A7;flex-shrink:0;">${ICON_FA_EXCLAMATION}</span>
             <span>Info Sistem</span>
           </div>
           ${infoText}
@@ -4260,11 +4310,11 @@ function confirmWithAppModal(options) {
 window.alert = (message) => showConfirmModal({
   title: "Informasi",
   icon: ICON_FA_EXCLAMATION,
-  iconBg: "#e0f2fe",
-  iconColor: "#0284c7",
+  iconBg: "rgba(52, 115, 167, 0.14)",
+  iconColor: "#3473A7",
   message: esc(String(message ?? "")),
   confirmText: "Mengerti",
-  confirmBg: "#1769aa",
+  confirmBg: "#3473A7",
   cancelText: "",
 });
 
@@ -4316,9 +4366,9 @@ function openMeetingModal(id = null) {
     `<div class="form-grid">
       <div class="field full" style="background:#eaf2fb;padding:12px 16px;border-radius:12px;border:1.5px solid #b8d4f4;margin-bottom:6px;">
         <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;margin:0;">
-          <input type="checkbox" id="fIsKepalaBiro" style="width:18px;height:18px;margin-top:2px;cursor:pointer;accent-color:#0c2d5e;" ${isKepalaBiro ? "checked" : ""} onchange="onToggleKepalaBiro(this)">
+          <input type="checkbox" id="fIsKepalaBiro" style="width:18px;height:18px;margin-top:2px;cursor:pointer;accent-color:#123B5D;" ${isKepalaBiro ? "checked" : ""} onchange="onToggleKepalaBiro(this)">
           <div>
-            <span style="font-weight:700;font-size:13.5px;color:#0c2d5e;">Rapat Kepala Biro Keuangan dan BMN (Prioritas Utama)</span>
+            <span style="font-weight:700;font-size:13.5px;color:#123B5D;">Rapat Kepala Biro Keuangan dan BMN (Prioritas Utama)</span>
             <span style="display:block;font-size:11.5px;color:#3d5a80;font-weight:400;margin-top:3px;line-height:1.4;">
               Jika diaktifkan, jadwal rapat lain pada ruangan dan waktu yang sama akan <b>otomatis dibatalkan</b> (meskipun sudah disetujui / approve), dan <b>notifikasi pembatalan</b> akan langsung dikirimkan kepada pemesan sebelumnya.
             </span>
@@ -4762,8 +4812,8 @@ function checkInMeetingManual(id) {
   showConfirmModal({
     title: "Check-In Manual",
     icon: ICON_FA_CHECK,
-    iconBg: "#dcfce7",
-    iconColor: "#15803d",
+    iconBg: "rgba(155, 194, 100, 0.18)",
+    iconColor: "#557e23",
     message: `Lakukan <b>Check-In MANUAL</b> untuk <b>${esc(title)}</b>?`,
     infoText: `Peserta rapat / PIC sebenarnya dapat melakukan <b>Check-In mandiri</b> dengan memindai <b>Barcode / QR Code</b> di ruangan tanpa perlu Admin menekan tombol ini.`,
     subtext: `Gunakan tombol ini jika Anda ingin mengaktifkan sesi secara manual sekarang.`,
@@ -5082,19 +5132,28 @@ function viewMeeting(id) {
        </div>`
     : "";
 
-  const reviewRating = Math.max(0, Math.min(5, Number(m.review?.rating) || 0));
-  const reviewBox = m.review
+  const revObj = getMeetingReview(m);
+  const reviewRating = Math.max(0, Math.min(5, Number(revObj?.rating) || 0));
+  const reviewBox = revObj
     ? `<div style="margin:14px 0;padding:13px 15px;border:1px solid #d9e6f4;border-radius:10px;background:#f6faff;">
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px;">
           <b style="color:#123760;">Rating &amp; Review</b>
           <span style="color:#e4a719;letter-spacing:1px;" aria-label="Rating ${reviewRating} dari 5">${"★".repeat(reviewRating)}<span style="color:#cbd5e1;">${"☆".repeat(5 - reviewRating)}</span></span>
           <b style="color:#526a85;">${reviewRating}/5</b>
         </div>
-        <div style="color:#405d7e;white-space:pre-wrap;">${esc(m.review.text || "Tidak ada komentar.")}</div>
-        ${m.review.reviewer ? `<small style="display:block;margin-top:7px;color:#75869b;">Dari ${esc(m.review.reviewer)}</small>` : ""}
+        <div style="color:#405d7e;white-space:pre-wrap;font-style:italic;">"${esc(revObj.comment || revObj.text || "Tidak ada komentar tertulis dari pengguna.")}"</div>
+        ${revObj.reviewer ? `<small style="display:block;margin-top:7px;color:#75869b;">Dari ${esc(revObj.reviewer)}</small>` : ""}
+        ${
+          revObj.adminReply?.text
+            ? `<div style="margin-top:10px;padding:10px 12px;background:#f0fdf4;border-left:3px solid #16a34a;border-radius:6px;font-size:12.5px;color:#14532d;">
+                <b style="display:block;color:#557e23;margin-bottom:3px;">🏢 Balasan Pengelola (${esc(revObj.adminReply.sender || "Admin Utama")}):</b>
+                "${esc(revObj.adminReply.text)}"
+              </div>`
+            : ""
+        }
       </div>`
     : m.status === "Selesai"
-      ? `<div style="margin:14px 0;padding:11px 14px;border-radius:9px;color:#75869b;background:#f3f6fa;font-size:12px;">Belum ada rating dan review untuk rapat ini.</div>`
+      ? `<div style="margin:14px 0;padding:11px 14px;border-radius:9px;color:#75869b;background:#f3f6fa;font-size:12px;">Belum ada rating dan review dari pengguna untuk rapat ini.</div>`
       : "";
 
   const statusStr = (m.status || "").trim();
@@ -5113,16 +5172,19 @@ function viewMeeting(id) {
   const isRejected = statusLower === "ditolak" || statusLower === "rejected";
 
   let actionBtns = `<button class="btn btn-light" style="display:inline-flex;align-items:center;gap:6px;" onclick="exportNotulensiPDF('${m.id}')">${ICONS.export} <span>Notulensi</span></button>`;
+  if (typeof openNotulen === "function") {
+    actionBtns += `<button class="btn btn-light" style="display:inline-flex;align-items:center;gap:6px;border-color:#3473A7;color:#123B5D;font-weight:600;" onclick="closeModal(); openNotulen('${m.id}')">🎙️ Notulen AI</button>`;
+  }
 
   if (isPending) {
     if (can("approve")) {
-      actionBtns += `<button class="btn btn-primary" style="background:#219653;border-color:#219653;font-weight:700;" onclick="closeModal(); approveMeeting('${m.id}')">Setujui Rapat</button>`;
+      actionBtns += `<button class="btn btn-primary" style="background:#9BC264;border-color:#9BC264;font-weight:700;" onclick="closeModal(); approveMeeting('${m.id}')">Setujui Rapat</button>`;
       actionBtns += `<button class="btn btn-primary" style="background:#ff4d4f;border-color:#ff4d4f;font-weight:700;" onclick="closeModal(); rejectMeeting('${m.id}')">Tolak Rapat</button>`;
     } else {
-      actionBtns += `<div style="font-size:12px;color:#d97706;background:#fef3c7;padding:7px 12px;border-radius:8px;font-weight:600;display:inline-flex;align-items:center;">Menunggu Persetujuan Pimpinan</div>`;
+      actionBtns += `<div style="font-size:12px;color:#d97706;background:rgba(255, 205, 95, 0.2);padding:7px 12px;border-radius:8px;font-weight:600;display:inline-flex;align-items:center;">Menunggu Persetujuan Pimpinan</div>`;
     }
   } else if (isUpcoming && can("checkInOut")) {
-    actionBtns += `<button class="btn btn-primary" style="background:#219653;border-color:#219653;font-weight:700;" onclick="closeModal(); checkInMeetingManual('${m.id}')" title="Sistem 2: Check-In Manual oleh Admin Dashboard">Check In (Manual Admin)</button>`;
+    actionBtns += `<button class="btn btn-primary" style="background:#9BC264;border-color:#9BC264;font-weight:700;" onclick="closeModal(); checkInMeetingManual('${m.id}')" title="Sistem 2: Check-In Manual oleh Admin Dashboard">Check In (Manual Admin)</button>`;
   } else if (isRunning && can("checkInOut")) {
     actionBtns += `<button class="btn btn-primary" style="background:#ff4d4f;border-color:#ff4d4f;font-weight:700;" onclick="closeModal(); checkOutMeetingManual('${m.id}')" title="Sistem 2: Check-Out Manual oleh Admin Dashboard">Check Out (Manual Admin)</button>`;
   }
@@ -5177,7 +5239,7 @@ function viewMeeting(id) {
     <section class="meeting-detail-materials">
       <div class="meeting-detail-material-heading">
         ${meetingDetailIcon("file")}<strong>Materi Rapat</strong>
-        <button type="button" onclick="openAddMaterialModal('${esc(m.id)}')" style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;background:#0c2d5e;color:#fff;border:none;border-radius:6px;font-size:11.5px;font-weight:600;cursor:pointer;">
+        <button type="button" onclick="openAddMaterialModal('${esc(m.id)}')" style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;background:#123B5D;color:#fff;border:none;border-radius:6px;font-size:11.5px;font-weight:600;cursor:pointer;">
           + Tambah Materi
         </button>
       </div>
@@ -5196,11 +5258,11 @@ function viewMeeting(id) {
             ? `
           <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;flex-wrap:wrap;">
             <div>
-              <span style="color:#15803d;font-weight:600;">✓ Check-In:</span>
+              <span style="color:#557e23;font-weight:600;">✓ Check-In:</span>
               <span style="color:#334155;">${formatDate(m.checkInAt)} · ${new Date(m.checkInAt).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} WIB</span>
               ${m.checkedInBy ? `<small style="color:#64748b;">(${esc(m.checkedInBy)})</small>` : ""}
             </div>
-            <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;background:${m.checkInMethod === "barcode_qr" ? "#e0f2fe;color:#0369a1;border:1px solid #bae6fd;" : "#fef3c7;color:#b45309;border:1px solid #fde68a;"}">
+            <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;background:${m.checkInMethod === "barcode_qr" ? "rgba(52, 115, 167, 0.14);color:#0369a1;border:1px solid #bae6fd;" : "rgba(255, 205, 95, 0.2);color:#9c6d00;border:1px solid #FFCD5F;"}">
               ${m.checkInMethod === "barcode_qr" ? "Barcode / QR Mandiri" : "Manual oleh Admin"}
             </span>
           </div>`
@@ -5215,7 +5277,7 @@ function viewMeeting(id) {
               <span style="color:#334155;">${formatDate(m.checkOutAt)} · ${new Date(m.checkOutAt).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} WIB</span>
               ${m.checkedOutBy ? `<small style="color:#64748b;">(${esc(m.checkedOutBy)})</small>` : ""}
             </div>
-            <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;background:${m.checkOutMethod === "barcode_qr" ? "#e0f2fe;color:#0369a1;border:1px solid #bae6fd;" : "#fef3c7;color:#b45309;border:1px solid #fde68a;"}">
+            <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;background:${m.checkOutMethod === "barcode_qr" ? "rgba(52, 115, 167, 0.14);color:#0369a1;border:1px solid #bae6fd;" : "rgba(255, 205, 95, 0.2);color:#9c6d00;border:1px solid #FFCD5F;"}">
               ${m.checkOutMethod === "barcode_qr" ? "Barcode / QR Mandiri" : "Manual oleh Admin"}
             </span>
           </div>`
@@ -5249,7 +5311,7 @@ function viewMeeting(id) {
     ${presensiAuditBox}
     ${materialsBox}
     <div class="modal-actions meeting-detail-actions" style="margin-top:20px;display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;align-items:center;">
-      <button class="btn btn-light" style="display:inline-flex;align-items:center;gap:6px;background:#fff8e6;color:#d97706;border:1px solid #fde68a;font-weight:700;" onclick="closeModal(); openMeetingReviewModal('${m.id}')">★ <span>Rating & Review</span></button>
+      <button class="btn btn-light" style="display:inline-flex;align-items:center;gap:6px;background:#fffbe8;color:#d97706;border:1px solid #FFCD5F;font-weight:700;" onclick="closeModal(); openMeetingReviewModal('${m.id}')">★ <span>Rating & Review</span></button>
       ${actionBtns}
     </div>`,
   );
@@ -5484,14 +5546,18 @@ function openMeetingReviewModal(id) {
 
   const isCompleted = (m.status || "").toLowerCase() === "selesai";
   const rev = getMeetingReview(m);
+  const canReplyReview = isMainAdmin();
+  const pemesanDisplay = m.bookedBy
+    ? `${m.bookedBy}${m.requester && m.requester !== m.bookedBy ? ` (${m.requester})` : ""}`
+    : m.requester || "-";
 
   const contentHTML =
-    isCompleted && rev
+    rev
       ? `
-    <div style="font-family:'Poppins',sans-serif;color:#0c2d5e;">
+    <div style="font-family:'Poppins',sans-serif;color:#123B5D;">
       <!-- Testimoni / Ulasan User -->
       <div style="margin-bottom:22px;">
-        <div style="font-size:13px;font-weight:700;color:#0c2d5e;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.4px;">
+        <div style="font-size:13px;font-weight:700;color:#123B5D;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.4px;">
           Ulasan & Masukan dari Pengguna
         </div>
         <div style="background:#f8fafc;border-left:4px solid #f59e0b;border-top:1px solid #e2e8f0;border-right:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0;border-radius:0 12px 12px 0;padding:16px 18px;position:relative;">
@@ -5500,7 +5566,7 @@ function openMeetingReviewModal(id) {
           </div>
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;padding-top:10px;border-top:1px dashed #cbd5e1;">
             <div style="font-size:12px;color:#64748b;">
-              👤 <b>${esc(rev.reviewer || m.requester)}</b> · 🕒 ${formatDate(rev.submittedAt || m.date)}
+              👤 <b>${esc(rev.reviewer || m.bookedBy || m.requester)}</b> · 🕒 ${formatDate(rev.submittedAt || m.date)}
             </div>
             <div style="display:flex;gap:6px;flex-wrap:wrap;">
               ${(Array.isArray(rev.tags) ? rev.tags : [])
@@ -5515,16 +5581,20 @@ function openMeetingReviewModal(id) {
         </div>
       </div>
 
-      <!-- Balasan dari Pengelola Ruangan (Terkirim ke Booking Page) -->
+      <!-- Balasan dari Pengelola Ruangan (Hanya Admin Utama yang bisa membalas, akun lain hanya melihat) -->
       <div style="margin-bottom:22px;">
-        <div style="font-size:13px;font-weight:700;color:#0c2d5e;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.4px;display:flex;align-items:center;justify-content:space-between;">
+        <div style="font-size:13px;font-weight:700;color:#123B5D;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.4px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
           <span>🏢 Balasan Pengelola Ruangan (Tampil di Booking Page)</span>
           ${
             rev.adminReply
               ? `
             <div style="display:flex;align-items:center;gap:8px;">
               <span style="font-size:11px;font-weight:700;color:#16a34a;background:#ecfdf5;padding:3px 10px;border-radius:12px;border:1px solid #bbf7d0;">✓ Sudah Dibalas</span>
-              <button type="button" onclick="openReviewReplyModal('${m.id}')" style="background:#f0f9ff;color:#0284c7;border:1px solid #bae6fd;padding:3px 10px;border-radius:6px;font-size:11.5px;font-weight:700;cursor:pointer;">✏️ Ubah Balasan</button>
+              ${
+                canReplyReview
+                  ? `<button type="button" onclick="openReviewReplyModal('${m.id}')" style="background:#f0f9ff;color:#3473A7;border:1px solid #bae6fd;padding:3px 10px;border-radius:6px;font-size:11.5px;font-weight:700;cursor:pointer;">✏️ Ubah Balasan</button>`
+                  : ""
+              }
             </div>
           `
               : `<span style="font-size:11px;font-weight:600;color:#64748b;background:#f1f5f9;padding:3px 10px;border-radius:12px;">Belum Dibalas</span>`
@@ -5537,19 +5607,25 @@ function openMeetingReviewModal(id) {
             <div style="font-size:13.5px;line-height:1.6;color:#14532d;">
               "${esc(rev.adminReply.text || "")}"
             </div>
-            <div style="font-size:11.5px;color:#15803d;margin-top:8px;font-weight:600;display:flex;align-items:center;gap:6px;">
-              <span>👤 ${esc(rev.adminReply.sender || "Pengelola Ruang Rapat Kemnaker")}</span>
+            <div style="font-size:11.5px;color:#557e23;margin-top:8px;font-weight:600;display:flex;align-items:center;gap:6px;">
+              <span>👤 ${esc(rev.adminReply.sender || "Admin Utama - Pengelola Ruang Rapat Kemnaker")}</span>
               <span>·</span>
               <span>🕒 ${formatDate(rev.adminReply.repliedAt || "")}</span>
             </div>
           </div>
         `
-            : `
+            : canReplyReview
+              ? `
           <div style="background:#f8fafc;border:1.5px dashed #cbd5e1;border-radius:10px;padding:14px 16px;color:#64748b;font-size:12.5px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
             <span>Belum ada balasan dari pengelola untuk ulasan ini. Balas sekarang agar pengguna dapat membacanya di Booking Page.</span>
-            <button type="button" onclick="openReviewReplyModal('${m.id}')" style="background:#0284c7;color:#fff;border:none;padding:6px 14px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">
+            <button type="button" onclick="openReviewReplyModal('${m.id}')" style="background:#3473A7;color:#fff;border:none;padding:6px 14px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">
               + Tulis Balasan
             </button>
+          </div>
+        `
+              : `
+          <div style="background:#f8fafc;border:1.5px dashed #cbd5e1;border-radius:10px;padding:14px 16px;color:#64748b;font-size:12.5px;">
+            <span>Belum ada balasan dari Admin Utama untuk ulasan ini. <i>(Hanya akun Admin Utama yang dapat memberikan balasan ulasan)</i></span>
           </div>
         `
         }
@@ -5557,41 +5633,42 @@ function openMeetingReviewModal(id) {
 
       <!-- Actions Footer -->
       <div style="display:flex;justify-content:flex-end;align-items:center;padding-top:14px;border-top:1px solid #f1f5f9;margin-top:10px;">
-        <button type="button" class="btn btn-primary" onclick="closeModal()" style="background:#0c2d5e;border-color:#0c2d5e;padding:8px 26px;font-weight:700;font-size:13px;border-radius:8px;">
+        <button type="button" class="btn btn-primary" onclick="closeModal()" style="background:#123B5D;border-color:#123B5D;padding:8px 26px;font-weight:700;font-size:13px;border-radius:8px;">
           Tutup
         </button>
       </div>
     </div>
   `
       : `
-    <div style="font-family:'Poppins',sans-serif;color:#0c2d5e;text-align:center;padding:10px 0 10px;">
+    <div style="font-family:'Poppins',sans-serif;color:#123B5D;text-align:center;padding:10px 0 10px;">
       <!-- Meeting Context -->
       <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px;margin-bottom:20px;text-align:left;">
-        <div style="font-size:12px;font-weight:700;color:#1769aa;text-transform:uppercase;margin-bottom:2px;">📍 ${esc(m.room)}</div>
-        <div style="font-size:15px;font-weight:700;color:#0c2d5e;">${esc(m.title)}</div>
+        <div style="font-size:12px;font-weight:700;color:#3473A7;text-transform:uppercase;margin-bottom:2px;">📍 ${esc(m.room)}</div>
+        <div style="font-size:15px;font-weight:700;color:#123B5D;">${esc(m.title)}</div>
         <div style="font-size:12.5px;color:#64748b;margin-top:2px;">
-          👤 Pemesan: <b>${esc(m.requester)}</b> · 📅 ${formatDate(m.date)} (${m.start} - ${m.end}) · Status: ${badge(m.status)}
+          👤 Pemesan: <b>${esc(pemesanDisplay)}</b> · 📅 ${formatDate(m.date)} (${m.start} - ${m.end}) · Status: ${badge(m.status)}
         </div>
       </div>
 
       <!-- Empty / Pending State -->
-      <div style="background:#fffbeb;border:1.5px dashed #fde68a;border-radius:16px;padding:32px 20px;margin-bottom:22px;">
-        <div style="width:56px;height:56px;border-radius:50%;background:#fef3c7;display:grid;place-items:center;margin:0 auto 14px;color:#d97706;font-size:24px;">
+      <div style="background:#fffbeb;border:1.5px dashed #FFCD5F;border-radius:16px;padding:32px 20px;margin-bottom:22px;">
+        <div style="width:56px;height:56px;border-radius:50%;background:rgba(255, 205, 95, 0.2);display:grid;place-items:center;margin:0 auto 14px;color:#d97706;font-size:24px;">
           ⏳
         </div>
         <div style="font-size:17px;font-weight:700;color:#92400e;margin-bottom:6px;">
           Rating & Review Belum Tersedia
         </div>
-        <p style="font-size:13px;color:#b45309;max-width:440px;margin:0 auto 18px;line-height:1.55;">
-          Rapat ini saat ini berstatus <b>${esc(m.status)}</b>. Ulasan dan penilaian fasilitas ruangan dari pemesan (<b>${esc(m.requester)}</b>) akan otomatis muncul setelah rapat selesai digunakan (Check Out / Selesai).
+        <p style="font-size:13px;color:#9c6d00;max-width:440px;margin:0 auto;line-height:1.55;">
+          ${
+            isCompleted
+              ? `Pemesan (<b>${esc(pemesanDisplay)}</b>) belum mengirimkan rating dan ulasan untuk rapat ini.`
+              : `Rapat ini saat ini berstatus <b>${esc(m.status)}</b>. Ulasan dan penilaian fasilitas ruangan dari pemesan (<b>${esc(pemesanDisplay)}</b>) akan muncul setelah rapat selesai digunakan dan diulas oleh pemesan.`
+          }
         </p>
-        <button type="button" onclick="openReviewEditForm('${m.id}')" style="background:#d97706;color:#ffffff;border:none;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;box-shadow:0 4px 12px rgba(217,119,6,0.25);">
-          ⭐ Simulasi / Beri Rating Sekarang
-        </button>
       </div>
 
       <div style="display:flex;justify-content:flex-end;">
-        <button type="button" class="btn btn-primary" onclick="closeModal()" style="background:#0c2d5e;border-color:#0c2d5e;padding:8px 22px;font-weight:700;font-size:13px;border-radius:8px;">
+        <button type="button" class="btn btn-primary" onclick="closeModal()" style="background:#123B5D;border-color:#123B5D;padding:8px 22px;font-weight:700;font-size:13px;border-radius:8px;">
           Tutup
         </button>
       </div>
@@ -5603,6 +5680,9 @@ function openMeetingReviewModal(id) {
 window.openMeetingReviewModal = openMeetingReviewModal;
 
 function openReviewReplyModal(id) {
+  if (!isMainAdmin()) {
+    return denyAccess("Hanya akun Admin Utama yang dapat membalas ulasan pengguna. Akun lain hanya dapat melihat ulasan.");
+  }
   const m = state.meetings.find((x) => String(x.id) === String(id));
   if (!m) return;
   const rev = getMeetingReview(m);
@@ -5617,11 +5697,11 @@ function openReviewReplyModal(id) {
     : "Pengelola Ruang Rapat Kemnaker";
 
   const formHTML = `
-    <div style="font-family:'Poppins',sans-serif;color:#0c2d5e;">
+    <div style="font-family:'Poppins',sans-serif;color:#123B5D;">
       <!-- Ringkasan Ulasan Pemesan -->
-      <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:12px 14px;margin-bottom:16px;">
-        <div style="font-size:12px;font-weight:700;color:#b45309;margin-bottom:4px;">
-          Ulasan dari ${esc(rev.reviewer || m.requester)} (⭐ ${rev.rating ? Number(rev.rating).toFixed(1) : "5.0"})
+      <div style="background:#fffbeb;border:1px solid #FFCD5F;border-radius:10px;padding:12px 14px;margin-bottom:16px;">
+        <div style="font-size:12px;font-weight:700;color:#9c6d00;margin-bottom:4px;">
+          Ulasan dari ${esc(rev.reviewer || m.bookedBy || m.requester)} (⭐ ${rev.rating ? Number(rev.rating).toFixed(1) : "5.0"})
         </div>
         <div style="font-size:13px;font-style:italic;color:#78350f;line-height:1.5;">
           "${esc(rev.comment || rev.text || "Pengguna tidak menambahkan komentar tertulis.")}"
@@ -5629,7 +5709,7 @@ function openReviewReplyModal(id) {
       </div>
 
       <div style="margin-bottom:14px;">
-        <label style="display:block;font-size:13px;font-weight:700;margin-bottom:6px;color:#0c2d5e;">
+        <label style="display:block;font-size:13px;font-weight:700;margin-bottom:6px;color:#123B5D;">
           Nama Pengirim Balasan <span style="font-size:11px;font-weight:500;color:#64748b;">(Sesuai Akun Login)</span>
         </label>
         <div style="position:relative;display:flex;align-items:center;">
@@ -5642,10 +5722,10 @@ function openReviewReplyModal(id) {
       </div>
 
       <div style="margin-bottom:14px;">
-        <label style="display:block;font-size:13px;font-weight:700;margin-bottom:6px;color:#0c2d5e;">
+        <label style="display:block;font-size:13px;font-weight:700;margin-bottom:6px;color:#123B5D;">
           Teks Balasan Review (Akan Tampil di Booking Page) <span style="color:#e53e3e;">*</span>
         </label>
-        <textarea id="replyTextInput" rows="4" style="width:100%;padding:10px 14px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;color:#0c2d5e;box-sizing:border-box;outline:none;font-family:'Poppins',sans-serif;line-height:1.5;" placeholder="Tuliskan ucapan terima kasih atau tanggapan resmi dari pengelola...">${esc(currentReplyText)}</textarea>
+        <textarea id="replyTextInput" rows="4" style="width:100%;padding:10px 14px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;color:#123B5D;box-sizing:border-box;outline:none;font-family:'Poppins',sans-serif;line-height:1.5;" placeholder="Tuliskan ucapan terima kasih atau tanggapan resmi dari pengelola...">${esc(currentReplyText)}</textarea>
         <small style="display:block;color:#64748b;font-size:11.5px;margin-top:4px;">
           <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:4px;"><path d="M9 18h6M10 22h4M8.2 14.5a7 7 0 1 1 7.6 0c-.8.5-1.3 1.4-1.3 2.5h-5c0-1.1-.5-2-1.3-2.5Z"/></svg>Balasan ini akan dikirimkan ke Booking Page sehingga pengguna lain dan pemesan dapat membaca tanggapan resmi pengelola.
         </small>
@@ -5653,7 +5733,7 @@ function openReviewReplyModal(id) {
 
       <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px;padding-top:14px;border-top:1px solid #f1f5f9;">
         <button type="button" class="btn btn-light" onclick="openMeetingReviewModal('${m.id}')">Batal</button>
-        <button type="button" class="btn btn-primary" onclick="submitReviewReply('${m.id}')" style="background:#0284c7;border-color:#0284c7;color:#fff;padding:8px 22px;font-weight:700;font-size:13px;border-radius:8px;display:inline-flex;align-items:center;gap:6px;">
+        <button type="button" class="btn btn-primary" onclick="submitReviewReply('${m.id}')" style="background:#3473A7;border-color:#3473A7;color:#fff;padding:8px 22px;font-weight:700;font-size:13px;border-radius:8px;display:inline-flex;align-items:center;gap:6px;">
           <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:5px;"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>Kirim Balasan ke Booking Page
         </button>
       </div>
@@ -5665,6 +5745,9 @@ function openReviewReplyModal(id) {
 window.openReviewReplyModal = openReviewReplyModal;
 
 async function submitReviewReply(id) {
+  if (!isMainAdmin()) {
+    return denyAccess("Hanya akun Admin Utama yang dapat membalas ulasan pengguna. Akun lain hanya dapat melihat ulasan.");
+  }
   const text = document.getElementById("replyTextInput")?.value?.trim();
   const currentUser = getCurrentUser();
   const sender = (currentUser && (currentUser.name || currentUser.username))
@@ -5679,15 +5762,18 @@ async function submitReviewReply(id) {
   const m = state.meetings.find((x) => String(x.id) === String(id));
   if (!m) return;
   const currentRev = getMeetingReview(m) || {};
+  const repliedAt = new Date().toISOString();
 
   const updatedRev = {
     ...currentRev,
+    comment: currentRev.comment || currentRev.text || "",
+    text: currentRev.text || currentRev.comment || "",
     adminReply: {
       text: text,
       sender: sender,
       senderUsername: currentUser?.username || "",
       senderRole: currentUser?.role || "",
-      repliedAt: new Date().toISOString(),
+      repliedAt,
     },
   };
 
@@ -5742,6 +5828,41 @@ async function submitReviewReply(id) {
       window.parent.dispatchEvent(new Event("app_meetings_updated"));
     }
   } catch (e) {}
+
+  try {
+    const replyRes = await fetch(`/api/dashboard/meetings/${encodeURIComponent(id)}/review/reply`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        text,
+        sender,
+        repliedAt,
+        actorUsername: currentUser?.username || "admin",
+        actorRole: currentUser?.role || "Admin",
+        actorName: currentUser?.name || "Admin Utama",
+      }),
+    });
+    if (!replyRes.ok) {
+      const errData = await replyRes.json().catch(() => ({}));
+      if (replyRes.status === 403) {
+        alert(errData.error || "Hanya akun Admin Utama yang dapat membalas ulasan pengguna.");
+        return;
+      }
+      const updatedMeeting = state.meetings.find((x) => String(x.id) === String(id));
+      if (updatedMeeting) {
+        await fetch("/api/dashboard/meetings", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...updatedMeeting,
+            actorUsername: currentUser?.username || "admin",
+          }),
+        });
+      }
+    }
+  } catch (err) {
+    console.error("Gagal sync review reply ke backend:", err);
+  }
 
   toast("Balasan review berhasil dikirimkan ke Booking Page!");
   render();
@@ -5837,7 +5958,7 @@ function openMeetingQRModal(id) {
     <div class="modal qr-custom-modal" style="max-width:420px;width:92%;margin:auto;max-height:min(94vh, 680px);overflow-y:auto;scrollbar-width:none;-ms-overflow-style:none;text-align:center;padding:18px 20px 16px;border-radius:20px;font-family:'Poppins',sans-serif;box-sizing:border-box;box-shadow:0 20px 48px rgba(12,45,94,0.16);background:#fff;display:flex;flex-direction:column;">
       <!-- Header Bar -->
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-        <span style="font-size:11.5px;font-weight:600;color:#0284c7;background:#e0f2fe;padding:3.5px 10px;border-radius:20px;display:inline-flex;align-items:center;gap:6px;">
+        <span style="font-size:11.5px;font-weight:600;color:#3473A7;background:rgba(52, 115, 167, 0.14);padding:3.5px 10px;border-radius:20px;display:inline-flex;align-items:center;gap:6px;">
           ${phoneSvg} <span>QR Presensi Mandiri</span>
         </span>
         <button type="button" onclick="closeModal()" style="background:#f1f5f9;border:none;width:28px;height:28px;border-radius:50%;color:#64748b;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:all 0.15s;" onmouseover="this.style.background='#e2e8f0';this.style.color='#0f172a'" onmouseout="this.style.background='#f1f5f9';this.style.color='#64748b'" title="Tutup">${closeSvg}</button>
@@ -5906,7 +6027,7 @@ function openEmergencyCancelModal(id) {
   }
 
   const modalHTML = `
-    <div style="font-family:'Poppins',sans-serif;color:#0c2d5e;">
+    <div style="font-family:'Poppins',sans-serif;color:#123B5D;">
       <!-- Header Alert -->
       <div style="background:#fef2f2;border:1.5px solid #fca5a5;border-radius:14px;padding:16px;margin-bottom:18px;display:flex;align-items:flex-start;gap:12px;">
         <div style="width:40px;height:40px;border-radius:50%;background:#fee2e2;color:#dc2626;display:grid;place-items:center;font-size:20px;flex-shrink:0;">
@@ -5924,8 +6045,8 @@ function openEmergencyCancelModal(id) {
 
       <!-- Detail Jadwal Rapat -->
       <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px;margin-bottom:16px;">
-        <div style="font-size:11.5px;font-weight:700;color:#1769aa;text-transform:uppercase;margin-bottom:2px;">📍 ${esc(m.room)}</div>
-        <div style="font-size:15px;font-weight:700;color:#0c2d5e;margin-bottom:6px;">${esc(m.title)}</div>
+        <div style="font-size:11.5px;font-weight:700;color:#3473A7;text-transform:uppercase;margin-bottom:2px;">📍 ${esc(m.room)}</div>
+        <div style="font-size:15px;font-weight:700;color:#123B5D;margin-bottom:6px;">${esc(m.title)}</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12.5px;color:#475569;">
           <div>👤 Pemesan: <b>${esc(m.requester)}</b></div>
           <div>👥 Peserta: <b>${m.participants || "-"} orang</b></div>
@@ -5939,10 +6060,10 @@ function openEmergencyCancelModal(id) {
 
       <!-- Pilihan Alasan Darurat Cepat -->
       <div style="margin-bottom:14px;">
-        <label style="display:block;font-size:13px;font-weight:700;color:#0c2d5e;margin-bottom:6px;">
+        <label style="display:block;font-size:13px;font-weight:700;color:#123B5D;margin-bottom:6px;">
           Pilih Kategori Alasan Darurat
         </label>
-        <select id="emgCancelCategory" onchange="applyEmergencyReasonTemplate(this.value)" style="width:100%;padding:10px 14px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;color:#0c2d5e;outline:none;background:#fff;font-family:'Poppins',sans-serif;">
+        <select id="emgCancelCategory" onchange="applyEmergencyReasonTemplate(this.value)" style="width:100%;padding:10px 14px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;color:#123B5D;outline:none;background:#fff;font-family:'Poppins',sans-serif;">
           <option value="pimpinan">Rapat Prioritas Pimpinan / Kepala Biro Keuangan & BMN</option>
           <option value="kementerian">Rapat Koordinasi Mendesak Tingkat Kementerian / Menteri</option>
           <option value="maintenance">Kendala Teknis / Perbaikan Sarana Darurat Ruangan (AC/Listrik)</option>
@@ -5952,10 +6073,10 @@ function openEmergencyCancelModal(id) {
 
       <!-- Input Detail Alasan Pembatalan Darurat -->
       <div style="margin-bottom:16px;">
-        <label style="display:block;font-size:13px;font-weight:700;color:#0c2d5e;margin-bottom:6px;">
+        <label style="display:block;font-size:13px;font-weight:700;color:#123B5D;margin-bottom:6px;">
           Pesan Alasan Pembatalan ke Pemesan <span style="color:#e53e3e;">*</span>
         </label>
-        <textarea id="emgCancelReason" rows="3" style="width:100%;padding:10px 14px;border:1.5px solid #fca5a5;border-radius:8px;font-size:13px;color:#0c2d5e;box-sizing:border-box;outline:none;font-family:'Poppins',sans-serif;line-height:1.5;" placeholder="Tuliskan alasan pembatalan darurat...">Ruangan dialihkan untuk kebutuhan Rapat Darurat Prioritas Pimpinan / Kepala Biro Keuangan & BMN. Jadwal pemesanan Anda dibatalkan secara darurat.</textarea>
+        <textarea id="emgCancelReason" rows="3" style="width:100%;padding:10px 14px;border:1.5px solid #fca5a5;border-radius:8px;font-size:13px;color:#123B5D;box-sizing:border-box;outline:none;font-family:'Poppins',sans-serif;line-height:1.5;" placeholder="Tuliskan alasan pembatalan darurat...">Ruangan dialihkan untuk kebutuhan Rapat Darurat Prioritas Pimpinan / Kepala Biro Keuangan & BMN. Jadwal pemesanan Anda dibatalkan secara darurat.</textarea>
       </div>
 
       <!-- Notifikasi Otomatis Box -->
@@ -6115,14 +6236,14 @@ function openReviewEditForm(id) {
   };
 
   const formHTML = `
-    <div style="font-family:'Poppins',sans-serif;color:#0c2d5e;">
+    <div style="font-family:'Poppins',sans-serif;color:#123B5D;">
       <p style="font-size:13px;color:#64748b;margin:0 0 16px;">
         Masukkan penilaian rating dan ulasan pengalaman pemakaian ruangan <b>${esc(m.room)}</b> untuk rapat <b>${esc(m.title)}</b>.
       </p>
 
       <div style="margin-bottom:14px;">
         <label style="display:block;font-size:13px;font-weight:700;margin-bottom:6px;">Rating Keseluruhan (1 - 5 Bintang) <span style="color:#e53e3e;">*</span></label>
-        <select id="revRatingInput" style="width:100%;padding:10px 14px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px;font-weight:600;color:#0c2d5e;outline:none;">
+        <select id="revRatingInput" style="width:100%;padding:10px 14px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px;font-weight:600;color:#123B5D;outline:none;">
           <option value="5" ${Math.round(rev.rating) === 5 ? "selected" : ""}>⭐⭐⭐⭐⭐ (5.0 - Sangat Memuaskan)</option>
           <option value="4" ${Math.round(rev.rating) === 4 ? "selected" : ""}>⭐⭐⭐⭐ (4.0 - Bagus & Memuaskan)</option>
           <option value="3" ${Math.round(rev.rating) === 3 ? "selected" : ""}>⭐⭐⭐ (3.0 - Cukup Baik)</option>
@@ -6133,17 +6254,17 @@ function openReviewEditForm(id) {
 
       <div style="margin-bottom:14px;">
         <label style="display:block;font-size:13px;font-weight:700;margin-bottom:6px;">Nama Pengulas / Pemesan</label>
-        <input id="revReviewerInput" type="text" value="${esc(rev.reviewer || m.requester)}" style="width:100%;padding:10px 14px;border:1px solid #cbd5e1;border-radius:8px;font-size:13.5px;color:#0c2d5e;box-sizing:border-box;outline:none;">
+        <input id="revReviewerInput" type="text" value="${esc(rev.reviewer || m.requester)}" style="width:100%;padding:10px 14px;border:1px solid #cbd5e1;border-radius:8px;font-size:13.5px;color:#123B5D;box-sizing:border-box;outline:none;">
       </div>
 
       <div style="margin-bottom:14px;">
         <label style="display:block;font-size:13px;font-weight:700;margin-bottom:6px;">Komentar & Ulasan Fasilitas Ruangan <span style="color:#e53e3e;">*</span></label>
-        <textarea id="revCommentInput" rows="4" style="width:100%;padding:10px 14px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;color:#0c2d5e;box-sizing:border-box;outline:none;font-family:'Poppins',sans-serif;" placeholder="Tuliskan pengalaman penggunaan ruangan, kondisi fasilitas TV/Mic/AC, dll...">${esc(rev.comment || "")}</textarea>
+        <textarea id="revCommentInput" rows="4" style="width:100%;padding:10px 14px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;color:#123B5D;box-sizing:border-box;outline:none;font-family:'Poppins',sans-serif;" placeholder="Tuliskan pengalaman penggunaan ruangan, kondisi fasilitas TV/Mic/AC, dll...">${esc(rev.comment || "")}</textarea>
       </div>
 
       <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px;padding-top:14px;border-top:1px solid #f1f5f9;">
         <button type="button" class="btn btn-light" onclick="openMeetingReviewModal('${m.id}')">Batal</button>
-        <button type="button" class="btn btn-primary" onclick="submitMeetingReview('${m.id}')" style="background:#0c2d5e;border-color:#0c2d5e;padding:8px 22px;font-weight:700;">Simpan Review</button>
+        <button type="button" class="btn btn-primary" onclick="submitMeetingReview('${m.id}')" style="background:#123B5D;border-color:#123B5D;padding:8px 22px;font-weight:700;">Simpan Review</button>
       </div>
     </div>
   `;
@@ -6282,7 +6403,7 @@ function renderRoomImagesGallery() {
       <div class="crm-upload-box" id="crmUploadBox" onclick="document.getElementById('rImageInput').click()" ondragover="event.preventDefault(); this.classList.add('dragover');" ondragleave="this.classList.remove('dragover');" ondrop="handleRoomImageDrop(event)">
         <div class="crm-upload-placeholder">
           <div class="crm-upload-icon">
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#1769aa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#3473A7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
           </div>
           <div class="crm-upload-text">
             <strong>Klik atau seret foto ruangan ke sini untuk upload</strong>
@@ -6349,7 +6470,7 @@ function renderRoomImagesGallery() {
 
           <!-- Tombol Tambah View Foto Lain -->
           <div class="crm-thumb-add" onclick="document.getElementById('rImageInput').click()" title="Tambah view foto ruangan lain">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1769aa" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3473A7" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
             <span>+ View Lain</span>
           </div>
         </div>
@@ -6734,7 +6855,7 @@ function openRoomModal(id = null) {
     <div class="custom-room-modal" onclick="event.stopPropagation()">
       <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 20px;">
         <div>
-          <h2 style="margin:0 0 4px; font-size:22px; font-weight:800; color:#0c2d5e;">
+          <h2 style="margin:0 0 4px; font-size:22px; font-weight:800; color:#123B5D;">
             ${id ? "Edit Ruangan" : "Tambah Ruangan"}
           </h2>
           <p style="margin:0; font-size:13px; color:#4b6a90;">
@@ -6747,7 +6868,7 @@ function openRoomModal(id = null) {
       <div class="crm-field full">
         <label style="display:flex; justify-content:space-between; align-items:center;">
           <span>Foto Ruangan (Mendukung Multi-View)</span>
-          <span style="font-size:12px; font-weight:500; color:#1769aa;">Bisa unggah lebih dari 1 foto</span>
+          <span style="font-size:12px; font-weight:500; color:#3473A7;">Bisa unggah lebih dari 1 foto</span>
         </label>
         <input type="file" id="rImageInput" accept="image/*" multiple style="display:none;" onchange="handleRoomImageUpload(event)">
         <div id="rGalleryWrap"></div>
@@ -6779,7 +6900,7 @@ function openRoomModal(id = null) {
       <div class="crm-field full" style="margin-top: 14px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
           <div>
-            <label style="margin:0 0 2px; font-size:13.5px; font-weight:700; color:#0c2d5e;">Daftar Fasilitas Ruangan</label>
+            <label style="margin:0 0 2px; font-size:13.5px; font-weight:700; color:#123B5D;">Daftar Fasilitas Ruangan</label>
             <small style="color:#718dae; font-size:12px;">Pilih status ketersediaan fasilitas (barang berstatus Tidak Tersedia tidak ditampilkan di Booking Page)</small>
           </div>
           <button type="button" class="crm-btn-add-fac" onclick="addCustomFacilityRow()" title="Tambah kategori fasilitas kustom">
@@ -6932,19 +7053,19 @@ function viewRoomDetail(id) {
   openModal(
     "Detail Ruangan",
     `<img src="${getRoomImage(r)}" alt="${esc(r.name)}" style="width:100%;height:190px;object-fit:cover;border-radius:10px;margin-bottom:14px;">
-    <p style="font-size:17px;font-weight:700;color:#0c2d5e;margin:0 0 4px;">${esc(r.name)}</p>
+    <p style="font-size:17px;font-weight:700;color:#123B5D;margin:0 0 4px;">${esc(r.name)}</p>
     <p class="muted" style="margin:0 0 12px;">📍 ${esc(r.location || "-")} · 👥 Kapasitas ${esc(r.capacity || "-")} orang · ${badge(r.status || "Tersedia")}</p>
     ${
       facilities.length
         ? `<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 14px;margin-bottom:14px;font-size:12.5px;">${facilities
             .map(
               (f) =>
-                `<div><b style="color:#0c2d5e;">${esc(f.label)}:</b> <span style="color:#4b6a90;">${esc(f.value)}</span></div>`,
+                `<div><b style="color:#123B5D;">${esc(f.label)}:</b> <span style="color:#4b6a90;">${esc(f.value)}</span></div>`,
             )
             .join("")}</div>`
         : ""
     }
-    <p style="font-weight:700;color:#0c2d5e;margin:6px 0;">Jadwal Hari Ini</p>
+    <p style="font-weight:700;color:#123B5D;margin:6px 0;">Jadwal Hari Ini</p>
     ${
       todays.length
         ? todays
@@ -7025,7 +7146,7 @@ function openUserModal(id = null) {
     <div class="custom-user-modal" style="width: min(540px, 94vw); background: #ffffff !important; border-radius: 20px; padding: 32px 36px 36px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.28); font-family: 'Poppins', sans-serif; box-sizing: border-box; position: relative; z-index: 10000;">
       <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 22px;">
         <div>
-          <h2 style="margin:0 0 4px; font-size:22px; font-weight:800; color:#0c2d5e;">
+          <h2 style="margin:0 0 4px; font-size:22px; font-weight:800; color:#123B5D;">
             ${id ? "Edit Pengguna" : "Tambah Pengguna Baru"}
           </h2>
           <p style="margin:0; font-size:13px; color:#4b6a90;">
@@ -7745,7 +7866,39 @@ async function fetchDashboardData(showToast = false) {
     const data = await res.json();
     let changed = false;
     if (Array.isArray(data.meetings)) {
-      const meetings = sanitizeMeetings(data.meetings);
+      const mergedFromServer = data.meetings.map((sm) => {
+        const localMatch = (state.meetings || []).find(
+          (lm) =>
+            String(lm.id) === String(sm.id) ||
+            (sm.googleId && (String(lm.id) === String(sm.googleId) || String(lm.googleId) === String(sm.googleId))) ||
+            (sm.originalId && String(lm.id) === String(sm.originalId))
+        );
+        const mergedReview =
+          sm.review || localMatch?.review
+            ? {
+                ...(localMatch?.review || {}),
+                ...(sm.review || {}),
+                comment:
+                  sm.review?.comment ??
+                  sm.review?.text ??
+                  localMatch?.review?.comment ??
+                  localMatch?.review?.text ??
+                  "",
+                text:
+                  sm.review?.text ??
+                  sm.review?.comment ??
+                  localMatch?.review?.text ??
+                  localMatch?.review?.comment ??
+                  "",
+                adminReply: sm.review?.adminReply || localMatch?.review?.adminReply || null,
+              }
+            : undefined;
+        return {
+          ...sm,
+          ...(mergedReview ? { review: mergedReview } : {}),
+        };
+      });
+      const meetings = sanitizeMeetings(mergedFromServer);
       changed ||= JSON.stringify(meetings) !== JSON.stringify(state.meetings);
       state.meetings = meetings;
       getAppStorage().setItem("app_meetings", JSON.stringify(state.meetings));
@@ -8003,7 +8156,7 @@ if (dashboardModalRoot) {
 initNotificationSync();
 checkDevSessionLifecycle();
 fetchDashboardData(false);
-setInterval(() => fetchDashboardData(false), 30000);
+setInterval(() => fetchDashboardData(false), 5000);
 
 // ----------------------------------------------------------------------
 // LOGOUT FUNCTION
@@ -8061,7 +8214,10 @@ function getCurrentUser() {
     ];
     for (const s of storages) {
       if (s) {
-        const raw = s.getItem("currentUser") || s.getItem("dashboard_currentUser");
+        const raw =
+          s.getItem("dashboard_currentUser") ||
+          s.getItem("currentUser") ||
+          s.getItem("booking_currentUser");
         if (raw) {
           const parsed = JSON.parse(raw);
           if (parsed && (parsed.username || parsed.name || parsed.role)) {
@@ -8079,16 +8235,27 @@ function getCurrentUser() {
   return u;
 }
 
-function isMainAdmin() {
-  const u = getCurrentUser();
+function isMainAdmin(user) {
+  const u = user || getCurrentUser();
   if (!u) return false;
+  const uname = String(u.username || "").trim().toLowerCase();
+  const name = String(u.name || "").trim().toLowerCase();
+  const role = String(u.role || "").trim().toLowerCase();
+  if (
+    role.includes("pimpinan") ||
+    role.includes("approval") ||
+    role === "user" ||
+    uname.includes("approval") ||
+    uname.includes("pimpinan")
+  ) {
+    return false;
+  }
   return (
-    u.username === "admin" ||
-    u.name === "Admin Utama" ||
-    ((u.role === "Admin" || u.role === "Administrator") &&
-      (!u.username || u.username === "admin"))
+    uname === "admin" ||
+    (!uname && name === "admin utama" && (role === "admin" || role === "administrator"))
   );
 }
+window.isMainAdmin = isMainAdmin;
 
 // Global window exposure for inline HTML event handlers
 window.getCurrentUser = getCurrentUser;

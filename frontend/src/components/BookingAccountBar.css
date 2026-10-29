@@ -7,7 +7,7 @@
   gap: 18px;
   min-height: 60px;
   padding: 9px 28px;
-  background: rgba(5, 29, 60, 0.56);
+  background: rgba(18, 59, 93, 0.65);
 }
 
 .booking-account-brand,
@@ -41,7 +41,7 @@
   gap: 2px;
   padding: 4px 8px;
   border-radius: 12px;
-  background: rgba(4, 24, 52, .42);
+  background: rgba(13, 43, 69, 0.55);
 }
 
 .booking-section-nav button {
@@ -76,7 +76,7 @@
   padding: 8px 13px;
   border-radius: 18px;
   color: #fff;
-  background: #20b86a;
+  background: #9BC264;
   text-decoration: none;
   font-size: 12px;
   font-weight: 600;
@@ -89,7 +89,7 @@
   height: 44px;
   border: 2px solid rgba(255,255,255,.85);
   border-radius: 50%;
-  color: #102f57;
+  color: #123B5D;
   background: #fff;
   font: 600 18px "Poppins", sans-serif;
   cursor: pointer;
