@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { FaCalendarAlt, FaChevronRight, FaClock, FaMapMarkerAlt, FaPlus, FaQrcode, FaStar, FaUsers } from "react-icons/fa";
+import { FaCalendarAlt, FaChevronDown, FaChevronRight, FaClock, FaMapMarkerAlt, FaPlus, FaQrcode, FaStar, FaUsers } from "react-icons/fa";
 import { QRCodeSVG } from "qrcode.react";
 import { useNavigate } from "react-router-dom";
 import BookingAccountBar from "../components/BookingAccountBar";
@@ -104,6 +104,8 @@ export default function BookingHistoryPage() {
     return roomDefaults;
   });
   const [filterStatus, setFilterStatus] = useState("all");
+  const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
+  const statusDropdownRef = useRef(null);
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [search, setSearch] = useState("");
@@ -147,6 +149,27 @@ export default function BookingHistoryPage() {
       }
     };
   }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (statusDropdownRef.current && !statusDropdownRef.current.contains(event.target)) {
+        setIsStatusDropdownOpen(false);
+      }
+    };
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        setIsStatusDropdownOpen(false);
+      }
+    };
+    if (isStatusDropdownOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener("keydown", handleKeyDown);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isStatusDropdownOpen]);
 
   const refreshData = useCallback(async () => {
     try {
@@ -219,6 +242,27 @@ export default function BookingHistoryPage() {
   }, []);
 
   useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (statusDropdownRef.current && !statusDropdownRef.current.contains(event.target)) {
+        setIsStatusDropdownOpen(false);
+      }
+    };
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        setIsStatusDropdownOpen(false);
+      }
+    };
+    if (isStatusDropdownOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener("keydown", handleKeyDown);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isStatusDropdownOpen]);
+
+  useEffect(() => {
     const initialFetch = setTimeout(refreshData, 0);
     const interval = setInterval(refreshData, 10000);
     return () => {
@@ -231,6 +275,27 @@ export default function BookingHistoryPage() {
     const clockInterval = setInterval(() => setClockNow(new Date()), 10000);
     return () => clearInterval(clockInterval);
   }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (statusDropdownRef.current && !statusDropdownRef.current.contains(event.target)) {
+        setIsStatusDropdownOpen(false);
+      }
+    };
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        setIsStatusDropdownOpen(false);
+      }
+    };
+    if (isStatusDropdownOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener("keydown", handleKeyDown);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isStatusDropdownOpen]);
 
   const visibleMeetings = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -473,13 +538,19 @@ export default function BookingHistoryPage() {
     setReviewComplete(review);
   };
 
-  const tabs = [
-    ["all", "Semua"], ["pending", "Menunggu"], ["approved", "Disetujui"],
-    ["rejected", "Ditolak"], ["completed", "Selesai"], ["cancelled", "Dibatalkan"],
+  const statusOptions = [
+    { key: "pending", label: "Menunggu" },
+    { key: "approved", label: "Disetujui" },
+    { key: "rejected", label: "Ditolak" },
+    { key: "completed", label: "Selesai" },
+    { key: "cancelled", label: "Dibatalkan" },
   ];
+  const activeStatusOption = statusOptions.find((opt) => opt.key === filterStatus);
+  const statusButtonLabel = activeStatusOption ? activeStatusOption.label : "Status";
   const hasActiveFilters = filterStatus !== "all" || fromDate || toDate || search.trim();
   const clearFilters = () => {
     setFilterStatus("all");
+    setIsStatusDropdownOpen(false);
     setFromDate("");
     setToDate("");
     setSearch("");
@@ -495,12 +566,52 @@ export default function BookingHistoryPage() {
         </div>
         <div className="booking-history-toolbar">
           <div className="booking-history-tabs" role="tablist" aria-label="Filter status pemesanan">
-            {tabs.map(([key, label]) => (
-              <button key={key} type="button" role="tab" aria-selected={filterStatus === key}
-                className={filterStatus === key ? "active" : ""} onClick={() => setFilterStatus(key)}>
-                {label}
+            <button
+              type="button"
+              role="tab"
+              aria-selected={filterStatus === "all"}
+              className={filterStatus === "all" ? "active" : ""}
+              onClick={() => {
+                setFilterStatus("all");
+                setIsStatusDropdownOpen(false);
+              }}
+            >
+              Semua
+            </button>
+            <div className="booking-history-status-dropdown" ref={statusDropdownRef}>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={filterStatus !== "all"}
+                className={`booking-history-dropdown-btn ${filterStatus !== "all" ? "active" : ""}`}
+                onClick={() => setIsStatusDropdownOpen((prev) => !prev)}
+                aria-haspopup="listbox"
+                aria-expanded={isStatusDropdownOpen}
+              >
+                <span>{statusButtonLabel}</span>
+                <FaChevronDown className={`status-dropdown-icon ${isStatusDropdownOpen ? "open" : ""}`} />
               </button>
-            ))}
+              {isStatusDropdownOpen && (
+                <div className="booking-history-dropdown-menu" role="listbox">
+                  {statusOptions.map((opt) => (
+                    <button
+                      key={opt.key}
+                      type="button"
+                      role="option"
+                      aria-selected={filterStatus === opt.key}
+                      className={`booking-history-dropdown-item ${filterStatus === opt.key ? "selected" : ""}`}
+                      onClick={() => {
+                        setFilterStatus(opt.key);
+                        setIsStatusDropdownOpen(false);
+                      }}
+                    >
+                      <span>{opt.label}</span>
+                      {filterStatus === opt.key && <span className="status-item-check">✓</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
           <div className="booking-history-controls">
             <div className="booking-history-date-filter" onClick={(event) => {
