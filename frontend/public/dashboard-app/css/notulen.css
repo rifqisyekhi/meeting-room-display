@@ -1299,3 +1299,73 @@ body.nv-open {
   border-color: #93c5fd;
   color: #0284c7;
 }
+
+/* ==========================================================================
+   Fitur dipulihkan di atas desain baru: pop-up, klasifikasi, panel (i), cloud
+   ========================================================================== */
+.nv-dlg {
+  position: fixed; inset: 0; z-index: 1200; display: grid; place-items: center; padding: 16px;
+  background: rgba(18, 59, 93, 0.38); backdrop-filter: blur(2px);
+  animation: nv-dlg-fade 0.15s ease-out; font-family: inherit;
+}
+.nv-dlg-box {
+  --nv-dlg-warna: #3473A7; --nv-dlg-latar: #e6f0fa;
+  width: min(440px, 100%); background: #fff; border: 1px solid #e2e8f0;
+  border-top: 4px solid var(--nv-dlg-warna); border-radius: 14px; padding: 20px 22px 16px;
+  box-shadow: 0 24px 60px rgba(18, 59, 93, 0.22); animation: nv-dlg-naik 0.18s ease-out;
+  font-family: "Poppins", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+.nv-dlg-peringatan { --nv-dlg-warna: #d97706; --nv-dlg-latar: #fef3c7; }
+.nv-dlg-bahaya, .nv-dlg-error { --nv-dlg-warna: #dc2626; --nv-dlg-latar: #fee2e2; }
+.nv-dlg-head { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.nv-dlg-ikon {
+  width: 36px; height: 36px; flex-shrink: 0; border-radius: 10px; display: grid; place-items: center;
+  background: var(--nv-dlg-latar); color: var(--nv-dlg-warna); font-weight: 800; font-size: 16px;
+}
+.nv-dlg-head h3 { flex: 1; margin: 0; font-size: 15.5px; line-height: 1.3; color: #123B5D; }
+.nv-dlg-x { border: 0; background: #f1f5f9; color: #64748b; width: 30px; height: 30px; border-radius: 8px; cursor: pointer; }
+.nv-dlg-x:hover { background: #e2e8f0; color: #123B5D; }
+.nv-dlg-box p { margin: 0 0 4px; font-size: 13.5px; line-height: 1.6; color: #334155; }
+.nv-dlg-cek {
+  display: flex; align-items: center; gap: 9px; margin-top: 12px; padding: 10px 12px;
+  background: #fff7f7; border: 1px solid #fecaca; border-radius: 10px; font-size: 13px; font-weight: 600; color: #7f1d1d; cursor: pointer;
+}
+.nv-dlg-cek input { width: 16px; height: 16px; accent-color: #dc2626; cursor: pointer; }
+.nv-dlg-aksi { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; margin-top: 16px; padding-top: 12px; border-top: 1px solid #f1f5f9; }
+.nv-dlg .nv-btn-blue-cta { background: #3473A7; }
+.nv-dlg .nv-btn-blue-cta:hover { background: #123B5D; }
+.nv-dlg .nv-btn-blue-cta.nv-dlg-merah { background: #dc2626; }
+.nv-dlg .nv-btn-blue-cta.nv-dlg-merah:hover { background: #b91c1c; }
+.nv-dlg button:focus-visible { outline: 3px solid rgba(52, 115, 167, 0.35); outline-offset: 2px; }
+@keyframes nv-dlg-fade { from { opacity: 0; } }
+@keyframes nv-dlg-naik { from { opacity: 0; transform: translateY(8px) scale(0.98); } }
+@media (prefers-reduced-motion: reduce) { .nv-dlg, .nv-dlg-box { animation: none; } }
+
+/* Klasifikasi rapat */
+.nv-klas { margin-top: 14px; border-radius: 10px; padding: 10px 14px; border: 1px solid; font-size: 13px; }
+.nv-klas p { margin: 4px 0 0; font-size: 12px; line-height: 1.5; }
+.nv-klas-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.nv-klas-rahasia { background: #f0fdf4; border-color: #bbf7d0; color: #14532d; }
+.nv-klas-biasa { background: #eff6ff; border-color: #bfdbfe; color: #123B5D; }
+.nv-seg { display: inline-flex; background: #fff; border: 1px solid #e2e8f0; border-radius: 9px; padding: 3px; gap: 3px; }
+.nv-seg button { border: 0; background: transparent; border-radius: 7px; padding: 5px 12px; font: inherit; font-size: 12.5px; font-weight: 600; color: #475569; cursor: pointer; }
+.nv-seg button.on { background: #3473A7; color: #fff; }
+.nv-klas-rahasia .nv-seg button.on { background: #16a34a; }
+.nv-seg button:disabled { cursor: not-allowed; opacity: 0.6; }
+.nv-pill-cloud { background: #eff6ff; border: 1px solid #bfdbfe; color: #123B5D; }
+
+/* Tombol (i), panel spesifikasi, catatan */
+.nv-info-btn {
+  width: 18px; height: 18px; margin-left: 4px; border-radius: 50%; border: 1px solid #94a3b8; background: #fff; color: #475569;
+  font: 700 11px/1 Georgia, serif; cursor: pointer; vertical-align: 1px;
+}
+.nv-info-btn.open, .nv-info-btn:hover { background: #3473A7; border-color: #3473A7; color: #fff; }
+.nv-info-panel { margin: 12px 0 4px; padding: 12px 14px; border: 1px solid #e2e8f0; border-radius: 10px; background: #f8fafc; overflow-x: auto; }
+.nv-info-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 6px; color: #123B5D; }
+.nv-spec { width: 100%; border-collapse: collapse; font-size: 12px; margin: 6px 0; }
+.nv-spec th, .nv-spec td { border: 1px solid #e2e8f0; padding: 5px 7px; text-align: left; vertical-align: top; }
+.nv-spec th { background: #e6f0fa; color: #123B5D; font-weight: 600; }
+.nv-fit-ok { color: #15803d; font-weight: 600; }
+.nv-fit-no { color: #b91c1c; font-weight: 600; }
+.nv-help-note { margin: 4px 0 0; font-size: 11.5px; line-height: 1.5; color: #64748b; }
+.nv-cloud-note { margin: 6px 0 0; font-size: 12px; line-height: 1.5; color: #123B5D; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 6px 10px; }

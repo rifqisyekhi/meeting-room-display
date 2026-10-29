@@ -43,6 +43,7 @@
     searchQuery: "",
     showModelConfig: true,
     info: null, // panel (i) yang terbuka: "whisper" | "llm" | null
+    membatalkan: false, // permintaan batal sudah dikirim, menunggu worker berhenti
   };
 
   const SPEK_WHISPER = {
@@ -60,6 +61,16 @@
     "qwen3:8b": { ram: "≥ 7 GB", cpu: "8 core", gpu: "Opsional, VRAM ≥ 8 GB", cepat: "±2× lebih lambat dari 4b*", catatan: "Untuk server RAM 32 GB" },
     "qwen3:14b": { ram: "≥ 12 GB", cpu: "16 core", gpu: "Disarankan, VRAM ≥ 12–16 GB", cepat: "Sangat lambat tanpa GPU*", catatan: "Untuk server ber-GPU" },
   };
+
+  // Claude berjalan di server Anthropic (cloud); hanya untuk rapat berklasifikasi Biasa.
+  const SPEK_CLAUDE = {
+    ram: "Tidak memakai RAM server", cpu: "-", gpu: "-", cepat: "±1–3 menit per rapat*",
+    catatan: "☁ Cloud (Anthropic), berbayar ±Rp3.000–6.000 per jam rapat* · hanya rapat Biasa",
+  };
+
+  function modelCloud(nama) { return /^claude-/i.test(String(nama || "")); }
+
+  function rapatBiasa() { return nv.data?.minutes?.classification === "BIASA"; }
 
   const KETERANGAN_WHISPER = {
     tiny: "sangat cepat, akurasi rendah",
@@ -108,7 +119,68 @@
 
   function beritahu(pesan) {
     if (typeof window.toast === "function") window.toast(pesan);
-    else alert(pesan);
+    else info(pesan);
+  }
+
+  /* Pop-up pengganti alert()/confirm() bawaan browser. Hasilnya Promise:
+     true bila tombol utama ditekan, false bila ditutup (Batal, ✕, Esc, klik di luar).
+     centang: { label, nilai } opsional; nilai diperbarui sesuai kotak centang saat ditutup. */
+  const DLG_IKON = { info: "i", peringatan: "!", bahaya: "!", error: "✕" };
+
+  function dialog({ judul = "Informasi", pesan = "", jenis = "info", ok = "Mengerti", batal = "", centang = null } = {}) {
+    return new Promise((selesai) => {
+      document.querySelector(".nv-dlg")?.remove();
+      const fokusLama = document.activeElement;
+      const el = document.createElement("div");
+      el.className = "nv-dlg";
+      el.innerHTML = `<div class="nv-dlg-box nv-dlg-${e(jenis)}" role="${batal ? "dialog" : "alertdialog"}" aria-modal="true"
+          aria-labelledby="nvDlgJudul" aria-describedby="nvDlgPesan">
+          <div class="nv-dlg-head">
+            <span class="nv-dlg-ikon">${DLG_IKON[jenis] || "i"}</span>
+            <h3 id="nvDlgJudul">${e(judul)}</h3>
+            <button type="button" class="nv-dlg-x" data-v="0" title="Tutup" aria-label="Tutup">✕</button>
+          </div>
+          <p id="nvDlgPesan">${e(pesan)}</p>
+          ${centang ? `<label class="nv-dlg-cek"><input type="checkbox" ${centang.nilai ? "checked" : ""}> ${e(centang.label)}</label>` : ""}
+          <div class="nv-dlg-aksi">
+            ${batal ? `<button type="button" class="nv-btn-outline-download" data-v="0">${e(batal)}</button>` : ""}
+            <button type="button" class="nv-btn-blue-cta ${jenis === "bahaya" ? "nv-dlg-merah" : ""}" data-v="1">${e(ok)}</button>
+          </div>
+        </div>`;
+      const tutup = (v) => {
+        if (centang) centang.nilai = el.querySelector(".nv-dlg-cek input").checked;
+        document.removeEventListener("keydown", onKey, true);
+        el.remove();
+        if (fokusLama instanceof HTMLElement && fokusLama.isConnected) fokusLama.focus();
+        selesai(v);
+      };
+      const onKey = (ev) => {
+        if (ev.key === "Escape") { ev.preventDefault(); ev.stopPropagation(); tutup(false); return; }
+        if (ev.key !== "Tab") return;
+        const tombol = [...el.querySelectorAll("button, input")];
+        const i = tombol.indexOf(document.activeElement);
+        ev.preventDefault();
+        tombol[(i + (ev.shiftKey ? -1 : 1) + tombol.length) % tombol.length].focus();
+      };
+      el.addEventListener("click", (ev) => {
+        const b = ev.target.closest("[data-v]");
+        if (b) tutup(b.dataset.v === "1");
+        else if (ev.target === el) tutup(false);
+      });
+      document.addEventListener("keydown", onKey, true);
+      document.body.appendChild(el);
+      el.querySelector('[data-v="1"]').focus();
+    });
+  }
+
+  const tanya = (pesan, opsi = {}) =>
+    dialog({ judul: "Konfirmasi", jenis: "peringatan", ok: "Lanjutkan", batal: "Batal", ...opsi, pesan });
+  const gagal = (pesan, judul = "Terjadi kesalahan") => dialog({ judul, pesan, jenis: "error", ok: "Tutup" });
+  const info = (pesan, judul = "Informasi") => dialog({ judul, pesan, jenis: "info" });
+
+  function tanyaTinggalkan() {
+    return tanya("Perubahan notulen belum disimpan dan akan hilang.",
+      { judul: "Tinggalkan tanpa menyimpan?", ok: "Tinggalkan", batal: "Tetap di sini", jenis: "bahaya" });
   }
 
   async function api(path, opts = {}) {
@@ -249,6 +321,8 @@
     nv.editing = false;
     nv.searchQuery = "";
     nv.showModelConfig = true;
+    nv.membatalkan = false;
+    nv.info = null;
     const el = root();
     el.innerHTML = `<div class="nv-loading">Memuat data notulen...</div>`;
     el.classList.add("show");
@@ -257,13 +331,14 @@
     cekAI();
   }
 
-  function closeNotulen() {
+  async function closeNotulen() {
     if (nv.view === "perekam") return nvTutupPerekam();
     if (nv.rec) {
-      alert("Rekaman masih berjalan. Tekan \"Selesai\" dan tunggu semua potongan terkirim sebelum menutup.");
+      info("Tekan \"Selesai\" dan tunggu semua potongan terkirim sebelum menutup layar ini.", "Rekaman masih berjalan");
       return;
     }
-    if (nv.editing && !confirm("Perubahan notulen belum disimpan. Tutup tanpa menyimpan?")) return;
+    if (nv.editing && !(await tanya("Perubahan notulen belum disimpan. Tutup tanpa menyimpan?",
+      { judul: "Perubahan belum disimpan", ok: "Tutup tanpa menyimpan", batal: "Kembali", jenis: "bahaya" }))) return;
     berhentiPolling();
     nv.meetingId = null;
     nv.data = null;
@@ -309,6 +384,10 @@
     if (selGrid) selGrid.innerHTML = htmlModelFormCols();
     const ramAlert = document.getElementById("nvRamAlertSlot");
     if (ramAlert) ramAlert.innerHTML = htmlRamWarningAlert();
+    const infoSlot = document.getElementById("nvInfoSlot");
+    if (infoSlot) infoSlot.innerHTML = nv.info ? htmlInfoSpek(nv.info) : "";
+    const privasi = document.getElementById("nvPrivasiPill");
+    if (privasi) privasi.outerHTML = htmlPrivasiPill();
   }
 
   /* ---------- HTML Component Builders ---------- */
@@ -356,32 +435,34 @@
         return `<option value="${e(val)}" ${sel}>${e(w.name)}${w.default ? " (Default)" : ""}${desc}${ram}</option>`;
       }).join("");
     } else {
-      opsiW = `
-        <option value="small" ${currentW === "small" ? "selected" : ""}>small (Default · Cepat · ~1 GB RAM)</option>
-        <option value="tiny" ${currentW === "tiny" ? "selected" : ""}>tiny (~400 MB RAM)</option>
-        <option value="base" ${currentW === "base" ? "selected" : ""}>base (~600 MB RAM)</option>
-        <option value="medium" ${currentW === "medium" ? "selected" : ""}>medium (~2.6 GB RAM)</option>
-        <option value="large-v3" ${currentW === "large-v3" ? "selected" : ""}>large-v3 (~5 GB RAM)</option>
-      `;
+      // Daftar model belum terbaca (service AI mati): jangan tawarkan model yang belum tentu terpasang.
+      opsiW = `<option value="">Default server</option>`;
     }
 
     // LLM options
     let opsiL = "";
+    const biasa = rapatBiasa();
     if (m.llm && m.llm.length) {
       opsiL = m.llm.map((l) => {
         const val = l.name;
         const sel = currentL === val ? "selected" : "";
+        if (l.cloud) {
+          // Claude (cloud) hanya boleh dipilih untuk rapat Biasa; backend juga menolaknya untuk rapat Rahasia.
+          return `<option value="${e(val)}" ${sel} ${biasa ? "" : "disabled"}>☁ ${e(l.name)} · ${biasa ? "cloud" : "hanya rapat Biasa"}</option>`;
+        }
         const ram = l.size_mb ? ` · Butuh ~${((l.size_mb + 1500) / 1024).toFixed(1)} GB RAM` : "";
         return `<option value="${e(val)}" ${sel}>${e(l.name)}${l.default ? " (Default)" : ""}${ram}</option>`;
       }).join("");
     } else {
-      opsiL = `
-        <option value="qwen3:4b" ${currentL === "qwen3:4b" ? "selected" : ""}>qwen3:4b (Default · Butuh ~3.5 GB RAM)</option>
-        <option value="qwen2.5:3b" ${currentL === "qwen2.5:3b" ? "selected" : ""}>qwen2.5:3b (Butuh ~2.5 GB RAM)</option>
-        <option value="qwen2.5:1.5b" ${currentL === "qwen2.5:1.5b" ? "selected" : ""}>qwen2.5:1.5b (Butuh ~1.5 GB RAM)</option>
-        <option value="llama3.2:1b" ${currentL === "llama3.2:1b" ? "selected" : ""}>llama3.2:1b (Butuh ~1.2 GB RAM)</option>
-      `;
+      opsiL = `<option value="">Default server</option>`;
     }
+    const adaCloud = (m.llm || []).some((l) => l.cloud);
+    const catatanCloud = modelCloud(nv.pilih.llm)
+      ? `<p class="nv-cloud-note">☁ Teks transkrip rapat ini akan dikirim ke Anthropic (Claude) untuk menyusun notulen.
+          Audio dan transkripsi tetap di server instansi.</p>`
+      : adaCloud && !biasa ? `<p class="nv-help-note">Claude (cloud) hanya bisa dipilih untuk rapat berklasifikasi Biasa.</p>` : "";
+    const tombolInfo = (jenis) => `<button type="button" class="nv-info-btn ${nv.info === jenis ? "open" : ""}"
+      onclick="nvInfo('${jenis}')" aria-expanded="${nv.info === jenis}" title="Spesifikasi minimal tiap model">i</button>`;
 
     // Diarization options
     const curSpk = nv.numSpeakers || "";
@@ -396,12 +477,13 @@
 
     return `
       <div>
-        <label class="nv-form-label">Model Transkripsi (Whisper)</label>
+        <label class="nv-form-label">Model Transkripsi (Whisper) ${tombolInfo("whisper")}</label>
         <select class="nv-select-field" onchange="nvPilihModel('whisper', this.value)">${opsiW}</select>
       </div>
       <div>
-        <label class="nv-form-label">Model Notulen (Ollama LLM)</label>
+        <label class="nv-form-label">Model Notulen ${tombolInfo("llm")}</label>
         <select class="nv-select-field" onchange="nvPilihModel('llm', this.value)">${opsiL}</select>
+        ${catatanCloud}
       </div>
       <div>
         <label class="nv-form-label">Deteksi Jumlah Pembicara</label>
@@ -414,11 +496,12 @@
     const mn = nv.data?.minutes;
     const a = nv.ai;
     const ram = a?.ram || {};
-    const availMb = ram.available_mb ?? 970;
+    const availMb = ram.available_mb;
     const currentL = nv.pilih.llm || nv.models?.default_llm || "qwen3:4b";
-    const needsFallback = mn?.minutesError || (availMb < 2500 && currentL.includes("4b")) || (mn?.status === "FAILED" && !mn.hasMinutes);
-
-    if (!needsFallback) return "";
+    if (modelCloud(currentL)) return ""; // Claude tidak memakai RAM server
+    // Hanya peringatan RAM bila memang kurang; galat lain ditampilkan apa adanya di tab Notulen.
+    const ramKurang = availMb != null && availMb < 2500 && /4b|8b|12b|14b/.test(currentL);
+    if (!ramKurang) return "";
 
     return `
       <div class="nv-ram-alert">
@@ -426,7 +509,7 @@
           <span class="nv-ram-alert-icon">⚠️</span>
           <span>
             <b>Memori RAM tidak cukup untuk membuat Notulen ( ${e(currentL)} ).</b>
-            Tersedia ${availMb} MB dari minimal 1.500 MB. Transkrip Anda tetap aman tersimpan.
+            Tersedia ${availMb} MB. Transkrip Anda tetap aman tersimpan.
           </span>
         </div>
         <button type="button" class="nv-btn-ram-fallback" onclick="nvGunakanModelRingan()">
@@ -486,8 +569,8 @@
 
     // Durasi & finished at info
     const durasiSec = mn.durationSeconds || 0;
-    const durasiStr = durasiSec > 0 ? menitDetik(durasiSec) : "23:24";
-    const diprosesStr = waktuLokalRingkas(mn.finishedAt || m.date || new Date().toISOString());
+    const durasiStr = durasiSec > 0 ? menitDetik(durasiSec) : "-";
+    const diprosesStr = mn.finishedAt ? waktuLokalRingkas(mn.finishedAt) : "";
 
     root().innerHTML = `
       <div class="nv-shell">
@@ -499,7 +582,7 @@
             <span class="nv-nav-title">Notulen Otomatis</span>
           </div>
           <div class="nv-topbar-right">
-            <div class="nv-pill-badge nv-pill-privacy">${SVGS.shield} Server Lokal (Privasi Terjaga)</div>
+            ${htmlPrivasiPill()}
             <div id="nvTopAiStatus">${htmlTopAiBadge()}</div>
           </div>
         </div>
@@ -522,6 +605,7 @@
             <span class="nv-meta-cell">${SVGS.pin} ${e(m.room)}${m.location ? ", " + e(m.location) : ""}</span>
             <span class="nv-meta-cell">${SVGS.building} ${e(m.organizer || m.requester || m.bagian || "Biro Keuangan & BMN")}</span>
           </div>
+          ${htmlKlasifikasi(mn, proses)}
         </div>
 
         <!-- Section 1: Sumber Audio Rapat -->
@@ -601,22 +685,12 @@
                 <span class="nv-step-num">2</span>
                 <h2 class="nv-sec-title">Konversi Transkrip & Notulen AI</h2>
                 <button type="button" class="nv-config-toggle" onclick="nvToggleModelConfig()">
-                  🎛️ Whisper: ${e(currentW)} &bull; Ollama: ${e(currentL)} &bull; Pembicara: ${e(currentSpk)} ${SVGS.chevronDown}
+                  🎛️ Whisper: ${e(currentW)} &bull; Notulen: ${e(currentL)} &bull; Pembicara: ${e(currentSpk)} ${SVGS.chevronDown}
                 </button>
               </div>
               <div class="nv-sec-instruction">Klik pengaturan di atas jika ingin mengganti kapasitas model AI.</div>
             </div>
-            <div>
-              ${proses ? `
-                <button type="button" class="nv-btn-dark-cta" onclick="nvBatal()">
-                  Batalkan Proses
-                </button>
-              ` : `
-                <button type="button" class="nv-btn-dark-cta" onclick="nvProses()" ${adaFile && !nv.rec ? "" : "disabled"}>
-                  ${SVGS.sparkle} ${mn.hasTranscript ? "Proses Ulang Audio" : "Mulai Konversi AI"}
-                </button>
-              `}
-            </div>
+            <div id="nvAksiProses">${htmlAksiProses(mn, adaFile)}</div>
           </div>
 
           <!-- 3-Column Model Controls -->
@@ -624,8 +698,10 @@
             ${htmlModelFormCols()}
           </div>
 
+          <div id="nvInfoSlot">${nv.info ? htmlInfoSpek(nv.info) : ""}</div>
+
           <!-- Processing Progress (if active) -->
-          ${proses ? htmlProcessingProgress(mn) : ""}
+          <div id="nvProgressSlot">${proses ? htmlProcessingProgress(mn) : ""}</div>
 
           <!-- RAM Warning Alert Box -->
           <div id="nvRamAlertSlot">${htmlRamWarningAlert()}</div>
@@ -647,7 +723,7 @@
               </button>
             </div>
             <div class="nv-tabs-meta">
-              ${SVGS.clock} Durasi ${durasiStr} &bull; Diproses ${diprosesStr}
+              ${SVGS.clock} Durasi ${durasiStr}${diprosesStr ? ` &bull; Diproses ${diprosesStr}` : ""}
             </div>
           </div>
 
@@ -685,6 +761,110 @@
     `;
 
     if (nv.rec) hubungkanUlangPerekamUI();
+  }
+
+  function htmlPrivasiPill() {
+    if (rapatBiasa() && modelCloud(nv.pilih.llm)) {
+      return `<div id="nvPrivasiPill" class="nv-pill-badge nv-pill-cloud">${SVGS.cloud} Notulen via Claude (cloud)</div>`;
+    }
+    return `<div id="nvPrivasiPill" class="nv-pill-badge nv-pill-privacy">${SVGS.shield} Server Lokal (Privasi Terjaga)</div>`;
+  }
+
+  /* Klasifikasi menentukan apakah notulen boleh disusun Claude (cloud). Bawaannya Rahasia. */
+  function htmlKlasifikasi(mn, proses) {
+    const biasa = mn.classification === "BIASA";
+    const oleh = mn.classificationBy
+      ? ` Diatur oleh ${e(mn.classificationBy)}${mn.classificationAt ? `, ${waktuLokal(mn.classificationAt)}` : ""}.` : "";
+    return `
+      <div class="nv-klas ${biasa ? "nv-klas-biasa" : "nv-klas-rahasia"}">
+        <div class="nv-klas-row">
+          <b>Klasifikasi rapat</b>
+          <div class="nv-seg" role="radiogroup" aria-label="Klasifikasi rapat">
+            <button type="button" role="radio" aria-checked="${!biasa}" class="${biasa ? "" : "on"}"
+              onclick="nvKlasifikasi('RAHASIA')" ${proses ? "disabled" : ""}>🔒 Rahasia / Penting</button>
+            <button type="button" role="radio" aria-checked="${biasa}" class="${biasa ? "on" : ""}"
+              onclick="nvKlasifikasi('BIASA')" ${proses ? "disabled" : ""}>Biasa</button>
+          </div>
+        </div>
+        <p>${biasa
+          ? "Audio dan transkripsi tetap diproses di server instansi. Notulen <b>boleh</b> disusun dengan Claude (cloud): bila dipilih, teks transkrip dikirim ke server Anthropic."
+          : "Audio, transkrip, dan notulen diproses sepenuhnya di server instansi dan tidak dikirim ke layanan cloud."}${oleh}</p>
+      </div>`;
+  }
+
+  function htmlAksiProses(mn, adaFile) {
+    if (mn.status === "PROCESSING") {
+      return nv.membatalkan
+        ? `<button type="button" class="nv-btn-dark-cta" disabled>Membatalkan…</button>`
+        : `<button type="button" class="nv-btn-dark-cta" onclick="nvBatal()">Batalkan Proses</button>`;
+    }
+    return `<button type="button" class="nv-btn-dark-cta" onclick="nvProses()" ${adaFile && !nv.rec ? "" : "disabled"}>
+        ${SVGS.sparkle} ${mn.hasTranscript ? "Proses Ulang Audio" : "Mulai Konversi AI"}
+      </button>`;
+  }
+
+  /* Pembaruan sebagian saat proses berjalan: halaman tidak digambar ulang, sehingga
+     pemutar audio, isian nama pembicara, dan posisi gulir tidak ikut hilang. */
+  function perbaruiProses() {
+    const mn = nv.data?.minutes;
+    if (!mn) return;
+    const adaFile = (nv.data.files || []).some((f) => f.sizeBytes > 0);
+    const slot = document.getElementById("nvProgressSlot");
+    if (slot) slot.innerHTML = mn.status === "PROCESSING" ? htmlProcessingProgress(mn) : "";
+    const aksi = document.getElementById("nvAksiProses");
+    if (aksi) aksi.innerHTML = htmlAksiProses(mn, adaFile);
+  }
+
+  /* Panel (i): spesifikasi minimal tiap model + apakah muat di RAM server saat ini. */
+  function htmlInfoSpek(jenis) {
+    const m = nv.models || {};
+    const avail = nv.ai?.ram?.available_mb;
+    const gb = (mb) => `${(mb / 1024).toFixed(1).replace(".", ",")} GB`;
+    const muat = (butuh) => (avail == null ? "-" : avail >= butuh
+      ? `<span class="nv-fit-ok">✓ muat</span>` : `<span class="nv-fit-no">✗ RAM kurang</span>`);
+    let isi;
+    if (jenis === "whisper") {
+      isi = `<table class="nv-spec"><thead><tr><th>Model</th><th>RAM bebas min.</th><th>CPU</th><th>GPU NVIDIA</th>
+        <th>Waktu proses</th><th>Rapat 6 jam</th><th>Saat ini</th><th>Catatan</th></tr></thead><tbody>${
+        (m.whisper || []).map((w) => {
+          const sp = SPEK_WHISPER[w.name] || {};
+          return `<tr><td><b>${e(w.name)}</b></td><td>${gb(w.required_ram_mb)}</td><td>${e(sp.cpu || "-")}</td><td>${e(sp.gpu || "-")}</td>
+            <td>${e(sp.cepat || "-")}</td><td>${e(sp.rapat6 || "-")}</td><td>${muat(w.required_ram_mb)}</td><td>${e(sp.catatan || "")}</td></tr>`;
+        }).join("")}</tbody></table>
+        <p class="nv-help-note">Waktu proses = lama transkripsi dibanding durasi audio, di CPU int8 dengan 3–4 thread.
+          Dengan GPU NVIDIA semua model jauh lebih cepat (±0,05× durasi). Pemisahan pembicara menambah ±0,3× durasi
+          dan ±0,5 GB RAM per jam audio. Tahap transkripsi, pemisahan pembicara, dan notulen berjalan bergantian,
+          jadi kebutuhan RAM-nya tidak dijumlahkan.</p>`;
+    } else {
+      const daftar = (m.llm || []).length ? m.llm : Object.keys(SPEK_LLM).map((name) => ({ name }));
+      isi = `<table class="nv-spec"><thead><tr><th>Model</th><th>RAM bebas min.</th><th>CPU</th><th>GPU NVIDIA</th>
+        <th>Kecepatan</th><th>Catatan</th></tr></thead><tbody>${
+        daftar.map((l) => {
+          const sp = modelCloud(l.name) ? SPEK_CLAUDE : SPEK_LLM[l.name] || SPEK_LLM[String(l.name).replace(/:latest$/, "")] || {};
+          const ram = sp.ram || (l.size_mb ? `≥ ${gb(l.size_mb + 1536)} (ukuran model + 1,5 GB)` : "-");
+          return `<tr><td><b>${e(l.name)}</b>${l.size_mb ? `<br><span class="nv-help-note">file ±${gb(l.size_mb)}</span>` : ""}</td>
+            <td>${e(ram)}</td><td>${e(sp.cpu || "≥ 4 core")}</td><td>${e(sp.gpu || "Opsional")}</td>
+            <td>${e(sp.cepat || "-")}</td><td>${e(sp.catatan || "")}</td></tr>`;
+        }).join("")}</tbody></table>
+        <p class="nv-help-note">Dengan konteks 8192 token (OLLAMA_NUM_CTX). Rapat 6 jam ≈ 15–20 potongan transkrip.
+          Ambang RAM yang dipakai server sebelum memanggil LLM diatur di LLM_MIN_FREE_RAM_MB.</p>`;
+    }
+    return `<div class="nv-info-panel" role="region" aria-label="Spesifikasi minimal model">
+      <div class="nv-info-head"><b>Spesifikasi minimal — ${jenis === "whisper" ? "model transkripsi" : "model notulen"}</b>
+        <button type="button" class="nv-btn-outline-download" onclick="nvInfo(null)">Tutup</button></div>
+      ${avail != null ? `<p class="nv-help-note">RAM bebas server saat ini: <b>${gb(avail)}</b>.</p>` : ""}
+      ${isi}
+      <p class="nv-help-note">* Perkiraan, belum diukur di server instansi. Angka pasti: jalankan
+        <code>ai-service/scripts/benchmark.py</code> dengan rekaman rapat asli.</p>
+    </div>`;
+  }
+
+  function nvInfo(jenis) {
+    nv.info = jenis && nv.info !== jenis ? jenis : null;
+    const grid = document.getElementById("nvModelFormGrid");
+    if (grid) grid.innerHTML = htmlModelFormCols();
+    const slot = document.getElementById("nvInfoSlot");
+    if (slot) slot.innerHTML = nv.info ? htmlInfoSpek(nv.info) : "";
   }
 
   function htmlProcessingProgress(mn) {
@@ -763,6 +943,8 @@
     }).join("");
 
     return `
+      ${mn.transcriptBaru ? `<div class="nv-alert-box nv-alert-warn">Transkrip sudah jadi. Notulen sedang disusun AI.
+        Nama pembicara bisa disimpan setelah proses selesai.</div>` : ""}
       ${spkRenaming}
       <div class="nv-transkrip-box">
         ${rows}
@@ -773,7 +955,10 @@
   function htmlTabNotulen(mn) {
     const proses = mn.status === "PROCESSING";
     const draf = mn.hasMinutes && !mn.minutesReviewed;
-    const banner = !mn.hasMinutes
+    const banner = mn.transcriptBaru
+      ? `<div class="nv-alert-box nv-alert-warn">Notulen sedang disusun AI dari transkrip terbaru.
+          ${mn.hasMinutes ? "Yang tampil di bawah masih notulen dari proses sebelumnya." : "Halaman ini diperbarui sendiri setelah selesai."}</div>`
+      : !mn.hasMinutes
       ? `<div class="nv-alert-box nv-alert-warn">Notulen belum tersedia. Gunakan tombol "Buat Ulang Notulen" di tab Transkrip atau tunggu proses selesai.</div>`
       : draf
         ? `<div class="nv-alert-box nv-alert-draft"><b>DRAF HASIL AI &mdash; wajib ditinjau notulis.</b> Periksa nama, keputusan, PIC, dan tenggat sebelum dibagikan. AI bisa salah dengar atau salah ringkas.</div>`
@@ -823,12 +1008,14 @@
   }
 
   function nvGunakanModelRingan() {
-    const smallModels = ["qwen2.5:1.5b", "llama3.2:1b", "qwen:1.8b", "qwen2.5:3b"];
-    let chosen = "qwen2.5:1.5b";
-    if (nv.models?.llm) {
-      const match = nv.models.llm.find((l) => smallModels.includes(l.name) || (l.size_mb && l.size_mb < 2000));
-      if (match) chosen = match.name;
+    // Hanya model lokal yang benar-benar terpasang di Ollama (ukuran < ±2 GB).
+    const ringan = (nv.models?.llm || []).filter((l) => !l.cloud && l.size_mb && l.size_mb < 2000)
+      .sort((a, b) => a.size_mb - b.size_mb)[0];
+    if (!ringan) {
+      info("Belum ada model ringan di Ollama server. Pasang dulu, mis.: ollama pull qwen2.5:1.5b", "Model ringan belum tersedia");
+      return;
     }
+    const chosen = ringan.name;
     nv.pilih.llm = chosen;
     beritahu(`Model LLM dialihkan ke model ringan (${chosen}). Memulai pembuatan ulang notulen...`);
     render();
@@ -843,8 +1030,8 @@
     }
   }
 
-  function nvTab(t) {
-    if (nv.editing && t !== "notulen" && !confirm("Perubahan notulen belum disimpan. Tinggalkan?")) return;
+  async function nvTab(t) {
+    if (nv.editing && t !== "notulen" && !(await tanyaTinggalkan())) return;
     if (t !== "notulen") nv.editing = false;
     nv.tab = t;
     render();
@@ -888,7 +1075,7 @@
       nv.editing = false;
       beritahu(reviewed ? "Notulen disimpan dan ditandai sudah ditinjau." : "Notulen disimpan (masih berstatus draf).");
       render();
-    } catch (err) { alert(err.message); }
+    } catch (err) { gagal(err.message); }
   }
 
   function namaBerkas(ext) {
@@ -963,14 +1150,30 @@
         const { minutes } = await api(`/meetings/${encodeURIComponent(nv.meetingId)}/status`);
         if (!minutes || minutes.status !== "PROCESSING") {
           berhentiPolling();
+          const dibatalkan = nv.membatalkan;
+          nv.membatalkan = false;
           await muatUlang();
           cekAI();
-          if (minutes?.status === "DONE") beritahu(minutes.minutesError ? "Transkrip selesai, tetapi notulen gagal dibuat." : "Pemrosesan selesai.");
-          if (minutes?.status === "FAILED") beritahu("Pemrosesan gagal. Lihat keterangan di halaman notulen.");
+          if (dibatalkan) {
+            beritahu(/dibatalkan/i.test(minutes?.minutesError || "")
+              ? "Pembuatan notulen dibatalkan. Transkrip tetap tersimpan."
+              : "Proses dibatalkan. Hasil sebelumnya (jika ada) tidak berubah.");
+          } else if (minutes?.status === "DONE") {
+            beritahu(minutes.minutesError ? "Transkrip selesai, tetapi notulen gagal dibuat." : "Pemrosesan selesai.");
+          } else if (minutes?.status === "FAILED") {
+            beritahu("Pemrosesan gagal. Lihat keterangan di halaman notulen.");
+          }
+          return;
+        }
+        if (minutes.transcriptBaru && !nv.data.minutes?.transcriptBaru) {
+          // Tahap transkripsi selesai: tampilkan transkrip sambil notulen disusun.
+          if (!nv.editing) nv.tab = "transkrip";
+          await muatUlang();
+          beritahu("Transkrip selesai. Notulen sedang disusun.");
           return;
         }
         nv.data.minutes = { ...nv.data.minutes, ...minutes };
-        render();
+        perbaruiProses();
       } catch (err) {
         if (err.status === 401 || err.status === 403) { berhentiPolling(); beritahu(err.message); }
       }
@@ -1037,19 +1240,31 @@
   }
 
   async function nvHapusFile(fileId) {
-    if (!confirm("Hapus file audio ini secara permanen?")) return;
+    const mn = nv.data?.minutes;
+    const adaHasil = Boolean(mn?.hasTranscript || mn?.hasMinutes);
+    const fileTerakhir = (nv.data?.files || []).length <= 1;
+    // Audio terakhir dihapus: tawarkan sekalian menghapus transkrip & notulennya.
+    const centang = adaHasil && fileTerakhir ? { label: "Hapus juga transkrip dan notulen rapat ini", nilai: true } : null;
+    const pesan = "File audio ini akan dihapus permanen dan tidak bisa dikembalikan."
+      + (adaHasil && !fileTerakhir ? " Transkrip dan notulen tidak ikut terhapus." : "");
+    if (!(await tanya(pesan, { judul: "Hapus file audio?", ok: "Hapus", jenis: "bahaya", centang }))) return;
     try {
       await api(`/meetings/${encodeURIComponent(nv.meetingId)}/audio/${encodeURIComponent(fileId)}`, { method: "DELETE" });
-      beritahu("File audio dihapus.");
+      if (centang?.nilai) {
+        await api(`/meetings/${encodeURIComponent(nv.meetingId)}/minutes`, { method: "DELETE" });
+        nv.editing = false;
+      }
+      beritahu(centang?.nilai ? "File audio, transkrip, dan notulen dihapus." : "File audio dihapus.");
       await muatUlang();
-    } catch (err) { alert(err.message); }
+    } catch (err) { gagal(err.message); }
   }
 
   /* ---------- Aksi AI: Proses, Buat Ulang, Klasifikasi, Hapus Hasil ---------- */
 
   async function nvProses() {
     const mn = nv.data?.minutes;
-    if (mn?.hasTranscript && !confirm("Proses ulang akan mengganti transkrip dan notulen yang sudah ada. Lanjutkan?")) return;
+    if (mn?.hasTranscript && !(await tanya("Transkrip dan notulen yang sudah ada akan diganti dengan hasil baru. Proses ini memakan waktu lama.",
+      { judul: "Proses ulang dari audio?", ok: "Proses ulang" }))) return;
     const body = {};
     if (nv.numSpeakers) body.numSpeakers = Number(nv.numSpeakers);
     if (nv.pilih.whisper) body.whisperModel = nv.pilih.whisper;
@@ -1060,15 +1275,26 @@
       });
       beritahu("Audio dikirim ke antrean pemrosesan AI.");
       await muatUlang();
-    } catch (err) { alert(err.message); }
+    } catch (err) { gagal(err.message); }
   }
 
   async function nvBatal() {
-    if (!confirm("Batalkan proses yang sedang berjalan?")) return;
+    if (nv.membatalkan) return;
+    if (!(await tanya("Proses berhenti dalam beberapa detik. Jika transkrip sudah selesai dibuat, transkrip itu "
+      + "tetap disimpan. Hasil dari proses sebelumnya tidak berubah.",
+      { judul: "Batalkan proses?", ok: "Batalkan proses", batal: "Tidak", jenis: "bahaya" }))) return;
+    nv.membatalkan = true;
+    perbaruiProses();
     try {
       await api(`/meetings/${encodeURIComponent(nv.meetingId)}/cancel`, { method: "POST" });
-      beritahu("Permintaan pembatalan dikirim. Proses berhenti dalam beberapa detik.");
-    } catch (err) { alert(err.message); }
+      if (!nv.pollTimer) mulaiPolling();
+    } catch (err) {
+      nv.membatalkan = false;
+      perbaruiProses();
+      // Proses ternyata sudah selesai/berhenti lebih dulu: tampilkan keadaan terbaru.
+      if (err.status === 409) { await muatUlang(); return; }
+      gagal(err.message);
+    }
   }
 
   async function nvSimpanNama(diam = false) {
@@ -1081,12 +1307,13 @@
       nv.data.minutes.speakers = r.speakers;
       if (!diam) { beritahu("Nama pembicara disimpan."); render(); }
       return true;
-    } catch (err) { alert(err.message); return false; }
+    } catch (err) { gagal(err.message); return false; }
   }
 
   async function nvBuatUlang() {
     const mn = nv.data?.minutes;
-    if (mn?.hasMinutes && !confirm("Notulen yang ada akan diganti dengan draf baru dari AI. Lanjutkan?")) return;
+    if (mn?.hasMinutes && !(await tanya("Notulen yang ada, termasuk hasil suntingan, akan diganti dengan draf baru dari AI.",
+      { judul: "Buat ulang notulen?", ok: "Buat ulang" }))) return;
     if (document.querySelector("[data-spk]") && !(await nvSimpanNama(true))) return;
     try {
       await api(`/meetings/${encodeURIComponent(nv.meetingId)}/regenerate`, {
@@ -1096,12 +1323,16 @@
       beritahu("Notulen sedang dibuat ulang oleh AI.");
       nv.tab = "notulen";
       await muatUlang();
-    } catch (err) { alert(err.message); }
+    } catch (err) { gagal(err.message); }
   }
 
   async function nvKlasifikasi(nilai) {
     const mn = nv.data?.minutes;
     if ((mn?.classification || "RAHASIA") === nilai) return;
+    if (nilai === "BIASA" && !(await tanya("Rapat Biasa boleh memakai Claude (layanan cloud Anthropic) untuk menyusun notulen. "
+      + "Jika model Claude dipilih, teks transkrip rapat ini dikirim ke luar server instansi. "
+      + "Pastikan rapat ini tidak membahas hal rahasia atau penting.",
+      { judul: "Jadikan rapat Biasa?", ok: "Ya, rapat Biasa" }))) return;
     try {
       const r = await api(`/meetings/${encodeURIComponent(nv.meetingId)}/classification`, {
         method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ classification: nilai }),
@@ -1111,18 +1342,23 @@
         nv.data.minutes.classificationBy = r.minutes.classificationBy;
         nv.data.minutes.classificationAt = r.minutes.classificationAt;
       }
-      beritahu(`Klasifikasi rapat diubah ke: ${nilai === "BIASA" ? "Biasa" : "Rahasia"}.`);
+      if (nilai === "RAHASIA" && modelCloud(nv.pilih.llm)) nv.pilih.llm = "";
+      beritahu(nilai === "BIASA" ? "Rapat ditandai Biasa." : "Rapat ditandai Rahasia/Penting: hanya model lokal.");
       render();
-    } catch (err) { alert(err.message); }
+    } catch (err) { gagal(err.message); }
   }
 
   async function nvHapusHasil() {
-    if (!confirm("Hapus transkrip dan notulen untuk rapat ini? File audio rekaman/unggahan tetap tersimpan.")) return;
+    if (!(await tanya("Transkrip, nama pembicara, dan notulen rapat ini (termasuk hasil suntingan) akan dihapus "
+      + "permanen. File audio tidak ikut terhapus, jadi rapat masih bisa diproses ulang.",
+      { judul: "Hapus transkrip & notulen?", ok: "Hapus", jenis: "bahaya" }))) return;
     try {
       await api(`/meetings/${encodeURIComponent(nv.meetingId)}/minutes`, { method: "DELETE" });
+      nv.editing = false;
+      nv.tab = "transkrip";
       beritahu("Transkrip dan notulen dihapus.");
       await muatUlang();
-    } catch (err) { alert(err.message); }
+    } catch (err) { gagal(err.message); }
   }
 
   /* ---------- Browser Microphone Recording ---------- */
@@ -1142,7 +1378,7 @@
         .map((d, i) => `<option value="${e(d.deviceId)}">${e(d.label || `Mikrofon ${i + 1}`)}</option>`).join("");
       sel.value = pilih;
     } catch (err) {
-      alert(pesanMic(err));
+      gagal(pesanMic(err), "Mikrofon tidak bisa dipakai");
     }
   }
 
@@ -1175,7 +1411,7 @@
         },
       });
     } catch (err) {
-      alert(pesanMic(err));
+      gagal(pesanMic(err), "Mikrofon tidak bisa dipakai");
       return;
     }
     const mimeType = pilihMime();
@@ -1186,7 +1422,7 @@
       });
     } catch (err) {
       stream.getTracks().forEach((t) => t.stop());
-      alert(err.message);
+      gagal(err.message);
       return;
     }
 
@@ -1219,9 +1455,12 @@
       r.stopped = true;
       kirimAntrean();
     };
-    recorder.onerror = (ev) => alert(`Perekam berhenti karena error: ${ev.error?.message || "tidak diketahui"}`);
+    recorder.onerror = (ev) => gagal(`Perekam berhenti karena error: ${ev.error?.message || "tidak diketahui"}`, "Perekaman berhenti");
     stream.getAudioTracks()[0].onended = () => {
-      if (!r.stopped) { alert("Mikrofon terputus. Rekaman dihentikan; bagian yang sudah terekam tetap disimpan."); nvRekamSelesai(true); }
+      if (!r.stopped) {
+        nvRekamSelesai(true);
+        gagal("Rekaman dihentikan. Bagian yang sudah terekam tetap disimpan.", "Mikrofon terputus");
+      }
     };
 
     recorder.start(TIMESLICE_MS);
@@ -1253,10 +1492,12 @@
     perbaruiInfoRekam();
   }
 
-  function nvRekamSelesai(tanpaKonfirmasi = false) {
+  async function nvRekamSelesai(tanpaKonfirmasi = false) {
     const r = nv.rec;
     if (!r || r.recorder.state === "inactive") return;
-    if (!tanpaKonfirmasi && !confirm("Selesai merekam? Bagian rekaman yang tersisa akan dikirim ke server.")) return;
+    if (!tanpaKonfirmasi && !(await tanya("Bagian rekaman yang tersisa akan dikirim ke server.",
+      { judul: "Selesai merekam?", ok: "Selesai", batal: "Lanjut merekam" }))) return;
+    if (r.recorder.state === "inactive") return;
     if (!r.paused) r.elapsedMs += Date.now() - r.startedAt;
     r.paused = false;
     r.recorder.stop();
@@ -1298,7 +1539,7 @@
       r.sending = false;
     }
     if (r.stopped && !r.queue.length && !r.errorTetap) await selesaikanRekaman(r);
-    else if (r.errorTetap) { perbaruiInfoRekam(); alert(r.errorTetap); }
+    else if (r.errorTetap) { perbaruiInfoRekam(); gagal(r.errorTetap, "Rekaman tidak bisa dikirim"); }
   }
 
   async function selesaikanRekaman(r) {
@@ -1386,8 +1627,8 @@
 
   const rekamState = { data: null, error: "", timer: null, kode: null };
 
-  function nvBukaPerekam() {
-    if (nv.editing && !confirm("Perubahan notulen belum disimpan. Tinggalkan?")) return;
+  async function nvBukaPerekam() {
+    if (nv.editing && !(await tanyaTinggalkan())) return;
     nv.editing = false;
     nv.view = "perekam";
     rekamState.kode = null;
@@ -1527,7 +1768,7 @@
 
   async function nvBuatKode() {
     const roomName = document.getElementById("nvRecRoom")?.value;
-    if (!roomName) { alert("Pilih ruangan terlebih dulu."); return; }
+    if (!roomName) { info("Pilih ruangan untuk perangkat perekam ini terlebih dulu.", "Ruangan belum dipilih"); return; }
     const label = document.getElementById("nvRecLabel")?.value.trim();
     try {
       const r = await api("/perekam", {
@@ -1536,27 +1777,29 @@
       rekamState.kode = { ...r, ruang: roomName };
       document.getElementById("nvRecKode").innerHTML = htmlKode();
       muatPerekam();
-    } catch (err) { alert(err.message); }
+    } catch (err) { gagal(err.message); }
   }
 
   async function nvKodeUlang(id) {
-    if (!confirm("Buat kode baru? Perangkat yang sekarang terpasang akan terputus sampai kode baru dimasukkan.")) return;
+    if (!(await tanya("Perangkat yang sekarang terpasang akan terputus sampai kode baru dimasukkan di perangkat itu.",
+      { judul: "Buat kode pemasangan baru?", ok: "Buat kode baru" }))) return;
     try {
       const r = await api(`/perekam/${encodeURIComponent(id)}/kode`, { method: "POST" });
       const p = rekamState.data?.perangkat.find((x) => x.id === id);
       rekamState.kode = { ...r, ruang: p?.ruang };
       document.getElementById("nvRecKode").innerHTML = htmlKode();
       muatPerekam();
-    } catch (err) { alert(err.message); }
+    } catch (err) { gagal(err.message); }
   }
 
   async function nvCabutPerekam(id) {
-    if (!confirm("Cabut perangkat ini? Perangkat langsung berhenti merekam otomatis.")) return;
+    if (!(await tanya("Perangkat langsung berhenti bisa merekam, dan rapat di ruangan itu tidak lagi terekam otomatis.",
+      { judul: "Cabut perangkat perekam?", ok: "Cabut", jenis: "bahaya" }))) return;
     try {
       await api(`/perekam/${encodeURIComponent(id)}`, { method: "DELETE" });
       beritahu("Perangkat perekam dicabut.");
       muatPerekam();
-    } catch (err) { alert(err.message); }
+    } catch (err) { gagal(err.message); }
   }
 
   async function nvMasukUlang() {
@@ -1578,13 +1821,14 @@
     openNotulen, closeNotulen, nvUnggah, nvPutar, nvHapusFile, nvHapusHasil, nvProses, nvBatal, nvSimpanNama, nvBuatUlang,
     nvMasukUlang, nvBukaPerekam, nvTutupPerekam, nvBuatKode, nvKodeUlang, nvCabutPerekam,
     nvTab, nvPilihModel, nvGantiNumSpk, nvGunakanModelRingan, nvToggleModelConfig, nvCariTranskrip,
-    nvToggleExportMenu, nvCloseExportMenu, nvKlasifikasi,
+    nvToggleExportMenu, nvCloseExportMenu, nvKlasifikasi, nvInfo,
     nvEdit, nvBatalEdit, nvSimpanNotulen, nvUnduhMd, nvUnduhTranskrip, nvCetak, nvMuatMic,
     nvRekamMulai, nvRekamJeda, nvRekamSelesai,
   });
 
   document.addEventListener("keydown", (ev) => {
-    if (ev.key === "Escape" && nv.meetingId && !document.getElementById("modal")?.classList.contains("show")) {
+    if (ev.key === "Escape" && nv.meetingId && !document.querySelector(".nv-dlg")
+      && !document.getElementById("modal")?.classList.contains("show")) {
       closeNotulen();
     }
   });
