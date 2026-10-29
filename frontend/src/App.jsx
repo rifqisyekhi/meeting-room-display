@@ -185,6 +185,12 @@ function DialogKeyboardSupport() {
   return null;
 }
 
+/* Halaman perekam berdiri sendiri (bukan React): pindah ke file statisnya. */
+function KePerekam() {
+  window.location.replace("/perekam/index.html");
+  return null;
+}
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -231,6 +237,9 @@ export default function App() {
           }
         />
         <Route path="/admin/*" element={<Navigate to="/dashboard" replace />} />
+
+        {/* Perekam otomatis ruang rapat (halaman statis di public/perekam, tanpa login) */}
+        <Route path="/perekam" element={<KePerekam />} />
 
         {/* Fallback ke Display jika URL tidak dikenali */}
         <Route path="*" element={<Navigate to="/" replace />} />

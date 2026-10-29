@@ -21,3 +21,14 @@ backend/data/materials/*
 
 # PDF referensi yang sempat ikut ter-commit
 backend/data/docs/
+
+# Audio & data notulen rapat bersifat RAHASIA — jangan pernah di-commit.
+backend/data/notulen/
+
+# AI Service models, cache, runtime database, dan virtual environment (JANGAN DI-COMMIT)
+ai-service/models/
+ai-service/data/
+ai-service/.venv/
+ai-service/benchmark-results/
+**/__pycache__/
+*.pyc

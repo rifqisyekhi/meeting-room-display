@@ -2139,6 +2139,9 @@ function meetingTable(data, actions = true, allowDelete = true) {
               const safeMeetingId = String(m.id).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
               const attendeeCount = Array.isArray(m.attendees) ? m.attendees.length : 0;
               actionButtons += `<button type="button" class="btn-action-attendance" title="Lihat hasil presensi dan export Excel" onclick="viewMeetingAttendance('${safeMeetingId}')">Daftar Hadir (${attendeeCount})</button>`;
+              if (typeof openNotulen === "function") {
+                actionButtons += `<button type="button" class="btn-action-notulen" title="Rekam / unggah audio rapat dan buat notulen otomatis" onclick="openNotulen('${safeMeetingId}')">🎙 Notulen</button>`;
+              }
             }
 
             if (actions) {
@@ -5110,6 +5113,9 @@ function viewMeeting(id) {
   const isRejected = statusLower === "ditolak" || statusLower === "rejected";
 
   let actionBtns = `<button class="btn btn-light" style="display:inline-flex;align-items:center;gap:6px;" onclick="exportNotulensiPDF('${m.id}')">${ICONS.export} <span>Notulensi</span></button>`;
+  if (typeof openNotulen === "function") {
+    actionBtns += `<button class="btn btn-light" style="display:inline-flex;align-items:center;gap:6px;border-color:#3473A7;color:#123B5D;font-weight:600;" onclick="closeModal(); openNotulen('${m.id}')">🎙️ Notulen AI</button>`;
+  }
 
   if (isPending) {
     if (can("approve")) {

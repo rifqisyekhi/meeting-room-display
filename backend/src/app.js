@@ -4,6 +4,8 @@ const cors = require("cors");
 const calendarRoutes = require("./routes/calendar.routes");
 const prayerRoutes = require("./routes/prayer.routes");
 const dashboardRoutes = require("./routes/dashboard.routes");
+const notulenRoutes = require("./routes/notulen.routes");
+const perekamRoutes = require("./routes/perekam.routes");
 
 const app = express();
 
@@ -14,6 +16,10 @@ app.use(express.urlencoded({ limit: "50mb", extended: true }));
 app.use("/api/events", calendarRoutes);
 app.use("/api/prayer", prayerRoutes);
 app.use("/api/dashboard", dashboardRoutes);
+// Notulen otomatis (khusus Admin): rekam/unggah audio → transkrip → notulen via service AI lokal.
+app.use("/api/notulen", notulenRoutes);
+// Perekam otomatis di ruang rapat (token perangkat, bukan login) + status untuk papan TV.
+app.use("/api/perekam", perekamRoutes);
 
 app.post("/api/auth/login", async (req, res) => {
   try {

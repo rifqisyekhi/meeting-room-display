@@ -7,7 +7,7 @@ const { auditKonfigurasi } = require("./config-audit");
 
 const PORT = process.env.PORT || 3000;
 
-app.listen(PORT, async () => {
+const server = app.listen(PORT, async () => {
     console.log(`🚀 Server running on http://localhost:${PORT}`);
     auditKonfigurasi();
     const isDbReady = await initDatabase();
@@ -15,3 +15,7 @@ app.listen(PORT, async () => {
         await syncStoreFromDatabase();
     }
 });
+
+// Bawaan Node memutus request yang belum selesai diterima dalam 5 menit.
+// Unggahan audio rapat (ratusan MB) bisa lebih lama dari itu.
+server.requestTimeout = 60 * 60 * 1000;

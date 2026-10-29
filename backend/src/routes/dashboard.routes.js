@@ -26,6 +26,7 @@ router.get("/materials/files/:fileName", (req, res) => {
 });
 const dashboardService = require("../services/dashboard.service");
 const whatsappService = require("../services/whatsapp.service");
+const notulenService = require("../services/notulen.service");
 
 async function isAuthorizedCheckInOut(meeting, username, role, submittedName) {
   const normalizedUsername = String(username || "").trim().toLowerCase();
@@ -217,10 +218,16 @@ router.post("/whatsapp/notify/:id", wajibLogin, async (req, res) => {
 // Hapus rapat (otomatis hapus dari Google Calendar)
 router.delete("/meetings/:id", wajibPeran("Admin", "Pimpinan"), async (req, res) => {
   try {
+    // ID kanonik diambil sebelum rapat dihapus, untuk membersihkan data notulennya.
+    const sebelumHapus = await dashboardService.getMeetingById(req.params.id).catch(() => null);
     const ok = await dashboardService.deleteMeeting(req.params.id);
     if (!ok) {
       return res.status(404).json({ success: false, error: "Rapat tidak ditemukan di database maupun Google Calendar." });
     }
+    // Audio rapat bersifat rahasia: jangan tertinggal setelah rapatnya dihapus.
+    await notulenService
+      .hapusDataNotulen(sebelumHapus?.id || req.params.id)
+      .catch((err) => console.warn("[Notulen] Gagal menghapus data notulen:", err.message));
     res.json({ success: true });
   } catch (err) {
     res.status(err.statusCode || 500).json({ success: false, error: err.message });
