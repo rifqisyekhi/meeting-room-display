@@ -892,7 +892,7 @@
     display: block;
     position: relative;
     flex: 0 0 auto;
-    z-index: 50;
+    z-index: 20;
   }
   .booking-history-mobile-status-btn {
     display: inline-flex;
@@ -929,7 +929,7 @@
     position: absolute;
     top: calc(100% + 6px);
     left: 0;
-    z-index: 100;
+    z-index: 25;
     min-width: 140px;
     padding: 6px 0;
     border: 1px solid rgba(13, 45, 94, 0.08);
@@ -988,7 +988,7 @@
     position: relative;
     flex: 1 1 auto;
     min-width: 0;
-    z-index: 50;
+    z-index: 20;
   }
   .booking-history-mobile-date-btn {
     width: 100%;
@@ -1081,7 +1081,7 @@
     border-radius: 14px;
     box-shadow: 0 14px 38px rgba(12, 45, 94, 0.2), 0 2px 6px rgba(0, 0, 0, 0.04);
     padding: 12px;
-    z-index: 120;
+    z-index: 30;
     box-sizing: border-box;
     animation: bhDropdownFadeIn 0.16s cubic-bezier(0.16, 1, 0.3, 1);
   }

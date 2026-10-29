@@ -635,3 +635,120 @@
       .crm-btn-save:hover {
         background: #1769aa;
       }
+
+
+@media (max-width: 900px) {
+  .rooms-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 8px !important;
+    padding: 18px 14px 12px !important;
+    box-sizing: border-box !important;
+  }
+  .rooms-actions,
+  .rooms-header .rooms-actions,
+  .rooms-header .profile {
+    display: none !important;
+  }
+  .rooms-title h1 {
+    font-size: 21px !important;
+    margin: 0 0 4px !important;
+  }
+  .rooms-title p {
+    font-size: 12.5px !important;
+    line-height: 1.4 !important;
+  }
+  .rooms-breadcrumb {
+    font-size: 11px !important;
+    margin-bottom: 4px !important;
+  }
+  .rooms-stat-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px !important;
+    padding: 0 14px 14px !important;
+    box-sizing: border-box !important;
+  }
+  .r-card {
+    padding: 12px 14px !important;
+    gap: 10px !important;
+    border-radius: 12px !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+  }
+  .r-card::after {
+    display: none !important;
+  }
+  .r-icon-box {
+    width: 38px !important;
+    height: 38px !important;
+    flex-shrink: 0 !important;
+  }
+  .r-icon-box svg {
+    width: 20px !important;
+    height: 20px !important;
+  }
+  .r-dot-red {
+    width: 14px !important;
+    height: 14px !important;
+  }
+  .r-info {
+    min-width: 0 !important;
+    flex: 1 !important;
+  }
+  .r-info strong {
+    font-size: 19px !important;
+    line-height: 1.1 !important;
+  }
+  .r-info span {
+    font-size: 11px !important;
+    line-height: 1.25 !important;
+    margin-top: 2px !important;
+  }
+  .rooms-panel {
+    margin: 0 14px 20px !important;
+    padding: 16px 14px !important;
+    border-radius: 14px !important;
+    box-sizing: border-box !important;
+  }
+  .rooms-filter-row {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+    margin-bottom: 16px !important;
+  }
+  .rooms-filter-left {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+    width: 100% !important;
+  }
+  .rooms-search-box {
+    width: 100% !important;
+  }
+  .rooms-filter-left select {
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  .btn-add-room {
+    width: 100% !important;
+    justify-content: center !important;
+    padding: 11px 16px !important;
+    box-sizing: border-box !important;
+  }
+  .room-grid-custom {
+    grid-template-columns: 1fr !important;
+    gap: 14px !important;
+  }
+  .custom-room-modal {
+    width: calc(100vw - 20px) !important;
+    max-width: 95vw !important;
+    padding: 20px 16px !important;
+    margin: 10px auto !important;
+    box-sizing: border-box !important;
+  }
+  .crm-row {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+}

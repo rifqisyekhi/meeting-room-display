@@ -1,6 +1,6 @@
 .booking-account-bar {
   position: relative;
-  z-index: 20;
+  z-index: 1000;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -32,7 +32,7 @@
 
 .booking-account-actions {
   position: relative;
-  z-index: 20;
+  z-index: 1002;
 }
 
 .booking-section-nav {
@@ -82,7 +82,7 @@
   font-weight: 600;
 }
 
-.booking-account-menu-wrap { position: relative; z-index: 22; }
+.booking-account-menu-wrap { position: relative; z-index: 1003; }
 
 .booking-account-avatar {
   width: 44px;
@@ -99,7 +99,7 @@
   position: absolute;
   top: calc(100% + 9px);
   right: 0;
-  z-index: 24;
+  z-index: 1004;
   width: 230px;
   overflow: hidden;
   border: 1px solid #d8e0e9;
@@ -139,7 +139,7 @@
 .booking-account-dismiss {
   position: fixed;
   inset: 0;
-  z-index: 19;
+  z-index: 1001;
   border: 0;
   background: transparent;
 }

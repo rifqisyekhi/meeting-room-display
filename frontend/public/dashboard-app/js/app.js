@@ -531,8 +531,12 @@ const state = {
 };
 
 // SVG icons — path data extracted directly from installed react-icons package
-const svgIcon = (inner, viewBox, extraAttr = "") =>
-  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}" fill="currentColor" width="18" height="18" style="flex-shrink:0" ${extraAttr}>${inner}</svg>`;
+const svgIcon = (inner, viewBox, extraAttr = "") => {
+  const hasW = /\bwidth=/.test(extraAttr);
+  const hasH = /\bheight=/.test(extraAttr);
+  const hasFill = /\bfill=/.test(extraAttr);
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}"${hasFill ? "" : ' fill="currentColor"'}${hasW ? "" : ' width="18"'}${hasH ? "" : ' height="18"'} style="flex-shrink:0;display:block" ${extraAttr}>${inner}</svg>`;
+};
 
 const ICONS = {
   // IoMdHome — react-icons/io (viewBox 0 0 512 512)
@@ -576,10 +580,11 @@ const ICONS = {
     '<path d="M22.711 9.796c-.041-.041-4.055-4.096-5.982-6.146-.42-.414-.999-.65-1.586-.65-1.182 0-2.143.896-2.143 2h-8c-.553 0-1 .448-1 1v14c0 .552.447 1 1 1h14c.553 0 1-.448 1-1v-6.045c1.434-1.461 2.688-2.729 2.711-2.751.387-.39.387-1.018 0-1.408zm-7.432 6.145l-.136.059-.144-.04v-3.96h-1c-1.771.034-3.336.68-4.753 1.958.43-2.215 1.6-4.958 4.753-4.958h1v-3.958l.144-.042.154.05c1.436 1.525 4.051 4.187 5.297 5.45-.253.257-4.342 4.422-5.315 5.441zm-9.279 3.059v-12h8v1c-4.66 0-6 4.871-6 8.5v.5c1.691-2.578 3.6-3.953 6-4v3c0 .551.512 1 1.143 1 .364 0 .676-.158.883-.391.539-.565 1.242-1.291 1.976-2.043v4.434h-12.002z"/>',
     "0 0 24 24",
   ),
-  // FaEye, FaQrcode, FaStar, FaCheck, FaXmark, and FaClock from react-icons/fa6.
+  // Clean outline Eye icon + FaQrcode, FaStar, FaCheck, FaXmark, and FaClock.
   meetingEye: svgIcon(
-    '<path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4 142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1 3.3-7.9 3.3-16.7 0-24.6-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM144 256a144 144 0 1 1 288 0 144 144 0 1 1-288 0zm144-64c0 35.3-28.7 64-64 64-7.1 0-13.9-1.2-20.3-3.3-5.5-1.8-11.9 1.6-11.7 7.4.3 6.9 1.3 13.8 3.2 20.7 13.7 51.2 66.4 81.6 117.6 67.9s81.6-66.4 67.9-117.6c-11.1-41.5-47.8-69.4-88.6-71.1-5.8-.2-9.2 6.1-7.4 11.7 2.1 6.4 3.3 13.2 3.3 20.3z"/>',
-    "0 0 576 512",
+    '<path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/>',
+    "0 0 24 24",
+    'width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"',
   ),
   meetingQr: svgIcon(
     '<path d="M0 80C0 53.5 21.5 32 48 32h96c26.5 0 48 21.5 48 48v96c0 26.5-21.5 48-48 48H48c-26.5 0-48-21.5-48-48V80zm64 16v64h64V96H64zM0 336c0-26.5 21.5-48 48-48h96c26.5 0 48 21.5 48 48v96c0 26.5-21.5 48-48 48H48c-26.5 0-48-21.5-48-48v-96zm64 16v64h64v-64H64zM304 32h96c26.5 0 48 21.5 48 48v96c0 26.5-21.5 48-48 48h-96c-26.5 0-48-21.5-48-48V80c0-26.5 21.5-48 48-48zm80 64h-64v64h64V96zM256 304c0-8.8 7.2-16 16-16h64c8.8 0 16 7.2 16 16s7.2 16 16 16h32c8.8 0 16-7.2 16-16s7.2-16 16-16 16 7.2 16 16v96c0 8.8-7.2 16-16 16h-64c-8.8 0-16-7.2-16-16s-7.2-16-16-16-16 7.2-16 16v64c0 8.8-7.2 16-16 16h-32c-8.8 0-16-7.2-16-16V304zM368 480a16 16 0 1 1 0-32 16 16 0 0 1 0 32zm64 0a16 16 0 1 1 0-32 16 16 0 0 1 0 32z"/>',
@@ -664,24 +669,74 @@ function rapatHariIni() {
 
 function layout(content) {
   let currentUser = getCurrentUser();
+  const initial = currentUser.name
+    ? currentUser.name.charAt(0).toUpperCase()
+    : (currentUser.username ? currentUser.username.charAt(0).toUpperCase() : "A");
 
-  return `<div class="app-shell"><aside class="sidebar">
-    <div class="brand"><img src="/dashboard-app/assets/kemenaker-white.png" alt="Logo Kemenaker" class="brand-logo"><div><b>MEETING DISPLAY ROOM</b><small>BIRO KEUANGAN DAN BMN</small></div></div>
-    <nav class="nav">${nav
-      .filter(([id]) => isPageAllowed(id, currentUser))
-      .map(
-        ([id, icon, label]) =>
-          `<a href="#${id}" class="nav-item ${state.page === id ? "active" : ""}">${icon}${label}</a>`,
-      )
-      .join("")}</nav>
-    <div class="sidebar-footer">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:0;">
-        <a href="/" target="_top" style="flex:1.2;display:flex;align-items:center;justify-content:center;padding:7px 6px;background:rgba(255,255,255,0.14);color:#fff;text-decoration:none;border-radius:6px;font-size:11px;font-weight:600;letter-spacing:0.3px;text-align:center;white-space:nowrap;transition:background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.24)'" onmouseout="this.style.background='rgba(255,255,255,0.14)'">Display TV</a>
-        <button onclick="logout()" style="flex:1;display:flex;align-items:center;justify-content:center;padding:7px 6px;background:rgba(220,38,38,0.75);color:#fff;border:none;cursor:pointer;border-radius:6px;font-size:11px;font-weight:600;letter-spacing:0.3px;text-align:center;white-space:nowrap;transition:background 0.2s;" onmouseover="this.style.background='rgba(220,38,38,0.95)'" onmouseout="this.style.background='rgba(220,38,38,0.75)'">Keluar</button>
+  return `<div class="app-shell">
+    <!-- Header Mobile Bar (Hanya tampil pada viewport <= 900px) -->
+    <header class="mobile-navbar">
+      <button type="button" class="mobile-nav-toggle" onclick="toggleMobileSidebar()" aria-label="Buka Menu" title="Menu Navigasi">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <div class="mobile-navbar-brand">
+        <img src="/dashboard-app/assets/kemenaker-white.png" alt="Logo Kemenaker" class="mobile-navbar-logo">
+        <div>
+          <b>MEETING ROOM</b>
+          <small>BIRO KEUANGAN & BMN</small>
+        </div>
+      </div>
+      <div class="mobile-navbar-actions">
+        <div class="mobile-profile-wrap">
+          <div class="mobile-avatar-btn" onclick="toggleMobileProfileMenu(event)" title="${esc(currentUser.name)}">
+            ${initial}
+          </div>
+          <div id="mobileProfileDropdown" class="mobile-profile-menu">
+            <div style="padding:10px 14px;border-bottom:1px solid #e2e8f0;background:#f8fafc;">
+              <div style="font-weight:700;font-size:13px;color:#0c2d5e;line-height:1.2;">${esc(currentUser.name)}</div>
+              <div style="font-size:11px;color:#64748b;font-weight:600;margin-top:2px;">${esc(getRoleLabel(currentUser.role))}</div>
+            </div>
+            <div onclick="switchRole(event)" style="padding:10px 14px;cursor:pointer;font-size:12px;font-weight:500;border-bottom:1px solid #e2e8f0;color:#334155;display:flex;align-items:center;gap:8px;">Tambah Akun Lain</div>
+            <div onclick="logout(event)" style="padding:10px 14px;cursor:pointer;font-size:12px;font-weight:600;color:#dc2626;display:flex;align-items:center;gap:8px;">Log Out</div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Backdrop Overlay Mobile Drawer -->
+    <div class="mobile-sidebar-backdrop" onclick="toggleMobileSidebar(false)"></div>
+
+    <!-- Sidebar (Desktop Sidebar & Drawer di Layar Mobile) -->
+    <aside class="sidebar">
+      <div class="brand">
+        <img src="/dashboard-app/assets/kemenaker-white.png" alt="Logo Kemenaker" class="brand-logo">
+        <div><b>MEETING DISPLAY ROOM</b><small>BIRO KEUANGAN DAN BMN</small></div>
+        <button type="button" class="sidebar-close-btn" onclick="toggleMobileSidebar(false)" aria-label="Tutup Menu">✕</button>
       </div>
 
-    </div>
-  </aside><main class="main">
+      <!-- Kartu Identitas Akun di Sidebar Drawer Mobile -->
+      <div class="sidebar-user-card">
+        <div class="sidebar-user-avatar">${initial}</div>
+        <div class="sidebar-user-info">
+          <strong>${esc(currentUser.name)}</strong>
+          <small>${esc(getRoleLabel(currentUser.role))}</small>
+        </div>
+      </div>
+
+      <nav class="nav">${nav
+        .filter(([id]) => isPageAllowed(id, currentUser))
+        .map(
+          ([id, icon, label]) =>
+            `<a href="#${id}" class="nav-item ${state.page === id ? "active" : ""}" onclick="toggleMobileSidebar(false)">${icon}<span>${label}</span></a>`,
+        )
+        .join("")}</nav>
+      <div class="sidebar-footer">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:0;">
+          <a href="/" target="_top" style="flex:1.2;display:flex;align-items:center;justify-content:center;padding:8px 6px;background:rgba(255,255,255,0.14);color:#fff;text-decoration:none;border-radius:6px;font-size:11px;font-weight:600;letter-spacing:0.3px;text-align:center;white-space:nowrap;transition:background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.24)'" onmouseout="this.style.background='rgba(255,255,255,0.14)'">Display TV</a>
+          <button onclick="logout()" style="flex:1;display:flex;align-items:center;justify-content:center;padding:8px 6px;background:rgba(220,38,38,0.75);color:#fff;border:none;cursor:pointer;border-radius:6px;font-size:11px;font-weight:600;letter-spacing:0.3px;text-align:center;white-space:nowrap;transition:background 0.2s;" onmouseover="this.style.background='rgba(220,38,38,0.95)'" onmouseout="this.style.background='rgba(220,38,38,0.75)'">Keluar</button>
+        </div>
+      </div>
+    </aside><main class="main">
     ${
       [
         "dashboard",
@@ -1338,6 +1393,36 @@ function toggleProfileMenu() {
   }
 }
 
+function toggleMobileProfileMenu(e) {
+  if (e) e.stopPropagation();
+  const menu = document.getElementById("mobileProfileDropdown");
+  if (!menu) return;
+  menu.style.display = menu.style.display === "block" ? "none" : "block";
+}
+window.toggleMobileProfileMenu = toggleMobileProfileMenu;
+
+function toggleMobileSidebar(force) {
+  const shell = document.querySelector(".app-shell");
+  if (!shell) return;
+  const isOpening =
+    typeof force === "boolean"
+      ? force
+      : !shell.classList.contains("sidebar-open");
+  shell.classList.toggle("sidebar-open", isOpening);
+  if (isOpening) {
+    document.body.style.overflow = "hidden";
+  } else {
+    document.body.style.overflow = "";
+  }
+}
+window.toggleMobileSidebar = toggleMobileSidebar;
+
+window.addEventListener("resize", () => {
+  if (window.innerWidth > 900) {
+    toggleMobileSidebar(false);
+  }
+});
+
 document.addEventListener("click", (e) => {
   const notifContainer = document.getElementById("notifContainer");
   const notifDropdown = document.getElementById("notifDropdown");
@@ -1351,6 +1436,14 @@ document.addEventListener("click", (e) => {
   const menu = document.getElementById("profileDropdown");
   if (profile && !profile.contains(e.target) && menu) {
     menu.style.display = "none";
+  }
+
+  const mobileProfileMenu = document.getElementById("mobileProfileDropdown");
+  const mobileAvatarBtn = document.querySelector(".mobile-avatar-btn");
+  if (mobileProfileMenu && mobileProfileMenu.style.display === "block") {
+    if (!mobileProfileMenu.contains(e.target) && (!mobileAvatarBtn || !mobileAvatarBtn.contains(e.target))) {
+      mobileProfileMenu.style.display = "none";
+    }
   }
 });
 
@@ -1415,11 +1508,7 @@ function dashboard() {
     '<path d="M22.711 9.796c-.041-.041-4.055-4.096-5.982-6.146-.42-.414-.999-.65-1.586-.65-1.182 0-2.143.896-2.143 2h-8c-.553 0-1 .448-1 1v14c0 .552.447 1 1 1h14c.553 0 1-.448 1-1v-6.045c1.434-1.461 2.688-2.729 2.711-2.751.387-.39.387-1.018 0-1.408zm-7.432 6.145l-.136.059-.144-.04v-3.96h-1c-1.771.034-3.336.68-4.753 1.958.43-2.215 1.6-4.958 4.753-4.958h1v-3.958l.144-.042.154.05c1.436 1.525 4.051 4.187 5.297 5.45-.253.257-4.342 4.422-5.315 5.441zm-9.279 3.059v-12h8v1c-4.66 0-6 4.871-6 8.5v.5c1.691-2.578 3.6-3.953 6-4v3c0 .551.512 1 1.143 1 .364 0 .676-.158.883-.391.539-.565 1.242-1.291 1.976-2.043v4.434h-12.002z"/>',
     "0 0 24 24",
   );
-  const faEye = svgIcon(
-    '<path d="M572.52 241.4C518.29 135.59 410.93 64 288 64S57.68 135.64 3.48 241.41a32.35 32.35 0 0 0 0 29.19C57.71 376.41 165.07 448 288 448s230.32-71.64 284.52-177.41a32.35 32.35 0 0 0 0-29.19zM288 400a144 144 0 1 1 144-144 143.93 143.93 0 0 1-144 144zm0-240a95.31 95.31 0 0 0-25.31 3.79 47.85 47.85 0 0 1-66.9 66.9A95.78 95.78 0 1 0 288 160z"/>',
-    "0 0 576 512",
-    'width="16" height="16"',
-  );
+  const faEye = ICONS.meetingEye;
 
   const currentUser = getCurrentUser();
   const isAdmin = isAdminRole(currentUser);
@@ -1664,7 +1753,7 @@ function dashboard() {
               <th style="padding:10px 8px;">Ruangan</th>
               <th style="padding:10px 8px;">Waktu</th>
               <th style="padding:10px 8px;">Status</th>
-              <th style="text-align:center;padding:10px 8px;min-width:${isAdmin ? "170px" : "115px"};width:${isAdmin ? "170px" : "115px"};">Aksi</th>
+              <th class="dash-col-aksi" style="text-align:left;padding:10px 12px;width:1%;white-space:nowrap;">Aksi</th>
             </tr>
           </thead>
           <tbody>
@@ -1705,41 +1794,41 @@ function dashboard() {
         sLower === "rejected" ||
         sLower === "cancelled";
 
-      const starSvg = `<svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
+      const starSvg = `<svg width="12" height="12" viewBox="0 0 24 24" fill="#f59e0b" style="flex-shrink:0;display:block;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
+      const checkSvg = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:block;"><polyline points="20 6 9 17 4 12"/></svg>`;
+      const xSvg = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:block;"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
 
-      const viewBtn = `<button type="button" style="background-color:#f1f5f9;color:#0c2d5e;border:1px solid #e2e8f0;border-radius:6px;width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:background 0.15s;" title="Lihat Detail Rapat" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'" onclick="viewMeeting('${m.id}')">${faEye}</button>`;
+      const viewBtn = `<button type="button" class="tbl-action-btn is-view" title="Lihat Detail Rapat" onclick="viewMeeting('${m.id}')">${faEye}</button>`;
       // Tombol QR/scan barcode ditiadakan di dashboard: presensi dipindai
       // peserta lewat papan TV di ruangan, bukan dibuka dari sini.
       const qrBtn = "";
       const revBtn =
         isCompleted && rev
-          ? `<button type="button" style="background-color:#fff8e6;color:#d97706;border:1px solid #fde68a;border-radius:6px;padding:0 6px;height:28px;display:inline-flex;align-items:center;gap:3px;cursor:pointer;font-size:11px;font-weight:700;" title="Lihat Rating & Review Pengguna" onclick="openMeetingReviewModal('${m.id}')">${starSvg}<span>${rev.rating ? Number(rev.rating).toFixed(1) : "5.0"}</span></button>`
+          ? `<button type="button" class="tbl-action-btn is-rating" title="Lihat Rating & Review Pengguna" onclick="openMeetingReviewModal('${m.id}')">${starSvg}<span>${rev.rating ? Number(rev.rating).toFixed(1) : "5.0"}</span></button>`
           : "";
 
-      let actionButtons = "";
+      let actionButtons = viewBtn;
       if (isPendingStatus) {
         if (m.rejectedBy) {
-          actionButtons += `<span style="font-size:10.5px;color:#ff4d4f;background:#ffebee;padding:3px 8px;border-radius:12px;font-weight:700;">Ditolak (${esc(m.rejectedBy)})</span>`;
+          actionButtons += `<span class="tbl-action-pill is-rejected">Ditolak (${esc(m.rejectedBy)})</span>`;
         } else if (can("approve", currentUser)) {
-          actionButtons += `<button type="button" onclick="approveMeeting('${m.id}')" style="background:#219653;color:#fff;border:none;border-radius:6px;padding:0 9px;height:28px;font-size:11px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:3px;transition:background 0.15s;" title="Setujui permohonan">✓ Setujui</button>`;
-          actionButtons += `<button type="button" onclick="rejectMeeting('${m.id}')" style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;border-radius:6px;padding:0 9px;height:28px;font-size:11px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:3px;transition:background 0.15s;" title="Tolak permohonan">✕ Tolak</button>`;
+          actionButtons += `<button type="button" class="tbl-action-btn is-approve" onclick="approveMeeting('${m.id}')" title="Setujui permohonan">${checkSvg}<span>Setujui</span></button>`;
+          actionButtons += `<button type="button" class="tbl-action-btn is-reject" onclick="rejectMeeting('${m.id}')" title="Tolak permohonan">${xSvg}<span>Tolak</span></button>`;
         } else {
-          actionButtons += `<span style="font-size:10.5px;color:#d97706;background:#fef3c7;padding:3px 7px;border-radius:6px;font-weight:600;">⏳ Menunggu Pimpinan</span>`;
+          actionButtons += `<span class="tbl-action-pill is-waiting">⏳ Menunggu Pimpinan</span>`;
         }
-        actionButtons += viewBtn;
       } else if (isAdmin) {
+        if (revBtn) actionButtons += revBtn;
+        actionButtons += qrBtn;
         if (sLower === "berjalan") {
-          actionButtons += `<button type="button" onclick="checkOutMeetingManual('${m.id}')" style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;border-radius:6px;padding:0 8px;height:28px;font-size:11px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:3px;transition:all 0.15s;" title="Check-Out Manual oleh Admin (Catatan: Peserta juga dapat Check-Out mandiri via Barcode/QR)"><span>Check Out (Manual)</span></button>`;
+          actionButtons += `<button type="button" class="tbl-action-btn is-checkout" onclick="checkOutMeetingManual('${m.id}')" title="Check-Out Manual oleh Admin (Catatan: Peserta juga dapat Check-Out mandiri via Barcode/QR)"><span>Check Out (Manual)</span></button>`;
         } else if (
           sLower === "akan datang" ||
           sLower === "segera" ||
           sLower === "disetujui"
         ) {
-          actionButtons += `<button type="button" onclick="checkInMeetingManual('${m.id}')" style="background:#dcfce7;color:#15803d;border:1px solid #bbf7d0;border-radius:6px;padding:0 8px;height:28px;font-size:11px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:3px;transition:all 0.15s;" title="Check-In Manual oleh Admin (Gunakan ini jika peserta tidak scan Barcode/QR di ruangan)"><span>✓ Check In (Manual)</span></button>`;
+          actionButtons += `<button type="button" class="tbl-action-btn is-checkin" onclick="checkInMeetingManual('${m.id}')" title="Check-In Manual oleh Admin (Gunakan ini jika peserta tidak scan Barcode/QR di ruangan)">${checkSvg}<span>Check In (Manual)</span></button>`;
         }
-        actionButtons += qrBtn;
-        actionButtons += viewBtn;
-        if (revBtn) actionButtons += revBtn;
       } else {
         actionButtons = `${viewBtn}${qrBtn}${revBtn}`;
       }
@@ -1761,7 +1850,7 @@ function dashboard() {
               : ""
           : "";
 
-      const actionBtn = `<div style="display:inline-flex;align-items:center;gap:5px;white-space:nowrap;justify-content:center;">${actionButtons}</div>`;
+      const actionBtn = `<div class="tbl-action-group">${actionButtons}</div>`;
 
       customTableHTML += `<tr>
         <td style="text-align:center;padding:10px 4px;font-size:12px;color:#64748b;">${i + 1}</td>
@@ -1770,7 +1859,7 @@ function dashboard() {
         <td style="white-space:nowrap;max-width:140px;overflow:hidden;text-overflow:ellipsis;padding:10px 8px;" title="${esc(m.room)}">${esc(m.room)}</td>
         <td style="white-space:nowrap;font-size:12px;padding:10px 8px;">${formatDate(m.date)} · ${m.start}-${m.end}</td>
         <td style="padding:10px 8px;"><span style="background:${statusColor};color:${statusText};padding:3px 8px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;display:inline-block;">${esc(m.status)}</span>${methodBadge}</td>
-        <td style="text-align:center;padding:10px 6px;white-space:nowrap;">${actionBtn}</td>
+        <td class="dash-col-aksi" style="text-align:left;padding:10px 12px;white-space:nowrap;vertical-align:middle;">${actionBtn}</td>
       </tr>`;
     });
   }
@@ -2104,45 +2193,45 @@ function meetingTable(data, actions = true, allowDelete = true) {
             // ditawarkan dari Manajemen Rapat.
             const qrBtn = "";
 
-            let actionButtons = `<button style="background-color:#f4f6f9;color:#0c2d5e;border:none;border-radius:10px;width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;margin-right:8px;box-shadow:0 2px 5px rgba(0,0,0,0.03);" title="Lihat Detail Rapat" onclick="viewMeeting('${m.id}')">${faEye}</button>${qrBtn}${reviewBtn}`;
+            let actionButtons = `<button type="button" class="tbl-action-btn is-view" title="Lihat Detail Rapat" onclick="viewMeeting('${m.id}')">${faEye}</button>${qrBtn}${reviewBtn}`;
             if (actions && allowDelete && can("manageMeeting", user)) {
               const safeDeleteId = String(m.id).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-              actionButtons += `<button type="button" style="border:1px solid #fecaca;border-radius:8px;background:#fff1f2;color:#be123c;padding:7px 10px;cursor:pointer;font-size:11px;font-weight:700" onclick="deleteMeeting('${safeDeleteId}')">Hapus</button>`;
+              actionButtons += `<button type="button" class="tbl-action-btn is-delete" onclick="deleteMeeting('${safeDeleteId}')">Hapus</button>`;
             }
 
             if (isAdmin) {
               const safeMeetingId = String(m.id).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
               const attendeeCount = Array.isArray(m.attendees) ? m.attendees.length : 0;
-              actionButtons += `<button type="button" style="background:#eaf3ff;color:#155a97;border:1px solid #c8def5;border-radius:9px;height:34px;padding:0 9px;display:inline-flex;align-items:center;gap:5px;cursor:pointer;margin-right:8px;font-size:10.5px;font-weight:700;white-space:nowrap;" title="Lihat hasil presensi dan export Excel" onclick="viewMeetingAttendance('${safeMeetingId}')">Daftar Hadir (${attendeeCount})</button>`;
+              actionButtons += `<button type="button" class="tbl-action-btn is-attendance" title="Lihat hasil presensi dan export Excel" onclick="viewMeetingAttendance('${safeMeetingId}')">Daftar Hadir (${attendeeCount})</button>`;
               // Notulen otomatis (rekam/unggah audio → transkrip → notulen), lihat js/notulen.js.
               if (typeof openNotulen === "function") {
-                actionButtons += `<button type="button" style="background:#f3efff;color:#5b3fb0;border:1px solid #ddd2fb;border-radius:9px;height:34px;padding:0 9px;display:inline-flex;align-items:center;gap:5px;cursor:pointer;margin-right:8px;font-size:10.5px;font-weight:700;white-space:nowrap;" title="Rekam / unggah audio rapat dan buat notulen otomatis" onclick="openNotulen('${safeMeetingId}')">🎙 Notulen</button>`;
+                actionButtons += `<button type="button" class="tbl-action-btn is-notulen" title="Rekam / unggah audio rapat dan buat notulen otomatis" onclick="openNotulen('${safeMeetingId}')">🎙 Notulen</button>`;
               }
             }
 
             if (actions) {
               if (isPending) {
                 if (m.rejectedBy) {
-                  actionButtons += `<span style="font-size:11px;color:#ff4d4f;margin-right:8px;font-weight:700;background:#ffebee;padding:6px 12px;border-radius:12px;">Ditolak (${esc(m.rejectedBy)})</span>`;
+                  actionButtons += `<span class="tbl-action-pill is-rejected">Ditolak (${esc(m.rejectedBy)})</span>`;
                 } else if (can("approve", user)) {
                   // HANYA PIMPINAN YANG MENYETUJUI & MENOLAK
-                  actionButtons += `<button style="background-color:#219653;color:#fff;border:none;border-radius:24px;padding:8px 16px;font-weight:700;font-size:12px;cursor:pointer;margin-right:6px;display:inline-flex;align-items:center;gap:5px;" title="Setujui" onclick="approveMeeting('${m.id}')">${ICONS.meetingCheck}<span>Setujui</span></button>`;
-                  actionButtons += `<button style="background-color:#ff4d4f;color:#fff;border:none;border-radius:24px;padding:8px 16px;font-weight:700;font-size:12px;cursor:pointer;display:inline-flex;align-items:center;gap:5px;" title="Tolak" onclick="rejectMeeting('${m.id}')">${ICONS.meetingXmark}<span>Tolak</span></button>`;
+                  actionButtons += `<button type="button" class="tbl-action-btn is-approve" title="Setujui" onclick="approveMeeting('${m.id}')">${ICONS.meetingCheck}<span>Setujui</span></button>`;
+                  actionButtons += `<button type="button" class="tbl-action-btn is-reject" title="Tolak" onclick="rejectMeeting('${m.id}')">${ICONS.meetingXmark}<span>Tolak</span></button>`;
                 } else {
-                  actionButtons += `<span style="font-size:11px;color:#d97706;background:#fef3c7;padding:5px 10px;border-radius:12px;font-weight:600;display:inline-flex;align-items:center;gap:5px;">${ICONS.meetingClock} Menunggu Persetujuan Pimpinan</span>`;
+                  actionButtons += `<span class="tbl-action-pill is-waiting">${ICONS.meetingClock}<span>Menunggu Persetujuan Pimpinan</span></span>`;
                 }
               } else if (isUpcoming && can("checkInOut", user)) {
-                actionButtons += `<button style="background-color:#219653;color:#fff;border:none;border-radius:24px;padding:8px 14px;font-weight:700;font-size:12px;cursor:pointer;box-shadow:0 4px 10px rgba(33,150,83,0.2);display:inline-flex;align-items:center;gap:5px;" title="Check-In Manual oleh Admin (Catatan: Peserta juga dapat Check-In mandiri via Barcode/QR di ruangan)" onclick="checkInMeetingManual('${m.id}')">${ICONS.meetingCheck}<span>Check In (Manual)</span></button>`;
+                actionButtons += `<button type="button" class="tbl-action-btn is-checkin" title="Check-In Manual oleh Admin (Catatan: Peserta juga dapat Check-In mandiri via Barcode/QR di ruangan)" onclick="checkInMeetingManual('${m.id}')">${ICONS.meetingCheck}<span>Check In (Manual)</span></button>`;
               } else if (isRunning && can("checkInOut", user)) {
-                actionButtons += `<button style="background-color:#ff4d4f;color:#fff;border:none;border-radius:24px;padding:8px 14px;font-weight:700;font-size:12px;cursor:pointer;box-shadow:0 4px 10px rgba(255,77,79,0.2);display:inline-flex;align-items:center;gap:5px;" title="Check-Out Manual oleh Admin (Catatan: Peserta juga dapat Check-Out mandiri via Barcode/QR)" onclick="checkOutMeetingManual('${m.id}')">${ICONS.meetingXmark}<span>Check Out (Manual)</span></button>`;
+                actionButtons += `<button type="button" class="tbl-action-btn is-checkout" title="Check-Out Manual oleh Admin (Catatan: Peserta juga dapat Check-Out mandiri via Barcode/QR)" onclick="checkOutMeetingManual('${m.id}')">${ICONS.meetingXmark}<span>Check Out (Manual)</span></button>`;
               }
 
               // Tombol Canceling System Darurat (Emergency Cancellation)
               if (!isCompleted && !isCanceled && can("emergencyCancel", user)) {
-                const emgCancelBtn = `<button style="background-color:#fee2e2;color:#dc2626;border:1px solid #fca5a5;border-radius:20px;padding:6px 12px;font-weight:700;font-size:11.5px;cursor:pointer;margin-left:6px;display:inline-flex;align-items:center;gap:5px;box-shadow:0 2px 5px rgba(220,38,38,0.08);transition:all 0.15s ease;" title="Batalkan Rapat Darurat (Hanya jika diperlukan)" onclick="openEmergencyCancelModal('${m.id}')">${ICONS.meetingXmark}<span>Batal Darurat</span></button>`;
+                const emgCancelBtn = `<button type="button" class="tbl-action-btn is-reject" title="Batalkan Rapat Darurat (Hanya jika diperlukan)" onclick="openEmergencyCancelModal('${m.id}')">${ICONS.meetingXmark}<span>Batal Darurat</span></button>`;
                 actionButtons += emgCancelBtn;
               } else if (isCanceled) {
-                actionButtons += `<span style="font-size:11px;color:#dc2626;background:#fef2f2;border:1px solid #fecaca;padding:4px 9px;border-radius:12px;font-weight:700;margin-left:6px;display:inline-flex;align-items:center;gap:5px;">${ICONS.meetingXmark} Dibatalkan</span>`;
+                actionButtons += `<span class="tbl-action-pill is-rejected">${ICONS.meetingXmark}<span>Dibatalkan</span></span>`;
               }
             }
 
@@ -3048,11 +3137,7 @@ function reports() {
     "0 0 24 24",
     'width="18" height="18"',
   );
-  const faEye = svgIcon(
-    '<path d="M572.52 241.4C518.29 135.59 410.93 64 288 64S57.68 135.64 3.48 241.41a32.35 32.35 0 0 0 0 29.19C57.71 376.41 165.07 448 288 448s230.32-71.64 284.52-177.41a32.35 32.35 0 0 0 0-29.19zM288 400a144 144 0 1 1 144-144 143.93 143.93 0 0 1-144 144zm0-240a95.31 95.31 0 0 0-25.31 3.79 47.85 47.85 0 0 1-66.9 66.9A95.78 95.78 0 1 0 288 160z"/>',
-    "0 0 576 512",
-    'width="16" height="16"',
-  );
+  const faEye = ICONS.meetingEye;
 
   const selectedRoom = state.dashboardRoomFilter || "semua";
   const f = state.reportFilter || {
@@ -3375,7 +3460,7 @@ function reports() {
                     }
                   }
 
-                  const actionBtn = `<button style="background-color:#f0f4fa;color:#0c2d5e;border:1px solid #dbeafe;border-radius:8px;width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:background 0.15s;" title="Lihat Detail Rapat" onclick="viewMeeting('${m.id}')" onmouseover="this.style.background='#e0f2fe'" onmouseout="this.style.background='#f0f4fa'">${faEye}</button>`;
+                  const actionBtn = `<button type="button" class="tbl-action-btn is-view" title="Lihat Detail Rapat" onclick="viewMeeting('${m.id}')">${faEye}</button>`;
 
                   return `
                   <tr>
