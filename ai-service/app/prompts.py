@@ -82,9 +82,21 @@ FINAL_FORMAT = """## Ringkasan
 - <catatan>"""
 
 
+# Bahan dari jalur map-reduce berisi catatan beberapa bagian rapat yang saling tumpang tindih.
+# Tanpa aturan di bawah, model menyalin tiap bagian menjadi "###" sendiri sehingga poin yang
+# sama muncul di beberapa topik sekaligus.
+GABUNG_CATATAN = """
+- Bahan berisi catatan dari beberapa bagian rapat yang isinya bisa tumpang tindih. Satukan poin
+  yang sama atau bermakna sama menjadi SATU poin saja.
+- Satu "###" untuk satu topik nyata, BUKAN satu "###" per bagian bahan. Jumlah topik boleh
+  lebih sedikit daripada jumlah bagian.
+- Setiap poin hanya boleh muncul pada satu "###". Jangan mengulang poin di topik lain."""
+
+
 def final_prompt(meeting: dict, material: str, is_raw_transcript: bool) -> str:
     kind = "transkrip rapat (format: [jam:menit:detik] Pembicara: ucapan)" if is_raw_transcript \
         else "catatan poin hasil peringkasan seluruh rapat"
+    gabung = "" if is_raw_transcript else GABUNG_CATATAN
     return f"""{meeting_context(meeting)}
 
 Susun notulen rapat dalam format Markdown berdasarkan {kind} di bawah.
@@ -95,7 +107,7 @@ Gunakan struktur PERSIS seperti ini, dimulai dari "## Ringkasan":
 Ketentuan:
 - JANGAN menulis judul, tanggal, tempat, atau daftar peserta (sudah ditulis oleh sistem).
 - Kelompokkan pembahasan per topik. Jika tidak ada keputusan, tulis "- Tidak ada keputusan yang dicatat."
-- Jika tidak ada action item, tetap buat tabel dengan satu baris berisi "-".
+- Jika tidak ada action item, tetap buat tabel dengan satu baris berisi "-".{gabung}
 
 Bahan:
 <<<

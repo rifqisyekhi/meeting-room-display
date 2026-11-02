@@ -131,14 +131,16 @@ class Settings(BaseSettings):
 
     # --- LLM (Ollama) ---
     ollama_url: str = "http://127.0.0.1:11434"
-    ollama_model: str = "qwen3:4b"
+    # Model instruct, bukan model penalar: qwen3 menulis nalarnya dalam bahasa Inggris.
+    ollama_model: str = "gemma3:4b"
     # Model Ollama yang boleh dipilih per rapat. Kosong = semua model yang sudah di-"ollama pull".
     ollama_allowed_models: str = ""
     # keep_alive setelah job selesai. "0" = model langsung dilepas dari RAM.
     ollama_keep_alive: str = "0"
     # keep_alive di antara panggilan dalam satu job (agar model tidak dimuat ulang tiap potongan).
     ollama_keep_alive_in_job: str = "5m"
-    ollama_num_ctx: int = 8192
+    # Harus cukup untuk summary_chunk_chars + prompt + ollama_num_predict.
+    ollama_num_ctx: int = 16384
     ollama_num_predict: int = 4096
     ollama_num_thread: int = 3
     ollama_temperature: float = 0.2
