@@ -40,6 +40,11 @@
     models: null, // pilihan model dari service AI
     pilih: { whisper: "", llm: "" }, // "" = model default server
     numSpeakers: "",
+    // Rapat Biasa: lewati penyusunan otomatis supaya tawaran "Claude atau model
+    // lokal?" sempat dikirim bot. daftarCalon() di backend hanya melihat rapat
+    // yang transkripnya sudah ada tapi notulennya masih kosong — kalau gemma3
+    // langsung jalan, jendela itu tidak pernah terbuka.
+    tanyaDulu: false,
     searchQuery: "",
     showModelConfig: true,
     info: null, // panel (i) yang terbuka: "whisper" | "llm" | null
@@ -321,6 +326,7 @@
     nv.editing = false;
     nv.searchQuery = "";
     nv.showModelConfig = true;
+    nv.tanyaDulu = false;
     nv.membatalkan = false;
     nv.info = null;
     const el = root();
@@ -475,6 +481,21 @@
       <option value="5" ${curSpk === "5" ? "selected" : ""}>5 Pembicara</option>
     `;
 
+    // Hanya rapat Biasa yang ditawarkan lewat bot, jadi pilihan ini tidak ada
+    // gunanya untuk rapat Rahasia: transkripnya akan menggantung tanpa notulen
+    // sekaligus tanpa tawaran.
+    const blokTanyaDulu = !biasa ? "" : `
+      <div class="nv-tanya-dulu">
+        <label class="nv-check-label">
+          <input type="checkbox" ${nv.tanyaDulu ? "checked" : ""}
+                 onchange="nvGantiTanyaDulu(this.checked)">
+          Tanya dulu lewat Telegram
+        </label>
+        <p class="nv-help-note">Buat transkrip saja, notulen belum disusun. Bot menawarkan
+          pilihan Claude atau model lokal, dan penyusunan baru berjalan setelah dijawab.</p>
+      </div>
+    `;
+
     return `
       <div>
         <label class="nv-form-label">Model Transkripsi (Whisper) ${tombolInfo("whisper")}</label>
@@ -489,6 +510,7 @@
         <label class="nv-form-label">Deteksi Jumlah Pembicara</label>
         <select class="nv-select-field" onchange="nvGantiNumSpk(this.value)">${opsiSpk}</select>
       </div>
+      ${blokTanyaDulu}
     `;
   }
 
@@ -1007,6 +1029,10 @@
     nv.numSpeakers = val;
   }
 
+  function nvGantiTanyaDulu(aktif) {
+    nv.tanyaDulu = Boolean(aktif);
+  }
+
   function nvGunakanModelRingan() {
     // Hanya model lokal yang benar-benar terpasang di Ollama (ukuran < ±2 GB).
     const ringan = (nv.models?.llm || []).filter((l) => !l.cloud && l.size_mb && l.size_mb < 2000)
@@ -1269,6 +1295,9 @@
     if (nv.numSpeakers) body.numSpeakers = Number(nv.numSpeakers);
     if (nv.pilih.whisper) body.whisperModel = nv.pilih.whisper;
     if (nv.pilih.llm) body.llmModel = nv.pilih.llm;
+    // Backend memakai `summarize: opsi.summarize !== false`, jadi hanya perlu
+    // dikirim saat operator memang minta berhenti di transkrip.
+    if (nv.tanyaDulu) body.summarize = false;
     try {
       await api(`/meetings/${encodeURIComponent(nv.meetingId)}/process`, {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
@@ -1820,7 +1849,7 @@
   Object.assign(window, {
     openNotulen, closeNotulen, nvUnggah, nvPutar, nvHapusFile, nvHapusHasil, nvProses, nvBatal, nvSimpanNama, nvBuatUlang,
     nvMasukUlang, nvBukaPerekam, nvTutupPerekam, nvBuatKode, nvKodeUlang, nvCabutPerekam,
-    nvTab, nvPilihModel, nvGantiNumSpk, nvGunakanModelRingan, nvToggleModelConfig, nvCariTranskrip,
+    nvTab, nvPilihModel, nvGantiNumSpk, nvGantiTanyaDulu, nvGunakanModelRingan, nvToggleModelConfig, nvCariTranskrip,
     nvToggleExportMenu, nvCloseExportMenu, nvKlasifikasi, nvInfo,
     nvEdit, nvBatalEdit, nvSimpanNotulen, nvUnduhMd, nvUnduhTranskrip, nvCetak, nvMuatMic,
     nvRekamMulai, nvRekamJeda, nvRekamSelesai,

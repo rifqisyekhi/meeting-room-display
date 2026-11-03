@@ -717,6 +717,29 @@ body.nv-open {
   margin-bottom: 6px;
 }
 
+/* Melebar penuh, bukan satu kolom di samping tiga dropdown: keterangannya
+   dua baris dan akan terhimpit kalau dipaksa masuk kolom selebar itu. */
+.nv-tanya-dulu {
+  grid-column: 1 / -1;
+  padding-top: 12px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.nv-check-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+}
+
+.nv-check-label input {
+  margin: 0;
+  cursor: pointer;
+}
+
 .nv-select-field {
   width: 100%;
   border: 1px solid #e2e8f0;
