@@ -13,6 +13,10 @@ const server = app.listen(PORT, async () => {
     const isDbReady = await initDatabase();
     if (isDbReady) {
         await syncStoreFromDatabase();
+        // Tawaran notulen lewat WhatsApp. Dimulai setelah database siap karena
+        // pemantaunya membaca tabel meeting_minutes; diam sendiri selama
+        // NOTULEN_WHATSAPP_NUMBERS belum diisi.
+        require("./services/notulen-wa.service").mulaiPemantau();
     }
 });
 

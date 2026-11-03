@@ -1,76 +1,84 @@
-# Prompt penyusun notulen (untuk tugas terjadwal Claude Code)
+# Prompt penyusun notulen
 
-Jalankan ini tiap 10–15 menit. Isinya sengaja ditulis sebagai perintah siap
-tempel, bukan penjelasan — salin seluruh blok di bawah sebagai prompt tugas.
+Dipakai saat operator memilih "Claude" (balas **1** di WhatsApp, atau tombol
+*Ya* di Telegram). Salin seluruh blok di bawah sebagai prompt.
+
+Jalankan manual saat ada tawaran yang dijawab, atau jadikan tugas terjadwal
+10–15 menit sekali.
+
+## Di mana antriannya
+
+Ada dua jalur, tergantung kanal yang dipakai:
+
+| Kanal | Antrian | Cara membaca |
+|---|---|---|
+| **WhatsApp** (utama) | `backend/data/antrian-notulen/` di VPS `192.168.223.207` | SSH ke VPS |
+| Telegram | `telegram-bot/antrian/` di PC operator | langsung dari disk |
+
+Jalur WhatsApp yang utama, karena `api.telegram.org` tidak lolos dari segmen
+server — diuji dari `192.168.223.207` dan `192.168.221.44`, keduanya timeout.
 
 ---
 
-Kerjakan antrian notulen Telegram di proyek ini.
+Kerjakan antrian notulen.
 
 **Langkah:**
 
-1. Baca semua berkas `*.json` di `telegram-bot/antrian/` (bukan di
-   subfolder `selesai/`). Kalau kosong, berhenti dan jangan laporkan apa pun.
+1. Baca berkas tugas di antrian (lihat tabel di atas untuk lokasinya). Tiap
+   berkas `<meetingId>.json` berisi `meetingId`, `judul`, `dimintaOleh`,
+   `dimintaPada`. Kalau antrian kosong, berhenti tanpa laporan apa pun.
 
-2. Baca `telegram-bot/.env` untuk `BACKEND_URL` dan `BOT_TELEGRAM_API_TOKEN`.
+2. Ambil `BOT_TELEGRAM_API_TOKEN` dari `backend/.env` di VPS.
 
-3. Untuk setiap tugas, dengan `meetingId` dari berkas itu:
+3. Untuk setiap tugas, dengan `BASE = http://192.168.223.207` dan header
+   `x-bot-token: <token>`:
 
-   a. Ambil keterangan rapat:
-      `GET {BACKEND_URL}/api/bot-telegram/meetings/{meetingId}`
-      dengan header `x-bot-token: {BOT_TELEGRAM_API_TOKEN}`
+   a. Keterangan rapat: `GET {BASE}/api/bot-telegram/meetings/{meetingId}`
 
-   b. Ambil transkripnya:
-      `GET {BACKEND_URL}/api/bot-telegram/meetings/{meetingId}/transkrip`
-      dengan header yang sama. Balasannya `{ segments, speakers }`.
+   b. Transkrip: `GET {BASE}/api/bot-telegram/meetings/{meetingId}/transkrip`
+      → `{ segments, speakers }`
 
-   c. Susun notulen Markdown dari transkrip itu. **Ikuti format dan aturan
-      di `ai-service/app/prompts.py`** — `FINAL_FORMAT` untuk strukturnya dan
-      `SYSTEM` untuk aturannya. Ringkasnya:
+   c. Susun notulen Markdown. **Ikuti `ai-service/app/prompts.py`** —
+      `FINAL_FORMAT` untuk struktur, `SYSTEM` untuk aturan. Ringkasnya:
 
-      - Bahasa Indonesia baku. Jangan pakai bahasa Inggris.
+      - Bahasa Indonesia baku. Jangan bahasa Inggris.
       - Struktur persis: `## Ringkasan`, `## Pembahasan` (dengan `###` per
         topik), `## Keputusan`, `## Action Item` (tabel No/Tugas/PIC/Tenggat),
         `## Catatan dan Tindak Lanjut`.
       - **Jangan mengarang.** Hanya yang ada di transkrip.
       - PIC atau tenggat yang tidak disebut: tulis `-`.
-      - Transkrip ini hasil mesin dan bisa salah dengar. Perbaiki hanya kalau
-        maksudnya jelas dari konteks; **jangan menebak nama orang atau angka.**
-        Nama lembaga yang kacau (mis. "kemenangan" untuk Kemnaker, "SAKR"
-        untuk Satker) boleh dibetulkan bila jelas, dan sebutkan yang Anda
-        betulkan di `## Catatan dan Tindak Lanjut`.
-      - Satu poin cukup muncul sekali. Jangan mengulang poin yang sama di
-        beberapa `###`.
-      - Jangan tulis judul, tanggal, tempat, atau daftar peserta — backend
-        yang menambahkannya.
-      - Pakai nama pembicara dari `speakers` kalau ada; kalau tidak, biarkan
-        `SPEAKER_1` dan seterusnya.
+      - Transkrip ini hasil Whisper `small` dan **sering salah dengar nama
+        lembaga**. Yang sudah terbukti: "kemenangan" = Kemnaker, "SAKR" =
+        Satker, "ESOLON" = Eselon, "Binalakotas" = Binalavotas, "Doarjo" =
+        Sidoarjo, "Tukin May" = Tukin Mei. Betulkan yang jelas begitu, dan
+        **sebutkan apa saja yang Anda betulkan** di `## Catatan dan Tindak
+        Lanjut`. Jangan menebak nama orang atau angka.
+      - Satu poin cukup muncul sekali. Jangan mengulang poin di beberapa `###`.
+      - Jangan tulis judul, tanggal, tempat, atau peserta — backend yang
+        menambahkannya.
+      - Pakai nama dari `speakers` kalau ada; kalau tidak, biarkan `SPEAKER_1`.
 
-   d. Simpan:
-      `POST {BACKEND_URL}/api/bot-telegram/meetings/{meetingId}/minutes`
+   d. Simpan: `POST {BASE}/api/bot-telegram/meetings/{meetingId}/minutes`
       body `{ "markdown": "<hasil>", "model": "claude-opus-5" }`
 
-   e. Tulis `telegram-bot/antrian/selesai/{meetingId}.json`:
-      ```json
-      {
-        "meetingId": "...",
-        "judul": "<judul rapat>",
-        "chatId": "<dimintaOleh dari berkas tugas>",
-        "ok": true,
-        "pesan": "Notulen sudah tersimpan. Silakan periksa di Manajemen Rapat."
-      }
-      ```
+   e. Kabari operator. Jalur WhatsApp, dari dalam VPS:
+      `node -e 'require("./src/services/notulen-wa.service").kabariSelesai("<meetingId>", {ok:true, judul:"<judul>"})'`
+      dijalankan dari `~/apps/meeting-room-display/backend`.
+      Jalur Telegram: tulis `telegram-bot/antrian/selesai/<meetingId>.json`
+      berisi `{ meetingId, judul, chatId, ok, pesan }` — botnya yang mengirim.
 
-   f. Hapus berkas tugas di `telegram-bot/antrian/{meetingId}.json`.
+   f. Hapus berkas tugasnya.
 
-4. Kalau satu tugas gagal, jangan batalkan yang lain. Tulis berkas `selesai/`
-   dengan `"ok": false` dan `"pesan"` berisi sebabnya secara singkat, lalu
-   hapus berkas tugasnya supaya tidak dicoba terus-menerus.
+4. Kalau satu tugas gagal, jangan batalkan yang lain. Kabari operator dengan
+   `ok:false` dan sebabnya singkat, lalu hapus berkas tugasnya supaya tidak
+   dicoba terus-menerus.
 
 **Batas yang tidak boleh dilanggar:**
 
-- Hanya rapat yang dikirim backend. Rute transkrip menolak rapat non-`BIASA`
-  dengan 403 — kalau itu terjadi, catat sebagai gagal, jangan diakali.
-- Jangan kirim isi transkrip atau isi notulen ke Telegram. Bot yang mengabari
-  operator, dan ia hanya memakai `judul` serta `pesan` singkat.
-- Jangan menyentuh rapat yang tidak ada berkas tugasnya.
+- Hanya rapat yang ada berkas tugasnya. Rute transkrip menolak rapat
+  non-`BIASA` dengan 403 — kalau itu terjadi, catat sebagai gagal, jangan
+  diakali.
+- Jangan kirim isi transkrip atau isi notulen ke WhatsApp/Telegram. Yang boleh
+  keluar hanya judul dan pesan singkat.
+- Jangan `git pull`, `fetch`, atau `checkout` apa pun di `192.168.221.44`.
+  Itu mesin produksi yang dipakai sehari-hari.

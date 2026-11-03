@@ -26,6 +26,7 @@ router.get("/materials/files/:fileName", (req, res) => {
 });
 const dashboardService = require("../services/dashboard.service");
 const whatsappService = require("../services/whatsapp.service");
+const notulenWa = require("../services/notulen-wa.service");
 const notulenService = require("../services/notulen.service");
 
 async function isAuthorizedCheckInOut(meeting, username, role, submittedName) {
@@ -179,8 +180,24 @@ function webhookTerpercaya(req, res, next) {
   next();
 }
 
+/* Satu webhook untuk dua jenis balasan, supaya bot-siska tidak perlu diubah:
+   ia sudah mengirim semua balasan ke sini. Yang membedakan adalah tag di
+   pesan yang di-quote — "#NOT-" untuk pemilihan penyusun notulen, "#MR-"
+   untuk persetujuan permohonan ruang rapat. */
 router.post("/whatsapp/reply", webhookTerpercaya, async (req, res) => {
   try {
+    const b = req.body || {};
+    const adaTagNotulen =
+      notulenWa.ambilIdNotulen(b.quotedText) || notulenWa.ambilIdNotulen(b.message || b.text);
+    if (adaTagNotulen) {
+      const hasil = await notulenWa.tanganiBalasan(b);
+      return res.json({
+        success: hasil.success,
+        action: hasil.action || null,
+        replyText: hasil.replyText,
+        message: hasil.replyText,
+      });
+    }
     const result = await whatsappService.handleApproverReply(req.body);
     res.json({
       success: result.success,
