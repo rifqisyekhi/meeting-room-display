@@ -139,7 +139,11 @@ function teksTawaran(r) {
     "",
     "Susun notulen pakai Claude?",
     "",
-    "_Tidak = pakai model lokal di server \\(gemma3\\)._",
+    // Teks tetap tidak lewat escMd karena memuat markup yang disengaja (_..._).
+    // Jadi tiap karakter cadangan MarkdownV2 di sini harus di-escape sendiri —
+    // termasuk "=", yang mudah terlewat. Telegram menolak seluruh pesan, bukan
+    // sekadar mengabaikan karakternya.
+    "_Tidak \\= pakai model lokal di server \\(gemma3\\)\\._",
   ].join("\n");
 }
 
