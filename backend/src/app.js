@@ -6,6 +6,7 @@ const prayerRoutes = require("./routes/prayer.routes");
 const dashboardRoutes = require("./routes/dashboard.routes");
 const notulenRoutes = require("./routes/notulen.routes");
 const perekamRoutes = require("./routes/perekam.routes");
+const botTelegramRoutes = require("./routes/bot-telegram.routes");
 
 const app = express();
 
@@ -20,6 +21,9 @@ app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/notulen", notulenRoutes);
 // Perekam otomatis di ruang rapat (token perangkat, bukan login) + status untuk papan TV.
 app.use("/api/perekam", perekamRoutes);
+// Jembatan bot Telegram di PC operator (token bersama, bukan login). VPS tidak bisa
+// menjangkau api.telegram.org, jadi botnya di luar dan memanggil ke sini lewat LAN.
+app.use("/api/bot-telegram", botTelegramRoutes);
 
 app.post("/api/auth/login", async (req, res) => {
   try {

@@ -1,0 +1,11 @@
+{
+  "name": "siska-telegram-bot",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Bot Telegram penawar notulen - berjalan di PC operator, bukan di VPS",
+  "main": "index.js",
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "start": "node index.js"
+  }
+}
