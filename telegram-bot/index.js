@@ -198,6 +198,7 @@ async function jawabTombol(cq) {
 
   const [aksi, meetingId] = String(cq.data || "").split(":");
   const judul = state.ditawarkan[meetingId]?.judul || meetingId;
+  console.log(`[SisKA] tombol "${aksi}" dari chat ${chatId} untuk ${meetingId}`);
 
   if (aksi === "uji") {
     await tele("answerCallbackQuery", { callback_query_id: cq.id, text: "Uji diterima." });
@@ -312,6 +313,7 @@ async function jawabPesan(msg) {
     }).catch(() => {});
     return;
   }
+  console.log(`[SisKA] pesan dari chat ${chatId}: ${teks.slice(0, 40) || "(bukan teks)"}`);
   if (teks === "/start" || teks === "/help") {
     await tele("sendMessage", {
       chat_id: chatId,
