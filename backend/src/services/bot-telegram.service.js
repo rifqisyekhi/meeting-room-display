@@ -1,14 +1,14 @@
 /* ===== JEMBATAN BOT TELEGRAM (notulen) ================================
 
-   Bot Telegram tidak bisa berjalan di VPS: jaringan internal tidak
-   meloloskan api.telegram.org (diuji 2 Nov 2026 — google.com 0,14 s,
-   api.telegram.org timeout 20 s, TCP 443 ke IP hasil DNS-nya tertutup).
-   Karena itu botnya berjalan di PC operator, yang bisa menjangkau
-   Telegram sekaligus menjangkau backend ini lewat LAN.
+   Bot Telegram tidak berjalan di VPS ini. Segmen 192.168.22x.x tidak
+   meloloskan api.telegram.org — diuji 2-3 Nov 2026, timeout dari 223.207
+   maupun 221.44, ke IP yang sama (149.154.166.110). Segmen 192.168.63.x
+   meloloskannya, jadi botnya di Server-GPP (192.168.63.41), yang menjangkau
+   Telegram sekaligus backend ini lewat LAN.
 
    Berkas ini hanya menyediakan data yang dibutuhkan bot:
    - daftar rapat BIASA yang transkripnya siap tapi notulennya belum ada;
-   - penyimpanan notulen yang disusun di luar (oleh Claude di PC operator).
+   - penyimpanan notulen yang disusun di luar (oleh sesi Claude Code operator).
 
    Yang TIDAK ada di sini, dengan sengaja:
    - isi transkrip. Bot tidak pernah menerimanya, jadi tidak ada isi rapat

@@ -3,19 +3,33 @@
 Mengabari operator tiap ada rapat **Biasa** yang transkripnya selesai, lalu
 menanyakan: notulennya disusun Claude, atau model lokal di server?
 
-## Kenapa botnya di PC, bukan di VPS
+## Di mana botnya berjalan
 
-VPS tidak bisa menjangkau Telegram. Diuji 2 November 2026 dari `192.168.223.207`:
+Di **Server-GPP** (`192.168.63.41`), Windows Server 2016, sebagai tugas
+terjadwal `SisKA-TelegramBot` dengan berkas di `C:\SisKA\telegram-bot`.
+Hidup 24 jam, tidak bergantung pada PC siapa pun.
 
-| Tujuan | Hasil |
-|---|---|
-| `google.com` | 200 dalam 0,14 s |
-| `api.telegram.org` (IPv4 dipaksa) | timeout 20 s |
-| `149.154.166.110:443` (hasil DNS-nya) | tidak tersambung |
-| IPv6 keluar | mati, padahal DNS menjawab IPv6 lebih dulu |
+Mesin itu dipilih karena Telegram hanya lolos dari sebagian jaringan.
+Diuji 3 November 2026:
 
-PC operator bisa menjangkau Telegram **dan** backend lewat LAN, jadi botnya di
-PC. Tidak ada setelan firewall yang perlu diubah.
+| Dari | `api.telegram.org:443` | Backend `192.168.223.207` |
+|---|---|---|
+| VPS `192.168.223.207` | timeout | — |
+| VPS `192.168.221.44` | timeout | — |
+| **Server-GPP `192.168.63.41`** | **tersambung** | **200** |
+
+Segmen `192.168.22x.x` memblokir Telegram, segmen `192.168.63.x` tidak. IP
+tujuannya sama persis (`149.154.166.110`), jadi ini kebijakan jaringan per
+segmen — bukan masalah DNS maupun IPv6.
+
+Satu jebakan khas Server 2016: PowerShell/.NET di sana berjabat tangan dengan
+TLS 1.0/1.1, yang ditolak Telegram, sehingga `Invoke-WebRequest` gagal dengan
+"Could not create SSL/TLS secure channel". Itu **tidak** menyentuh bot ini —
+Node membawa OpenSSL sendiri. Untuk menguji dari PowerShell, paksa dulu:
+
+```powershell
+[Net.ServicePointManager]::SecurityProtocol = 'Tls12'
+```
 
 ## Alur
 
@@ -24,8 +38,8 @@ VPS: transkrip selesai (rapat BIASA)
         │
         │  LAN  GET /api/bot-telegram/antrian
         ▼
-PC: bot SisKA ──────► Telegram: judul + tanggal + ruang + tombol Ya/Tidak
-                                  (isi transkrip TIDAK ikut)
+Server-GPP: bot SisKA ──► Telegram: judul + tanggal + ruang + tombol Ya/Tidak
+                                      (isi transkrip TIDAK ikut)
         ┌─────────────────────┴─────────────────────┐
      "Tidak"                                      "Ya"
         │                                           │
@@ -67,7 +81,7 @@ BOT_TELEGRAM_API_TOKEN=<hasil perintah di atas>
 Lalu `pm2 restart meeting-backend`. Tanpa variabel ini seluruh rute bot
 menjawab 503 — ditutup, bukan terbuka.
 
-### 2. Bot di PC
+### 2. Siapkan `.env`
 
 ```bash
 cp telegram-bot/.env.example telegram-bot/.env
@@ -80,17 +94,49 @@ Cara tahu chat id Anda: kirim pesan apa pun ke bot, lalu buka
 `https://api.telegram.org/bot<TOKEN>/getUpdates` dan lihat
 `result[].message.chat.id`.
 
-### 3. Jalankan
+### 3. Pasang di Server-GPP
 
-```bash
-node telegram-bot/index.js
+Masuk lewat RDP ke `192.168.63.41`, buka PowerShell **as Administrator**.
+
+Pasang Node (v22 dipilih konservatif; rilis lebih baru menaikkan syarat versi
+Windows, dan mesin ini Server 2016 build 14393):
+
+```powershell
+New-Item -ItemType Directory -Force C:\SisKA | Out-Null
+[Net.ServicePointManager]::SecurityProtocol = 'Tls12'
+$idx = (Invoke-WebRequest https://nodejs.org/dist/index.json -UseBasicParsing).Content | ConvertFrom-Json
+$rel = $idx | Where-Object { $_.version -like 'v22.*' } | Select-Object -First 1
+$msi = Join-Path $env:TEMP "node-$($rel.version)-x64.msi"
+Invoke-WebRequest "https://nodejs.org/dist/$($rel.version)/node-$($rel.version)-x64.msi" -OutFile $msi -UseBasicParsing
+Start-Process msiexec.exe -ArgumentList "/i `"$msi`" /qn /norestart" -Wait
 ```
 
-Supaya hidup terus setelah PC menyala, pasang di pm2:
+Salin folder `telegram-bot` (termasuk `.env`) ke `C:\SisKA\`, lalu daftarkan
+sebagai tugas terjadwal. Dibungkus `cmd.exe` supaya keluarannya tertulis ke
+`bot.log`: proses milik SYSTEM tidak punya layar, jadi tanpa itu jejaknya
+hilang saat bermasalah.
 
-```bash
-pm2 start telegram-bot/index.js --name siska-telegram && pm2 save
+```powershell
+$dir  = 'C:\SisKA\telegram-bot'
+$node = "$env:ProgramFiles\nodejs\node.exe"
+$arg  = '/c ""' + $node + '" index.js >> bot.log 2>&1"'
+$aksi = New-ScheduledTaskAction -Execute 'cmd.exe' -Argument $arg -WorkingDirectory $dir
+$picu = New-ScheduledTaskTrigger -AtStartup
+$akun = New-ScheduledTaskPrincipal -UserId 'SYSTEM' -RunLevel Highest
+$opsi = New-ScheduledTaskSettingsSet -RestartCount 999 -RestartInterval (New-TimeSpan -Minutes 1) -ExecutionTimeLimit ([TimeSpan]::Zero)
+Register-ScheduledTask -TaskName 'SisKA-TelegramBot' -Action $aksi -Trigger $picu -Principal $akun -Settings $opsi -Force
+Start-ScheduledTask -TaskName 'SisKA-TelegramBot'
 ```
+
+Periksa `Get-Content C:\SisKA\telegram-bot\bot.log -Tail 20`. Empat baris
+pembuka harus muncul, diakhiri lokasi antrian.
+
+`LastTaskResult` bernilai `267009` (`0x41301`) berarti **sedang berjalan** —
+itu normal, bukan galat.
+
+**Hanya satu bot boleh hidup per token.** Telegram melayani satu pembaca saja;
+kalau bot lama di PC masih jalan, keduanya saling mencuri pesan dan tombolnya
+jadi kadang menyahut kadang tidak.
 
 ### 4. Penyusun notulen terjadwal
 

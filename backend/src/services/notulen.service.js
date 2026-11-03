@@ -419,6 +419,21 @@ async function hapusDataNotulen(meetingId) {
 
 /* Metadata rapat untuk notulen. Peserta diambil dari daftar hadir (presensi)
    bila sudah ada, karena tabel meetings hanya menyimpan JUMLAH peserta. */
+/* Kolom agenda kadang berisi SELURUH deskripsi Google Calendar
+   ("Ruang: ...\nAgenda: ...\nBagian: ...", lihat descLines di
+   dashboard.service.js), bukan agendanya saja. Kalau dibiarkan, gumpalan itu
+   masuk ke satu butir daftar di kepala notulen dan merusak Markdown-nya:
+   baris kedua dan seterusnya bukan butir, jadi terbaca sebagai paragraf.
+   Akar masalahnya ada di jalur sinkronisasi kalender; ini penjaga di hilir. */
+function bersihkanAgenda(nilai) {
+  const teks = String(nilai == null ? "" : nilai).trim();
+  if (!teks) return null;
+  if (!teks.includes("\n")) return teks;
+  const baris = teks.split(/\r?\n/).find((b) => /^\s*Agenda\s*:/i.test(b));
+  if (baris) return baris.replace(/^\s*Agenda\s*:\s*/i, "").trim() || null;
+  return teks.split(/\r?\n/)[0].trim() || null;
+}
+
 function metadataRapat(meeting, ruangan) {
   const nama = (Array.isArray(meeting.attendees) ? meeting.attendees : [])
     .map((a) => (typeof a === "string" ? a : a && a.name))
@@ -436,7 +451,8 @@ function metadataRapat(meeting, ruangan) {
     location: tempat || null,
     participants: nama,
     // Hanya field agenda: desc berisi deskripsi Google Calendar ("Ruang: ..."), bukan agenda.
-    agenda: meeting.agenda || null,
+    // Sebagian baris agenda sendiri pun berisi gumpalan itu — lihat bersihkanAgenda.
+    agenda: bersihkanAgenda(meeting.agenda),
   };
 }
 

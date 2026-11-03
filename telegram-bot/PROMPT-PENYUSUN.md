@@ -12,11 +12,16 @@ Ada dua jalur, tergantung kanal yang dipakai:
 
 | Kanal | Antrian | Cara membaca |
 |---|---|---|
-| **WhatsApp** (utama) | `backend/data/antrian-notulen/` di VPS `192.168.223.207` | SSH ke VPS |
-| Telegram | `telegram-bot/antrian/` di PC operator | langsung dari disk |
+| **Telegram** | `C:\SisKA\telegram-bot\antrian\` di **Server-GPP** `192.168.63.41` | RDP, atau berbagi folder |
+| WhatsApp | `backend/data/antrian-notulen/` di VPS `192.168.223.207` | SSH ke VPS |
 
-Jalur WhatsApp yang utama, karena `api.telegram.org` tidak lolos dari segmen
-server — diuji dari `192.168.223.207` dan `192.168.221.44`, keduanya timeout.
+Sejak 3 November 2026 bot Telegram berjalan di Server-GPP, bukan lagi di PC
+operator — segmen `192.168.63.x` meloloskan Telegram, sedangkan kedua VPS di
+segmen `192.168.22x.x` tidak.
+
+Akibatnya antrian Telegram **tidak lagi ada di disk lokal** sesi Claude Code
+ini. Harus diambil lewat RDP atau berbagi folder. Jalur WhatsApp antriannya
+tetap di VPS dan bisa dibaca lewat SSH seperti biasa.
 
 ---
 
@@ -47,12 +52,22 @@ Kerjakan antrian notulen.
         `## Catatan dan Tindak Lanjut`.
       - **Jangan mengarang.** Hanya yang ada di transkrip.
       - PIC atau tenggat yang tidak disebut: tulis `-`.
-      - Transkrip ini hasil Whisper `small` dan **sering salah dengar nama
-        lembaga**. Yang sudah terbukti: "kemenangan" = Kemnaker, "SAKR" =
-        Satker, "ESOLON" = Eselon, "Binalakotas" = Binalavotas, "Doarjo" =
-        Sidoarjo, "Tukin May" = Tukin Mei. Betulkan yang jelas begitu, dan
-        **sebutkan apa saja yang Anda betulkan** di `## Catatan dan Tindak
-        Lanjut`. Jangan menebak nama orang atau angka.
+      - Transkrip ini hasil Whisper — `small` atau `turbo`, lihat kolom
+        `whisper_model` — dan **sering salah dengar nama lembaga**. Keduanya
+        salah dengar, tapi tidak pada kata yang sama.
+
+        Terbukti pada `small`: "kemenangan" = Kemnaker, "SAKR" = Satker,
+        "ESOLON" = Eselon, "Binalakotas" = Binalavotas, "Doarjo" = Sidoarjo,
+        "Tukin May" = Tukin Mei.
+
+        Terbukti pada `turbo` (rapat 2 Nov 2026): "manajemen di Atlanta" =
+        manajemen talenta, "Pendinaan Penyelenggaran" = Pembinaan
+        Penyelenggaraan, "Badan Penggawain Negara" = Badan Kepegawaian Negara,
+        "BKS" = BKN, "asesmen senter" = assessment center.
+
+        Betulkan yang jelas begitu, dan **sebutkan apa saja yang Anda
+        betulkan** di `## Catatan dan Tindak Lanjut`. Jangan menebak nama
+        orang atau angka.
       - Satu poin cukup muncul sekali. Jangan mengulang poin di beberapa `###`.
       - Jangan tulis judul, tanggal, tempat, atau peserta — backend yang
         menambahkannya.
