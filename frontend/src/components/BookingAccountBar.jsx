@@ -48,7 +48,8 @@ export default function BookingAccountBar({ currentUser, historyPage = false, sh
     });
     sessionStorage.setItem("booking_isAddingAccount", "true");
     sessionStorage.setItem("isAddingAccount", "true");
-    navigate("/login?portal=booking", { state: { from: { pathname: "/booking" }, fromPortal: "booking" } });
+    localStorage.setItem("isAddingAccount", "true");
+    navigate("/login?portal=booking&addAccount=true", { state: { from: { pathname: "/booking" }, fromPortal: "booking", isAddingAccount: true } });
   };
 
   return (

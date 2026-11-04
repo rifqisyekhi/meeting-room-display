@@ -1575,6 +1575,8 @@ button {
     top: calc(100% + 8px);
     right: 0;
     width: 210px;
+    -webkit-user-select: none;
+    user-select: none;
     background: #ffffff;
     border: 1px solid #e2e8f0;
     border-radius: 12px;
