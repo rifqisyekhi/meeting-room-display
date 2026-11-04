@@ -61,6 +61,10 @@ export default function LoginPage() {
   const queryParams = new URLSearchParams(location.search);
   const queryPortal = queryParams.get("portal");
   const isLogoutParam = queryParams.get("logout") === "true";
+  const isAddAccountParam =
+    queryParams.get("addAccount") === "true" ||
+    queryParams.get("isAddingAccount") === "true" ||
+    location.state?.isAddingAccount === true;
   const statePortal = location.state?.fromPortal;
   const returnTo = location.state?.from?.pathname || "";
   const isBookingLogin =
@@ -82,11 +86,14 @@ export default function LoginPage() {
         "booking_isAuthenticated",
         "booking_currentUser",
         "booking_isAddingAccount",
+        "booking_savedAccounts",
         "dashboard_isAuthenticated",
         "dashboard_currentUser",
         "dashboard_savedAccounts",
+        "dashboard_isAddingAccount",
         "isAuthenticated",
         "currentUser",
+        "savedAccounts",
         "isAddingAccount",
       ];
       keys.forEach((k) => {
@@ -96,9 +103,33 @@ export default function LoginPage() {
       return;
     }
 
+    if (isAddAccountParam) {
+      const authKeys = [
+        "booking_isAuthenticated",
+        "booking_currentUser",
+        "dashboard_isAuthenticated",
+        "dashboard_currentUser",
+        "dashboard_savedAccounts",
+        "isAuthenticated",
+        "currentUser",
+      ];
+      authKeys.forEach((k) => {
+        sessionStorage.removeItem(k);
+        localStorage.removeItem(k);
+      });
+      sessionStorage.setItem("isAddingAccount", "true");
+      sessionStorage.setItem("booking_isAddingAccount", "true");
+      localStorage.setItem("isAddingAccount", "true");
+      return;
+    }
+
     const isAdding =
       sessionStorage.getItem("booking_isAddingAccount") === "true" ||
-      sessionStorage.getItem("isAddingAccount") === "true";
+      sessionStorage.getItem("isAddingAccount") === "true" ||
+      sessionStorage.getItem("dashboard_isAddingAccount") === "true" ||
+      localStorage.getItem("isAddingAccount") === "true" ||
+      localStorage.getItem("booking_isAddingAccount") === "true" ||
+      localStorage.getItem("dashboard_isAddingAccount") === "true";
     if (isAdding) return;
 
     let activeUser = null;
@@ -122,11 +153,9 @@ export default function LoginPage() {
       localStorage.getItem("isAuthenticated") === "true";
 
     if (isAuth && activeUser) {
-      const role = (activeUser.role || "").trim().toLowerCase();
-      const uname = (activeUser.username || "").trim().toLowerCase();
-      const isRegularUserRole = !role || role === "user" || role === "staff" || role === "pegawai";
+      const role = (activeUser.role || "").toLowerCase();
+      const uname = (activeUser.username || "").toLowerCase();
       const isAdminOrPimpinan =
-        !isRegularUserRole ||
         role.includes("admin") ||
         role.includes("pimpinan") ||
         role.includes("approval") ||
@@ -144,7 +173,7 @@ export default function LoginPage() {
         navigate(dest, { replace: true });
       }
     }
-  }, [navigate, returnTo, isBookingLogin, isLogoutParam]);
+  }, [navigate, returnTo, isBookingLogin, isLogoutParam, isAddAccountParam]);
 
   // Sinkronkan seluruh data akun dari backend database saat halaman login dibuka
   useEffect(() => {
@@ -281,11 +310,9 @@ export default function LoginPage() {
         dept: authenticatedUser.dept || "",
       };
 
-      const userRole = (userData.role || "").trim().toLowerCase();
-      const uname = (userData.username || "").trim().toLowerCase();
-      const isRegularUserRole = !userRole || userRole === "user" || userRole === "staff" || userRole === "pegawai";
+      const userRole = (userData.role || "").toLowerCase();
+      const uname = (userData.username || "").toLowerCase();
       const isAdminOrPimpinan =
-        !isRegularUserRole ||
         userRole.includes("admin") ||
         userRole.includes("pimpinan") ||
         userRole.includes("approval") ||
@@ -316,6 +343,10 @@ export default function LoginPage() {
 
         sessionStorage.removeItem("isAddingAccount");
         sessionStorage.removeItem("booking_isAddingAccount");
+        sessionStorage.removeItem("dashboard_isAddingAccount");
+        localStorage.removeItem("isAddingAccount");
+        localStorage.removeItem("booking_isAddingAccount");
+        localStorage.removeItem("dashboard_isAddingAccount");
 
         // Admin dan Approval/Pimpinan SELALU langsung ke Dashboard masing-masing!
         navigate("/dashboard", { replace: true });
@@ -340,6 +371,10 @@ export default function LoginPage() {
 
         sessionStorage.removeItem("booking_isAddingAccount");
         sessionStorage.removeItem("isAddingAccount");
+        sessionStorage.removeItem("dashboard_isAddingAccount");
+        localStorage.removeItem("booking_isAddingAccount");
+        localStorage.removeItem("isAddingAccount");
+        localStorage.removeItem("dashboard_isAddingAccount");
 
         const destination =
           returnTo && returnTo !== "/login" && returnTo !== "/booking"
@@ -458,7 +493,7 @@ export default function LoginPage() {
                   className="login-toggle-password"
                   onClick={() => setShowPassword(!showPassword)}
                   aria-label={showPassword ? "Sembunyikan password" : "Tampilkan password"}
-                >
+                > 
                   {showPassword ? (
                     <svg
                       viewBox="0 0 24 24"

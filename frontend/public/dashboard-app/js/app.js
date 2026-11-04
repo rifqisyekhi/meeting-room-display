@@ -696,8 +696,8 @@ function layout(content) {
               <div style="font-weight:700;font-size:13px;color:#0c2d5e;line-height:1.2;">${esc(currentUser.name)}</div>
               <div style="font-size:11px;color:#64748b;font-weight:600;margin-top:2px;">${esc(getRoleLabel(currentUser.role))}</div>
             </div>
-            <div onclick="switchRole(event)" style="padding:10px 14px;cursor:pointer;font-size:12px;font-weight:500;border-bottom:1px solid #e2e8f0;color:#334155;display:flex;align-items:center;gap:8px;">Tambah Akun Lain</div>
-            <div onclick="logout(event)" style="padding:10px 14px;cursor:pointer;font-size:12px;font-weight:600;color:#dc2626;display:flex;align-items:center;gap:8px;">Log Out</div>
+            <button type="button" onclick="switchRole(event)" style="width:100%;border:none;background:transparent;text-align:left;padding:11px 14px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:500;border-bottom:1px solid #e2e8f0;color:#334155;display:flex;align-items:center;gap:8px;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">Tambah Akun Lain</button>
+            <button type="button" onclick="logout(event)" style="width:100%;border:none;background:transparent;text-align:left;padding:11px 14px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:600;color:#dc2626;display:flex;align-items:center;gap:8px;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='transparent'">Log Out</button>
           </div>
         </div>
       </div>
@@ -1402,8 +1402,8 @@ function getProfileHTML() {
           <div class="sidebar-user-role">${esc(getRoleLabel(currentUser.role))}</div>
         </div>
         <div id="profileDropdown" class="sidebar-profile-dropdown">
-          <div onclick="switchRole(event)" style="padding:11px 14px;cursor:pointer;font-size:12.5px;font-weight:500;border-bottom:1px solid #e2e8f0;color:#334155;display:flex;align-items:center;gap:8px;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">Tambah Akun Lain</div>
-          <div onclick="logout(event)" style="padding:11px 14px;cursor:pointer;font-size:12.5px;font-weight:600;color:#dc2626;display:flex;align-items:center;gap:8px;" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='white'">Log Out</div>
+          <button type="button" onclick="switchRole(event)" style="width:100%;border:none;background:transparent;text-align:left;padding:11px 14px;cursor:pointer;font-family:inherit;font-size:12.5px;font-weight:500;border-bottom:1px solid #e2e8f0;color:#334155;display:flex;align-items:center;gap:8px;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">Tambah Akun Lain</button>
+          <button type="button" onclick="logout(event)" style="width:100%;border:none;background:transparent;text-align:left;padding:11px 14px;cursor:pointer;font-family:inherit;font-size:12.5px;font-weight:600;color:#dc2626;display:flex;align-items:center;gap:8px;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='white'">Log Out</button>
         </div>
       </div>
   `;
@@ -1477,30 +1477,60 @@ document.addEventListener("click", (e) => {
 });
 
 function switchRole(e) {
-  if (e) e.stopPropagation();
+  if (e) {
+    if (typeof e.preventDefault === "function") e.preventDefault();
+    if (typeof e.stopPropagation === "function") e.stopPropagation();
+  }
+  const authKeys = [
+    "isAuthenticated",
+    "currentUser",
+    "dashboard_isAuthenticated",
+    "dashboard_currentUser",
+    "dashboard_savedAccounts",
+    "booking_isAuthenticated",
+    "booking_currentUser",
+    "booking_savedAccounts",
+    "savedAccounts",
+  ];
+
+  const targetWindow = window.top || window.parent || window;
+  const allWindows = [window, window.parent, window.top].filter(Boolean);
+
+  allWindows.forEach((win) => {
+    try {
+      authKeys.forEach((k) => {
+        try { win.sessionStorage?.removeItem(k); } catch (err) {}
+        try { win.localStorage?.removeItem(k); } catch (err) {}
+      });
+      win.sessionStorage?.setItem("isAddingAccount", "true");
+      win.sessionStorage?.setItem("booking_isAddingAccount", "true");
+      win.sessionStorage?.setItem("dashboard_isAddingAccount", "true");
+      win.localStorage?.setItem("isAddingAccount", "true");
+      win.localStorage?.setItem("booking_isAddingAccount", "true");
+      win.localStorage?.setItem("dashboard_isAddingAccount", "true");
+    } catch (err) {}
+  });
+
   try {
-    const authKeys = [
-      "isAuthenticated",
-      "currentUser",
-      "dashboard_isAuthenticated",
-      "dashboard_currentUser",
-      "booking_isAuthenticated",
-      "booking_currentUser",
-    ];
-    authKeys.forEach((k) => {
-      try { sessionStorage.removeItem(k); } catch (err) {}
-      try { localStorage.removeItem(k); } catch (err) {}
-      try { window.parent?.sessionStorage?.removeItem(k); } catch (err) {}
-      try { window.parent?.localStorage?.removeItem(k); } catch (err) {}
-    });
-    sessionStorage.setItem("isAddingAccount", "true");
-    sessionStorage.setItem("booking_isAddingAccount", "true");
-    if (window.parent && window.parent.sessionStorage) {
-      window.parent.sessionStorage.setItem("isAddingAccount", "true");
-      window.parent.sessionStorage.setItem("booking_isAddingAccount", "true");
+    const storage = getAppStorage();
+    if (storage) {
+      authKeys.forEach((k) => {
+        try { storage.removeItem(k); } catch (err) {}
+      });
+      storage.setItem("isAddingAccount", "true");
+      storage.setItem("booking_isAddingAccount", "true");
+      storage.setItem("dashboard_isAddingAccount", "true");
     }
   } catch (err) {}
-  window.parent.location.href = "/login?portal=dashboard";
+
+  const targetUrl = "/login?portal=dashboard&addAccount=true";
+  try {
+    if (targetWindow.location) {
+      targetWindow.location.href = targetUrl;
+      return;
+    }
+  } catch (err) {}
+  window.location.href = targetUrl;
 }
 
 function stat(icon, num, label, color) {
@@ -8254,45 +8284,79 @@ setInterval(() => fetchDashboardData(false), 5000);
 // ----------------------------------------------------------------------
 // LOGOUT FUNCTION
 // ----------------------------------------------------------------------
-async function logout(e) {
-  if (e) e.stopPropagation();
-  if (await confirmWithAppModal({
+function executeLogout() {
+  const authKeys = [
+    "isAuthenticated",
+    "currentUser",
+    "savedAccounts",
+    "dashboard_isAuthenticated",
+    "dashboard_currentUser",
+    "dashboard_savedAccounts",
+    "dashboard_isAddingAccount",
+    "booking_isAuthenticated",
+    "booking_currentUser",
+    "booking_savedAccounts",
+    "booking_isAddingAccount",
+    "isAddingAccount",
+  ];
+
+  const targetWindow = window.top || window.parent || window;
+  const allWindows = [window, window.parent, window.top].filter(Boolean);
+
+  allWindows.forEach((win) => {
+    try {
+      authKeys.forEach((k) => {
+        try { win.sessionStorage?.removeItem(k); } catch (err) {}
+        try { win.localStorage?.removeItem(k); } catch (err) {}
+      });
+    } catch (err) {}
+  });
+
+  try {
+    const storage = getAppStorage();
+    if (storage) {
+      authKeys.forEach((k) => {
+        try { storage.removeItem(k); } catch (err) {}
+      });
+    }
+  } catch (err) {}
+
+  const targetUrl = "/login?portal=dashboard&logout=true";
+  try {
+    if (targetWindow && targetWindow.location) {
+      targetWindow.location.href = targetUrl;
+      return;
+    }
+  } catch (err) {}
+  try {
+    if (window.parent && window.parent.location) {
+      window.parent.location.href = targetUrl;
+      return;
+    }
+  } catch (err) {}
+  window.location.href = targetUrl;
+}
+
+function logout(e) {
+  if (e) {
+    if (typeof e.preventDefault === "function") e.preventDefault();
+    if (typeof e.stopPropagation === "function") e.stopPropagation();
+  }
+
+  const mobileMenu = document.getElementById("mobileProfileDropdown");
+  if (mobileMenu) mobileMenu.style.display = "none";
+  const profileDropdown = document.getElementById("profileDropdown");
+  if (profileDropdown) profileDropdown.style.display = "none";
+
+  showConfirmModal({
     title: "Keluar dari Akun",
     message: "Apakah Anda yakin ingin keluar dari aplikasi?",
     confirmText: "Ya, Keluar",
     confirmBg: "#dc2626",
-  })) {
-    const authKeys = [
-      "isAuthenticated",
-      "currentUser",
-      "savedAccounts",
-      "dashboard_isAuthenticated",
-      "dashboard_currentUser",
-      "dashboard_savedAccounts",
-      "booking_isAuthenticated",
-      "booking_currentUser",
-      "booking_savedAccounts",
-      "booking_isAddingAccount",
-      "isAddingAccount",
-    ];
-    try {
-      const storage = getAppStorage();
-      authKeys.forEach((k) => {
-        try { storage?.removeItem(k); } catch (err) {}
-        try { localStorage?.removeItem(k); } catch (err) {}
-        try { sessionStorage?.removeItem(k); } catch (err) {}
-        try { window.parent?.localStorage?.removeItem(k); } catch (err) {}
-        try { window.parent?.sessionStorage?.removeItem(k); } catch (err) {}
-        try { window.top?.localStorage?.removeItem(k); } catch (err) {}
-        try { window.top?.sessionStorage?.removeItem(k); } catch (err) {}
-      });
-    } catch (err) {}
-    if (window.parent && window.parent.location) {
-      window.parent.location.href = "/login?portal=dashboard&logout=true";
-    } else {
-      window.location.href = "/login?portal=dashboard&logout=true";
-    }
-  }
+    onConfirm: () => {
+      executeLogout();
+    },
+  });
 }
 
 function getCurrentUser() {
