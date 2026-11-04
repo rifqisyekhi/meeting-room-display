@@ -2140,37 +2140,42 @@ function viewMeetingAttendance(meetingId) {
           ? new Date(attendee.signedAt).toLocaleString("id-ID", { timeZone: "Asia/Jakarta" }) + " WIB"
           : "-";
         return `<tr>
-          <td>${index + 1}</td>
-          <td><strong>${esc(attendee.name || "-")}</strong></td>
-          <td>${esc(attendee.dept || "-")}</td>
-          <td>${esc(attendee.nip || "-")}</td>
-          <td>${esc(attendedAt)}</td>
-          <td><span style="display:inline-block;padding:4px 9px;border-radius:20px;background:#e8f8ef;color:#16804d;font-size:11px;font-weight:700;">Hadir</span></td>
+          <td class="col-att-no">${index + 1}</td>
+          <td class="col-att-name"><strong>${esc(attendee.name || "-")}</strong></td>
+          <td class="col-att-dept">${esc(attendee.dept || "-")}</td>
+          <td class="col-att-nip">${esc(attendee.nip || "-")}</td>
+          <td class="col-att-time">${esc(attendedAt)}</td>
+          <td class="col-att-status"><span class="attendance-status-pill">Hadir</span></td>
         </tr>`;
       }).join("")
-    : `<tr><td colspan="6" style="padding:28px;text-align:center;color:#8191a5;">Belum ada peserta yang mengisi presensi rapat ini.</td></tr>`;
+    : `<tr class="attendance-empty-row"><td colspan="6">Belum ada peserta yang mengisi presensi rapat ini.</td></tr>`;
   const safeMeetingId = String(meeting.id).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-  const content = `<div style="padding:4px 2px 2px;">
-    <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-bottom:16px;padding:13px 15px;border:1px solid #e1e9f2;border-radius:10px;background:#f7faff;">
-      <div><small style="display:block;color:#77879b;font-size:10px;">Judul Rapat</small><strong style="color:#15365c;font-size:12px;">${esc(meeting.title || meeting.agenda || "Rapat")}</strong></div>
-      <div><small style="display:block;color:#77879b;font-size:10px;">Ruangan</small><strong style="color:#15365c;font-size:12px;">${esc(meeting.room || "-")}</strong></div>
-      <div><small style="display:block;color:#77879b;font-size:10px;">Tanggal &amp; Waktu</small><strong style="color:#15365c;font-size:12px;">${esc(meeting.date || "-")} · ${esc(meeting.start || "-")}–${esc(meeting.end || "-")}</strong></div>
-      <div><small style="display:block;color:#77879b;font-size:10px;">Jumlah Hadir</small><strong style="color:#15365c;font-size:12px;">${attendees.length} orang dari ${Number(meeting.participants) || 0} peserta</strong></div>
+  const content = `<div class="attendance-modal-body">
+    <div class="attendance-summary-grid">
+      <div><small>Judul Rapat</small><strong>${esc(meeting.title || meeting.agenda || "Rapat")}</strong></div>
+      <div><small>Ruangan</small><strong>${esc(meeting.room || "-")}</strong></div>
+      <div><small>Tanggal &amp; Waktu</small><strong>${esc(meeting.date || "-")} · ${esc(meeting.start || "-")}–${esc(meeting.end || "-")}</strong></div>
+      <div><small>Jumlah Hadir</small><strong>${attendees.length} orang dari ${Number(meeting.participants) || 0} peserta</strong></div>
     </div>
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 9px;">
-      <strong style="color:#15365c;font-size:13px;">Daftar Peserta Hadir</strong>
-      <span style="color:#3473A7;font-size:11px;font-weight:700;">Total Hadir: ${attendees.length} orang</span>
+    <div class="attendance-list-head">
+      <strong>Daftar Peserta Hadir</strong>
+      <span>Total Hadir: ${attendees.length} orang</span>
     </div>
-    <div style="max-height:48vh;overflow:auto;border:1px solid #e1e8f0;border-radius:9px;">
-      <table style="width:100%;border-collapse:collapse;text-align:left;font-size:11px;">
-        <thead style="position:sticky;top:0;background:#f1f5f9;color:#53657a;"><tr>
-          <th style="padding:10px 9px;">No</th><th style="padding:10px 9px;">Nama Peserta</th><th style="padding:10px 9px;">Unit Kerja / Instansi</th><th style="padding:10px 9px;">NIP / Jabatan</th><th style="padding:10px 9px;">Waktu Hadir</th><th style="padding:10px 9px;">Status</th>
+    <div class="attendance-table-wrap">
+      <table class="attendance-table">
+        <thead><tr>
+          <th class="col-att-no">No</th>
+          <th class="col-att-name">Nama Peserta</th>
+          <th class="col-att-dept">Unit Kerja / Instansi</th>
+          <th class="col-att-nip">NIP / Jabatan</th>
+          <th class="col-att-time">Waktu Hadir</th>
+          <th class="col-att-status">Status</th>
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>
     </div>
-    <div style="display:flex;justify-content:flex-end;margin-top:15px;">
-      <button type="button" onclick="downloadAttendanceExcel('${safeMeetingId}')" style="display:inline-flex;align-items:center;gap:7px;padding:9px 14px;border:0;border-radius:8px;color:#fff;background:#3473A7;font-size:11px;font-weight:700;cursor:pointer;">Export Excel</button>
+    <div class="attendance-modal-footer">
+      <button type="button" class="attendance-export-btn" onclick="downloadAttendanceExcel('${safeMeetingId}')">Export Excel</button>
     </div>
   </div>`;
   openModal("Hasil Presensi Rapat", content);
@@ -4281,6 +4286,7 @@ function openModal(title, body) {
   document.getElementById("modal").innerHTML =
     `<div class="modal"><div class="modal-head"><h2>${title}</h2><button class="btn-icon" onclick="closeModal()">×</button></div>${body}</div>`;
   if (title === "Detail Rapat") document.querySelector("#modal .modal")?.classList.add("meeting-detail-modal");
+  if (title === "Hasil Presensi Rapat") document.querySelector("#modal .modal")?.classList.add("attendance-modal");
   if (title === "Edit Rapat" || title === "Tambah Rapat") document.querySelector("#modal .modal")?.classList.add("meeting-form-modal");
   document.getElementById("modal").classList.add("show");
 }

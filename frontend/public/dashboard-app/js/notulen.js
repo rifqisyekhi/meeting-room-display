@@ -98,9 +98,10 @@
     cloud: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>`,
     upload: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>`,
     play: `<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21 6 3"/></svg>`,
-    trash: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>`,
+    trash: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>`,
     sparkle: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>`,
     alert: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>`,
+    alertTriangle: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>`,
     refresh: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg>`,
     download: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>`,
     chevronDown: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>`,
@@ -111,6 +112,12 @@
     check: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`,
     lines: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" x2="21" y1="6" y2="6"/><line x1="3" x2="21" y1="12" y2="12"/><line x1="3" x2="21" y1="18" y2="18"/></svg>`,
     doc: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/><line x1="10" x2="8" y1="9" y2="9"/></svg>`,
+    fileText: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>`,
+    fileEdit: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m18 5-2.414-2.414A2 2 0 0 0 14.172 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2"/><path d="M21.378 12.626a1 1 0 0 0-3.004-3.004l-4.01 4.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z"/><path d="M8 18h1"/></svg>`,
+    printer: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg>`,
+    sliders: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/><line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/><line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/><line x1="14" x2="14" y1="2" y2="6"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="16" x2="16" y1="18" y2="22"/></svg>`,
+    edit: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z"/></svg>`,
+    lock: `<svg width="13.5" height="13.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`,
     clock: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
   };
 
@@ -319,6 +326,16 @@
     return el;
   }
 
+  function resetScrollNotulen(el) {
+    try { window.scrollTo(0, 0); } catch { /* ignore */ }
+    document.documentElement.scrollLeft = 0;
+    document.body.scrollLeft = 0;
+    if (el) {
+      el.scrollLeft = 0;
+      el.scrollTop = 0;
+    }
+  }
+
   async function openNotulen(meetingId) {
     nv.meetingId = String(meetingId);
     nv.view = "rapat";
@@ -329,11 +346,16 @@
     nv.tanyaDulu = false;
     nv.membatalkan = false;
     nv.info = null;
+    document.querySelector(".app-shell")?.classList.remove("sidebar-open");
+    document.body.classList.remove("drawer-open");
     const el = root();
     el.innerHTML = `<div class="nv-loading">Memuat data notulen...</div>`;
     el.classList.add("show");
+    document.documentElement.classList.add("nv-open");
     document.body.classList.add("nv-open");
+    resetScrollNotulen(el);
     await muatUlang();
+    resetScrollNotulen(el);
     cekAI();
   }
 
@@ -350,7 +372,10 @@
     nv.data = null;
     const el = document.getElementById("notulenView");
     if (el) { el.classList.remove("show"); el.innerHTML = ""; }
+    document.documentElement.classList.remove("nv-open");
     document.body.classList.remove("nv-open");
+    document.documentElement.scrollLeft = 0;
+    document.body.scrollLeft = 0;
   }
 
   async function muatUlang() {
@@ -402,7 +427,7 @@
     const a = nv.ai;
     if (!a) return `<div class="nv-pill-badge nv-pill-ai"><span class="nv-dot-pulse"></span> Memeriksa AI...</div>`;
     if (!a.reachable) {
-      return `<div class="nv-pill-badge nv-pill-ai-err" title="${e(a.error)}">⚠️ AI Tidak Aktif</div>`;
+      return `<div class="nv-pill-badge nv-pill-ai-err" title="${e(a.error)}">${SVGS.alertTriangle} AI Tidak Aktif</div>`;
     }
     const ram = a.ram || {};
     const gb = ram.available_mb ? (ram.available_mb / 1024).toFixed(1) + " GB" : "1.0 GB";
@@ -464,7 +489,7 @@
     }
     const adaCloud = (m.llm || []).some((l) => l.cloud);
     const catatanCloud = modelCloud(nv.pilih.llm)
-      ? `<p class="nv-cloud-note">☁ Teks transkrip rapat ini akan dikirim ke Anthropic (Claude) untuk menyusun notulen.
+      ? `<p class="nv-cloud-note">${SVGS.cloud} Teks transkrip rapat ini akan dikirim ke Anthropic (Claude) untuk menyusun notulen.
           Audio dan transkripsi tetap di server instansi.</p>`
       : adaCloud && !biasa ? `<p class="nv-help-note">Claude (cloud) hanya bisa dipilih untuk rapat berklasifikasi Biasa.</p>` : "";
     const tombolInfo = (jenis) => `<button type="button" class="nv-info-btn ${nv.info === jenis ? "open" : ""}"
@@ -499,11 +524,11 @@
     return `
       <div>
         <label class="nv-form-label">Model Transkripsi (Whisper) ${tombolInfo("whisper")}</label>
-        <select class="nv-select-field" onchange="nvPilihModel('whisper', this.value)">${opsiW}</select>
+        <select class="nv-select-field" onchange="this.title=this.options[this.selectedIndex]?.text||''; nvPilihModel('whisper', this.value)">${opsiW}</select>
       </div>
       <div>
         <label class="nv-form-label">Model Notulen ${tombolInfo("llm")}</label>
-        <select class="nv-select-field" onchange="nvPilihModel('llm', this.value)">${opsiL}</select>
+        <select class="nv-select-field" onchange="this.title=this.options[this.selectedIndex]?.text||''; nvPilihModel('llm', this.value)">${opsiL}</select>
         ${catatanCloud}
       </div>
       <div>
@@ -528,7 +553,7 @@
     return `
       <div class="nv-ram-alert">
         <div class="nv-ram-alert-left">
-          <span class="nv-ram-alert-icon">⚠️</span>
+          <span class="nv-ram-alert-icon">${SVGS.alertTriangle}</span>
           <span>
             <b>Memori RAM tidak cukup untuk membuat Notulen ( ${e(currentL)} ).</b>
             Tersedia ${availMb} MB. Transkrip Anda tetap aman tersimpan.
@@ -585,10 +610,6 @@
     const files = d.files || [];
     const adaFile = files.some((f) => f.sizeBytes > 0);
 
-    const currentW = nv.pilih.whisper || (nv.models?.default_whisper || "small");
-    const currentL = nv.pilih.llm || (nv.models?.default_llm || "qwen3:4b");
-    const currentSpk = nv.numSpeakers ? `${nv.numSpeakers} Pembicara` : "Otomatis";
-
     // Durasi & finished at info
     const durasiSec = mn.durationSeconds || 0;
     const durasiStr = durasiSec > 0 ? menitDetik(durasiSec) : "-";
@@ -616,7 +637,7 @@
               <h1 class="nv-meeting-h1">${e(m.title)}</h1>
               ${htmlHeaderStatusBadge(mn.status, mn.minutesError)}
             </div>
-            <div style="display:flex;align-items:center;gap:10px;">
+            <div class="nv-header-actions">
               <button type="button" class="nv-btn-outline-perekam" onclick="nvBukaPerekam()">
                 ${SVGS.mic} Mode Perekam Ruangan
               </button>
@@ -651,7 +672,7 @@
                     <span id="nvRecState" class="nv-timer-state">${nv.rec ? (nv.rec.paused ? "Dijeda" : "Merekam") : "Siap"}</span>
                   </div>
                   <div class="nv-mic-select-line">
-                    <select id="nvMic" class="nv-mic-dropdown" ${nv.rec ? "disabled" : ""} onfocus="nvMuatMic()">
+                    <select id="nvMic" class="nv-mic-dropdown" title="Mikrofon Bawaan (Default)" ${nv.rec ? "disabled" : ""} onfocus="nvMuatMic()" onchange="this.title=this.options[this.selectedIndex]?.text||''">
                       <option value="">Mikrofon Bawaan (Default)</option>
                     </select>
                     <button type="button" class="nv-mic-reload-btn" onclick="nvMuatMic(true)" ${nv.rec ? "disabled" : ""} title="Muat ulang daftar mikrofon">
@@ -683,11 +704,10 @@
                   <div class="nv-upload-subtitle">MP3, M4A, WAV, OGG (Maks 500MB)</div>
                 </div>
               </div>
-              <label class="nv-btn-pilih ${proses ? "nv-disabled" : ""}">
-                Pilih
-                <input type="file" accept="audio/*,video/mp4,.m4a,.mp3,.wav,.webm,.ogg,.opus,.flac,.aac" multiple
-                  onchange="nvUnggah(this)" ${proses ? "disabled" : ""} hidden>
-              </label>
+              <button type="button" class="nv-btn-pilih" onclick="nvBukaPilihFile()">Pilih</button>
+              <input id="nvAudioFileInput" type="file" class="nv-sr-file-input"
+                accept="audio/*,video/mp4,.m4a,.mp3,.wav,.webm,.ogg,.oga,.opus,.flac,.aac,.mp4,.mkv" multiple
+                onchange="nvUnggah(this)" tabindex="-1" aria-hidden="true">
             </div>
           </div>
 
@@ -706,11 +726,11 @@
               <div class="nv-sec-title-wrap">
                 <span class="nv-step-num">2</span>
                 <h2 class="nv-sec-title">Konversi Transkrip & Notulen AI</h2>
-                <button type="button" class="nv-config-toggle" onclick="nvToggleModelConfig()">
-                  🎛️ Whisper: ${e(currentW)} &bull; Notulen: ${e(currentL)} &bull; Pembicara: ${e(currentSpk)} ${SVGS.chevronDown}
+                <button type="button" id="nvConfigToggleBtn" class="nv-config-toggle ${nv.showModelConfig ? "open" : ""}" onclick="nvToggleModelConfig()" aria-expanded="${nv.showModelConfig}" title="Tampilkan / sembunyikan pengaturan model AI" aria-label="Tampilkan atau sembunyikan pengaturan model AI">
+                  ${SVGS.chevronDown}
                 </button>
               </div>
-              <div class="nv-sec-instruction">Klik pengaturan di atas jika ingin mengganti kapasitas model AI.</div>
+              <div class="nv-sec-instruction">Klik tombol panah di samping judul jika ingin mengganti kapasitas model AI.</div>
             </div>
             <div id="nvAksiProses">${htmlAksiProses(mn, adaFile)}</div>
           </div>
@@ -765,10 +785,10 @@
                   ${SVGS.download} Unduh .TXT ${SVGS.chevronDown}
                 </button>
                 <div id="nvExportMenu" class="nv-export-menu">
-                  <a href="javascript:void(0)" onclick="nvUnduhTranskrip(); nvCloseExportMenu();">📄 Unduh Transkrip (.txt)</a>
-                  <a href="javascript:void(0)" onclick="nvUnduhMd(); nvCloseExportMenu();">📝 Unduh Notulen (.md)</a>
-                  <a href="javascript:void(0)" onclick="nvCetak(); nvCloseExportMenu();">🖨️ Cetak / Simpan PDF</a>
-                  ${mn.hasTranscript || mn.hasMinutes ? `<a href="javascript:void(0)" style="color:#ef4444;" onclick="nvHapusHasil(); nvCloseExportMenu();">🗑️ Hapus Transkrip & Notulen</a>` : ""}
+                  <a href="javascript:void(0)" onclick="nvUnduhTranskrip(); nvCloseExportMenu();">${SVGS.fileText}<span>Unduh Transkrip (.txt)</span></a>
+                  <a href="javascript:void(0)" onclick="nvUnduhMd(); nvCloseExportMenu();">${SVGS.fileEdit}<span>Unduh Notulen (.md)</span></a>
+                  <a href="javascript:void(0)" onclick="nvCetak(); nvCloseExportMenu();">${SVGS.printer}<span>Cetak / Simpan PDF</span></a>
+                  ${mn.hasTranscript || mn.hasMinutes ? `<div class="nv-export-divider"></div><a href="javascript:void(0)" class="nv-export-danger" onclick="nvHapusHasil(); nvCloseExportMenu();">${SVGS.trash}<span>Hapus Transkrip &amp; Notulen</span></a>` : ""}
                 </div>
               </div>
             </div>
@@ -781,6 +801,17 @@
         </div>
       </div>
     `;
+
+    const tabsLeft = document.querySelector(".nv-tabs-left");
+    const activeTab = tabsLeft && tabsLeft.querySelector(".nv-tab-item.active");
+    if (tabsLeft && activeTab && tabsLeft.scrollWidth > tabsLeft.clientWidth) {
+      const tabRight = activeTab.offsetLeft + activeTab.offsetWidth;
+      if (tabRight > tabsLeft.scrollLeft + tabsLeft.clientWidth) {
+        tabsLeft.scrollLeft = tabRight - tabsLeft.clientWidth + 6;
+      } else if (activeTab.offsetLeft < tabsLeft.scrollLeft) {
+        tabsLeft.scrollLeft = Math.max(0, activeTab.offsetLeft - 6);
+      }
+    }
 
     if (nv.rec) hubungkanUlangPerekamUI();
   }
@@ -803,7 +834,7 @@
           <b>Klasifikasi rapat</b>
           <div class="nv-seg" role="radiogroup" aria-label="Klasifikasi rapat">
             <button type="button" role="radio" aria-checked="${!biasa}" class="${biasa ? "" : "on"}"
-              onclick="nvKlasifikasi('RAHASIA')" ${proses ? "disabled" : ""}>🔒 Rahasia / Penting</button>
+              onclick="nvKlasifikasi('RAHASIA')" ${proses ? "disabled" : ""}>${SVGS.lock} Rahasia / Penting</button>
             <button type="button" role="radio" aria-checked="${biasa}" class="${biasa ? "on" : ""}"
               onclick="nvKlasifikasi('BIASA')" ${proses ? "disabled" : ""}>Biasa</button>
           </div>
@@ -902,7 +933,7 @@
         `).join("")}
       </div>
       <div class="nv-progress"><div style="width:${Math.round((mn.progress || 0) * 100)}%"></div></div>
-      <div style="display:flex;justify-content:space-between;font-size:12.5px;color:#64748b;margin-bottom:10px;">
+      <div class="nv-progress-meta">
         <span><b>${e(mn.stageLabel || "Menunggu antrean")}</b>
           ${mn.queuePosition ? ` &bull; Antrean ke-${mn.queuePosition}` : ""}
           ${mn.stage ? ` &bull; Tahap ini ${Math.round((mn.stageProgress || 0) * 100)}%` : ""}
@@ -990,8 +1021,8 @@
       return `
         ${banner}
         <textarea id="nvMdEdit" class="nv-md-editor-textarea" spellcheck="true">${e(mn.minutesMarkdown || "")}</textarea>
-        <div style="display:flex;align-items:center;gap:12px;margin-top:12px;flex-wrap:wrap;">
-          <label style="display:inline-flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
+        <div class="nv-edit-actions">
+          <label class="nv-edit-review-check">
             <input type="checkbox" id="nvReviewed" ${mn.minutesReviewed ? "checked" : ""}>
             <span>Saya sudah meninjau notulen ini</span>
           </label>
@@ -1005,7 +1036,7 @@
       ${banner}
       <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;">
         <button type="button" class="nv-btn-blue-cta" onclick="nvEdit()" ${proses ? "disabled" : ""}>
-          ${mn.hasMinutes ? "✏️ Sunting / Tinjau" : "✏️ Tulis Notulen Manual"}
+          ${SVGS.edit} ${mn.hasMinutes ? "Sunting / Tinjau" : "Tulis Notulen Manual"}
         </button>
       </div>
       ${mn.hasMinutes ? `<article class="nv-md-viewer">${markdown(mn.minutesMarkdown)}</article>` : ""}
@@ -1018,6 +1049,11 @@
     nv.showModelConfig = !nv.showModelConfig;
     const el = document.getElementById("nvModelFormGrid");
     if (el) el.style.display = nv.showModelConfig ? "" : "none";
+    const btn = document.getElementById("nvConfigToggleBtn");
+    if (btn) {
+      btn.classList.toggle("open", nv.showModelConfig);
+      btn.setAttribute("aria-expanded", String(nv.showModelConfig));
+    }
   }
 
   function nvPilihModel(jenis, nilai) {
@@ -1063,6 +1099,16 @@
     render();
   }
 
+  function isExportMenuOpen() {
+    const el = document.getElementById("nvExportMenu");
+    return Boolean(el && el.classList.contains("show"));
+  }
+
+  function isRoomMenuOpen() {
+    const el = document.getElementById("nvRoomPickerMenu");
+    return Boolean(el && el.classList.contains("show"));
+  }
+
   function nvToggleExportMenu() {
     const el = document.getElementById("nvExportMenu");
     if (el) el.classList.toggle("show");
@@ -1073,11 +1119,83 @@
     if (el) el.classList.remove("show");
   }
 
-  document.addEventListener("click", (ev) => {
-    if (!ev.target.closest(".nv-dropdown-export")) {
+  function nvCloseRoomMenu() {
+    const menu = document.getElementById("nvRoomPickerMenu");
+    const btn = document.getElementById("nvRoomPickerBtn");
+    if (menu) menu.classList.remove("show");
+    if (btn) {
+      btn.classList.remove("open");
+      btn.setAttribute("aria-expanded", "false");
+    }
+  }
+
+  function closeAllFloatingMenus() {
+    nvCloseExportMenu();
+    nvCloseRoomMenu();
+  }
+
+  document.addEventListener("pointerdown", (ev) => {
+    if (isExportMenuOpen() && !ev.target.closest?.(".nv-dropdown-export")) {
       nvCloseExportMenu();
     }
+    if (isRoomMenuOpen() && !ev.target.closest?.("#nvRoomPicker")) {
+      nvCloseRoomMenu();
+    }
+  }, { passive: true });
+
+  document.addEventListener("click", (ev) => {
+    if (isExportMenuOpen() && !ev.target.closest?.(".nv-dropdown-export")) {
+      nvCloseExportMenu();
+    }
+    if (isRoomMenuOpen() && !ev.target.closest?.("#nvRoomPicker")) {
+      nvCloseRoomMenu();
+    }
   });
+
+  document.addEventListener("focusin", (ev) => {
+    if (isExportMenuOpen() && !ev.target.closest?.(".nv-dropdown-export")) {
+      nvCloseExportMenu();
+    }
+    if (isRoomMenuOpen() && !ev.target.closest?.("#nvRoomPicker")) {
+      nvCloseRoomMenu();
+    }
+  });
+
+  window.addEventListener("scroll", (ev) => {
+    if (isExportMenuOpen() && !ev.target?.closest?.("#nvExportMenu")) {
+      nvCloseExportMenu();
+    }
+    if (isRoomMenuOpen() && !ev.target?.closest?.("#nvRoomPickerMenu")) {
+      nvCloseRoomMenu();
+    }
+  }, { capture: true, passive: true });
+
+  window.addEventListener("wheel", (ev) => {
+    if (isExportMenuOpen() && !ev.target?.closest?.("#nvExportMenu")) {
+      nvCloseExportMenu();
+    }
+    if (isRoomMenuOpen() && !ev.target?.closest?.("#nvRoomPickerMenu")) {
+      nvCloseRoomMenu();
+    }
+  }, { passive: true });
+
+  window.addEventListener("touchmove", (ev) => {
+    if (isExportMenuOpen() && !ev.target?.closest?.("#nvExportMenu")) {
+      nvCloseExportMenu();
+    }
+    if (isRoomMenuOpen() && !ev.target?.closest?.("#nvRoomPickerMenu")) {
+      nvCloseRoomMenu();
+    }
+  }, { passive: true });
+
+  window.addEventListener("resize", closeAllFloatingMenus, { passive: true });
+  window.addEventListener("blur", closeAllFloatingMenus);
+  try {
+    if (window.parent && window.parent !== window) {
+      window.parent.addEventListener("scroll", closeAllFloatingMenus, { capture: true, passive: true });
+      window.parent.addEventListener("pointerdown", closeAllFloatingMenus, { passive: true });
+    }
+  } catch { /* cross-origin */ }
 
   function nvEdit() {
     nv.editing = true;
@@ -1213,38 +1331,60 @@
 
   /* ---------- Aksi File: Unggah, Putar, Hapus ---------- */
 
+  function nvBukaPilihFile() {
+    const inp = document.getElementById("nvAudioFileInput");
+    if (!inp) return;
+    inp.value = "";
+    inp.click();
+  }
+
+  function namaFileUnggah(file) {
+    const raw = String(file?.name || "audio").trim() || "audio";
+    if (/\.[a-z0-9]{2,5}$/i.test(raw)) return raw;
+    const t = String(file?.type || "").toLowerCase();
+    if (t.includes("mpeg") || t.includes("mp3")) return raw + ".mp3";
+    if (t.includes("mp4") || t.includes("m4a")) return raw + ".m4a";
+    if (t.includes("wav")) return raw + ".wav";
+    if (t.includes("ogg") || t.includes("opus")) return raw + ".ogg";
+    if (t.includes("webm")) return raw + ".webm";
+    if (t.includes("aac")) return raw + ".aac";
+    if (t.includes("flac")) return raw + ".flac";
+    return raw;
+  }
+
   async function nvUnggah(input) {
     const files = [...(input.files || [])];
     input.value = "";
-    const slot = document.getElementById("nvUpload");
+    if (!files.length) return;
     for (const file of files) {
       const id = "u" + Math.random().toString(36).slice(2);
-      slot.insertAdjacentHTML("beforeend", `<div class="nv-up" id="${id}"><span>${e(file.name)} (${ukuran(file.size)})</span>
+      const displayName = namaFileUnggah(file);
+      document.getElementById("nvUpload")?.insertAdjacentHTML("beforeend", `<div class="nv-up" id="${id}"><span>${e(displayName)} (${ukuran(file.size)})</span>
         <div class="nv-progress nv-progress-sm"><div style="width:0%"></div></div><span style="color:#64748b;font-size:12px;">0%</span></div>`);
       try {
-        await unggahSatu(file, (p) => {
+        await unggahSatu(file, displayName, (p) => {
           const el = document.getElementById(id);
           if (!el) return;
           el.querySelector(".nv-progress div").style.width = `${Math.round(p * 100)}%`;
           el.querySelector("span:last-child").textContent = p >= 1 ? "Menyimpan…" : `${Math.round(p * 100)}%`;
         });
         document.getElementById(id)?.remove();
-        beritahu(`File "${file.name}" berhasil diunggah.`);
+        beritahu(`File "${displayName}" berhasil diunggah.`);
       } catch (err) {
         const el = document.getElementById(id);
-        if (el) el.innerHTML = `<div class="nv-alert-box nv-alert-err">${e(file.name)}: ${e(err.message)}</div>`;
+        if (el) el.innerHTML = `<div class="nv-alert-box nv-alert-err">${e(displayName)}: ${e(err.message)}</div>`;
       }
     }
     await muatUlang();
   }
 
-  function unggahSatu(file, onProgress) {
+  function unggahSatu(file, namaFile, onProgress) {
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
       xhr.open("POST", `${API}/meetings/${encodeURIComponent(nv.meetingId)}/audio`);
       xhr.withCredentials = true;
       xhr.setRequestHeader("Content-Type", "application/octet-stream");
-      xhr.setRequestHeader("X-File-Name", encodeURIComponent(file.name));
+      xhr.setRequestHeader("X-File-Name", encodeURIComponent(namaFile || file.name));
       xhr.setRequestHeader("X-File-Type", file.type || "");
       xhr.upload.onprogress = (ev) => ev.lengthComputable && onProgress(ev.loaded / ev.total);
       xhr.onerror = () => reject(new Error("Unggahan terputus. Periksa koneksi lalu coba lagi."));
@@ -1406,6 +1546,7 @@
       sel.innerHTML = `<option value="">Mikrofon Bawaan (Default)</option>` + devices.filter((d) => d.kind === "audioinput" && d.deviceId !== "default")
         .map((d, i) => `<option value="${e(d.deviceId)}">${e(d.label || `Mikrofon ${i + 1}`)}</option>`).join("");
       sel.value = pilih;
+      sel.title = sel.options[sel.selectedIndex]?.text || "";
     } catch (err) {
       gagal(pesanMic(err), "Mikrofon tidak bisa dipakai");
     }
@@ -1654,14 +1795,16 @@
 
   /* ---------- Mode Perekam Ruangan (Hardware / Mini PC Ruangan) ---------- */
 
-  const rekamState = { data: null, error: "", timer: null, kode: null };
+  const rekamState = { data: null, error: "", timer: null, kode: null, selectedRoom: "" };
 
   async function nvBukaPerekam() {
     if (nv.editing && !(await tanyaTinggalkan())) return;
     nv.editing = false;
     nv.view = "perekam";
     rekamState.kode = null;
+    rekamState.selectedRoom = "";
     renderPerekam();
+    resetScrollNotulen(root());
     muatPerekam();
     clearInterval(rekamState.timer);
     rekamState.timer = setInterval(muatPerekam, 10000);
@@ -1670,8 +1813,61 @@
   function nvTutupPerekam() {
     clearInterval(rekamState.timer);
     rekamState.timer = null;
+    nvCloseRoomMenu();
     nv.view = "rapat";
     render();
+    resetScrollNotulen(root());
+  }
+
+  function htmlOpsiRuangan() {
+    const rooms = rekamState.data?.rooms;
+    if (!rooms) return `<div class="nv-room-picker-empty">Memuat ruangan…</div>`;
+    if (!rooms.length) return `<div class="nv-room-picker-empty">Belum ada daftar ruangan</div>`;
+    const cur = rekamState.selectedRoom || "";
+    return `<button type="button" role="option" aria-selected="${!cur}" class="nv-room-picker-opt is-reset ${!cur ? "selected" : ""}" data-room="" onclick="nvPilihRuangPerekam(this.dataset.room)">
+        <span>Pilih ruangan…</span>${!cur ? SVGS.check : ""}
+      </button>` +
+      rooms.map((r) => {
+        const aktif = cur === r;
+        return `<button type="button" role="option" aria-selected="${aktif}" class="nv-room-picker-opt ${aktif ? "selected" : ""}" data-room="${e(r)}" onclick="nvPilihRuangPerekam(this.dataset.room)">
+          <span>${e(r)}</span>${aktif ? SVGS.check : ""}
+        </button>`;
+      }).join("");
+  }
+
+  function sinkronkanPilihanRuang() {
+    const inp = document.getElementById("nvRecRoom");
+    const lbl = document.getElementById("nvRoomPickerLabel");
+    const btn = document.getElementById("nvRoomPickerBtn");
+    const menu = document.getElementById("nvRoomPickerMenu");
+    const rooms = rekamState.data?.rooms || [];
+    if (rekamState.selectedRoom && rooms.length && !rooms.includes(rekamState.selectedRoom)) {
+      rekamState.selectedRoom = "";
+    }
+    const cur = rekamState.selectedRoom || "";
+    if (inp) inp.value = cur;
+    if (lbl) {
+      lbl.textContent = cur || (rekamState.data ? "Pilih ruangan…" : "Memuat ruangan…");
+      lbl.classList.toggle("is-placeholder", !cur);
+    }
+    if (btn) btn.disabled = !rekamState.data;
+    if (menu) menu.innerHTML = htmlOpsiRuangan();
+  }
+
+  function nvToggleRoomMenu() {
+    const menu = document.getElementById("nvRoomPickerMenu");
+    const btn = document.getElementById("nvRoomPickerBtn");
+    if (!menu || !btn || btn.disabled) return;
+    const willOpen = !menu.classList.contains("show");
+    menu.classList.toggle("show", willOpen);
+    btn.classList.toggle("open", willOpen);
+    btn.setAttribute("aria-expanded", String(willOpen));
+  }
+
+  function nvPilihRuangPerekam(ruang) {
+    rekamState.selectedRoom = String(ruang || "");
+    sinkronkanPilihanRuang();
+    nvCloseRoomMenu();
   }
 
   async function muatPerekam() {
@@ -1683,11 +1879,7 @@
       rekamState.error = err.message;
     }
     if (nv.view !== "perekam") return;
-    const sel = document.getElementById("nvRecRoom");
-    if (sel && sel.options.length <= 1 && rekamState.data) {
-      sel.innerHTML = `<option value="">Pilih ruangan…</option>` +
-        rekamState.data.rooms.map((r) => `<option value="${e(r)}">${e(r)}</option>`).join("");
-    }
+    sinkronkanPilihanRuang();
     const list = document.getElementById("nvRecList");
     if (list) list.innerHTML = htmlDaftarPerekam();
   }
@@ -1714,15 +1906,27 @@
 
         <div class="nv-sec-card">
           <h2 class="nv-sec-title" style="margin-bottom:12px;">Pasang Perangkat Baru</h2>
-          <ol style="margin:0 0 16px 20px;padding:0;font-size:13px;color:#475569;line-height:1.8;">
+          <ol class="nv-perekam-steps">
             <li>Di PC / Mini PC ruang rapat yang terhubung microphone, buka URL <code>${e(alamat)}</code> di browser Chrome atau Edge (Wajib HTTPS atau localhost).</li>
             <li>Pilih ruangan lalu klik <b>Buat Kode Pemasangan</b>, masukkan kode 8 digit ke halaman perekam (berlaku 30 menit).</li>
             <li>Izinkan mikrofon dan biarkan tab browser tetap terbuka selama operasional harian.</li>
           </ol>
 
-          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-            <select id="nvRecRoom" class="nv-select-field" style="max-width:240px;"><option value="">Memuat ruangan…</option></select>
-            <input id="nvRecLabel" class="nv-select-field" style="flex:1;min-width:200px;" maxlength="150" placeholder="Nama perangkat (opsional), mis. PC Ruang Rapat Besar">
+          <div class="nv-perekam-form">
+            <div id="nvRoomPicker" class="nv-room-picker">
+              <input type="hidden" id="nvRecRoom" value="${e(rekamState.selectedRoom || "")}">
+              <button type="button" id="nvRoomPickerBtn" class="nv-room-picker-btn" onclick="nvToggleRoomMenu()" aria-haspopup="listbox" aria-expanded="false" ${rekamState.data ? "" : "disabled"}>
+                <span class="nv-room-picker-left">
+                  ${SVGS.building}
+                  <span id="nvRoomPickerLabel" class="${rekamState.selectedRoom ? "" : "is-placeholder"}">${e(rekamState.selectedRoom || (rekamState.data ? "Pilih ruangan…" : "Memuat ruangan…"))}</span>
+                </span>
+                ${SVGS.chevronDown}
+              </button>
+              <div id="nvRoomPickerMenu" class="nv-room-picker-menu" role="listbox">
+                ${htmlOpsiRuangan()}
+              </div>
+            </div>
+            <input id="nvRecLabel" class="nv-select-field" maxlength="150" placeholder="Nama perangkat (opsional), mis. PC Ruang Rapat Besar">
             <button type="button" class="nv-btn-blue-cta" onclick="nvBuatKode()">Buat Kode Pemasangan</button>
           </div>
           <div id="nvRecKode">${htmlKode()}</div>
@@ -1745,7 +1949,7 @@
     return `
       <div class="nv-alert-box nv-alert-ok" style="text-align:center;margin-top:16px;">
         <div>Kode pemasangan untuk <b>${e(k.ruang || "perangkat")}</b>:</div>
-        <div style="font-family:Consolas,monospace;font-size:32px;font-weight:700;letter-spacing:6px;color:#0f172a;margin:10px 0;">
+        <div class="nv-perekam-kode">
           ${e(k.kode.slice(0, 4))}-${e(k.kode.slice(4))}
         </div>
         <div style="font-size:12px;color:#64748b;">Berlaku ${k.berlakuMenit} menit dan hanya dapat dipakai sekali.</div>
@@ -1774,17 +1978,17 @@
         badge = `<span class="nv-status-tag nv-status-done">Siap</span>`;
       }
       return `
-        <div class="nv-file-row">
-          <div style="flex:1;">
-            <div style="display:flex;align-items:center;gap:10px;">
+        <div class="nv-file-row nv-perekam-device-row">
+          <div class="nv-perekam-device-info">
+            <div class="nv-perekam-device-head">
               <b style="font-size:14px;color:#0f172a;">${e(p.ruang)}</b>
               ${badge}
             </div>
-            <div style="font-size:12px;color:#64748b;margin-top:3px;">
+            <div class="nv-perekam-device-meta">
               ${e(p.label || "-")} &bull; Mic: ${e(st.micLabel || "-")} &bull; Terakhir terhubung: ${p.terakhirTerlihat ? waktuLokal(p.terakhirTerlihat) : "-"}
             </div>
           </div>
-          <div style="display:flex;gap:8px;">
+          <div class="nv-perekam-device-actions">
             <button type="button" class="nv-btn-outline-download" style="padding:5px 10px;font-size:11.5px;" onclick="nvKodeUlang('${e(p.id)}')">Kode Baru</button>
             <button type="button" class="nv-btn-outline-download" style="padding:5px 10px;font-size:11.5px;color:#dc2626;border-color:#fecaca;" onclick="nvCabutPerekam('${e(p.id)}')">Cabut</button>
           </div>
@@ -1847,8 +2051,8 @@
 
   /* ---------- Global Exports ---------- */
   Object.assign(window, {
-    openNotulen, closeNotulen, nvUnggah, nvPutar, nvHapusFile, nvHapusHasil, nvProses, nvBatal, nvSimpanNama, nvBuatUlang,
-    nvMasukUlang, nvBukaPerekam, nvTutupPerekam, nvBuatKode, nvKodeUlang, nvCabutPerekam,
+    openNotulen, closeNotulen, nvBukaPilihFile, nvUnggah, nvPutar, nvHapusFile, nvHapusHasil, nvProses, nvBatal, nvSimpanNama, nvBuatUlang,
+    nvMasukUlang, nvBukaPerekam, nvTutupPerekam, nvToggleRoomMenu, nvPilihRuangPerekam, nvBuatKode, nvKodeUlang, nvCabutPerekam,
     nvTab, nvPilihModel, nvGantiNumSpk, nvGantiTanyaDulu, nvGunakanModelRingan, nvToggleModelConfig, nvCariTranskrip,
     nvToggleExportMenu, nvCloseExportMenu, nvKlasifikasi, nvInfo,
     nvEdit, nvBatalEdit, nvSimpanNotulen, nvUnduhMd, nvUnduhTranskrip, nvCetak, nvMuatMic,
@@ -1856,6 +2060,11 @@
   });
 
   document.addEventListener("keydown", (ev) => {
+    if (ev.key === "Escape" && (isExportMenuOpen() || isRoomMenuOpen())) {
+      ev.preventDefault();
+      closeAllFloatingMenus();
+      return;
+    }
     if (ev.key === "Escape" && nv.meetingId && !document.querySelector(".nv-dlg")
       && !document.getElementById("modal")?.classList.contains("show")) {
       closeNotulen();
