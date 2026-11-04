@@ -771,14 +771,87 @@
     gap: 14px !important;
   }
   .custom-room-modal {
-    width: calc(100vw - 20px) !important;
-    max-width: 95vw !important;
-    padding: 20px 16px !important;
-    margin: 10px auto !important;
+    width: calc(100vw - 16px) !important;
+    max-width: 560px !important;
+    max-height: calc(100dvh - 20px) !important;
+    max-height: calc(100vh - 20px) !important;
+    padding: 16px 14px 14px !important;
+    margin: auto !important;
     box-sizing: border-box !important;
+    border-radius: 18px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior: contain !important;
+    touch-action: pan-y !important;
+  }
+  .crm-header {
+    margin-bottom: 12px !important;
+  }
+  .crm-header h2 {
+    font-size: 19px !important;
+    margin: 0 0 3px !important;
+    line-height: 1.25 !important;
+  }
+  .crm-header p {
+    font-size: 12px !important;
+    line-height: 1.35 !important;
+    color: #4b6a90 !important;
   }
   .crm-row {
     grid-template-columns: 1fr !important;
     gap: 10px !important;
+  }
+  .crm-field {
+    margin-bottom: 12px !important;
+  }
+  .crm-field label {
+    font-size: 13px !important;
+    margin-bottom: 6px !important;
+  }
+  .crm-field input,
+  .crm-field select {
+    padding: 10px 14px !important;
+    font-size: 13.5px !important;
+    border-radius: 10px !important;
+    min-height: 42px !important;
+    box-sizing: border-box !important;
+  }
+  .crm-main-preview-container {
+    height: 145px !important;
+    border-radius: 12px !important;
+  }
+  .crm-thumbs-bar {
+    padding-bottom: 4px !important;
+  }
+  .crm-thumb-item,
+  .crm-thumb-add {
+    width: 50px !important;
+    height: 50px !important;
+    border-radius: 8px !important;
+  }
+  .crm-actions {
+    position: sticky !important;
+    bottom: -14px !important;
+    background: #ffffff !important;
+    padding: 12px 14px 10px !important;
+    margin: 16px -14px -14px !important;
+    border-top: 1px solid #eef2f6 !important;
+    box-shadow: 0 -4px 12px rgba(12, 45, 94, 0.05) !important;
+    display: flex !important;
+    gap: 10px !important;
+    z-index: 30 !important;
+  }
+  .crm-btn-cancel,
+  .crm-btn-save {
+    flex: 1 !important;
+    min-height: 42px !important;
+    padding: 10px 14px !important;
+    font-size: 13px !important;
+    border-radius: 10px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
   }
 }

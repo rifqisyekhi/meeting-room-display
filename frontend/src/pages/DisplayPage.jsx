@@ -688,7 +688,23 @@ function DisplayPage() {
         <span>BerAKHLAK · Bangga Melayani Bangsa</span>
         <span>Mohon menjaga kebersihan ruang rapat</span>
         <span>Matikan AC dan peralatan elektronik setelah digunakan</span>
-        <Link to="/dashboard" style={{ color: 'inherit', textDecoration: 'none', opacity: 0.8 }}>
+        <Link
+          to="/login?portal=dashboard&prompt=login"
+          onClick={() => {
+            try {
+              sessionStorage.removeItem("dashboard_isAuthenticated");
+              sessionStorage.removeItem("dashboard_currentUser");
+              localStorage.removeItem("dashboard_isAuthenticated");
+              localStorage.removeItem("dashboard_currentUser");
+              sessionStorage.removeItem("isAuthenticated");
+              sessionStorage.removeItem("currentUser");
+              localStorage.removeItem("isAuthenticated");
+              localStorage.removeItem("currentUser");
+            } catch (err) {}
+          }}
+          style={{ color: 'inherit', textDecoration: 'none', opacity: 0.8 }}
+          title="Login ke Dashboard Admin"
+        >
           ⚙️ Dashboard Admin
         </Link>
       </p>

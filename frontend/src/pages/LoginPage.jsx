@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import "./LoginPage.css";
 import logoKemnaker from "../assets/Logo Kemenaker White.png";
 
@@ -65,6 +65,9 @@ export default function LoginPage() {
     queryParams.get("addAccount") === "true" ||
     queryParams.get("isAddingAccount") === "true" ||
     location.state?.isAddingAccount === true;
+  const isPromptLogin =
+    queryParams.get("prompt") === "login" ||
+    queryParams.get("from") === "display";
   const statePortal = location.state?.fromPortal;
   const returnTo = location.state?.from?.pathname || "";
   const isBookingLogin =
@@ -81,7 +84,7 @@ export default function LoginPage() {
 
   // Jika sudah login dan tidak dalam mode tambah akun atau logout, langsung arahkan ke tujuan atau role yang sesuai
   useEffect(() => {
-    if (isLogoutParam) {
+    if (isLogoutParam || isPromptLogin) {
       const keys = [
         "booking_isAuthenticated",
         "booking_currentUser",
@@ -527,6 +530,25 @@ export default function LoginPage() {
               Masuk
             </button>
           </form>
+
+          <div style={{ marginTop: '16px', textAlign: 'center' }}>
+            <Link
+              to="/"
+              style={{
+                fontSize: '12.5px',
+                color: '#64748b',
+                textDecoration: 'none',
+                fontWeight: 500,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+              onMouseOver={(e) => (e.currentTarget.style.color = '#123B5D')}
+              onMouseOut={(e) => (e.currentTarget.style.color = '#64748b')}
+            >
+              <span>←</span> Kembali ke Tampilan TV
+            </Link>
+          </div>
         </div>
       </div>
     </div>
