@@ -51,20 +51,24 @@ export default function DashboardPage() {
       style={{
         width: "100vw",
         height: "100vh",
+        maxHeight: "100dvh",
         margin: 0,
         padding: 0,
         overflow: "hidden",
         backgroundColor: "#f4f7fb",
+        WebkitOverflowScrolling: "touch",
       }}
     >
       <iframe
         src={iframeSrc}
         title="Dashboard Booking Ruang Rapat"
+        scrolling="yes"
         style={{
           width: "100%",
           height: "100%",
           border: "none",
           display: "block",
+          WebkitOverflowScrolling: "touch",
         }}
       />
     </div>

@@ -3602,7 +3602,7 @@ function reports() {
           <div class="rc-icon blue1" style="background:rgba(155, 194, 100, 0.18); color:#557e23;">${bsBuilding}</div>
           <div class="rc-text">
             <strong>${occupancyPct}%</strong>
-            <span>Okupansi Ruang</span>
+            <span>Okupansi Ruangan</span>
           </div>
         </div>
         <div class="rep-card">
@@ -3617,8 +3617,8 @@ function reports() {
       <!-- Charts Grid -->
       <div class="rep-charts">
         <div class="rep-chart-card">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
-            <div>
+          <div class="rep-chart-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
+            <div class="rep-chart-header-left">
               <h2 style="margin:0 0 2px;">Tren Penggunaan Ruang Rapat</h2>
               <small style="color:#64748b; font-weight:500;">Distribusi rapat: <strong>${getActivePeriodLabel()}</strong></small>
             </div>
@@ -4192,18 +4192,15 @@ let appSavedScrollY = 0;
 let appLockCount = 0;
 
 function onAppTouchMove(e) {
-  const isBackdrop = e.target.id === "modal" || (e.target.classList && e.target.classList.contains("modal-backdrop"));
-  if (isBackdrop) {
+  const backdrop = document.getElementById("modal");
+  if (!backdrop || !backdrop.classList.contains("show")) return;
+  if (e.target === backdrop || (e.target.classList && e.target.classList.contains("modal-backdrop"))) {
     if (e.cancelable) e.preventDefault();
     return;
   }
-  const modal = e.target.closest("#modal .modal, .modal-dialog, .modal-content, .custom-room-modal, .custom-user-modal, .custom-role-modal");
-  if (!modal) {
+  const insideModal = e.target.closest("#modal > div, .modal, .custom-room-modal, .custom-user-modal, .custom-role-modal, .qr-custom-modal, .meeting-detail-modal, .meeting-form-modal");
+  if (!insideModal) {
     if (e.cancelable) e.preventDefault();
-  } else {
-    if (modal.scrollHeight <= modal.clientHeight && modal.scrollWidth <= modal.clientWidth) {
-      if (e.cancelable) e.preventDefault();
-    }
   }
 }
 
@@ -6946,7 +6943,7 @@ function openRoomModal(id = null) {
   const modalBackdrop = document.getElementById("modal");
   modalBackdrop.innerHTML = `
     <div class="custom-room-modal" onclick="event.stopPropagation()">
-      <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 20px;">
+      <div class="crm-header" style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 20px;">
         <div>
           <h2 style="margin:0 0 4px; font-size:22px; font-weight:800; color:#123B5D;">
             ${id ? "Edit Ruangan" : "Tambah Ruangan"}
