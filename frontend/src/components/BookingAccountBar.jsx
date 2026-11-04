@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { IoLogoWhatsapp } from "react-icons/io";
 import logo from "../assets/Logo Kemenaker White.png";
+import { logoutPenuh } from "../utils/sesi";
 import "./BookingAccountBar.css";
 
 export default function BookingAccountBar({ currentUser, historyPage = false, showHelp = false }) {
@@ -12,40 +13,17 @@ export default function BookingAccountBar({ currentUser, historyPage = false, sh
   const normalizedRole = role.toLowerCase();
   const isRegularUser = !["admin", "pimpinan", "approval"].some((value) => normalizedRole.includes(value));
 
-  const logout = () => {
+  const logout = async () => {
     setMenuOpen(false);
-    const keys = [
-      "booking_isAuthenticated",
-      "booking_currentUser",
-      "booking_isAddingAccount",
-      "dashboard_isAuthenticated",
-      "dashboard_currentUser",
-      "dashboard_savedAccounts",
-      "isAuthenticated",
-      "currentUser",
-      "isAddingAccount",
-    ];
-    keys.forEach((key) => {
-      sessionStorage.removeItem(key);
-      localStorage.removeItem(key);
-    });
+    await logoutPenuh();
     navigate("/login?portal=booking&logout=true", { replace: true });
   };
 
-  const switchAccount = () => {
+  const switchAccount = async () => {
     setMenuOpen(false);
-    const keys = [
-      "booking_isAuthenticated",
-      "booking_currentUser",
-      "dashboard_isAuthenticated",
-      "dashboard_currentUser",
-      "isAuthenticated",
-      "currentUser",
-    ];
-    keys.forEach((key) => {
-      sessionStorage.removeItem(key);
-      localStorage.removeItem(key);
-    });
+    // Ganti akun juga mengakhiri sesi lama sepenuhnya, termasuk cookie server.
+    // Tanpa itu, akun lama masih sah di mata backend sampai cookienya kedaluwarsa.
+    await logoutPenuh();
     sessionStorage.setItem("booking_isAddingAccount", "true");
     sessionStorage.setItem("isAddingAccount", "true");
     localStorage.setItem("isAddingAccount", "true");

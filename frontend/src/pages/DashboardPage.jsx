@@ -6,16 +6,29 @@ export default function DashboardPage() {
   useEffect(() => {
     document.title = "Dashboard - Booking Ruang Rapat";
     try {
+      /* Dashboard admin berjalan di dalam iframe dan membaca sessionStorage,
+         jadi identitasnya memang perlu dicerminkan ke slot yang ia baca.
+
+         Yang TIDAK boleh dilakukan di sini: menetapkan isAuthenticated.
+         Sebelumnya baris ini menulis isAuthenticated = "true" begitu ada
+         currentUser tersisa di penyimpanan mana pun, tanpa memeriksa apakah
+         orangnya masih login. Akibatnya satu salinan yang lolos dari logout —
+         misalnya sessionStorage milik tab lain, yang tidak ikut terhapus saat
+         logout dilakukan di tab ini — langsung dipulihkan menjadi sesi yang
+         sah, dan pengguna kembali masuk sebagai akun lama. */
+      const sudahLogin =
+        sessionStorage.getItem("dashboard_isAuthenticated") === "true" ||
+        sessionStorage.getItem("isAuthenticated") === "true" ||
+        localStorage.getItem("dashboard_isAuthenticated") === "true" ||
+        localStorage.getItem("isAuthenticated") === "true";
       const stored =
         sessionStorage.getItem("dashboard_currentUser") ||
         sessionStorage.getItem("currentUser") ||
         localStorage.getItem("dashboard_currentUser") ||
         localStorage.getItem("currentUser");
-      if (stored) {
+      if (sudahLogin && stored) {
         sessionStorage.setItem("dashboard_currentUser", stored);
-        sessionStorage.setItem("dashboard_isAuthenticated", "true");
         sessionStorage.setItem("currentUser", stored);
-        sessionStorage.setItem("isAuthenticated", "true");
       }
     } catch (e) {}
   }, []);

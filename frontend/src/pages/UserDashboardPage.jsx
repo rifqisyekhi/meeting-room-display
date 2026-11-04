@@ -1,4 +1,5 @@
 import { useLockScroll } from "../utils/scrollLock";
+import { logoutPenuh } from "../utils/sesi";
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { FaBars, FaCalendarAlt, FaDoorOpen, FaEye, FaEyeSlash, FaHistory, FaLock, FaSignOutAlt, FaTimes, FaUser } from "react-icons/fa";
@@ -228,22 +229,8 @@ export default function UserDashboardPage() {
     }
   };
 
-  const logout = () => {
-    const keys = [
-      "booking_isAuthenticated",
-      "booking_currentUser",
-      "booking_isAddingAccount",
-      "dashboard_isAuthenticated",
-      "dashboard_currentUser",
-      "dashboard_savedAccounts",
-      "isAuthenticated",
-      "currentUser",
-      "isAddingAccount",
-    ];
-    keys.forEach((key) => {
-      sessionStorage.removeItem(key);
-      localStorage.removeItem(key);
-    });
+  const logout = async () => {
+    await logoutPenuh();
     navigate("/login?portal=booking&logout=true", { replace: true });
   };
 

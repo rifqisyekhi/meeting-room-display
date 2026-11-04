@@ -6,6 +6,7 @@ import { QRCodeSVG } from 'qrcode.react'
 import { Link } from 'react-router-dom'
 import { IoLogoWhatsapp } from "react-icons/io"
 import kemnakerLogo from '../assets/kemnaker-logo.png'
+import { bersihkanPenyimpananSesi } from '../utils/sesi'
 import '../App.css'
 
 dayjs.locale('id')
@@ -691,21 +692,14 @@ function DisplayPage() {
         <Link
           to="/login?portal=dashboard&prompt=login"
           onClick={() => {
-            try {
-              sessionStorage.removeItem("dashboard_isAuthenticated");
-              sessionStorage.removeItem("dashboard_currentUser");
-              localStorage.removeItem("dashboard_isAuthenticated");
-              localStorage.removeItem("dashboard_currentUser");
-              sessionStorage.removeItem("isAuthenticated");
-              sessionStorage.removeItem("currentUser");
-              localStorage.removeItem("isAuthenticated");
-              localStorage.removeItem("currentUser");
-            } catch (err) {}
+            // Layar TV dipakai bergantian, jadi mulai dari bersih: pakai daftar
+            // kunci bersama supaya tidak ada slot identitas yang terlewat.
+            bersihkanPenyimpananSesi();
           }}
           style={{ color: 'inherit', textDecoration: 'none', opacity: 0.8 }}
-          title="Login ke Dashboard Admin"
+          title="Masuk ke Dashboard Admin"
         >
-          ⚙️ Dashboard Admin
+          ⚙️ Login
         </Link>
       </p>
     </main>

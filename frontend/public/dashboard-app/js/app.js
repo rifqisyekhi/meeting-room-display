@@ -8288,6 +8288,21 @@ setInterval(() => fetchDashboardData(false), 5000);
 // LOGOUT FUNCTION
 // ----------------------------------------------------------------------
 function executeLogout() {
+  /* Identitas juga dipegang server lewat cookie bertanda tangan, dan
+     membersihkan penyimpanan peramban tidak menyentuhnya. Tanpa panggilan ini
+     cookie tetap sah sampai kedaluwarsa, sehingga peramban yang sudah "logout"
+     masih diterima oleh rute yang memakai wajibPeran("Admin").
+
+     keepalive dipakai karena halaman langsung berpindah di bawah: tanpa itu
+     peramban berhak membatalkan permintaan yang belum selesai saat unload. */
+  try {
+    fetch("/api/dashboard/logout", {
+      method: "POST",
+      credentials: "same-origin",
+      keepalive: true,
+    }).catch(() => {});
+  } catch (err) {}
+
   const authKeys = [
     "isAuthenticated",
     "currentUser",
