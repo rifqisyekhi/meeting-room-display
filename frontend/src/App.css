@@ -218,11 +218,11 @@
 .status {
   display: inline-flex;
   align-items: center;
-  gap: .45vw;
-  padding: .6vh .85vw;
-  border: 1px solid var(--tone);
+  gap: .48vw;
+  padding: .68vh 1vw;
+  border: 1.5px solid var(--tone);
   border-radius: 10vw;
-  font-size: .78vw;
+  font-size: clamp(12px, .92vw, 18px);
   font-weight: 600;
   letter-spacing: .04em;
   text-transform: uppercase;
@@ -231,8 +231,8 @@
 }
 
 .status i {
-  width: .45vw;
-  height: .45vw;
+  width: clamp(7px, .52vw, 10px);
+  height: clamp(7px, .52vw, 10px);
   border-radius: 50%;
   background: currentColor;
 }
@@ -267,21 +267,25 @@
 .slot__lead {
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: 1vw;
+  gap: .95vw;
   align-items: start;
+}
+
+.room.is-free .slot__lead {
+  align-items: center;
 }
 
 .slot__badge {
   display: grid;
   place-items: center;
-  width: 3.6vw;
-  height: 3.6vw;
+  width: 3.85vw;
+  height: 3.85vw;
   border-radius: 50%;
 }
 
 .slot__badge svg {
-  width: 1.7vw;
-  height: 1.7vw;
+  width: 1.82vw;
+  height: 1.82vw;
 }
 
 .room.is-busy .slot__badge {
@@ -301,16 +305,19 @@
 /* Sized to clear the large-text contrast threshold: the status colours pass
    3:1 but not 4.5:1, so this line must never shrink below ~19px bold. */
 .slot__state {
-  font-size: 1vw;
+  font-size: 1.25vw;
   font-weight: 700;
-  letter-spacing: .06em;
+  line-height: 1.22;
+  letter-spacing: .03em;
   text-transform: uppercase;
   color: var(--tone);
 }
 
 .slot__state.is-empty {
-  font-size: 1.6vw;
-  margin-top: .6vh;
+  font-size: 1.9vw;
+  line-height: 1.15;
+  letter-spacing: .04em;
+  margin-top: 0;
 }
 
 .slot__headline h3 {
@@ -841,14 +848,14 @@
   .room__head h2 { font-size: 19px; }
   .room__title { gap: 10px; }
   .demo-badge { font-size: 11px; padding: 3px 7px; }
-  .status { font-size: 12px; padding: 5px 10px; }
-  .status i { width: 8px; height: 8px; }
+  .status { font-size: 13.5px; padding: 6px 12px; }
+  .status i { width: 8.5px; height: 8.5px; }
   .eyebrow { font-size: 11px; gap: 6px; }
 
-  .slot__badge { width: 52px; height: 52px; }
-  .slot__badge svg { width: 24px; height: 24px; }
-  .slot__state { font-size: 13px; }
-  .slot__state.is-empty { font-size: 22px; margin-top: 8px; }
+  .slot__badge { width: 56px; height: 56px; }
+  .slot__badge svg { width: 26px; height: 26px; }
+  .slot__state { font-size: 16px; }
+  .slot__state.is-empty { font-size: 25px; margin-top: 0; }
   .slot__headline h3 { font-size: 26px; }
   .slot__time, .slot__pic { font-size: 14px; }
   .slot__foot .countdown { font-size: 34px; }

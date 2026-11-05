@@ -1609,6 +1609,25 @@ select.nv-select-field {
   flex-wrap: wrap;
 }
 
+.nv-room-picker {
+  position: relative;
+  width: 100%;
+}
+
+.nv-room-picker.is-open {
+  z-index: 70;
+}
+
+.nv-model-form-grid > div:has(.nv-room-picker.is-open) {
+  position: relative;
+  z-index: 40;
+}
+
+.nv-sec-card:has(.nv-room-picker.is-open) {
+  position: relative;
+  z-index: 30;
+}
+
 .nv-perekam-form #nvRoomPicker {
   position: relative;
   flex: 0 1 300px;
@@ -1668,11 +1687,16 @@ select.nv-select-field {
   color: #64748b;
 }
 
-#nvRoomPickerLabel {
+#nvRoomPickerLabel,
+.nv-picker-btn-label {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   color: #0f172a;
+  font-weight: 500;
+}
+
+#nvRoomPickerLabel {
   font-weight: 600;
 }
 
@@ -1755,6 +1779,32 @@ select.nv-select-field {
 .nv-room-picker-opt svg {
   flex-shrink: 0;
   color: #2563eb;
+}
+
+.nv-picker-opt-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  white-space: normal;
+  line-height: 1.38;
+}
+
+.nv-picker-opt-text svg {
+  flex-shrink: 0;
+  color: #64748b;
+}
+
+.nv-room-picker-opt:disabled {
+  opacity: 0.48;
+  color: #94a3b8;
+  cursor: not-allowed;
+  background: transparent;
+}
+
+.nv-room-picker-opt:disabled:hover {
+  background: transparent;
+  color: #94a3b8;
 }
 
 .nv-room-picker-empty {

@@ -118,6 +118,9 @@
     sliders: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/><line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/><line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/><line x1="14" x2="14" y1="2" y2="6"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="16" x2="16" y1="18" y2="22"/></svg>`,
     edit: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z"/></svg>`,
     lock: `<svg width="13.5" height="13.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`,
+    micSm: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>`,
+    sparkleSm: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>`,
+    users: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
     clock: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
   };
 
@@ -412,7 +415,21 @@
     const slot = document.getElementById("nvTopAiStatus");
     if (slot) slot.innerHTML = htmlTopAiBadge();
     const selGrid = document.getElementById("nvModelFormGrid");
-    if (selGrid) selGrid.innerHTML = htmlModelFormCols();
+    if (selGrid) {
+      const openPickerId = selGrid.querySelector(".nv-custom-picker.is-open")?.id || "";
+      selGrid.innerHTML = htmlModelFormCols();
+      if (openPickerId) {
+        const wrap = document.getElementById(openPickerId);
+        const menu = wrap?.querySelector(".nv-room-picker-menu");
+        const btn = wrap?.querySelector(".nv-room-picker-btn");
+        if (wrap && menu && btn && !btn.disabled) {
+          wrap.classList.add("is-open");
+          menu.classList.add("show");
+          btn.classList.add("open");
+          btn.setAttribute("aria-expanded", "true");
+        }
+      }
+    }
     const ramAlert = document.getElementById("nvRamAlertSlot");
     if (ramAlert) ramAlert.innerHTML = htmlRamWarningAlert();
     const infoSlot = document.getElementById("nvInfoSlot");
@@ -450,43 +467,78 @@
     return `<span class="nv-status-tag nv-status-draft">Belum Diproses</span>`;
   }
 
+  function htmlCustomPicker({ id, kind, icon, selected, items }) {
+    const labelText = selected ? selected.label : "Pilih…";
+    const activeVal = selected ? selected.value : "";
+    const optsHtml = items.map((it) => {
+      const aktif = it.value === activeVal;
+      return `<button type="button" role="option" aria-selected="${aktif}"
+        class="nv-room-picker-opt ${aktif ? "selected" : ""}"
+        data-kind="${e(kind)}" data-val="${e(it.value)}"
+        ${it.disabled ? "disabled" : ""}
+        onclick="nvSelectCustomPicker(this)">
+        <span class="nv-picker-opt-text">${it.icon || ""}${e(it.label)}</span>
+        ${aktif ? SVGS.check : ""}
+      </button>`;
+    }).join("");
+
+    return `
+      <div id="${e(id)}" class="nv-room-picker nv-custom-picker">
+        <button type="button" class="nv-room-picker-btn" onclick="nvToggleCustomPicker('${e(id)}')"
+          aria-haspopup="listbox" aria-expanded="false" title="${e(labelText)}">
+          <span class="nv-room-picker-left">
+            ${icon}
+            <span class="nv-picker-btn-label">${e(labelText)}</span>
+          </span>
+          ${SVGS.chevronDown}
+        </button>
+        <div class="nv-room-picker-menu" role="listbox">
+          ${optsHtml}
+        </div>
+      </div>
+    `;
+  }
+
   function htmlModelFormCols() {
     const m = nv.models || {};
     const currentW = nv.pilih.whisper || (m.default_whisper || "small");
     const currentL = nv.pilih.llm || (m.default_llm || "qwen3:4b");
 
     // Whisper options
-    let opsiW = "";
-    if (m.whisper && m.whisper.length) {
-      opsiW = m.whisper.map((w) => {
-        const val = w.name;
-        const sel = currentW === val ? "selected" : "";
-        const desc = KETERANGAN_WHISPER[w.name] ? ` · ${KETERANGAN_WHISPER[w.name]}` : "";
-        const ram = w.required_ram_mb ? ` · ~${(w.required_ram_mb / 1024).toFixed(0)} GB RAM` : "";
-        return `<option value="${e(val)}" ${sel}>${e(w.name)}${w.default ? " (Default)" : ""}${desc}${ram}</option>`;
-      }).join("");
-    } else {
-      // Daftar model belum terbaca (service AI mati): jangan tawarkan model yang belum tentu terpasang.
-      opsiW = `<option value="">Default server</option>`;
-    }
+    const itemsW = (m.whisper && m.whisper.length)
+      ? m.whisper.map((w) => {
+          const desc = KETERANGAN_WHISPER[w.name] ? ` · ${KETERANGAN_WHISPER[w.name]}` : "";
+          const ram = w.required_ram_mb ? ` · ~${(w.required_ram_mb / 1024).toFixed(0)} GB RAM` : "";
+          return {
+            value: w.name,
+            label: `${w.name}${w.default ? " (Default)" : ""}${desc}${ram}`,
+          };
+        })
+      : [{ value: "", label: "Default server" }];
+    const selectedW = itemsW.find((it) => it.value === currentW) || itemsW[0];
 
     // LLM options
-    let opsiL = "";
     const biasa = rapatBiasa();
-    if (m.llm && m.llm.length) {
-      opsiL = m.llm.map((l) => {
-        const val = l.name;
-        const sel = currentL === val ? "selected" : "";
-        if (l.cloud) {
-          // Claude (cloud) hanya boleh dipilih untuk rapat Biasa; backend juga menolaknya untuk rapat Rahasia.
-          return `<option value="${e(val)}" ${sel} ${biasa ? "" : "disabled"}>☁ ${e(l.name)} · ${biasa ? "cloud" : "hanya rapat Biasa"}</option>`;
-        }
-        const ram = l.size_mb ? ` · Butuh ~${((l.size_mb + 1500) / 1024).toFixed(1)} GB RAM` : "";
-        return `<option value="${e(val)}" ${sel}>${e(l.name)}${l.default ? " (Default)" : ""}${ram}</option>`;
-      }).join("");
-    } else {
-      opsiL = `<option value="">Default server</option>`;
-    }
+    const itemsL = (m.llm && m.llm.length)
+      ? m.llm.map((l) => {
+          if (l.cloud) {
+            // Claude (cloud) hanya boleh dipilih untuk rapat Biasa; backend juga menolaknya untuk rapat Rahasia.
+            return {
+              value: l.name,
+              label: `${l.name} · ${biasa ? "cloud" : "hanya rapat Biasa"}`,
+              icon: SVGS.cloud,
+              disabled: !biasa,
+            };
+          }
+          const ram = l.size_mb ? ` · Butuh ~${((l.size_mb + 1500) / 1024).toFixed(1)} GB RAM` : "";
+          return {
+            value: l.name,
+            label: `${l.name}${l.default ? " (Default)" : ""}${ram}`,
+          };
+        })
+      : [{ value: "", label: "Default server" }];
+    const selectedL = itemsL.find((it) => it.value === currentL) || itemsL[0];
+
     const adaCloud = (m.llm || []).some((l) => l.cloud);
     const catatanCloud = modelCloud(nv.pilih.llm)
       ? `<p class="nv-cloud-note">${SVGS.cloud} Teks transkrip rapat ini akan dikirim ke Anthropic (Claude) untuk menyusun notulen.
@@ -497,14 +549,15 @@
 
     // Diarization options
     const curSpk = nv.numSpeakers || "";
-    const opsiSpk = `
-      <option value="" ${curSpk === "" ? "selected" : ""}>Otomatis</option>
-      <option value="1" ${curSpk === "1" ? "selected" : ""}>1 Pembicara</option>
-      <option value="2" ${curSpk === "2" ? "selected" : ""}>2 Pembicara</option>
-      <option value="3" ${curSpk === "3" ? "selected" : ""}>3 Pembicara</option>
-      <option value="4" ${curSpk === "4" ? "selected" : ""}>4 Pembicara</option>
-      <option value="5" ${curSpk === "5" ? "selected" : ""}>5 Pembicara</option>
-    `;
+    const itemsSpk = [
+      { value: "", label: "Otomatis" },
+      { value: "1", label: "1 Pembicara" },
+      { value: "2", label: "2 Pembicara" },
+      { value: "3", label: "3 Pembicara" },
+      { value: "4", label: "4 Pembicara" },
+      { value: "5", label: "5 Pembicara" },
+    ];
+    const selectedSpk = itemsSpk.find((it) => it.value === curSpk) || itemsSpk[0];
 
     // Hanya rapat Biasa yang ditawarkan lewat bot, jadi pilihan ini tidak ada
     // gunanya untuk rapat Rahasia: transkripnya akan menggantung tanpa notulen
@@ -524,16 +577,16 @@
     return `
       <div>
         <label class="nv-form-label">Model Transkripsi (Whisper) ${tombolInfo("whisper")}</label>
-        <select class="nv-select-field" onchange="this.title=this.options[this.selectedIndex]?.text||''; nvPilihModel('whisper', this.value)">${opsiW}</select>
+        ${htmlCustomPicker({ id: "nvWhisperPicker", kind: "whisper", icon: SVGS.micSm, selected: selectedW, items: itemsW })}
       </div>
       <div>
         <label class="nv-form-label">Model Notulen ${tombolInfo("llm")}</label>
-        <select class="nv-select-field" onchange="this.title=this.options[this.selectedIndex]?.text||''; nvPilihModel('llm', this.value)">${opsiL}</select>
+        ${htmlCustomPicker({ id: "nvLlmPicker", kind: "llm", icon: modelCloud(selectedL?.value) ? SVGS.cloud : SVGS.sparkleSm, selected: selectedL, items: itemsL })}
         ${catatanCloud}
       </div>
       <div>
         <label class="nv-form-label">Deteksi Jumlah Pembicara</label>
-        <select class="nv-select-field" onchange="nvGantiNumSpk(this.value)">${opsiSpk}</select>
+        ${htmlCustomPicker({ id: "nvSpkPicker", kind: "speakers", icon: SVGS.users, selected: selectedSpk, items: itemsSpk })}
       </div>
       ${blokTanyaDulu}
     `;
@@ -1047,6 +1100,7 @@
 
   function nvToggleModelConfig() {
     nv.showModelConfig = !nv.showModelConfig;
+    if (!nv.showModelConfig) nvCloseCustomPickers();
     const el = document.getElementById("nvModelFormGrid");
     if (el) el.style.display = nv.showModelConfig ? "" : "none";
     const btn = document.getElementById("nvConfigToggleBtn");
@@ -1109,9 +1163,61 @@
     return Boolean(el && el.classList.contains("show"));
   }
 
+  function isAnyCustomPickerOpen() {
+    return Boolean(document.querySelector(".nv-custom-picker .nv-room-picker-menu.show"));
+  }
+
+  function nvCloseCustomPickers(exceptId = "") {
+    document.querySelectorAll(".nv-custom-picker").forEach((wrap) => {
+      if (exceptId && wrap.id === exceptId) return;
+      wrap.classList.remove("is-open");
+      wrap.querySelector(".nv-room-picker-menu")?.classList.remove("show");
+      const btn = wrap.querySelector(".nv-room-picker-btn");
+      if (btn) {
+        btn.classList.remove("open");
+        btn.setAttribute("aria-expanded", "false");
+      }
+    });
+  }
+
+  function nvToggleCustomPicker(id) {
+    const wrap = document.getElementById(id);
+    const menu = wrap?.querySelector(".nv-room-picker-menu");
+    const btn = wrap?.querySelector(".nv-room-picker-btn");
+    if (!wrap || !menu || !btn || btn.disabled) return;
+    const willOpen = !menu.classList.contains("show");
+    nvCloseExportMenu();
+    nvCloseRoomMenu();
+    nvCloseCustomPickers(id);
+    wrap.classList.toggle("is-open", willOpen);
+    menu.classList.toggle("show", willOpen);
+    btn.classList.toggle("open", willOpen);
+    btn.setAttribute("aria-expanded", String(willOpen));
+  }
+
+  function nvSelectCustomPicker(optBtn) {
+    if (!optBtn || optBtn.disabled) return;
+    const kind = optBtn.dataset.kind;
+    const val = optBtn.dataset.val ?? "";
+    nvCloseCustomPickers();
+    if (kind === "whisper" || kind === "llm") {
+      nvPilihModel(kind, val);
+      const selGrid = document.getElementById("nvModelFormGrid");
+      if (selGrid) selGrid.innerHTML = htmlModelFormCols();
+    } else if (kind === "speakers") {
+      nvGantiNumSpk(val);
+      const selGrid = document.getElementById("nvModelFormGrid");
+      if (selGrid) selGrid.innerHTML = htmlModelFormCols();
+    }
+  }
+
   function nvToggleExportMenu() {
     const el = document.getElementById("nvExportMenu");
-    if (el) el.classList.toggle("show");
+    if (!el) return;
+    const willOpen = !el.classList.contains("show");
+    nvCloseRoomMenu();
+    nvCloseCustomPickers();
+    el.classList.toggle("show", willOpen);
   }
 
   function nvCloseExportMenu() {
@@ -1120,8 +1226,10 @@
   }
 
   function nvCloseRoomMenu() {
+    const wrap = document.getElementById("nvRoomPicker");
     const menu = document.getElementById("nvRoomPickerMenu");
     const btn = document.getElementById("nvRoomPickerBtn");
+    if (wrap) wrap.classList.remove("is-open");
     if (menu) menu.classList.remove("show");
     if (btn) {
       btn.classList.remove("open");
@@ -1132,6 +1240,7 @@
   function closeAllFloatingMenus() {
     nvCloseExportMenu();
     nvCloseRoomMenu();
+    nvCloseCustomPickers();
   }
 
   document.addEventListener("pointerdown", (ev) => {
@@ -1140,6 +1249,9 @@
     }
     if (isRoomMenuOpen() && !ev.target.closest?.("#nvRoomPicker")) {
       nvCloseRoomMenu();
+    }
+    if (isAnyCustomPickerOpen() && !ev.target.closest?.(".nv-custom-picker")) {
+      nvCloseCustomPickers();
     }
   }, { passive: true });
 
@@ -1150,6 +1262,9 @@
     if (isRoomMenuOpen() && !ev.target.closest?.("#nvRoomPicker")) {
       nvCloseRoomMenu();
     }
+    if (isAnyCustomPickerOpen() && !ev.target.closest?.(".nv-custom-picker")) {
+      nvCloseCustomPickers();
+    }
   });
 
   document.addEventListener("focusin", (ev) => {
@@ -1158,6 +1273,9 @@
     }
     if (isRoomMenuOpen() && !ev.target.closest?.("#nvRoomPicker")) {
       nvCloseRoomMenu();
+    }
+    if (isAnyCustomPickerOpen() && !ev.target.closest?.(".nv-custom-picker")) {
+      nvCloseCustomPickers();
     }
   });
 
@@ -1168,6 +1286,9 @@
     if (isRoomMenuOpen() && !ev.target?.closest?.("#nvRoomPickerMenu")) {
       nvCloseRoomMenu();
     }
+    if (isAnyCustomPickerOpen() && !ev.target?.closest?.(".nv-custom-picker .nv-room-picker-menu")) {
+      nvCloseCustomPickers();
+    }
   }, { capture: true, passive: true });
 
   window.addEventListener("wheel", (ev) => {
@@ -1177,6 +1298,9 @@
     if (isRoomMenuOpen() && !ev.target?.closest?.("#nvRoomPickerMenu")) {
       nvCloseRoomMenu();
     }
+    if (isAnyCustomPickerOpen() && !ev.target?.closest?.(".nv-custom-picker .nv-room-picker-menu")) {
+      nvCloseCustomPickers();
+    }
   }, { passive: true });
 
   window.addEventListener("touchmove", (ev) => {
@@ -1185,6 +1309,9 @@
     }
     if (isRoomMenuOpen() && !ev.target?.closest?.("#nvRoomPickerMenu")) {
       nvCloseRoomMenu();
+    }
+    if (isAnyCustomPickerOpen() && !ev.target?.closest?.(".nv-custom-picker .nv-room-picker-menu")) {
+      nvCloseCustomPickers();
     }
   }, { passive: true });
 
@@ -1855,10 +1982,14 @@
   }
 
   function nvToggleRoomMenu() {
+    const wrap = document.getElementById("nvRoomPicker");
     const menu = document.getElementById("nvRoomPickerMenu");
     const btn = document.getElementById("nvRoomPickerBtn");
-    if (!menu || !btn || btn.disabled) return;
+    if (!wrap || !menu || !btn || btn.disabled) return;
     const willOpen = !menu.classList.contains("show");
+    nvCloseExportMenu();
+    nvCloseCustomPickers();
+    wrap.classList.toggle("is-open", willOpen);
     menu.classList.toggle("show", willOpen);
     btn.classList.toggle("open", willOpen);
     btn.setAttribute("aria-expanded", String(willOpen));
@@ -2054,13 +2185,14 @@
     openNotulen, closeNotulen, nvBukaPilihFile, nvUnggah, nvPutar, nvHapusFile, nvHapusHasil, nvProses, nvBatal, nvSimpanNama, nvBuatUlang,
     nvMasukUlang, nvBukaPerekam, nvTutupPerekam, nvToggleRoomMenu, nvPilihRuangPerekam, nvBuatKode, nvKodeUlang, nvCabutPerekam,
     nvTab, nvPilihModel, nvGantiNumSpk, nvGantiTanyaDulu, nvGunakanModelRingan, nvToggleModelConfig, nvCariTranskrip,
+    nvToggleCustomPicker, nvSelectCustomPicker,
     nvToggleExportMenu, nvCloseExportMenu, nvKlasifikasi, nvInfo,
     nvEdit, nvBatalEdit, nvSimpanNotulen, nvUnduhMd, nvUnduhTranskrip, nvCetak, nvMuatMic,
     nvRekamMulai, nvRekamJeda, nvRekamSelesai,
   });
 
   document.addEventListener("keydown", (ev) => {
-    if (ev.key === "Escape" && (isExportMenuOpen() || isRoomMenuOpen())) {
+    if (ev.key === "Escape" && (isExportMenuOpen() || isRoomMenuOpen() || isAnyCustomPickerOpen())) {
       ev.preventDefault();
       closeAllFloatingMenus();
       return;

@@ -7932,13 +7932,17 @@ async function exportNotulensiPDF(id) {
 }
 
 function toast(msg) {
+  document.querySelectorAll(".toast").forEach((el) => el.remove());
   const t = document.createElement("div");
   t.className = "toast";
   t.textContent = msg;
   t.setAttribute("role", "status");
   t.setAttribute("aria-live", "polite");
   document.body.appendChild(t);
-  setTimeout(() => t.remove(), 4000);
+  setTimeout(() => {
+    t.classList.add("toast-hide");
+    setTimeout(() => t.remove(), 200);
+  }, 3800);
 }
 
 function showDashboardAlert(message) {
