@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { FiBell, FiRefreshCw, FiSearch, FiChevronDown, FiLogOut, FiPlusCircle } from 'react-icons/fi';
 import { FaUserCircle } from 'react-icons/fa';
+import { BsBuilding } from 'react-icons/bs';
+import { SlCalender } from 'react-icons/sl';
 
 const topbarStyle = {
   background: '#fff',
@@ -301,7 +303,7 @@ export default function Topbar({
               <div style={{ maxHeight: '340px', overflowY: 'auto' }}>
                 {notifList.length === 0 ? (
                   <div style={{ padding: '30px 16px', textAlign: 'center', color: '#94a3b8' }}>
-                    <div style={{ fontSize: '28px', marginBottom: '6px' }}>🔔</div>
+                    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '8px' }}><FiBell size={32} color="#94a3b8" /></div>
                     <div style={{ fontSize: '13px', fontWeight: 600, color: '#0c2d5e' }}>
                       Tidak Ada Notifikasi
                     </div>
@@ -360,7 +362,7 @@ export default function Topbar({
                         {n.message || `Pemohon: ${n.requester} · ${n.room}`}
                       </div>
                       <div style={{ fontSize: '10.5px', color: '#94a3b8' }}>
-                        🏛️ {n.room} · 📅 {n.date} ({n.time})
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#123B5D', fontWeight: 600 }}><BsBuilding size={12} color="#123B5D" /><span>{n.room}</span></span><span style={{ color: '#cbd5e1' }}>·</span><span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><SlCalender size={12} color="#64748b" /><span>{n.date} ({n.time})</span></span>
                       </div>
                     </div>
                   ))

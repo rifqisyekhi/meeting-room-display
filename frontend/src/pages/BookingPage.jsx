@@ -27,6 +27,7 @@ import { PiMonitor } from "react-icons/pi";
 import { HiSpeakerWave } from "react-icons/hi2";
 import { IoWaterSharp } from "react-icons/io5";
 import { IoLogoWhatsapp } from "react-icons/io";
+import { BsChatDots } from "react-icons/bs";
 import { sanitizeMeetings } from "../utils/devSession";
 import BookingAccountBar from "../components/BookingAccountBar";
 import "./BookingPage.css";
@@ -2232,7 +2233,7 @@ export default function BookingPage() {
               </button>
 
               <div className="bk-review-modal-header">
-                <div className="bk-review-modal-tag">⭐ RATING &amp; TESTIMONI</div>
+                <div className="bk-review-modal-tag" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><FaStar size={12} color="#f59e0b" /><span>RATING &amp; TESTIMONI</span></div>
                 <h3 className="bk-review-modal-title" id="booking-room-review-title">{selectedReviewRoom.name}</h3>
                 <p className="bk-review-modal-desc">
                   Ulasan dan rating dari pengguna ruangan
@@ -2242,7 +2243,7 @@ export default function BookingPage() {
               <div className="bk-review-modal-list">
                 {roomReviews.length === 0 ? (
                   <div className="bk-review-empty">
-                    <span className="bk-review-empty-icon">💬</span>
+                    <span className="bk-review-empty-icon" style={{ display: 'flex', justifyContent: 'center' }}><BsChatDots size={32} color="#94a3b8" /></span>
                     <strong>Belum ada ulasan untuk ruangan ini</strong>
                     <p>Ulasan dari pengguna akan muncul setelah rapat selesai digunakan.</p>
                   </div>

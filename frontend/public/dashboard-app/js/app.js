@@ -63,7 +63,7 @@ function isAdminRole(user) {
 // ----------------------------------------------------------------------
 const PERMISSIONS = {
   approve: ["pimpinan", "approval"],
-  manageMeeting: ["admin"], // tambah / edit rapat
+  manageMeeting: ["admin", "pimpinan", "approval"], // tambah / edit / hapus rapat
   checkInOut: ["admin"],
   emergencyCancel: ["admin", "pimpinan", "approval"],
   manageRoom: ["admin"],
@@ -758,10 +758,10 @@ function layout(content) {
         : `<header class="topbar"><input class="search" placeholder="Cari rapat, ruangan, pengguna..." oninput="globalSearch(this.value)">
       <div class="top-actions" style="display:flex;align-items:center;gap:12px;">
         <span class="badge ${state.googleCalendarConnected ? "green" : "yellow"}" style="font-size:11px;cursor:pointer;white-space:nowrap;" title="${esc(state.calendarMessage)}" onclick="alert(state.calendarMessage)">
-          ${state.googleCalendarConnected ? "🟢 Google Calendar" : "🟡 Menunggu Kalender"}
+          ${state.googleCalendarConnected ? '<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#16a34a;margin-right:5px;vertical-align:middle;"></span>Google Calendar' : '<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#eab308;margin-right:5px;vertical-align:middle;"></span>Menunggu Kalender'}
         </span>
         <button class="btn btn-light" onclick="fetchDashboardData(true)" style="padding:6px 12px;font-size:12px;display:flex;align-items:center;gap:4px;white-space:nowrap;" title="Sinkronkan data terbaru dari Google Calendar / backend">
-          🔄 Sinkron
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px;"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg>Sinkron
         </button>
         
       </div>
@@ -1184,7 +1184,7 @@ function showLiveBookingToast(meeting) {
   toastEl.className = "notif-toast-banner";
   toastEl.innerHTML = `
     <div class="ntb-icon-wrap">
-      <span class="ntb-bell-pulse">🔔</span>
+      <span class="ntb-bell-pulse" style="display:inline-flex;align-items:center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg></span>
     </div>
     <div class="ntb-body">
       <div class="ntb-title">Permintaan Booking Baru!</div>
@@ -1249,7 +1249,7 @@ function getDashboardNotifPanelHTML(currentUser) {
   if (notifs.length === 0) {
     itemsHTML = `
       <div class="notif-empty-state" style="padding:32px 16px;text-align:center;width:100%;">
-        <div style="font-size:28px;margin-bottom:6px;">🔔</div>
+        <div style="display:flex;justify-content:center;margin-bottom:8px;"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg></div>
         <div style="font-size:13.5px;font-weight:700;color:#123B5D;">Tidak Ada Notifikasi</div>
         <div style="font-size:12px;color:#94a3b8;margin-top:2px;">Semua permintaan telah diproses.</div>
       </div>
@@ -1275,7 +1275,7 @@ function getDashboardNotifPanelHTML(currentUser) {
         if (isReview) {
           statusBadge = `<span style="background:#ecfdf5;color:#0f766e;border:1px solid #99f6e4;font-size:10.5px;padding:2px 7px;border-radius:10px;font-weight:600;white-space:nowrap;">Rating ${esc(n.rating || 0)}/5</span>`;
         } else if (isPending) {
-          statusBadge = `<span style="background:#fff7ed;color:#ea580c;border:1px solid #fed7aa;font-size:10.5px;padding:2px 7px;border-radius:10px;font-weight:700;white-space:nowrap;">⏳ Perlu Persetujuan</span>`;
+          statusBadge = `<span style="background:#fff7ed;color:#ea580c;border:1px solid #fed7aa;font-size:10.5px;padding:2px 7px;border-radius:10px;font-weight:700;white-space:nowrap;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;flex-shrink:0;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span style="margin-left:4px;">Perlu Persetujuan</span></span>`;
         } else if (isApproved) {
           statusBadge = `<span style="background:#ecfdf5;color:#557e23;border:1px solid #bbf7d0;font-size:10.5px;padding:2px 7px;border-radius:10px;font-weight:600;white-space:nowrap;">✓ Disetujui</span>`;
         } else if (isRejected) {
@@ -1296,7 +1296,7 @@ function getDashboardNotifPanelHTML(currentUser) {
           : "";
 
         return `
-          <div class="dash-notif-item ${isPending ? "highlight-pending" : ""}" style="padding:10px 12px;border-radius:10px;background:#fff;border:1px solid ${isPending ? "#fed7aa" : isUnread ? "#bfdbfe" : "#e2e8f0"};${isPending ? "border-left:4px solid #ea580c;background:#fffaf5;" : isUnread ? "border-left:4px solid #2563eb;background:#f8faff;" : ""}">
+          <div class="dash-notif-item ${isPending ? "highlight-pending" : isReview ? "highlight-review" : ""}" style="padding:10px 12px;border-radius:10px;background:#fff;border:1px solid ${isPending ? "#fed7aa" : isReview ? (isUnread ? "#bfdbfe" : "#dbeafe") : isUnread ? "#bfdbfe" : "#e2e8f0"};${isPending ? "border-left:4px solid #ea580c;background:#fffaf5;" : isReview ? "border-left:4px solid #3473A7;background:#f8faff;" : isUnread ? "border-left:4px solid #3473A7;background:#f8faff;" : ""}">
             <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:4px;">
               <strong style="font-size:12.5px;font-weight:700;color:#123B5D;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;" title="${title}">
                 ${isUnread && !isPending ? `<span style="display:inline-block;width:6px;height:6px;background:#2563eb;border-radius:50%;margin-right:6px;vertical-align:middle;" title="Belum dibaca"></span>` : ""}${title}
@@ -1309,17 +1309,17 @@ function getDashboardNotifPanelHTML(currentUser) {
             <div style="font-size:11.5px;color:#475569;margin-bottom:3px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
               <span>${isReview ? "Pengulas" : "Pemesan"}: <b>${requester}</b></span>
               <span style="color:#cbd5e1;">·</span>
-              <span style="color:#123B5D;font-weight:600;">🏛️ ${roomName}</span>
+              <span style="color:#123B5D;font-weight:600;display:inline-flex;align-items:center;gap:4px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;flex-shrink:0;"><path d="M3 21h18M3 10h18M5 10v11M9 10v11M15 10v11M19 10v11M12 2l10 8H2l10-8z"/></svg><span>${roomName}</span></span>
             </div>
 
             ${
               isReview && reviewCommentText
-                ? `<div style="font-size:11.5px;color:#1e293b;font-style:italic;background:#fffbeb;border-left:3px solid #f59e0b;padding:4px 8px;border-radius:4px;margin:4px 0 6px;">"${esc(reviewCommentText)}"</div>`
+                ? `<div class="dash-notif-quote" style="font-size:11.5px;color:#1e293b;font-style:italic;background:#fffbeb;border:1px solid #fde68a;border-left:3px solid #f59e0b;padding:5px 9px;border-radius:6px;margin:4px 0 6px;">"${esc(reviewCommentText)}"</div>`
                 : ""
             }
 
             <div style="font-size:11px;color:#64748b;margin-bottom:8px;">
-              📅 ${dateStr} · ${timeStr} WIB
+              <span style="display:inline-flex;align-items:center;gap:4px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;flex-shrink:0;"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span>${dateStr} · ${timeStr} WIB</span></span>
             </div>
 
             <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;padding-top:4px;border-top:1px dashed #f1f5f9;">
@@ -1715,9 +1715,9 @@ function dashboard() {
         <div style="font-size:11px;color:#475569;display:flex;align-items:center;gap:6px;">
           ${
             isOccupied
-              ? `<span>📋 Rapat: <b>${esc(activeMeeting.title)}</b> (${activeMeeting.start}–${activeMeeting.end})</span>`
+              ? `<span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;flex-shrink:0;"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg> Rapat: <b>${esc(activeMeeting.title)}</b> (${activeMeeting.start}–${activeMeeting.end})</span>`
               : nextMeetingToday
-                ? `<span>🕒 Jadwal Berikutnya: <b>${esc(nextMeetingToday.title)}</b> (${nextMeetingToday.start})</span>`
+                ? `<span><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;flex-shrink:0;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Jadwal Berikutnya: <b>${esc(nextMeetingToday.title)}</b> (${nextMeetingToday.start})</span>`
                 : `<span style="color:#94a3b8;">Tidak ada rapat berikutnya hari ini</span>`
           }
         </div>
@@ -1760,10 +1760,10 @@ function dashboard() {
               </button>
               <div id="exportMenuDropdown" class="rep-export-menu" style="display: none; position: absolute; top: calc(100% + 6px); right: 0; background: #ffffff; border-radius: 8px; box-shadow: 0 10px 25px rgba(12, 45, 94, 0.12); border: 1px solid #e2e8f0; min-width: 140px; z-index: 1000; overflow: hidden;">
                 <button type="button" onclick="exportExcel(); closeExportMenu();" style="width: 100%; display: flex; align-items: center; gap: 8px; padding: 10px 16px; border: none; background: transparent; font-size: 13px; font-weight: 600; color: #123B5D; cursor: pointer; text-align: left; transition: background 0.15s;" onmouseover="this.style.background='#f0f4fa'" onmouseout="this.style.background='transparent'">
-                  <span>📊</span> Export Excel
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:6px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg> Export Excel
                 </button>
                 <button type="button" onclick="exportPDF(); closeExportMenu();" style="width: 100%; display: flex; align-items: center; gap: 8px; padding: 10px 16px; border: none; background: transparent; font-size: 13px; font-weight: 600; color: #123B5D; cursor: pointer; text-align: left; border-top: 1px solid #f1f5f9; transition: background 0.15s;" onmouseover="this.style.background='#f0f4fa'" onmouseout="this.style.background='transparent'">
-                  <span>📄</span> Export PDF
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:6px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg> Export PDF
                 </button>
               </div>
             </div>
@@ -1786,7 +1786,7 @@ function dashboard() {
           </select>
 
           <button type="button" onclick="openFilterModal()" style="display:inline-flex;align-items:center;gap:5px;font-weight:600;font-size:12px;padding:7px 12px;background:#fff;border:1px solid #cbd5e1;border-radius:7px;color:#123B5D;cursor:pointer;" title="Klik untuk mengubah periode jadwal yang ditampilkan">
-            <span>📅 Periode:</span> <strong>${getActivePeriodLabel()}</strong>
+            <span style="display:inline-flex;align-items:center;gap:4px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;flex-shrink:0;"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> <span>Periode:</span></span> <strong>${getActivePeriodLabel()}</strong>
           </button>
 
           <button type="button" onclick="applyDashboardFilter()" style="padding:7px 14px;background:#3473A7;color:#fff;border:none;border-radius:7px;font-weight:600;font-size:12px;cursor:pointer;transition:background 0.15s;" onmouseover="this.style.background='#123B5D'" onmouseout="this.style.background='#3473A7'">
@@ -1874,7 +1874,7 @@ function dashboard() {
           actionButtons += `<button type="button" class="tbl-action-btn is-approve" onclick="approveMeeting('${m.id}')" title="Setujui permohonan">${checkSvg}<span>Setujui</span></button>`;
           actionButtons += `<button type="button" class="tbl-action-btn is-reject" onclick="rejectMeeting('${m.id}')" title="Tolak permohonan">${xSvg}<span>Tolak</span></button>`;
         } else {
-          actionButtons += `<span class="tbl-action-pill is-waiting">⏳ Menunggu Pimpinan</span>`;
+          actionButtons += `<span class="tbl-action-pill is-waiting">${ICONS.meetingClock}<span>Menunggu Pimpinan</span></span>`;
         }
       } else if (isAdmin) {
         if (revBtn) actionButtons += revBtn;
@@ -2211,6 +2211,115 @@ function viewMeetingAttendance(meetingId) {
   openModal("Hasil Presensi Rapat", content);
 }
 
+window.closeActionDropdown = function () {
+  const existing = document.getElementById("activeTableActionMenu");
+  if (existing) {
+    existing.remove();
+    document.querySelectorAll(".is-dropdown-toggle.is-active").forEach((btn) => {
+      btn.classList.remove("is-active");
+    });
+  }
+};
+
+window.toggleActionDropdown = function (event, meetingId) {
+  if (event) {
+    event.stopPropagation();
+    event.preventDefault();
+  }
+
+  const existing = document.getElementById("activeTableActionMenu");
+  const wasSame = existing && existing.dataset.meetingId === String(meetingId);
+  closeActionDropdown();
+  if (wasSame) return;
+
+  const btn = event?.currentTarget || event?.target?.closest("button");
+  if (!btn) return;
+
+  btn.classList.add("is-active");
+
+  const m = (state.meetings || []).find((x) => String(x.id) === String(meetingId));
+  if (!m) return;
+
+  const safeMeetingId = String(m.id).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+  const attendeeCount = Array.isArray(m.attendees) ? m.attendees.length : 0;
+  const user = getCurrentUser();
+  const isAdmin = isAdminRole(user);
+  const isAtasan = isAtasanRole(user);
+  const canDelete = isAdmin || isAtasan || can("manageMeeting", user);
+
+  const menu = document.createElement("div");
+  menu.id = "activeTableActionMenu";
+  menu.dataset.meetingId = String(meetingId);
+  menu.className = "tbl-action-menu-popup";
+
+  let itemsHTML = `
+    <button type="button" class="tbl-action-menu-item" onclick="closeActionDropdown(); viewMeetingAttendance('${safeMeetingId}')" title="Lihat hasil presensi dan export Excel">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+      <span>Daftar Hadir (${attendeeCount})</span>
+    </button>
+  `;
+
+  if (typeof openNotulen === "function") {
+    itemsHTML += `
+      <button type="button" class="tbl-action-menu-item" onclick="closeActionDropdown(); openNotulen('${safeMeetingId}')" title="Rekam / unggah audio rapat dan buat notulen otomatis">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+        <span>Notulen</span>
+      </button>
+    `;
+  }
+
+  if (canDelete) {
+    itemsHTML += `
+      <div class="tbl-action-menu-divider"></div>
+      <button type="button" class="tbl-action-menu-item is-delete-item" onclick="closeActionDropdown(); deleteMeeting('${safeMeetingId}')" title="Hapus Rapat">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+        <span>Hapus</span>
+      </button>
+    `;
+  }
+
+  menu.innerHTML = itemsHTML;
+  document.body.appendChild(menu);
+
+  // Posisi floating menu
+  const rect = btn.getBoundingClientRect();
+  const menuWidth = 175;
+  let top = rect.bottom + 6;
+  let left = rect.right - menuWidth;
+
+  if (left < 10) left = 10;
+  if (left + menuWidth > window.innerWidth - 10) {
+    left = window.innerWidth - menuWidth - 10;
+  }
+  const menuHeight = menu.offsetHeight || 130;
+  if (top + menuHeight > window.innerHeight && rect.top > menuHeight + 10) {
+    top = rect.top - menuHeight - 6;
+  }
+
+  menu.style.top = top + "px";
+  menu.style.left = left + "px";
+};
+
+if (!window._tableActionMenuListenersAttached) {
+  window._tableActionMenuListenersAttached = true;
+  document.addEventListener("click", function (e) {
+    const menu = document.getElementById("activeTableActionMenu");
+    if (menu && !menu.contains(e.target) && !e.target.closest(".is-dropdown-toggle")) {
+      closeActionDropdown();
+    }
+  });
+  document.addEventListener(
+    "scroll",
+    function () {
+      closeActionDropdown();
+    },
+    true,
+  );
+  window.addEventListener("resize", function () {
+    closeActionDropdown();
+  });
+}
+
 function meetingTable(data, actions = true, allowDelete = true) {
   const user = getCurrentUser();
   const isAtasan = isAtasanRole(user);
@@ -2218,7 +2327,7 @@ function meetingTable(data, actions = true, allowDelete = true) {
 
   const rows =
     !data || data.length === 0
-      ? `<tr><td colspan="9" style="text-align:center;padding:36px;color:#8c9ba5;font-weight:500;">Belum ada jadwal rapat</td></tr>`
+      ? `<tr><td colspan="8" style="text-align:center;padding:36px;color:#8c9ba5;font-weight:500;">Belum ada jadwal rapat</td></tr>`
       : data
           .map((m, i) => {
             const faEye = ICONS.meetingEye;
@@ -2253,21 +2362,10 @@ function meetingTable(data, actions = true, allowDelete = true) {
             // ditawarkan dari Manajemen Rapat.
             const qrBtn = "";
 
-            let actionButtons = `<button type="button" class="tbl-action-btn is-view" title="Lihat Detail Rapat" onclick="viewMeeting('${m.id}')">${faEye}</button>${qrBtn}${reviewBtn}`;
-            if (actions && allowDelete && can("manageMeeting", user)) {
-              const safeDeleteId = String(m.id).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-              actionButtons += `<button type="button" class="tbl-action-btn is-delete" onclick="deleteMeeting('${safeDeleteId}')">Hapus</button>`;
-            }
+            const safeMeetingId = String(m.id).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+            let actionButtons = `<button type="button" class="tbl-action-btn is-view" title="Lihat Detail Rapat" onclick="viewMeeting('${safeMeetingId}')">${faEye}</button>${qrBtn}${reviewBtn}`;
 
-            if (isAdmin) {
-              const safeMeetingId = String(m.id).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-              const attendeeCount = Array.isArray(m.attendees) ? m.attendees.length : 0;
-              actionButtons += `<button type="button" class="tbl-action-btn is-attendance" title="Lihat hasil presensi dan export Excel" onclick="viewMeetingAttendance('${safeMeetingId}')">Daftar Hadir (${attendeeCount})</button>`;
-              // Notulen otomatis (rekam/unggah audio → transkrip → notulen), lihat js/notulen.js.
-              if (typeof openNotulen === "function") {
-                actionButtons += `<button type="button" class="tbl-action-btn is-notulen" title="Rekam / unggah audio rapat dan buat notulen otomatis" onclick="openNotulen('${safeMeetingId}')">🎙 Notulen</button>`;
-              }
-            }
+
 
             if (actions) {
               if (isPending) {
@@ -2277,8 +2375,6 @@ function meetingTable(data, actions = true, allowDelete = true) {
                   // HANYA PIMPINAN YANG MENYETUJUI & MENOLAK
                   actionButtons += `<button type="button" class="tbl-action-btn is-approve" title="Setujui" onclick="approveMeeting('${m.id}')">${ICONS.meetingCheck}<span>Setujui</span></button>`;
                   actionButtons += `<button type="button" class="tbl-action-btn is-reject" title="Tolak" onclick="rejectMeeting('${m.id}')">${ICONS.meetingXmark}<span>Tolak</span></button>`;
-                } else {
-                  actionButtons += `<span class="tbl-action-pill is-waiting">${ICONS.meetingClock}<span>Menunggu Persetujuan Pimpinan</span></span>`;
                 }
               } else if (isUpcoming && can("checkInOut", user)) {
                 actionButtons += `<button type="button" class="tbl-action-btn is-checkin" title="Check-In Manual oleh Admin (Catatan: Peserta juga dapat Check-In mandiri via Barcode/QR di ruangan)" onclick="checkInMeetingManual('${m.id}')">${ICONS.meetingCheck}<span>Check In (Manual)</span></button>`;
@@ -2316,20 +2412,7 @@ function meetingTable(data, actions = true, allowDelete = true) {
                   : `<span class="meeting-method-tag is-completed-manual" title="Selesai Manual Admin">Manual Admin</span>`
                 : "";
 
-            const rating = Math.max(
-              0,
-              Math.min(5, Number(m.review?.rating) || 0),
-            );
-            /* Diringkas menjadi satu keping angka yang bisa diklik. Sebelumnya
-               kolom ini memuat lima bintang DAN tombol "Lihat Review", padahal
-               di kolom Aksi masih ada tombol bintang lagi untuk rapat yang
-               sama — tiga jalan ke informasi yang sama, dan tombol di kolom
-               ini malah membuka detail rapat, bukan review-nya. */
-            const reviewCell = isCompleted
-              ? m.review
-                ? `<button type="button" class="meeting-review-chip" title="Lihat rating dan ulasan ruangan dari pemesan" onclick="openMeetingReviewModal('${m.id}')"><span class="meeting-inline-star">${ICONS.reviewStar}</span><span>${rating ? rating.toFixed(1) : "5.0"}</span></button>`
-                : `<span style="color:#8291a5;font-size:11px;">Belum ada review</span>`
-              : `<span style="color:#9aa8b8;">-</span>`;
+
 
             return `<tr>
               <td class="col-no"><span class="cell-no">${i + 1}</span></td>
@@ -2337,9 +2420,8 @@ function meetingTable(data, actions = true, allowDelete = true) {
               <td class="col-requester" title="${esc(m.requester || m.bookedBy || "-")}"><span class="cell-requester">${esc(m.requester || m.bookedBy || "-")}</span></td>
               <td class="col-room" title="${esc(m.room || "-")}"><span class="cell-room">${esc(m.room || "-")}</span></td>
               <td class="col-date"><span class="cell-date">${formatDate(m.date)}</span></td>
-              <td class="col-time"><span class="cell-time">${m.start} – ${m.end}</span></td>
+              <td class="col-time"><span class="cell-time">${m.start} - ${m.end}</span></td>
               <td class="col-status meeting-status-cell"><div class="meeting-status-stack">${badge(m.status)}${methodTag}</div></td>
-              <td class="col-review">${reviewCell}</td>
               <td class="col-actions"><div class="actions">${actionButtons}</div></td>
             </tr>`;
           })
@@ -2356,7 +2438,6 @@ function meetingTable(data, actions = true, allowDelete = true) {
           <th class="col-date">Tanggal</th>
           <th class="col-time">Waktu</th>
           <th class="col-status">Status</th>
-          <th class="col-review">Rating &amp; Review</th>
           <th class="col-actions">Aksi</th>
         </tr>
       </thead>
@@ -2486,18 +2567,20 @@ function meetings() {
             ${ioSearch}
             <input id="meetingSearch" placeholder="Cari rapat..." oninput="filterMeetingTable()">
           </div>
-          <select id="meetingRoom" onchange="filterMeetingTable()">
-            <option value="">Semua Ruangan</option>
-            ${state.rooms.map((r) => `<option>${esc(r.name)}</option>`).join("")}
-          </select>
-          <select id="meetingStatus" onchange="filterMeetingTable()">
-            <option value="">Semua Status</option>
-            <option>Berjalan</option>
-            <option>Akan Datang</option>
-            <option>Selesai</option>
-            <option>Menunggu Approval</option>
-            <option>Dibatalkan</option>
-          </select>
+          <div class="dash-filters-group">
+            <select id="meetingRoom" onchange="filterMeetingTable()">
+              <option value="">Semua Ruangan</option>
+              ${state.rooms.map((r) => `<option>${esc(r.name)}</option>`).join("")}
+            </select>
+            <select id="meetingStatus" onchange="filterMeetingTable()">
+              <option value="">Semua Status</option>
+              <option>Berjalan</option>
+              <option>Akan Datang</option>
+              <option>Selesai</option>
+              <option>Menunggu Approval</option>
+              <option>Dibatalkan</option>
+            </select>
+          </div>
         </div>
         
         <div id="meetingTable">${meetingTable(state.meetings)}</div>
@@ -2998,7 +3081,7 @@ function calendar() {
   if (selectedMeetings.length === 0) {
     scheduleItems = `
       <div class="cal-schedule-empty">
-        <div style="font-size:24px;margin-bottom:6px;">📅</div>
+        <div style="display:flex;justify-content:center;margin-bottom:8px;"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
         <div style="font-weight:700;color:#123B5D;margin-bottom:2px;">Tidak Ada Jadwal</div>
         <div style="font-size:12px;color:#64748b;">Belum ada kegiatan rapat yang dijadwalkan pada tanggal ini.</div>
       </div>
@@ -3047,9 +3130,9 @@ function calendar() {
                 ${esc(title)}
               </div>
               <div style="font-size:11.5px;color:#475569;margin-bottom:4px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-                <span>⏰ ${timeRange}</span>
+                <span style="display:inline-flex;align-items:center;gap:4px;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;flex-shrink:0;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span>${timeRange}</span></span>
                 <span style="color:#cbd5e1;">·</span>
-                <span>🏛️ ${esc(room)}</span>
+                <span style="display:inline-flex;align-items:center;gap:4px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;flex-shrink:0;"><path d="M3 21h18M3 10h18M5 10v11M9 10v11M15 10v11M19 10v11M12 2l10 8H2l10-8z"/></svg><span>${esc(room)}</span></span>
               </div>
               <div style="font-size:11px;color:#64748b;margin-bottom:6px;">
                 Pemesan: <b>${esc(requester)}</b>
@@ -3468,7 +3551,7 @@ function reports() {
   if (filteredMeetings.length === 0) {
     customTableHTML = `
       <div class="rep-list" style="margin: 0 40px 40px; text-align:center; padding: 48px 20px;">
-        <div style="font-size: 38px; margin-bottom: 10px;">📋</div>
+        <div style="display:flex;justify-content:center;margin-bottom:12px;"><svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg></div>
         <h3 style="font-size: 16px; font-weight: 700; color: #123B5D; margin: 0 0 6px;">Tidak ada riwayat rapat pada periode ini</h3>
         <p style="font-size: 13px; color: #64748b; margin: 0 0 16px;">Silakan pilih filter Mingguan, Bulanan, atau Semua Jadwal untuk melihat rekapitulasi penggunaan ruang rapat.</p>
         <button class="btn btn-primary" onclick="setReportPeriod('bulanan')" style="font-size: 12.5px; padding: 8px 18px; border-radius: 8px; background: #123B5D; cursor:pointer;">Tampilkan Bulan Ini</button>
@@ -3512,9 +3595,9 @@ function reports() {
                   } else if (s.includes("selesai")) {
                     statusBadge = `<span style="background:#f3f0ff;color:#5b3dd3;padding:5px 10px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;">✓ Selesai</span>`;
                   } else if (s.includes("menunggu") || s.includes("pending")) {
-                    statusBadge = `<span style="background:#fff7ed;color:#ea580c;padding:5px 10px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;">⏳ Menunggu Approval</span>`;
+                    statusBadge = `<span style="background:#fff7ed;color:#ea580c;padding:5px 10px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;display:inline-flex;align-items:center;gap:4px;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;flex-shrink:0;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span>Menunggu Approval</span></span>`;
                   } else {
-                    statusBadge = `<span style="background:rgba(52, 115, 167, 0.14);color:#3473A7;padding:5px 10px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;">📅 ${esc(m.status || "Akan Datang")}</span>`;
+                    statusBadge = `<span style="background:rgba(52, 115, 167, 0.14);color:#3473A7;padding:5px 10px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;display:inline-flex;align-items:center;gap:4px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;flex-shrink:0;"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span>${esc(m.status || "Akan Datang")}</span></span>`;
                   }
 
                   let durasiStr = "-";
@@ -3608,10 +3691,10 @@ function reports() {
           </button>
           <div id="exportMenuDropdown" class="rep-export-menu" style="display: none; position: absolute; top: calc(100% + 6px); right: 0; background: #ffffff; border-radius: 8px; box-shadow: 0 10px 25px rgba(12, 45, 94, 0.12); border: 1px solid #e2e8f0; min-width: 170px; z-index: 1000; overflow: hidden;">
             <button type="button" onclick="exportExcel(); closeExportMenu();" style="width: 100%; display: flex; align-items: center; gap: 8px; padding: 11px 16px; border: none; background: transparent; font-size: 13px; font-weight: 600; color: #123B5D; cursor: pointer; text-align: left; transition: background 0.15s;" onmouseover="this.style.background='#f0f4fa'" onmouseout="this.style.background='transparent'">
-              <span style="font-size:16px;">📊</span> Export Excel (.xlsx)
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:6px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg> Export Excel (.xlsx)
             </button>
             <button type="button" onclick="exportPDF(); closeExportMenu();" style="width: 100%; display: flex; align-items: center; gap: 8px; padding: 11px 16px; border: none; background: transparent; font-size: 13px; font-weight: 600; color: #123B5D; cursor: pointer; text-align: left; border-top: 1px solid #f1f5f9; transition: background 0.15s;" onmouseover="this.style.background='#f0f4fa'" onmouseout="this.style.background='transparent'">
-              <span style="font-size:16px;">📄</span> Export PDF (.pdf)
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:6px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg> Export PDF (.pdf)
             </button>
           </div>
         </div>
@@ -3726,27 +3809,27 @@ function openFilterModal() {
       <h3 style="font-size: 13.5px; font-weight:700; color: #123B5D; margin: 0 0 4px;">Pilih Periode Rapat & Laporan</h3>
 
       <label style="display:flex; align-items:center; justify-content:space-between; cursor:pointer; padding: 10px 12px; border-radius:8px; border: 1px solid #e2e8f0; background: #fff;">
-        <span style="font-size:13px; font-weight:600; color:#1e293b;">📅 Hari Ini saja (${formatDate(getTodayIsoDate())})</span>
+        <span style="font-size:13px; font-weight:600; color:#1e293b;"><span style="display:inline-flex;align-items:center;gap:6px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;flex-shrink:0;"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span>Hari Ini saja</span></span> (${formatDate(getTodayIsoDate())})</span>
         <input type="radio" name="modalFilterMode" value="harian" onchange="toggleModalFilter()" ${f.mode === "harian" ? "checked" : ""}>
       </label>
 
       <label style="display:flex; align-items:center; justify-content:space-between; cursor:pointer; padding: 10px 12px; border-radius:8px; border: 1px solid #e2e8f0; background: #fff;">
-        <span style="font-size:13px; font-weight:600; color:#1e293b;">📆 Laporan Mingguan (Minggu Ini: ${formatDate(awalMinggu())} – ${formatDate(akhirMinggu())})</span>
+        <span style="font-size:13px; font-weight:600; color:#1e293b;"><span style="display:inline-flex;align-items:center;gap:6px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;flex-shrink:0;"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span>Laporan Mingguan</span></span> (Minggu Ini: ${formatDate(awalMinggu())} – ${formatDate(akhirMinggu())})</span>
         <input type="radio" name="modalFilterMode" value="mingguan" onchange="toggleModalFilter()" ${f.mode === "mingguan" ? "checked" : ""}>
       </label>
 
       <label style="display:flex; align-items:center; justify-content:space-between; cursor:pointer; padding: 10px 12px; border-radius:8px; border: 1px solid #e2e8f0; background: #fff;">
-        <span style="font-size:13px; font-weight:600; color:#1e293b;">🗓️ Laporan Bulanan (Bulan Ini)</span>
+        <span style="font-size:13px; font-weight:600; color:#1e293b;"><span style="display:inline-flex;align-items:center;gap:6px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;flex-shrink:0;"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span>Laporan Bulanan</span></span> (Bulan Ini)</span>
         <input type="radio" name="modalFilterMode" value="bulanan" onchange="toggleModalFilter()" ${f.mode === "bulanan" ? "checked" : ""}>
       </label>
 
       <label style="display:flex; align-items:center; justify-content:space-between; cursor:pointer; padding: 10px 12px; border-radius:8px; border: 1px solid #e2e8f0; background: #fff;">
-        <span style="font-size:13px; font-weight:600; color:#1e293b;">🌐 Semua Jadwal Rapat</span>
+        <span style="font-size:13px; font-weight:600; color:#1e293b;"><span style="display:inline-flex;align-items:center;gap:6px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg><span>Semua Jadwal Rapat</span></span></span>
         <input type="radio" name="modalFilterMode" value="semua" onchange="toggleModalFilter()" ${f.mode === "semua" ? "checked" : ""}>
       </label>
 
       <label style="display:flex; align-items:center; justify-content:space-between; cursor:pointer; padding: 10px 12px; border-radius:8px; border: 1px solid #e2e8f0; background: #fff;">
-        <span style="font-size:13px; font-weight:600; color:#1e293b;">⚙️ Rentang Tanggal Khusus</span>
+        <span style="font-size:13px; font-weight:600; color:#1e293b;"><span style="display:inline-flex;align-items:center;gap:6px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg><span>Rentang Tanggal Khusus</span></span></span>
         <input type="radio" name="modalFilterMode" value="date" onchange="toggleModalFilter()" ${f.mode === "date" ? "checked" : ""}>
       </label>
 
@@ -5272,7 +5355,7 @@ function viewMeeting(id) {
         ${
           revObj.adminReply?.text
             ? `<div style="margin-top:10px;padding:10px 12px;background:#f0fdf4;border-left:3px solid #16a34a;border-radius:6px;font-size:12.5px;color:#14532d;">
-                <b style="display:block;color:#557e23;margin-bottom:3px;">🏢 Balasan Pengelola (${esc(revObj.adminReply.sender || "Admin Utama")}):</b>
+                <b style="display:block;color:#557e23;margin-bottom:3px;"><span style="display:inline-flex;align-items:center;gap:5px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;flex-shrink:0;"><path d="M3 21h18M3 10h18M5 10v11M9 10v11M15 10v11M19 10v11M12 2l10 8H2l10-8z"/></svg><span>Balasan Pengelola (</span></span>${esc(revObj.adminReply.sender || "Admin Utama")}):</b>
                 "${esc(revObj.adminReply.text)}"
               </div>`
             : ""
@@ -5299,25 +5382,24 @@ function viewMeeting(id) {
 
   let actionBtns = `<button class="btn btn-light" style="display:inline-flex;align-items:center;gap:6px;" onclick="exportNotulensiPDF('${m.id}')">${ICONS.export} <span>Notulensi</span></button>`;
   if (typeof openNotulen === "function") {
-    actionBtns += `<button class="btn btn-light" style="display:inline-flex;align-items:center;gap:6px;border-color:#3473A7;color:#123B5D;font-weight:600;" onclick="closeModal(); openNotulen('${m.id}')">🎙️ Notulen AI</button>`;
+    actionBtns += `<button class="btn btn-light" style="display:inline-flex;align-items:center;gap:6px;border-color:#3473A7;color:#123B5D;font-weight:600;" onclick="closeModal(); openNotulen('${m.id}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:2px;"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg><span>Notulen AI</span></button>`;
+  }
+  const viewAttCount = Array.isArray(m.attendees) ? m.attendees.length : 0;
+  actionBtns += `<button class="btn btn-light" style="display:inline-flex;align-items:center;gap:6px;border-color:#c8def5;color:#155a97;font-weight:600;" onclick="closeModal(); viewMeetingAttendance('${m.id}')">Daftar Hadir (${viewAttCount})</button>`;
+  if (can("manageMeeting", user) || isAdmin || isAtasan) {
+    actionBtns += `<button class="btn btn-light" style="display:inline-flex;align-items:center;gap:6px;border-color:#fecaca;color:#be123c;font-weight:600;" onclick="closeModal(); deleteMeeting('${m.id}')">Hapus Rapat</button>`;
   }
 
-  if (isPending) {
-    if (can("approve")) {
-      actionBtns += `<button class="btn btn-primary" style="background:#9BC264;border-color:#9BC264;font-weight:700;" onclick="closeModal(); approveMeeting('${m.id}')">Setujui Rapat</button>`;
-      actionBtns += `<button class="btn btn-primary" style="background:#ff4d4f;border-color:#ff4d4f;font-weight:700;" onclick="closeModal(); rejectMeeting('${m.id}')">Tolak Rapat</button>`;
-    } else {
-      actionBtns += `<div style="font-size:12px;color:#d97706;background:rgba(255, 205, 95, 0.2);padding:7px 12px;border-radius:8px;font-weight:600;display:inline-flex;align-items:center;">Menunggu Persetujuan Pimpinan</div>`;
-    }
+  if (isPending && can("approve")) {
+    actionBtns += `<button class="btn btn-primary" style="background:#9BC264;border-color:#9BC264;font-weight:700;" onclick="closeModal(); approveMeeting('${m.id}')">Setujui Rapat</button>`;
+    actionBtns += `<button class="btn btn-primary" style="background:#ff4d4f;border-color:#ff4d4f;font-weight:700;" onclick="closeModal(); rejectMeeting('${m.id}')">Tolak Rapat</button>`;
   } else if (isUpcoming && can("checkInOut")) {
     actionBtns += `<button class="btn btn-primary" style="background:#9BC264;border-color:#9BC264;font-weight:700;" onclick="closeModal(); checkInMeetingManual('${m.id}')" title="Sistem 2: Check-In Manual oleh Admin Dashboard">Check In (Manual Admin)</button>`;
   } else if (isRunning && can("checkInOut")) {
     actionBtns += `<button class="btn btn-primary" style="background:#ff4d4f;border-color:#ff4d4f;font-weight:700;" onclick="closeModal(); checkOutMeetingManual('${m.id}')" title="Sistem 2: Check-Out Manual oleh Admin Dashboard">Check Out (Manual Admin)</button>`;
   }
 
-  if (can("manageMeeting")) {
-    actionBtns += `<button class="btn btn-primary" onclick="closeModal(); editMeeting('${m.id}')">Edit Rapat</button>`;
-  }
+
 
   if (!isCompleted && !isCanceled && can("emergencyCancel")) {
     actionBtns += `<button class="btn btn-primary" style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;font-weight:700;display:inline-flex;align-items:center;gap:4px;" title="Batalkan Rapat Darurat (Hanya jika diperlukan)" onclick="closeModal(); openEmergencyCancelModal('${m.id}')">Batal Darurat</button>`;
@@ -5437,7 +5519,7 @@ function viewMeeting(id) {
     ${presensiAuditBox}
     ${materialsBox}
     <div class="modal-actions meeting-detail-actions" style="margin-top:20px;display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;align-items:center;">
-      <button class="btn btn-light" style="display:inline-flex;align-items:center;gap:6px;background:#fffbe8;color:#d97706;border:1px solid #FFCD5F;font-weight:700;" onclick="closeModal(); openMeetingReviewModal('${m.id}')">★ <span>Rating & Review</span></button>
+      <button class="btn btn-light" style="display:inline-flex;align-items:center;gap:6px;background:#fffbe8;color:#d97706;border:1px solid #FFCD5F;font-weight:700;" onclick="closeModal(); openMeetingReviewModal('${m.id}')"><svg width="13" height="13" viewBox="0 0 24 24" fill="#d97706" stroke="none"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg><span>Rating & Review</span></button>
       ${actionBtns}
     </div>`,
   );
@@ -5710,7 +5792,7 @@ function openMeetingReviewModal(id) {
       <!-- Balasan dari Pengelola Ruangan (Hanya Admin Utama yang bisa membalas, akun lain hanya melihat) -->
       <div style="margin-bottom:22px;">
         <div style="font-size:13px;font-weight:700;color:#123B5D;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.4px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
-          <span>🏢 Balasan Pengelola Ruangan (Tampil di Booking Page)</span>
+          <span><span style="display:inline-flex;align-items:center;gap:5px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;flex-shrink:0;"><path d="M3 21h18M3 10h18M5 10v11M9 10v11M15 10v11M19 10v11M12 2l10 8H2l10-8z"/></svg><span>Balasan Pengelola Ruangan</span></span> (Tampil di Booking Page)</span>
           ${
             rev.adminReply
               ? `
@@ -5778,8 +5860,8 @@ function openMeetingReviewModal(id) {
 
       <!-- Empty / Pending State -->
       <div style="background:#fffbeb;border:1.5px dashed #FFCD5F;border-radius:16px;padding:32px 20px;margin-bottom:22px;">
-        <div style="width:56px;height:56px;border-radius:50%;background:rgba(255, 205, 95, 0.2);display:grid;place-items:center;margin:0 auto 14px;color:#d97706;font-size:24px;">
-          ⏳
+        <div style="width:56px;height:56px;border-radius:50%;background:rgba(255, 205, 95, 0.2);display:grid;place-items:center;margin:0 auto 14px;color:#d97706;">
+          <svg width="24" height="24" viewBox="0 0 512 512" fill="currentColor"><path d="M256 0a256 256 0 1 1 0 512 256 256 0 1 1 0-512zM232 120v136c0 8 4 15.5 10.7 20l96 64c11 7.4 25.9 4.4 33.3-6.7s4.4-25.9-6.7-33.3L280 243.2V120c0-13.3-10.7-24-24-24s-24 10.7-24 24z"/></svg>
         </div>
         <div style="font-size:17px;font-weight:700;color:#92400e;margin-bottom:6px;">
           Rating & Review Belum Tersedia
@@ -6463,8 +6545,9 @@ async function submitMeetingReview(id) {
 window.submitMeetingReview = submitMeetingReview;
 
 async function deleteMeeting(id) {
-  if (!can("manageMeeting"))
-    return denyAccess("Penghapusan rapat dilakukan oleh Admin.");
+  const u = getCurrentUser();
+  if (!can("manageMeeting", u) && !isAdminRole(u) && !isAtasanRole(u))
+    return denyAccess("Penghapusan rapat dilakukan oleh Admin atau Pimpinan.");
   if (!(await confirmWithAppModal({
     title: "Hapus Rapat",
     iconBg: "#fee2e2",

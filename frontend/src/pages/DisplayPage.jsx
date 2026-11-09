@@ -5,6 +5,7 @@ import 'dayjs/locale/id'
 import { QRCodeSVG } from 'qrcode.react'
 import { Link } from 'react-router-dom'
 import { IoLogoWhatsapp } from "react-icons/io"
+import { FiSettings } from 'react-icons/fi'
 import kemnakerLogo from '../assets/kemnaker-logo.png'
 import { bersihkanPenyimpananSesi } from '../utils/sesi'
 import '../App.css'
@@ -699,7 +700,7 @@ function DisplayPage() {
           style={{ color: 'inherit', textDecoration: 'none', opacity: 0.8 }}
           title="Masuk ke Dashboard Admin"
         >
-          ⚙️ Login
+          <FiSettings size={13} style={{ marginRight: 4 }} /> Login
         </Link>
       </p>
     </main>
