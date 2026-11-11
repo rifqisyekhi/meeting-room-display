@@ -188,6 +188,63 @@ async function panggilAI(method, urlPath, body, timeoutMs = 15000) {
   return data;
 }
 
+/* ai-service membaca audio dari disknya sendiri: POST /jobs hanya menerima path
+   absolut, lalu worker membukanya. Selama backend dan service satu mesin, itu
+   cukup — keduanya melihat STORAGE_DIR yang sama.
+
+   Begitu service dipindah ke mesin lain, path itu menunjuk berkas yang tidak
+   ada di sana dan service menjawab 400 "File audio tidak ditemukan". Karena itu
+   berkasnya dikirim lebih dulu lewat POST /uploads, dan path hasil kirimanlah
+   yang dipakai di job. */
+function aiDiMesinLain() {
+  const paksa = String(process.env.AI_SERVICE_REMOTE || "").trim().toLowerCase();
+  if (paksa) return !["0", "false", "no"].includes(paksa);
+  try {
+    const host = new URL(AI_URL).hostname.replace(/^\[|\]$/g, "");
+    return !["127.0.0.1", "localhost", "::1"].includes(host);
+  } catch {
+    return false; // AI_URL tidak terbaca: anggap lokal, perilakunya seperti dulu
+  }
+}
+
+async function unggahAudioKeAI(absPath, namaBerkas) {
+  const { size } = await fsp.stat(absPath);
+  const headers = {
+    "Content-Type": "application/octet-stream",
+    "Content-Length": String(size),
+  };
+  if (AI_TOKEN) headers["X-API-Key"] = AI_TOKEN;
+
+  let res;
+  try {
+    res = await fetch(`${AI_URL}/uploads?name=${encodeURIComponent(namaBerkas)}`, {
+      method: "POST",
+      headers,
+      body: fs.createReadStream(absPath),
+      // Node menuntut ini saat body berupa stream; tanpanya fetch menolak.
+      duplex: "half",
+      // Sengaja tanpa timeout: 2 GB lewat LAN bisa belasan menit.
+    });
+  } catch (err) {
+    throw galat(`Gagal mengirim audio ke service AI di ${AI_URL}: ${err.message}`, 503);
+  }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.path) {
+    throw galat(data.detail || `Service AI menolak unggahan audio (${res.status}).`, 502);
+  }
+  return data.path;
+}
+
+/* Kembalikan daftar path yang bisa dibaca ai-service, apa pun letak mesinnya. */
+async function siapkanAudioUntukAI(files) {
+  if (!aiDiMesinLain()) return files.map((f) => pathAbsolut(f.file_name));
+  const hasil = [];
+  for (const f of files) {
+    hasil.push(await unggahAudioKeAI(pathAbsolut(f.file_name), f.file_name));
+  }
+  return hasil;
+}
+
 /* Pilihan model untuk layar Proses. Daftar yang diizinkan diatur di
    ai-service/.env (WHISPER_ALLOWED_MODELS, OLLAMA_ALLOWED_MODELS). */
 async function daftarModel() {
@@ -508,7 +565,7 @@ async function mulaiProses(meeting, ruangan, opsi = {}, oleh = "Admin") {
   const numSpeakers = Number(opsi.numSpeakers) || null;
   const body = {
     type: "transcribe",
-    audio_files: files.map((f) => pathAbsolut(f.file_name)),
+    audio_files: await siapkanAudioUntukAI(files),
     meeting: metadataRapat(meeting, ruangan),
     options: {
       ...(opsi.diarization === false ? { diarization: false } : {}),

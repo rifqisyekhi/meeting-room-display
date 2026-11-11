@@ -11,6 +11,8 @@ import multiprocessing as mp
 import threading
 import time
 from contextlib import asynccontextmanager
+from pathlib import Path
+from uuid import uuid4
 
 import httpx
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
@@ -208,6 +210,75 @@ async def health():
         "ollama": ollama,
         "storage_dir": str(s.storage_dir),
     }
+
+
+SUBFOLDER_UNGGAHAN = "unggahan"
+
+
+def _buang_unggahan_lama(folder: Path, ttl_jam: int) -> None:
+    """Hapus sisa unggahan yang jobnya tidak pernah jalan.
+
+    Job yang gagal validasi atau dibatalkan sebelum berjalan meninggalkan
+    berkasnya di sini, dan tidak ada yang merapikan. Dipanggil tiap unggahan
+    baru, bukan lewat timer, supaya tidak menambah thread hanya untuk ini."""
+    if ttl_jam <= 0:
+        return
+    batas = time.time() - ttl_jam * 3600
+    for berkas in folder.glob("*"):
+        try:
+            if berkas.is_file() and berkas.stat().st_mtime < batas:
+                berkas.unlink()
+        except OSError:
+            pass  # berkas sedang dipakai job lain, biarkan
+
+
+@app.post("/uploads", dependencies=[Depends(require_token)])
+async def upload_audio(request: Request, name: str = Query(..., description="Nama berkas asli, dipakai untuk ekstensinya")):
+    """Terima satu berkas audio dan simpan di dalam storage_dir.
+
+    Dibutuhkan saat backend berjalan di mesin lain: POST /jobs hanya menerima
+    path absolut dan worker membacanya dari disk service ini, jadi tanpa rute
+    ini pemisahan backend dan service tidak mungkin. Yang satu mesin tetap
+    boleh menitipkan lewat disk bersama seperti sebelumnya.
+
+    Body-nya biner mentah, bukan multipart, supaya berkas 2 GB bisa dialirkan
+    langsung ke disk tanpa ditampung di memori kedua sisi."""
+    s = get_settings()
+    ekstensi = Path(name).suffix.lower()
+    if ekstensi not in s.audio_extensions:
+        raise HTTPException(
+            400,
+            f"Ekstensi '{ekstensi}' tidak didukung. Yang diizinkan: {', '.join(sorted(s.audio_extensions))}",
+        )
+
+    folder = s.storage_dir / SUBFOLDER_UNGGAHAN
+    try:
+        folder.mkdir(parents=True, exist_ok=True)
+    except OSError as e:
+        raise HTTPException(500, f"Folder unggahan tidak bisa dibuat: {e}") from None
+    _buang_unggahan_lama(folder, s.upload_ttl_hours)
+
+    tujuan = folder / f"{uuid4().hex}{ekstensi}"
+    batas = s.upload_max_mb * 1024 * 1024
+    total = 0
+    try:
+        with tujuan.open("wb") as keluar:
+            async for potongan in request.stream():
+                total += len(potongan)
+                if total > batas:
+                    raise HTTPException(413, f"Berkas melebihi batas {s.upload_max_mb} MB.")
+                keluar.write(potongan)
+    except BaseException:
+        # Termasuk saat klien memutus di tengah: jangan tinggalkan berkas separuh
+        # yang nanti lolos validasi karena ukurannya bukan nol.
+        tujuan.unlink(missing_ok=True)
+        raise
+    if total == 0:
+        tujuan.unlink(missing_ok=True)
+        raise HTTPException(400, "Berkas audio kosong (0 byte).")
+
+    log.info("Unggahan diterima: %s (%.1f MB)", tujuan.name, total / 1048576)
+    return {"path": str(tujuan), "size": total}
 
 
 @app.post("/jobs", response_model=JobOut, status_code=201, dependencies=[Depends(require_token)])

@@ -72,6 +72,13 @@ class Settings(BaseSettings):
     # Folder kerja service (database job, file sementara).
     data_dir: Path = SERVICE_DIR / "data"
     allowed_audio_extensions: str = ".webm,.ogg,.oga,.opus,.mp3,.m4a,.mp4,.aac,.wav,.flac,.mkv"
+    # Batas satu berkas pada POST /uploads. Dipakai saat backend berada di mesin
+    # lain sehingga tidak bisa menitipkan audio lewat disk bersama.
+    upload_max_mb: int = 2048
+    # Sisa unggahan dibuang setelah sekian jam. Job yang batal atau gagal sebelum
+    # sempat berjalan meninggalkan berkas di folder unggahan; tanpa ini folder itu
+    # tumbuh terus tanpa ada yang membersihkan.
+    upload_ttl_hours: int = 24
 
     # --- Whisper ---
     whisper_model: str = "small"
