@@ -34,9 +34,14 @@
   gap: 24px;
   padding: 0 40px 40px;
 }
-@media (max-width: 1024px) {
+@media (max-width: 1200px) {
+  .cal-header {
+    padding: 24px 24px 18px !important;
+  }
   .cal-body {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr !important;
+    padding: 0 24px 28px !important;
+    gap: 16px !important;
   }
 }
 .cal-card {
@@ -214,7 +219,7 @@
 .cal-schedule-subtitle { font-size: 12px; line-height: 1.4; }
 .cal-schedule-empty { margin-top: 0; padding: 24px 14px; line-height: 1.5; }
 
-@media (max-width: 1024px) {
+@media (max-width: 1200px) {
   .cal-body { gap: 16px; }
 }
 
@@ -224,4 +229,15 @@
   .cal-card { padding: 16px; }
   .cal-grid { gap: 5px; }
   .cal-day { min-height: 42px; }
+}
+
+@media (max-width: 420px) {
+  .cal-header { padding: 16px 12px 14px !important; }
+  .cal-body { padding: 0 10px 16px !important; gap: 12px !important; }
+  .cal-card { padding: 14px 10px !important; border-radius: 12px !important; }
+  .cal-grid { gap: 3px !important; }
+  .cal-head { padding: 6px 0 !important; font-size: 11px !important; }
+  .cal-day { min-height: 36px !important; font-size: 12px !important; padding: 6px 2px !important; }
+  .cal-card-header h2 { font-size: 16px !important; }
+  .cal-nav-btn { width: 28px !important; height: 28px !important; font-size: 14px !important; }
 }

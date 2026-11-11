@@ -831,7 +831,7 @@ export default function MeetingPassPage() {
                 </span>
               )}
               {isUpcoming && (
-                <span className="mp-status-pill upcoming">⏳ Terjadwal</span>
+                <span className="mp-status-pill upcoming" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><FaClock size={11} /><span>Terjadwal</span></span>
               )}
               {isCompleted && (
                 <span className="mp-status-pill done">✓ Selesai</span>

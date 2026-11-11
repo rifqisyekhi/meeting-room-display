@@ -234,12 +234,39 @@
       .settings-stat-grid .s-info { min-width: 0; }
       .settings-stat-grid .s-info strong { font-size: 22px; line-height: 1.15; }
       .settings-stat-grid .s-info span { margin-top: 3px; font-size: 12px; line-height: 1.2; white-space: nowrap; }
+      @media (max-width: 1200px) {
+        .settings-header {
+          padding: 24px 24px 18px !important;
+        }
+        .settings-stat-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+          gap: 12px !important;
+          padding: 0 24px 20px !important;
+        }
+        .settings-panel {
+          margin: 0 24px 30px !important;
+          padding: 20px 24px !important;
+        }
+      }
       @media (max-width: 900px) {
         .settings-stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       }
       @media (max-width: 640px) {
         .settings-header { padding: 20px 16px 18px; }
         .settings-stat-grid { grid-template-columns: 1fr; padding: 0 16px 16px; }
+      }
+      @media (max-width: 420px) {
+        .settings-stat-grid {
+          padding: 0 10px 14px !important;
+          gap: 8px !important;
+        }
+        .settings-panel {
+          margin: 0 10px 16px !important;
+          padding: 14px 10px !important;
+        }
+        .settings-header {
+          padding: 16px 12px 12px !important;
+        }
       }
       .settings-stat-grid .s-icon-box { background: #e6f0fa !important; color: #3473A7 !important; }
       .settings-stat-grid .s-icon-box svg { fill: #3473A7 !important; color: #3473A7 !important; }
