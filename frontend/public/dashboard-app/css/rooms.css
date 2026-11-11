@@ -648,6 +648,24 @@
       .rooms-stat-grid .r-info { min-width: 0; }
       .rooms-stat-grid .r-info strong { font-size: 22px; line-height: 1.15; }
       .rooms-stat-grid .r-info span { margin-top: 3px; font-size: 12px; line-height: 1.2; white-space: nowrap; }
+      @media (max-width: 1200px) {
+        .rooms-header {
+          padding: 24px 24px 18px !important;
+        }
+        .rooms-stat-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+          gap: 12px !important;
+          padding: 0 24px 20px !important;
+        }
+        .rooms-panel {
+          margin: 0 24px 30px !important;
+          padding: 20px 24px !important;
+        }
+        .room-grid-custom {
+          grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+          gap: 16px !important;
+        }
+      }
       @media (max-width: 900px) {
         .rooms-stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       }
@@ -767,8 +785,24 @@
     box-sizing: border-box !important;
   }
   .room-grid-custom {
-    grid-template-columns: 1fr !important;
-    gap: 14px !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 16px !important;
+  }
+  @media (max-width: 640px) {
+    .room-grid-custom {
+      grid-template-columns: 1fr !important;
+      gap: 14px !important;
+    }
+  }
+  @media (max-width: 420px) {
+    .rooms-stat-grid {
+      grid-template-columns: 1fr !important;
+      padding: 0 10px 14px !important;
+    }
+    .rooms-panel {
+      margin: 0 10px 16px !important;
+      padding: 14px 10px !important;
+    }
   }
   .custom-room-modal {
     width: calc(100vw - 16px) !important;

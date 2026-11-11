@@ -150,6 +150,20 @@
       .users-page-wrapper .dc-text-user { min-width: 0; }
       .users-page-wrapper .dc-text-user strong { font-size: 22px; line-height: 1.15; }
       .users-page-wrapper .dc-text-user span { margin-top: 3px; font-size: 12px; line-height: 1.2; white-space: nowrap; }
+      @media (max-width: 1200px) {
+        .users-page-wrapper .dash-header {
+          padding: 24px 24px 18px !important;
+        }
+        .users-page-wrapper .dash-cards-users {
+          grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+          gap: 12px !important;
+          padding: 0 24px 20px !important;
+        }
+        .users-page-wrapper > .dash-table-container {
+          margin: 0 24px 28px !important;
+          padding: 20px 24px 28px !important;
+        }
+      }
       @media (max-width: 900px) {
         .users-page-wrapper .dash-cards-users { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       }
@@ -186,6 +200,36 @@
       .users-page-wrapper #userTable .table td:last-child .actions button { width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; padding: 0; border-radius: 7px; }
       .users-page-wrapper #userTable .table td:last-child .actions button:hover { background: #f0f4fa !important; }
       .users-page-wrapper > .dash-table-container { margin: 0 40px 28px; padding: 20px 24px 28px; border-radius: 20px; }
+      @media (max-width: 900px) {
+        .users-page-wrapper .dash-filters {
+          flex-direction: column !important;
+          align-items: stretch !important;
+          gap: 12px !important;
+        }
+        .users-page-wrapper .dash-filters-left {
+          flex-direction: column !important;
+          align-items: stretch !important;
+          gap: 10px !important;
+          width: 100% !important;
+        }
+        .users-page-wrapper .dash-search-box {
+          width: 100% !important;
+        }
+        .users-page-wrapper .btn-add-user {
+          width: 100% !important;
+          justify-content: center !important;
+        }
+      }
       @media (max-width: 640px) {
         .users-page-wrapper > .dash-table-container { margin: 0 16px 20px; padding: 16px; border-radius: 16px; }
+      }
+      @media (max-width: 420px) {
+        .users-page-wrapper .dash-cards-users {
+          grid-template-columns: 1fr !important;
+          padding: 0 10px 14px !important;
+        }
+        .users-page-wrapper > .dash-table-container {
+          margin: 0 10px 16px !important;
+          padding: 14px 10px !important;
+        }
       }
