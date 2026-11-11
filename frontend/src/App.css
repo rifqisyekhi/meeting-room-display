@@ -43,17 +43,17 @@
 .eyebrow {
   display: flex;
   align-items: center;
-  gap: .4vw;
-  font-size: clamp(12px, .86vw, 16.5px);
-  font-weight: 700;
-  letter-spacing: .1em;
+  gap: .38vw;
+  font-size: .72vw;
+  font-weight: 600;
+  letter-spacing: .11em;
   text-transform: uppercase;
   color: var(--text-muted);
 }
 
 .room .eyebrow {
-  font-size: clamp(13px, .96vw, 18.5px);
-  letter-spacing: .09em;
+  font-size: .76vw;
+  letter-spacing: .11em;
 }
 
 /* --------------------------------------------------------------- top bar */
@@ -70,12 +70,12 @@
 .brand {
   display: flex;
   align-items: center;
-  gap: 1.05vw;
+  gap: .95vw;
 }
 
 .brand__mark {
-  width: clamp(48px, 4.1vw, 78px);
-  height: clamp(48px, 4.1vw, 78px);
+  width: 3.45vw;
+  height: 3.45vw;
   flex: none;
   background: var(--text);
   -webkit-mask-repeat: no-repeat;
@@ -88,16 +88,16 @@
 
 .brand strong {
   display: block;
-  font-size: clamp(24px, 2.05vw, 40px);
+  font-size: 1.52vw;
   font-weight: 700;
-  line-height: 1.16;
+  line-height: 1.18;
   letter-spacing: -.01em;
 }
 
 .brand span {
   display: block;
-  margin-top: .32vh;
-  font-size: clamp(16px, 1.32vw, 25px);
+  margin-top: .28vh;
+  font-size: .98vw;
   font-weight: 500;
   color: var(--text-muted);
 }
@@ -110,9 +110,9 @@
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: .48vw;
-  font-size: clamp(17px, 1.4vw, 27px);
-  font-weight: 600;
+  gap: .45vw;
+  font-size: 1.02vw;
+  font-weight: 500;
   color: var(--text-muted);
   text-transform: capitalize;
 }
@@ -120,7 +120,7 @@
 .clock__time {
   display: block;
   margin-top: .35vh;
-  font-size: clamp(34px, 2.65vw, 52px);
+  font-size: 2.35vw;
   font-weight: 600;
   line-height: 1.05;
   letter-spacing: -.02em;
@@ -129,7 +129,7 @@
 
 .clock__time small {
   margin-left: .45vw;
-  font-size: clamp(15px, 1.18vw, 23px);
+  font-size: .98vw;
   font-weight: 500;
   color: var(--text-faint);
 }
@@ -214,8 +214,9 @@
 }
 
 .room__head h2 {
-  font-size: clamp(26px, 2.25vw, 43px);
+  font-size: 2.02vw;
   font-weight: 700;
+  line-height: 1.15;
   letter-spacing: -.01em;
 }
 
@@ -226,12 +227,12 @@
 .status {
   display: inline-flex;
   align-items: center;
-  gap: .56vw;
-  padding: .85vh 1.35vw;
-  border: 2px solid var(--tone);
+  gap: .46vw;
+  padding: .65vh 1vw;
+  border: 1.5px solid var(--tone);
   border-radius: 10vw;
-  font-size: clamp(16px, 1.35vw, 26px);
-  font-weight: 700;
+  font-size: .96vw;
+  font-weight: 600;
   letter-spacing: .04em;
   text-transform: uppercase;
   white-space: nowrap;
@@ -239,8 +240,10 @@
 }
 
 .status i {
-  width: clamp(10px, .72vw, 14px);
-  height: clamp(10px, .72vw, 14px);
+  width: .5vw;
+  height: .5vw;
+  min-width: 6px;
+  min-height: 6px;
   border-radius: 50%;
   background: currentColor;
 }
@@ -258,8 +261,8 @@
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: 1.95fr 1fr;
-  gap: 1vw;
+  grid-template-columns: 1.68fr 1fr;
+  gap: 1.2vw;
   padding: 1.8vh 0;
 }
 
@@ -286,14 +289,14 @@
 .slot__badge {
   display: grid;
   place-items: center;
-  width: clamp(54px, 4.6vw, 88px);
-  height: clamp(54px, 4.6vw, 88px);
+  width: 3.8vw;
+  height: 3.8vw;
   border-radius: 50%;
 }
 
 .slot__badge svg {
-  width: clamp(26px, 2.22vw, 42px);
-  height: clamp(26px, 2.22vw, 42px);
+  width: 1.8vw;
+  height: 1.8vw;
 }
 
 .room.is-busy .slot__badge {
@@ -313,16 +316,17 @@
 /* Sized to clear the large-text contrast threshold: the status colours pass
    3:1 but not 4.5:1, so this line must never shrink below ~19px bold. */
 .slot__state {
-  font-size: clamp(19px, 1.72vw, 33px);
+  font-size: 1.32vw;
   font-weight: 700;
   line-height: 1.2;
   letter-spacing: .025em;
   text-transform: uppercase;
+  white-space: nowrap;
   color: var(--tone);
 }
 
 .slot__state.is-empty {
-  font-size: clamp(27px, 2.42vw, 46px);
+  font-size: 1.88vw;
   line-height: 1.15;
   letter-spacing: .03em;
   white-space: nowrap;
@@ -331,13 +335,13 @@
 
 .slot__headline h3 {
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  margin-top: .8vh;
-  font-size: 1.8vw;
+  margin-top: .65vh;
+  font-size: 1.52vw;
   font-weight: 700;
-  line-height: 1.2;
+  line-height: 1.24;
   letter-spacing: -.015em;
 }
 
@@ -346,8 +350,9 @@
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  margin-top: 1vh;
-  font-size: .9vw;
+  margin-top: .75vh;
+  font-size: .96vw;
+  line-height: 1.35;
   color: var(--text-muted);
 }
 
@@ -355,9 +360,9 @@
   display: flex;
   align-items: center;
   gap: .42vw;
-  margin-top: .9vh;
-  font-size: .95vw;
-  font-weight: 500;
+  margin-top: .65vh;
+  font-size: 1vw;
+  font-weight: 600;
 }
 
 /* No nested card here: just a hairline divider and left-aligned text, so
@@ -412,7 +417,7 @@
 }
 
 .slot__qr-pass-label span {
-  font-size: 0.75vw;
+  font-size: 0.8vw;
   font-weight: 600;
   color: var(--text);
   letter-spacing: 0.01em;
@@ -422,7 +427,7 @@
 .slot__foot strong {
   display: block;
   margin-top: .55vh;
-  font-size: clamp(20px, 1.62vw, 31px);
+  font-size: 1.42vw;
   font-weight: 600;
   letter-spacing: -.01em;
 }
@@ -438,7 +443,7 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
   margin-top: .5vh;
-  font-size: clamp(14.5px, 1.08vw, 21px);
+  font-size: .95vw;
   color: var(--text-muted);
 }
 
@@ -447,7 +452,7 @@
 .slot__foot .countdown {
   display: block;
   margin-top: .4vh;
-  font-size: 2.3vw;
+  font-size: 2.15vw;
   font-weight: 700;
   line-height: 1;
   letter-spacing: -.02em;
@@ -461,7 +466,7 @@
   flex-direction: column;
   min-width: 0;
   min-height: 0;
-  padding-left: 1vw;
+  padding-left: 1.2vw;
   border-left: 1px solid var(--line);
 }
 
@@ -485,7 +490,7 @@
 }
 
 .queue__time {
-  font-size: clamp(14.5px, 1.08vw, 21px);
+  font-size: .94vw;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
@@ -499,7 +504,7 @@
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  font-size: clamp(14.5px, 1.08vw, 21px);
+  font-size: .94vw;
   font-weight: 500;
   line-height: 1.3;
 }
@@ -510,14 +515,14 @@
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
-  font-size: clamp(12.5px, .92vw, 17.5px);
+  font-size: .8vw;
   color: var(--text-faint);
 }
 
 .queue__empty {
   margin-top: 1.1vh;
-  font-size: clamp(15px, 1.15vw, 22px);
-  font-weight: 500;
+  font-size: .94vw;
+  font-weight: 400;
   line-height: 1.45;
   color: var(--text-muted);
 }
