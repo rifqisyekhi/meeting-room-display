@@ -279,16 +279,16 @@
 .user-page-heading { margin: 4px 0 22px; }
 .user-page-heading h1 { margin: 3px 0 5px; color: #123760; font-size: 25px; }
 .user-page-heading p { margin: 0; color: #71839a; font-size: 11px; }
-.user-profile-grid { display: grid; grid-template-columns: minmax(250px,.8fr) minmax(360px,1.2fr); align-items: stretch; gap: 16px; }
-.user-profile-card, .user-password-card { padding: 22px; border: 1px solid #e5edf6; border-radius: 13px; background: #fff; box-shadow: 0 4px 14px rgba(24,56,95,.035); }
+.user-profile-grid { display: grid; grid-template-columns: minmax(0, .82fr) minmax(0, 1.18fr); align-items: stretch; gap: 18px; width: 100%; min-width: 0; box-sizing: border-box; }
+.user-profile-card, .user-password-card { padding: 22px; border: 1px solid #e5edf6; border-radius: 13px; background: #fff; box-shadow: 0 4px 14px rgba(24,56,95,.035); min-width: 0; box-sizing: border-box; }
 .user-profile-card { display: flex; flex-direction: column; text-align: center; }
 .user-profile-avatar { display: grid; width: 66px; height: 66px; margin: 0 auto 12px; place-items: center; border-radius: 50%; color: #fff; background: linear-gradient(135deg,#3473A7,#123B5D); font-size: 25px; font-weight: 700; }
 .user-profile-card h2 { margin: 0; color: #123760; font-size: 16px; }
 .user-profile-card > p { margin: 3px 0 18px; color: #7b8da3; font-size: 10px; }
 .user-profile-card dl { display: grid; flex: 1; align-content: space-evenly; gap: 0; margin: 0; text-align: left; }
-.user-profile-card dl div { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid #edf1f6; font-size: 10px; }
-.user-profile-card dt { color: #7789a0; }
-.user-profile-card dd { overflow: hidden; margin: 0; color: #123B5D; font-weight: 600; text-align: right; text-overflow: ellipsis; }
+.user-profile-card dl div { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 10px 0; border-top: 1px solid #edf1f6; font-size: 10px; min-width: 0; }
+.user-profile-card dt { color: #7789a0; flex-shrink: 0; }
+.user-profile-card dd { overflow: hidden; margin: 0; color: #123B5D; font-weight: 600; text-align: right; text-overflow: ellipsis; overflow-wrap: anywhere; min-width: 0; }
 .user-card-heading { display: flex; align-items: center; gap: 11px; margin-bottom: 17px; }
 .user-card-heading > span { display: grid; width: 40px; height: 40px; place-items: center; border-radius: 10px; color: #3473A7; background: #eaf3ff; }
 .user-card-heading h2 { margin: 0 0 3px; color: #123760; font-size: 15px; }
@@ -481,23 +481,38 @@
 .user-upcoming-section { display: none; }
 
 .user-profile-grid {
-  margin: 0 40px;
-  padding: 30px;
+  margin: 0;
+  padding: 26px;
   border-radius: 20px;
   background: #fff;
   box-shadow: 0 4px 20px rgba(12, 45, 94, 0.04);
+  box-sizing: border-box;
 }
 
 /* Keep the profile heading aligned with the inset profile cards. */
-.user-page-heading { margin-left: 40px; margin-right: 40px; }
+.user-page-heading { margin-left: 0; margin-right: 0; }
+
+@media (max-width: 1140px) {
+  .user-dashboard-content { padding: 20px 24px 24px; }
+  .user-profile-grid { padding: 20px; gap: 16px; }
+  .user-profile-card, .user-password-card { padding: 18px; }
+}
 
 @media (max-width: 900px) {
   .user-dashboard-topbar { padding: 0 20px; }
   .user-welcome-banner { padding: 26px 24px 20px; }
   .user-stat-grid { padding: 0 24px 24px; }
   .user-dashboard-lower-panel { padding: 24px; }
-  .user-profile-grid { margin: 0 24px; padding: 24px; }
-  .user-page-heading { margin-left: 24px; margin-right: 24px; }
+  .user-profile-grid { margin: 0; padding: 20px; }
+  .user-page-heading { margin-left: 0; margin-right: 0; }
+}
+
+@media (max-width: 768px) {
+  .user-profile-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+    padding: 18px;
+  }
 }
 
 @media (max-width: 640px) {
@@ -512,8 +527,8 @@
   .user-dashboard-lower-panel { min-height: 0; padding: 22px 16px 26px; border-radius: 16px 16px 0 0; }
   .user-quick-grid { gap: 10px; }
   .user-quick-grid button { min-height: 84px; padding: 14px; }
-  .user-profile-grid { margin: 0 16px; padding: 17px; border-radius: 16px; }
-  .user-page-heading { margin: 0 16px 18px; }
+  .user-profile-grid { margin: 0; padding: 16px; border-radius: 16px; }
+  .user-page-heading { margin: 0 0 18px; }
 }
 
 /* Prinsip UX: fokus visual, grouping yang jelas, target klik besar, dan status yang terbaca. */
@@ -791,12 +806,12 @@
     min-height: 40px;
   }
   .user-profile-grid {
-    margin: 0 16px;
-    padding: 18px 14px;
+    margin: 0;
+    padding: 16px 14px;
     border-radius: 14px;
     grid-template-columns: minmax(0, 1fr);
     gap: 14px;
-    width: auto;
+    width: 100%;
     min-width: 0;
   }
   .user-profile-card,
@@ -825,7 +840,7 @@
     font-size: 12px;
   }
   .user-page-heading {
-    margin: 0 16px 16px;
+    margin: 0 0 16px;
   }
   .user-page-heading h1 {
     font-size: 21px;
