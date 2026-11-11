@@ -599,8 +599,117 @@ function DisplayPage() {
   const activeRooms = ROOMS.filter((room) => today[room.key].some((event) => event.status === 'IN_PROGRESS')).length
   const utilization = allToday.length ? Math.round((duration / (DAY_HOURS * 60 * ROOMS.length)) * 100) : 0
 
+const DISPLAY_TYPOGRAPHY_CSS = `
+  .display .eyebrow {
+    font-size: clamp(12px, 0.86vw, 16.5px) !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.1em !important;
+  }
+  .display .room .eyebrow {
+    font-size: clamp(13px, 0.96vw, 18.5px) !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.09em !important;
+  }
+  .display .brand__mark {
+    width: clamp(48px, 4.1vw, 78px) !important;
+    height: clamp(48px, 4.1vw, 78px) !important;
+  }
+  .display .brand strong {
+    font-size: clamp(24px, 2.05vw, 40px) !important;
+    font-weight: 700 !important;
+    line-height: 1.16 !important;
+  }
+  .display .brand span {
+    font-size: clamp(16px, 1.32vw, 25px) !important;
+    font-weight: 500 !important;
+    color: var(--text-muted) !important;
+  }
+  .display .clock__date {
+    font-size: clamp(17px, 1.4vw, 27px) !important;
+    font-weight: 600 !important;
+    color: var(--text-muted) !important;
+  }
+  .display .clock__time {
+    font-size: clamp(34px, 2.65vw, 52px) !important;
+  }
+  .display .clock__time small {
+    font-size: clamp(15px, 1.18vw, 23px) !important;
+  }
+  .display .room__head h2 {
+    font-size: clamp(26px, 2.25vw, 43px) !important;
+    font-weight: 700 !important;
+  }
+  .display .room .status {
+    font-size: clamp(16px, 1.35vw, 26px) !important;
+    font-weight: 700 !important;
+    padding: 0.85vh 1.35vw !important;
+    border-width: 2px !important;
+    gap: 0.56vw !important;
+  }
+  .display .room .status i {
+    width: clamp(10px, 0.72vw, 14px) !important;
+    height: clamp(10px, 0.72vw, 14px) !important;
+  }
+  .display .room__body {
+    grid-template-columns: 1.95fr 1fr !important;
+    gap: 1vw !important;
+  }
+  .display .room.is-free .slot__lead {
+    align-items: center !important;
+  }
+  .display .slot__badge {
+    width: clamp(54px, 4.6vw, 88px) !important;
+    height: clamp(54px, 4.6vw, 88px) !important;
+  }
+  .display .slot__badge svg {
+    width: clamp(26px, 2.22vw, 42px) !important;
+    height: clamp(26px, 2.22vw, 42px) !important;
+  }
+  .display .slot__state {
+    font-size: clamp(19px, 1.72vw, 33px) !important;
+    font-weight: 700 !important;
+    line-height: 1.2 !important;
+    letter-spacing: 0.025em !important;
+  }
+  .display .slot__state.is-empty {
+    font-size: clamp(27px, 2.42vw, 46px) !important;
+    line-height: 1.15 !important;
+    letter-spacing: 0.03em !important;
+    white-space: nowrap !important;
+    margin-top: 0 !important;
+  }
+  .display .slot__foot strong:not(.countdown) {
+    font-size: clamp(20px, 1.62vw, 31px) !important;
+  }
+  .display .slot__next {
+    font-size: clamp(14.5px, 1.08vw, 21px) !important;
+  }
+  .display .queue__time,
+  .display .queue__body strong {
+    font-size: clamp(14.5px, 1.08vw, 21px) !important;
+  }
+  .display .queue__body small {
+    font-size: clamp(12.5px, 0.92vw, 17.5px) !important;
+  }
+  .display .queue__empty {
+    font-size: clamp(15px, 1.15vw, 22px) !important;
+    font-weight: 500 !important;
+    line-height: 1.45 !important;
+  }
+  @media (max-width: 900px) {
+    .display .room__body {
+      grid-template-columns: 1fr !important;
+    }
+    .display .slot__state.is-empty {
+      font-size: 32px !important;
+      white-space: normal !important;
+    }
+  }
+`
+
   return (
     <main className="display">
+      <style>{DISPLAY_TYPOGRAPHY_CSS}</style>
       <header className="topbar">
         <div className="brand">
           {/* Masked rather than <img>: this keeps the mark on --text, so it

@@ -43,12 +43,17 @@
 .eyebrow {
   display: flex;
   align-items: center;
-  gap: .38vw;
-  font-size: .63vw;
-  font-weight: 600;
-  letter-spacing: .13em;
+  gap: .4vw;
+  font-size: clamp(12px, .86vw, 16.5px);
+  font-weight: 700;
+  letter-spacing: .1em;
   text-transform: uppercase;
   color: var(--text-muted);
+}
+
+.room .eyebrow {
+  font-size: clamp(13px, .96vw, 18.5px);
+  letter-spacing: .09em;
 }
 
 /* --------------------------------------------------------------- top bar */
@@ -65,12 +70,12 @@
 .brand {
   display: flex;
   align-items: center;
-  gap: .85vw;
+  gap: 1.05vw;
 }
 
 .brand__mark {
-  width: 2.9vw;
-  height: 2.9vw;
+  width: clamp(48px, 4.1vw, 78px);
+  height: clamp(48px, 4.1vw, 78px);
   flex: none;
   background: var(--text);
   -webkit-mask-repeat: no-repeat;
@@ -83,15 +88,17 @@
 
 .brand strong {
   display: block;
-  font-size: 1.25vw;
-  font-weight: 600;
+  font-size: clamp(24px, 2.05vw, 40px);
+  font-weight: 700;
+  line-height: 1.16;
   letter-spacing: -.01em;
 }
 
 .brand span {
   display: block;
-  margin-top: .25vh;
-  font-size: .78vw;
+  margin-top: .32vh;
+  font-size: clamp(16px, 1.32vw, 25px);
+  font-weight: 500;
   color: var(--text-muted);
 }
 
@@ -103,8 +110,9 @@
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: .4vw;
-  font-size: .82vw;
+  gap: .48vw;
+  font-size: clamp(17px, 1.4vw, 27px);
+  font-weight: 600;
   color: var(--text-muted);
   text-transform: capitalize;
 }
@@ -112,7 +120,7 @@
 .clock__time {
   display: block;
   margin-top: .35vh;
-  font-size: 2.3vw;
+  font-size: clamp(34px, 2.65vw, 52px);
   font-weight: 600;
   line-height: 1.05;
   letter-spacing: -.02em;
@@ -121,7 +129,7 @@
 
 .clock__time small {
   margin-left: .45vw;
-  font-size: .8vw;
+  font-size: clamp(15px, 1.18vw, 23px);
   font-weight: 500;
   color: var(--text-faint);
 }
@@ -206,9 +214,9 @@
 }
 
 .room__head h2 {
-  font-size: 1.45vw;
+  font-size: clamp(26px, 2.25vw, 43px);
   font-weight: 700;
-  letter-spacing: -.005em;
+  letter-spacing: -.01em;
 }
 
 /* Both states are outlined and tinted by --tone, so the pill matches the
@@ -218,12 +226,12 @@
 .status {
   display: inline-flex;
   align-items: center;
-  gap: .45vw;
-  padding: .6vh .85vw;
-  border: 1px solid var(--tone);
+  gap: .56vw;
+  padding: .85vh 1.35vw;
+  border: 2px solid var(--tone);
   border-radius: 10vw;
-  font-size: .78vw;
-  font-weight: 600;
+  font-size: clamp(16px, 1.35vw, 26px);
+  font-weight: 700;
   letter-spacing: .04em;
   text-transform: uppercase;
   white-space: nowrap;
@@ -231,8 +239,8 @@
 }
 
 .status i {
-  width: .45vw;
-  height: .45vw;
+  width: clamp(10px, .72vw, 14px);
+  height: clamp(10px, .72vw, 14px);
   border-radius: 50%;
   background: currentColor;
 }
@@ -250,8 +258,8 @@
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: 1.5fr 1fr;
-  gap: 1.2vw;
+  grid-template-columns: 1.95fr 1fr;
+  gap: 1vw;
   padding: 1.8vh 0;
 }
 
@@ -267,21 +275,25 @@
 .slot__lead {
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: 1vw;
+  gap: .9vw;
   align-items: start;
+}
+
+.room.is-free .slot__lead {
+  align-items: center;
 }
 
 .slot__badge {
   display: grid;
   place-items: center;
-  width: 3.6vw;
-  height: 3.6vw;
+  width: clamp(54px, 4.6vw, 88px);
+  height: clamp(54px, 4.6vw, 88px);
   border-radius: 50%;
 }
 
 .slot__badge svg {
-  width: 1.7vw;
-  height: 1.7vw;
+  width: clamp(26px, 2.22vw, 42px);
+  height: clamp(26px, 2.22vw, 42px);
 }
 
 .room.is-busy .slot__badge {
@@ -301,16 +313,20 @@
 /* Sized to clear the large-text contrast threshold: the status colours pass
    3:1 but not 4.5:1, so this line must never shrink below ~19px bold. */
 .slot__state {
-  font-size: 1vw;
+  font-size: clamp(19px, 1.72vw, 33px);
   font-weight: 700;
-  letter-spacing: .06em;
+  line-height: 1.2;
+  letter-spacing: .025em;
   text-transform: uppercase;
   color: var(--tone);
 }
 
 .slot__state.is-empty {
-  font-size: 1.6vw;
-  margin-top: .6vh;
+  font-size: clamp(27px, 2.42vw, 46px);
+  line-height: 1.15;
+  letter-spacing: .03em;
+  white-space: nowrap;
+  margin-top: 0;
 }
 
 .slot__headline h3 {
@@ -406,7 +422,7 @@
 .slot__foot strong {
   display: block;
   margin-top: .55vh;
-  font-size: 1.35vw;
+  font-size: clamp(20px, 1.62vw, 31px);
   font-weight: 600;
   letter-spacing: -.01em;
 }
@@ -422,7 +438,7 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
   margin-top: .5vh;
-  font-size: .9vw;
+  font-size: clamp(14.5px, 1.08vw, 21px);
   color: var(--text-muted);
 }
 
@@ -445,7 +461,7 @@
   flex-direction: column;
   min-width: 0;
   min-height: 0;
-  padding-left: 1.2vw;
+  padding-left: 1vw;
   border-left: 1px solid var(--line);
 }
 
@@ -469,7 +485,7 @@
 }
 
 .queue__time {
-  font-size: .88vw;
+  font-size: clamp(14.5px, 1.08vw, 21px);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
@@ -483,7 +499,7 @@
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  font-size: .88vw;
+  font-size: clamp(14.5px, 1.08vw, 21px);
   font-weight: 500;
   line-height: 1.3;
 }
@@ -494,14 +510,15 @@
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
-  font-size: .76vw;
+  font-size: clamp(12.5px, .92vw, 17.5px);
   color: var(--text-faint);
 }
 
 .queue__empty {
-  margin-top: 1.4vh;
-  font-size: .88vw;
-  line-height: 1.5;
+  margin-top: 1.1vh;
+  font-size: clamp(15px, 1.15vw, 22px);
+  font-weight: 500;
+  line-height: 1.45;
   color: var(--text-muted);
 }
 
@@ -826,38 +843,39 @@
 
   .topbar { flex-direction: column; align-items: flex-start; gap: 12px; }
   .clock { text-align: left; }
-  .clock__date { justify-content: flex-start; font-size: 13px; }
-  .clock__time { font-size: 34px; }
-  .clock__time small { font-size: 15px; }
-  .brand__mark { width: 40px; height: 40px; }
-  .brand strong { font-size: 18px; }
-  .brand span { font-size: 13px; }
+  .clock__date { justify-content: flex-start; font-size: 16.5px; }
+  .clock__time { font-size: 36px; }
+  .clock__time small { font-size: 16px; }
+  .brand__mark { width: 48px; height: 48px; }
+  .brand strong { font-size: 23px; }
+  .brand span { font-size: 16px; }
   .notice { font-size: 13px; padding: 10px 12px; border-radius: 8px; }
   .sync-note { font-size: 12px; gap: 6px; }
 
   .panels, .footer { grid-template-columns: 1fr; }
   .room { padding: 16px; border-radius: 12px; }
   .room__body { grid-template-columns: 1fr; gap: 18px; padding: 16px 0; }
-  .room__head h2 { font-size: 19px; }
+  .room__head h2 { font-size: 25px; }
   .room__title { gap: 10px; }
   .demo-badge { font-size: 11px; padding: 3px 7px; }
-  .status { font-size: 12px; padding: 5px 10px; }
-  .status i { width: 8px; height: 8px; }
-  .eyebrow { font-size: 11px; gap: 6px; }
+  .status { font-size: 16px; padding: 7px 14px; }
+  .status i { width: 10px; height: 10px; }
+  .eyebrow, .room .eyebrow { font-size: 12.5px; gap: 6px; }
 
-  .slot__badge { width: 52px; height: 52px; }
-  .slot__badge svg { width: 24px; height: 24px; }
-  .slot__state { font-size: 13px; }
-  .slot__state.is-empty { font-size: 22px; margin-top: 8px; }
+  .slot__badge { width: 64px; height: 64px; }
+  .slot__badge svg { width: 30px; height: 30px; }
+  .slot__state { font-size: 22px; }
+  .slot__state.is-empty { font-size: 34px; white-space: normal; margin-top: 0; }
   .slot__headline h3 { font-size: 26px; }
   .slot__time, .slot__pic { font-size: 14px; }
   .slot__foot .countdown { font-size: 34px; }
-  .slot__foot strong { font-size: 20px; }
-  .slot__next { font-size: 14px; }
+  .slot__foot strong { font-size: 21px; }
+  .slot__next { font-size: 15px; }
 
   .queue { padding: 14px 0 0; border-left: 0; border-top: 1px solid var(--line); }
-  .queue__time, .queue__body strong { font-size: 14px; }
-  .queue__body small, .queue__empty { font-size: 13px; }
+  .queue__time, .queue__body strong { font-size: 15px; }
+  .queue__body small { font-size: 13.5px; }
+  .queue__empty { font-size: 15px; }
 
   .timeline__ticks, .timeline__legend { font-size: 13px; }
   .timeline__cell { height: 15px; }

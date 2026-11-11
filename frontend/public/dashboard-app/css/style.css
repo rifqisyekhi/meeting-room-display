@@ -1433,16 +1433,61 @@ button {
 /* ─── TOAST ─────────────────────────────────── */
 .toast {
   position: fixed;
-  right: 22px;
-  bottom: 22px;
-  background: var(--navy);
-  color: #fff;
-  padding: 12px 18px;
-  border-radius: 10px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-  z-index: 50;
+  left: 16px;
+  right: 16px;
+  bottom: max(22px, calc(env(safe-area-inset-bottom, 0px) + 14px));
+  margin-left: auto;
+  margin-right: auto;
+  width: fit-content;
+  max-width: min(440px, calc(100% - 32px));
+  box-sizing: border-box;
+  background: rgba(18, 59, 93, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #ffffff;
+  padding: 11px 18px;
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(9, 25, 48, 0.28), 0 4px 10px rgba(9, 25, 48, 0.14);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 29999;
+  font-family: "Poppins", sans-serif;
   font-size: 13px;
   font-weight: 500;
+  line-height: 1.45;
+  text-align: center;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  pointer-events: none;
+  animation: toastPopIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.toast.toast-hide {
+  opacity: 0;
+  transform: translateY(8px) scale(0.98);
+}
+
+@keyframes toastPopIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (max-width: 640px) {
+  .toast {
+    left: 14px;
+    right: 14px;
+    bottom: max(18px, calc(env(safe-area-inset-bottom, 0px) + 12px));
+    max-width: calc(100% - 28px);
+    padding: 10px 16px;
+    border-radius: 11px;
+    font-size: 12.5px;
+  }
 }
 
 /* ─── EMPTY STATE ───────────────────────────── */
@@ -3236,6 +3281,20 @@ button {
   to {
     opacity: 1;
     transform: translateX(0);
+  }
+}
+
+@media (max-width: 640px) {
+  .notif-toast-container {
+    top: 14px;
+    left: 14px;
+    right: 14px;
+    align-items: center;
+  }
+
+  .notif-toast-banner {
+    width: 100%;
+    max-width: 100%;
   }
 }
 

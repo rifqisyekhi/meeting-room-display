@@ -913,10 +913,176 @@
   display: flex;
 }
 
+@media (min-width: 801px) {
+  .booking-history-hero-copy {
+    padding: 28px 40px 18px;
+  }
+
+  .booking-history-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 14px;
+    padding: 4px 40px 22px;
+  }
+
+  .booking-history-tabs {
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+    gap: 8px;
+    padding-right: 14px;
+    border-right: 1px solid rgba(255, 255, 255, 0.24);
+  }
+
+  .booking-history-tabs > button,
+  .booking-history-dropdown-btn {
+    height: 40px;
+    min-height: 40px;
+    padding: 0 18px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    box-sizing: border-box;
+    box-shadow: 0 2px 8px rgba(8, 30, 62, 0.12);
+  }
+
+  .booking-history-dropdown-btn {
+    min-width: 104px;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .booking-history-tabs > button.active,
+  .booking-history-dropdown-btn.active {
+    border-color: rgba(255, 255, 255, 0.36);
+    box-shadow: 0 3px 10px rgba(5, 22, 48, 0.24);
+  }
+
+  .booking-history-dropdown-menu {
+    min-width: 170px;
+  }
+
+  .booking-history-dropdown-menu .booking-history-dropdown-item {
+    font-size: 12px;
+    padding: 8.5px 12px;
+  }
+
+  .booking-history-controls {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .booking-history-desktop-date {
+    flex: 0 0 auto;
+    height: 40px;
+    min-height: 40px;
+    padding: 0 14px;
+    gap: 10px;
+    border-radius: 10px;
+    background: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.9);
+    box-shadow: 0 2px 8px rgba(8, 30, 62, 0.12);
+    color: #123B5D;
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    color-scheme: light;
+    cursor: pointer;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .booking-history-desktop-date > svg {
+    color: #0751a0;
+    font-size: 13px;
+    flex-shrink: 0;
+  }
+
+  .booking-history-desktop-date > span:first-of-type {
+    font-weight: 600;
+    color: #123B5D;
+    padding-right: 10px;
+    border-right: 1px solid #e2e8f0;
+  }
+
+  .booking-history-desktop-date > span:last-of-type {
+    color: #64748b;
+    font-size: 11.5px;
+    font-weight: 500;
+  }
+
+  .booking-history-desktop-date input {
+    width: 128px;
+    font-size: 12px;
+    font-weight: 500;
+    color: #1e293b;
+    color-scheme: light;
+    outline: none;
+  }
+
+  .booking-history-search {
+    flex: 1 1 220px;
+    width: auto;
+    min-width: 180px;
+    height: 40px;
+    min-height: 40px;
+    padding: 0 14px 0 36px;
+    border-radius: 10px;
+    background-color: #ffffff;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.3-4.3'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: 12px center;
+    border: 1px solid rgba(255, 255, 255, 0.9);
+    box-shadow: 0 2px 8px rgba(8, 30, 62, 0.12);
+    color: #1e293b;
+    font-size: 12px;
+    color-scheme: light;
+    outline: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .booking-history-search::placeholder {
+    color: #64748b;
+  }
+
+  .booking-history-desktop-date:hover,
+  .booking-history-desktop-date:focus-within,
+  .booking-history-search:hover,
+  .booking-history-search:focus {
+    border-color: #93c5fd;
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.2), 0 4px 12px rgba(8, 30, 62, 0.16);
+  }
+}
+
+@media (min-width: 801px) and (max-width: 980px) {
+  .booking-history-hero-copy {
+    padding: 24px 24px 16px;
+  }
+
+  .booking-history-toolbar {
+    flex-wrap: wrap;
+    padding: 4px 24px 20px;
+    gap: 10px 12px;
+  }
+
+  .booking-history-controls {
+    display: contents;
+  }
+
+  .booking-history-desktop-date {
+    flex: 1 1 auto;
+    justify-content: flex-start;
+  }
+
+  .booking-history-search {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+}
+
 @media (max-width: 1250px) {
-  .booking-history-toolbar { align-items: flex-start; flex-direction: column; }
-  .booking-history-controls { width: 100%; }
-  .booking-history-search { flex: 1; width: auto; }
   .booking-history-row {
     grid-template-columns: minmax(0, 1fr) 125px;
     gap: 8px;
