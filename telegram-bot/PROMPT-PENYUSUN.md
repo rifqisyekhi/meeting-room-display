@@ -86,8 +86,8 @@ tidak jelas, catat sebagai gagal dan lanjutkan ke tugas berikutnya.
 - **Jangan kirim isi transkrip atau isi notulen ke Telegram.** Yang boleh
   masuk ke `pesan` hanya judul dan keterangan singkat. Isi rapat tidak boleh
   keluar dari jaringan internal.
-- Jangan menyentuh apa pun di luar folder kerja selain memanggil backend di
-  `192.168.223.207`. Khususnya `C:\SisKA\telegram-bot\` — itu milik bot, dan
+- Jangan menyentuh apa pun di luar folder kerja selain memanggil `BASE` yang
+  diberikan di bawah. Khususnya `C:\SisKA\telegram-bot\` — itu milik bot, dan
   `.env`-nya berisi token Telegram yang tidak ada urusannya dengan tugas ini.
 
 ---
