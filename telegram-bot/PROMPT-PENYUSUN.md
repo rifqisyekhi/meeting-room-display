@@ -21,8 +21,10 @@ tidak jelas, catat sebagai gagal dan lanjutkan ke tugas berikutnya.
    `<meetingId>.json` berisi `meetingId`, `judul`, `dimintaOleh`, `messageId`,
    `dimintaPada`. Kalau antrean kosong, berhenti tanpa laporan apa pun.
 
-2. Untuk setiap tugas, dengan `BASE = http://192.168.223.207` dan header
-   `x-bot-token: <token yang diberikan di bawah>`:
+2. Untuk setiap tugas, dengan `BASE` dan `x-bot-token` yang **diberikan di
+   bagian paling bawah prompt ini**. Jangan memakai alamat dari ingatan atau
+   dari berkas lain — backend bisa berpindah, dan yang di bawah selalu yang
+   sedang dipakai bot.
 
    Backend diakses lewat HTTP biasa di jaringan internal, bukan HTTPS. Di
    Windows, `Invoke-RestMethod` paling mudah dipakai.
