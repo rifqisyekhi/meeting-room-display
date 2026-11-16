@@ -1,42 +1,31 @@
 # Prompt penyusun notulen
 
-Dipakai saat operator memilih "Claude" (balas **1** di WhatsApp, atau tombol
-*Ya* di Telegram). Salin seluruh blok di bawah sebagai prompt.
+Seluruh isi berkas ini dikirim apa adanya sebagai prompt ke `claude -p` oleh
+`C:\SisKA\jalankan-penyusun.ps1` di server 2, tiap 15 menit. Pembungkus itu
+menambahkan folder kerja, lokasi antrean, dan token di bagian paling bawah.
 
-Jalankan manual saat ada tawaran yang dijawab, atau jadikan tugas terjadwal
-10–15 menit sekali.
-
-## Di mana antriannya
-
-Ada dua jalur, tergantung kanal yang dipakai:
-
-| Kanal | Antrian | Cara membaca |
-|---|---|---|
-| **Telegram** | `C:\SisKA\telegram-bot\antrian\` di **Server-GPP** `192.168.63.41` | RDP, atau berbagi folder |
-| WhatsApp | `backend/data/antrian-notulen/` di VPS `192.168.223.207` | SSH ke VPS |
-
-Sejak 3 November 2026 bot Telegram berjalan di Server-GPP, bukan lagi di PC
-operator — segmen `192.168.63.x` meloloskan Telegram, sedangkan kedua VPS di
-segmen `192.168.22x.x` tidak.
-
-Akibatnya antrian Telegram **tidak lagi ada di disk lokal** sesi Claude Code
-ini. Harus diambil lewat RDP atau berbagi folder. Jalur WhatsApp antriannya
-tetap di VPS dan bisa dibaca lewat SSH seperti biasa.
+Jadi tulis berkas ini sebagai perintah untuk dikerjakan, bukan sebagai
+dokumentasi untuk dibaca manusia.
 
 ---
 
 Kerjakan antrian notulen.
 
+Anda berjalan **tanpa pengawasan** di server 2 (`192.168.63.26`, Windows).
+Tidak ada yang bisa menjawab pertanyaan, jadi jangan bertanya — kalau sesuatu
+tidak jelas, catat sebagai gagal dan lanjutkan ke tugas berikutnya.
+
 **Langkah:**
 
-1. Baca berkas tugas di antrian (lihat tabel di atas untuk lokasinya). Tiap
-   berkas `<meetingId>.json` berisi `meetingId`, `judul`, `dimintaOleh`,
-   `dimintaPada`. Kalau antrian kosong, berhenti tanpa laporan apa pun.
+1. Baca berkas tugas di folder antrean (lokasinya ada di bawah). Tiap berkas
+   `<meetingId>.json` berisi `meetingId`, `judul`, `dimintaOleh`, `messageId`,
+   `dimintaPada`. Kalau antrean kosong, berhenti tanpa laporan apa pun.
 
-2. Ambil `BOT_TELEGRAM_API_TOKEN` dari `backend/.env` di VPS.
+2. Untuk setiap tugas, dengan `BASE = http://192.168.223.207` dan header
+   `x-bot-token: <token yang diberikan di bawah>`:
 
-3. Untuk setiap tugas, dengan `BASE = http://192.168.223.207` dan header
-   `x-bot-token: <token>`:
+   Backend diakses lewat HTTP biasa di jaringan internal, bukan HTTPS. Di
+   Windows, `Invoke-RestMethod` paling mudah dipakai.
 
    a. Keterangan rapat: `GET {BASE}/api/bot-telegram/meetings/{meetingId}`
 
@@ -76,24 +65,35 @@ Kerjakan antrian notulen.
    d. Simpan: `POST {BASE}/api/bot-telegram/meetings/{meetingId}/minutes`
       body `{ "markdown": "<hasil>", "model": "claude-opus-5" }`
 
-   e. Kabari operator. Jalur WhatsApp, dari dalam VPS:
-      `node -e 'require("./src/services/notulen-wa.service").kabariSelesai("<meetingId>", {ok:true, judul:"<judul>"})'`
-      dijalankan dari `~/apps/meeting-room-display/backend`.
-      Jalur Telegram: tulis `telegram-bot/antrian/selesai/<meetingId>.json`
-      berisi `{ meetingId, judul, chatId, ok, pesan }` — botnya yang mengirim.
+   e. Kabari operator: tulis berkas `selesai\<meetingId>.json` **di dalam
+      folder antrean**, berisi `{ meetingId, judul, chatId, ok, pesan }`.
+      `chatId` diambil dari `dimintaOleh` pada berkas tugas. Botnya yang
+      mengirim ke Telegram — Anda cukup menulis berkasnya.
 
    f. Hapus berkas tugasnya.
 
-4. Kalau satu tugas gagal, jangan batalkan yang lain. Kabari operator dengan
-   `ok:false` dan sebabnya singkat, lalu hapus berkas tugasnya supaya tidak
-   dicoba terus-menerus.
+3. Kalau satu tugas gagal, jangan batalkan yang lain. Tulis berkas selesai
+   dengan `ok: false` dan sebabnya singkat, lalu hapus berkas tugasnya supaya
+   tidak dicoba terus-menerus tiap 15 menit.
 
 **Batas yang tidak boleh dilanggar:**
 
 - Hanya rapat yang ada berkas tugasnya. Rute transkrip menolak rapat
   non-`BIASA` dengan 403 — kalau itu terjadi, catat sebagai gagal, jangan
   diakali.
-- Jangan kirim isi transkrip atau isi notulen ke WhatsApp/Telegram. Yang boleh
-  keluar hanya judul dan pesan singkat.
-- Jangan `git pull`, `fetch`, atau `checkout` apa pun di `192.168.221.44`.
-  Itu mesin produksi yang dipakai sehari-hari.
+- **Jangan kirim isi transkrip atau isi notulen ke Telegram.** Yang boleh
+  masuk ke `pesan` hanya judul dan keterangan singkat. Isi rapat tidak boleh
+  keluar dari jaringan internal.
+- Jangan menyentuh apa pun di luar folder kerja selain memanggil backend di
+  `192.168.223.207`. Khususnya `C:\SisKA\telegram-bot\` — itu milik bot, dan
+  `.env`-nya berisi token Telegram yang tidak ada urusannya dengan tugas ini.
+
+---
+
+## Catatan untuk manusia, bukan bagian perintah
+
+Jalur WhatsApp (`notulen-wa.service`) punya antreannya sendiri di
+`backend/data/antrian-notulen/` pada VPS `192.168.223.207`, dan **tidak**
+dikerjakan tugas terjadwal ini. Jalur itu dijalankan manual dari sesi Claude
+Code yang punya akses SSH ke VPS, dengan memanggil
+`kabariSelesai()` untuk memberi kabar balik.
