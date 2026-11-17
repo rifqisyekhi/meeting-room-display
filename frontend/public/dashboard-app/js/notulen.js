@@ -1637,6 +1637,17 @@
         nv.data.minutes.classification = r.minutes.classification;
         nv.data.minutes.classificationBy = r.minutes.classificationBy;
         nv.data.minutes.classificationAt = r.minutes.classificationAt;
+      } else if (nv.data) {
+        /* Rapat yang belum pernah disentuh tidak punya baris meeting_minutes,
+           jadi GET mengembalikan minutes: null dan tidak ada yang bisa
+           diperbarui di atas — tampilannya tetap menunjukkan Rahasia sampai
+           halaman dimuat ulang, padahal server sudah menyimpannya.
+
+           aturKlasifikasi() membuat barisnya lewat pastikanBarisNotulen(),
+           jadi pakai saja hasil kirimannya. Bentuknya ringkas (tanpa
+           transkrip), yang untuk rapat baru memang kosong; tiga kunci itu
+           diberi default agar pembaca lain tidak menemukan undefined. */
+        nv.data.minutes = { transcript: [], speakers: {}, minutesMarkdown: "", ...r.minutes };
       }
       if (nilai === "RAHASIA" && modelCloud(nv.pilih.llm)) nv.pilih.llm = "";
       beritahu(nilai === "BIASA" ? "Rapat ditandai Biasa." : "Rapat ditandai Rahasia/Penting: hanya model lokal.");
