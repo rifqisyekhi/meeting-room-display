@@ -1,8 +1,12 @@
 # Prompt penyusun notulen
 
-Seluruh isi berkas ini dikirim apa adanya sebagai prompt ke `claude -p` oleh
-`C:\SisKA\jalankan-penyusun.ps1` di server 2, tiap 15 menit. Pembungkus itu
-menambahkan folder kerja, lokasi antrean, dan token di bagian paling bawah.
+Berkas ini **dibaca sendiri oleh Claude Code** dari folder kerjanya, tiap 15
+menit, dipicu `C:\SisKA\jalankan-penyusun.ps1` di server 2. Pembungkus itu
+hanya memberi satu kalimat pendek: "baca berkas ini lalu kerjakan isinya".
+
+Isinya sengaja tidak lagi dikirim lewat argumen baris perintah. Dulu begitu,
+dan rusak dua kali: backtick di sini dimakan escaping PowerShell, dan prompt
+5 KB terpotong di ujungnya — justru bagian yang memuat token.
 
 Jadi tulis berkas ini sebagai perintah untuk dikerjakan, bukan sebagai
 dokumentasi untuk dibaca manusia.
@@ -17,14 +21,22 @@ tidak jelas, catat sebagai gagal dan lanjutkan ke tugas berikutnya.
 
 **Langkah:**
 
-1. Baca berkas tugas di folder antrean (lokasinya ada di bawah). Tiap berkas
-   `<meetingId>.json` berisi `meetingId`, `judul`, `dimintaOleh`, `messageId`,
-   `dimintaPada`. Kalau antrean kosong, berhenti tanpa laporan apa pun.
+0. Ambil tiga nilai dari **environment variable**, bukan dari berkas mana pun:
 
-2. Untuk setiap tugas, dengan `BASE` dan `x-bot-token` yang **diberikan di
-   bagian paling bawah prompt ini**. Jangan memakai alamat dari ingatan atau
-   dari berkas lain — backend bisa berpindah, dan yang di bawah selalu yang
-   sedang dipakai bot.
+   - `SISKA_ANTRIAN` — folder antrean tugas
+   - `SISKA_BASE` — alamat backend, dipakai sebagai `BASE` di bawah
+   - `SISKA_TOKEN` — isi header `x-bot-token`
+
+   Jangan memakai alamat atau token dari ingatan, dari berkas lain, atau dari
+   contoh di dokumen ini. Backend bisa berpindah, dan environment selalu berisi
+   yang sedang dipakai bot. Kalau salah satunya kosong, hentikan seluruh tugas
+   dan laporkan gagal — jangan menebak.
+
+1. Baca berkas tugas di `SISKA_ANTRIAN`. Tiap berkas `<meetingId>.json` berisi
+   `meetingId`, `judul`, `dimintaOleh`, `messageId`, `dimintaPada`. Kalau
+   antrean kosong, berhenti tanpa laporan apa pun.
+
+2. Untuk setiap tugas, dengan `BASE` dan `x-bot-token` dari langkah 0:
 
    Backend diakses lewat HTTP biasa di jaringan internal, bukan HTTPS. Di
    Windows, `Invoke-RestMethod` paling mudah dipakai.
@@ -67,8 +79,8 @@ tidak jelas, catat sebagai gagal dan lanjutkan ke tugas berikutnya.
    d. Simpan: `POST {BASE}/api/bot-telegram/meetings/{meetingId}/minutes`
       body `{ "markdown": "<hasil>", "model": "claude-opus-5" }`
 
-   e. Kabari operator: tulis berkas `selesai\<meetingId>.json` **di dalam
-      folder antrean**, berisi `{ meetingId, judul, chatId, ok, pesan }`.
+   e. Kabari operator: tulis berkas `<SISKA_ANTRIAN>\selesai\<meetingId>.json`,
+      berisi `{ meetingId, judul, chatId, ok, pesan }`.
       `chatId` diambil dari `dimintaOleh` pada berkas tugas. Botnya yang
       mengirim ke Telegram — Anda cukup menulis berkasnya.
 
@@ -86,9 +98,10 @@ tidak jelas, catat sebagai gagal dan lanjutkan ke tugas berikutnya.
 - **Jangan kirim isi transkrip atau isi notulen ke Telegram.** Yang boleh
   masuk ke `pesan` hanya judul dan keterangan singkat. Isi rapat tidak boleh
   keluar dari jaringan internal.
-- Jangan menyentuh apa pun di luar folder kerja selain memanggil `BASE` yang
-  diberikan di bawah. Khususnya `C:\SisKA\telegram-bot\` — itu milik bot, dan
-  `.env`-nya berisi token Telegram yang tidak ada urusannya dengan tugas ini.
+- Jangan menyentuh apa pun di luar folder kerja dan `SISKA_ANTRIAN`, selain
+  memanggil `SISKA_BASE`. Khususnya `C:\SisKA\telegram-bot\` — itu milik bot,
+  dan `.env`-nya berisi token Telegram yang tidak ada urusannya dengan tugas
+  ini.
 
 ---
 
