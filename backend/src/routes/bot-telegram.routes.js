@@ -13,6 +13,7 @@ const router = express.Router();
 const dashboardService = require("../services/dashboard.service");
 const notulen = require("../services/notulen.service");
 const bot = require("../services/bot-telegram.service");
+const notulenPdf = require("../services/notulen-pdf.service");
 
 function rute(fn) {
   return async (req, res) => {
@@ -92,6 +93,49 @@ router.get("/antrian", rute(async (req, res) => {
     });
   }
   res.json({ success: true, antrian: hasil });
+}));
+
+/* Notulen yang sudah jadi, untuk bot WhatsApp. Judul rapat tidak ada di
+   meeting_minutes — hanya di kalender — jadi disusulkan di sini, sekalian
+   dipakai menyaring pencarian. */
+router.get("/notulen", rute(async (req, res) => {
+  const { rows } = await bot.daftarNotulenSiap(req.query.limit);
+  const cari = String(req.query.q || "").trim().toLowerCase();
+  const hasil = [];
+  for (const b of rows) {
+    const meeting = await dashboardService.getMeetingById(b.meeting_id).catch(() => null);
+    if (!meeting) continue; // rapat sudah dihapus dari kalender
+    const judul = meeting.title || "Rapat";
+    if (cari && !judul.toLowerCase().includes(cari)) continue;
+    hasil.push({
+      meetingId: b.meeting_id,
+      title: judul,
+      date: meeting.date || null,
+      start: meeting.start || null,
+      end: meeting.end || null,
+      room: meeting.room || meeting.roomName || null,
+      llmModel: b.llm_model,
+      durationSeconds: b.duration_seconds,
+      updatedAt: b.updated_at,
+    });
+  }
+  res.json({ success: true, notulen: hasil });
+}));
+
+/* PDF notulen. Dibuat di sini, bukan di bot: datanya ada di sini, dan bot
+   cukup menerima berkas jadi lalu mengirimkannya sebagai dokumen. */
+router.get("/meetings/:id/minutes.pdf", muatRapat, rute(async (req, res) => {
+  const baris = await bot.ambilNotulen(req.rapat.id);
+  const pdf = await notulenPdf.buatPdfNotulen(
+    { ...req.rapat, location: req.ruangan?.location || "" },
+    baris,
+  );
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader(
+    "Content-Disposition",
+    `attachment; filename="${notulenPdf.namaBerkasPdf(req.rapat).replace(/"/g, "")}"`,
+  );
+  res.send(pdf);
 }));
 
 /* Transkrip untuk penyusun notulen di PC operator. Tetap di dalam jaringan:

@@ -58,6 +58,53 @@ async function daftarCalon(batas = 20) {
   }));
 }
 
+/* Notulen yang SUDAH jadi, untuk diminta pegawai lewat bot WhatsApp.
+
+   Kebalikan daftarCalon(): yang itu mencari rapat yang notulennya belum ada,
+   ini mencari yang sudah ada. Tetap dibatasi BIASA — rapat Rahasia tidak
+   pernah boleh keluar lewat jalur bot, sama seperti rute transkrip. */
+async function daftarNotulenSiap(batas = 10, cari = "") {
+  wajibDatabase();
+  const kata = String(cari || "").trim();
+  const r = await query(
+    `SELECT meeting_id, llm_model, duration_seconds,
+            to_char(updated_at, 'YYYY-MM-DD"T"HH24:MI:SSOF') AS updated_at
+       FROM meeting_minutes
+      WHERE classification = 'BIASA'
+        AND minutes_md IS NOT NULL
+        AND minutes_md <> ''
+      ORDER BY updated_at DESC
+      LIMIT $1`,
+    [Math.min(Math.max(Number(batas) || 10, 1), 50)],
+  );
+  return { rows: r.rows, cari: kata };
+}
+
+/* Satu notulen lengkap untuk dijadikan PDF. Penjaganya sama dengan
+   ambilTranskrip: non-BIASA ditolak 403, bukan dikosongkan diam-diam. */
+async function ambilNotulen(meetingId) {
+  wajibDatabase();
+  const r = await query(
+    `SELECT classification, minutes_md, llm_model, minutes_reviewed, updated_at
+       FROM meeting_minutes WHERE meeting_id = $1`,
+    [String(meetingId)],
+  );
+  const baris = r.rows[0];
+  if (!baris) throw galat("Rapat tidak ditemukan.", 404);
+  if (baris.classification !== "BIASA") {
+    throw galat("Rapat ini bukan klasifikasi Biasa.", 403);
+  }
+  if (!baris.minutes_md || !baris.minutes_md.trim()) {
+    throw galat("Notulen rapat ini belum ada.", 404);
+  }
+  return {
+    classification: baris.classification,
+    minutesMarkdown: baris.minutes_md,
+    llmModel: baris.llm_model,
+    reviewed: baris.minutes_reviewed,
+  };
+}
+
 /* Transkrip untuk penyusun notulen. Hanya dipanggil dari dalam jaringan
    (lewat token bot), BUKAN dikirim ke Telegram. */
 async function ambilTranskrip(meetingId) {
@@ -115,4 +162,11 @@ async function simpanDariLuar(meetingId, markdown, model) {
   return hasil;
 }
 
-module.exports = { galat, daftarCalon, ambilTranskrip, simpanDariLuar };
+module.exports = {
+  galat,
+  daftarCalon,
+  ambilTranskrip,
+  simpanDariLuar,
+  daftarNotulenSiap,
+  ambilNotulen,
+};
