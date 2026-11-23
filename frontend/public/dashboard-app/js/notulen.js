@@ -75,6 +75,19 @@
 
   function modelCloud(nama) { return /^claude-/i.test(String(nama || "")); }
 
+  /* Dari mana notulen ini berasal. Bukan sekadar keterangan teknis: Claude
+     memproses teks rapat di luar server instansi sedangkan model lokal tidak,
+     dan mutunya pun berbeda. Notulis perlu tahu itu saat meninjau, tanpa harus
+     membuka riwayat proses. */
+  function htmlLabelModel(mn) {
+    const model = mn && mn.llmModel;
+    if (!model) return "";
+    const cloud = modelCloud(model);
+    return ` &bull; <span class="nv-model-tag ${cloud ? "cloud" : "lokal"}"`
+      + ` title="Model penyusun notulen: ${e(model)}">`
+      + `${cloud ? SVGS.cloud : SVGS.shield} ${cloud ? "Claude" : "Model lokal"}</span>`;
+  }
+
   function rapatBiasa() { return nv.data?.minutes?.classification === "BIASA"; }
 
   const KETERANGAN_WHISPER = {
@@ -818,7 +831,7 @@
               </button>
             </div>
             <div class="nv-tabs-meta">
-              ${SVGS.clock} Durasi ${durasiStr}${diprosesStr ? ` &bull; Diproses ${diprosesStr}` : ""}
+              ${SVGS.clock} Durasi ${durasiStr}${diprosesStr ? ` &bull; Diproses ${diprosesStr}` : ""}${htmlLabelModel(mn)}
             </div>
           </div>
 

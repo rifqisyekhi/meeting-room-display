@@ -1092,6 +1092,30 @@ select.nv-select-field {
   color: #64748b;
 }
 
+/* Penanda model penyusun notulen. Dibedakan warnanya, bukan hanya teksnya:
+   Claude memproses teks rapat di luar server instansi, dan perbedaan itu
+   harus terbaca sekilas tanpa membaca tulisannya. */
+.nv-model-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.nv-model-tag.cloud {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.nv-model-tag.lokal {
+  background: #f0fdf4;
+  color: #15803d;
+}
+
 .nv-toolbar-row {
   display: flex;
   align-items: center;
